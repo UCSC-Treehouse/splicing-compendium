@@ -1,0 +1,32 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+data/*
+!data/readme
+!data/*.sh
+!data/metadata
+logs/
+reports/
+.snakemake/
+.rds
+
+# test shiba run files
+results/noref-shiba-output
+results/noref-shiba-output_5subset
+results/noref-shiba-output-p15
+results/shiba-output6
+results/15sample-all-shiba-target-test
+results/target-subset-shiba-output-tests
+scripts/target_subset2_pilot_shiba_experiment.tsv
+scripts/target_subset2_shiba_config.yaml
+
+# target subset shiba output
+results/target-subset-shiba-output/annotation
+results/target-subset-shiba-output/events
+results/target-subset-shiba-output/junctions
+results/target-subset-shiba-output/results/expression
+
+# TARGET ngc key
+*.ngc

@@ -1,2 +1,2 @@
-# ped-splicing-workflow
-Workflow for running splicing tool on RNA-seq datasets 
+# splicing-compendium
+Workflow for running alternative splicing quantification tools on pediatric RNA-seq datasets 

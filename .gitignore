@@ -1,0 +1,19 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+data/*
+!data/readme
+!data/*.sh
+!data/metadata
+logs/
+reports/
+.snakemake/
+.rds
+
+results/*
+!results/.gitkeep
+
+# TARGET ngc key
+*.ngc

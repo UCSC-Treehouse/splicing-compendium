@@ -10,11 +10,12 @@ SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"
 GENOME_DIR = "/mnt/splicing-project/data/references/gencode.v47.primary_assembly-STAR-database"
 SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
+RESULTS_DIR = "../results/gtex-subset-shiba-output/"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
-        expand("shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai", sample_group = SAMPLE_GROUP, sample = SAMPLE)
+        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLE)
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -86,4 +87,75 @@ rule index_bams:
     shell:
         """
         samtools index {input}
+        """
+
+# Fourth rule: run shiba on samples
+rule run_shiba:
+    input:
+        sample_list = "shiba-run-data/{sample_group}/fastq/{sample_group}_md5sum.txt" # will need to generate this file when I transfer gtex fastqs to new openstack
+    output:
+        experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
+        config_file = "{sample_group}_{sample}_shiba_config.yaml", # I think i will need a separate script to make a new config for each sample
+        shiba_output = directory("results/{sample_group}_{sample}_shiba/")
+    log:
+        "logs/{sample_group}/shiba-run-{sample}.log"
+    threads: 1
+    shell:
+        """
+        # Create experiment.tsv for Shiba run
+        # this script might need to be changed so I can pull one sample at a time based on accession / sample wildcard
+        Rscript generate_experiment_file.R --input={input.sample_list} --output={output.experiment_file} --group={wildcards.sample_group}
+
+        # create config file for each experiment.tsv generated
+        cat << 'EOF' > {output.config_file}
+        workdir:
+        {output.shiba_output}
+        container:
+        docker://naotokubota/shiba:v0.8.1
+        gtf:
+        ../../data/references/gencode.v47.primary_assembly.annotation.gtf
+        experiment_table:
+        {output.experiment_file}
+        unannotated:
+        True
+
+        # Junction read filtering
+        minimum_anchor_length:
+        6
+        minimum_intron_length:
+        70
+        maximum_intron_length:
+        500000
+        strand:
+        XS
+
+        # PSI calculation
+        only_psi:
+        True
+        only_psi_group:
+        False
+        fdr:
+        0.05
+        delta_psi:
+        0.1
+        reference_group:
+        Ref
+        alternative_group:
+        Alt
+        minimum_reads:
+        10
+        individual_psi:
+        True
+        # ttest set to false to just obtain PSI values
+        ttest:
+        False
+        excel:
+        False
+        EOF
+
+        # Run Shiba
+        time shiba.py -p {threads} {output.config_file}
+
+        # zip splicing results to save space
+        pigz {output.shiba_output}/*.txt
         """

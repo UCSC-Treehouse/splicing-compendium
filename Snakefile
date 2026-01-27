@@ -154,7 +154,7 @@ rule run_shiba:
         EOF
 
         # Run Shiba
-        time shiba.py -p {threads} {output.config_file}
+        shiba.py -p {threads} {output.config_file}
 
         # zip splicing results to save space
         pigz {output.shiba_output}/*.txt

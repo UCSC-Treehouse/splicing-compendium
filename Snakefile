@@ -96,7 +96,7 @@ rule run_shiba:
         config_template = "scripts/shiba_config_template.yaml"
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
-        config_file = "{sample_group}_{sample}_shiba_config.yaml", # I think i will need a separate script to make a new config for each sample
+        config_file = "{sample_group}_{sample}_shiba_config.yaml",
         shiba_output = directory("results/{sample_group}_{sample}_shiba/")
     log:
         "logs/{sample_group}/shiba-run-{sample}.log"
@@ -104,8 +104,7 @@ rule run_shiba:
     shell:
         """
         # Create experiment.tsv for Shiba run
-        # this script might need to be changed so I can pull one sample at a time based on accession / sample wildcard
-        Rscript generate_experiment_file.R --input={input.sample_list} --output={output.experiment_file} --group={wildcards.sample_group}
+        Rscript generate_experiment_file.R --input={input.bam} --output={output.experiment_file} --group={wildcards.sample_group}
 
         # create config file for each experiment.tsv generated
         cp {input.config_template} {output.config_file}

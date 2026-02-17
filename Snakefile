@@ -2,15 +2,15 @@
 import os
 
 # define sample paths
-# a symbolic link is used to refer to the data directory /mnt/bulk as "shiba-run-data"
-# symlink is created with ln -s /mnt/bulk shiba-run-data
+# a symbolic link is used to refer to the data directory /private/groups/treehouse/working-projects/celiang/bulk as "shiba-run-data"
+# symlink is created with ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data
 
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"
-GENOME_DIR = "/mnt/splicing-project/data/references/gencode.v47.primary_assembly-STAR-database"
+GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
 SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
-RESULTS_DIR = "../results/gtex-subset-shiba-output/"
+RESULTS_DIR = "results/gtex-subset-shiba-output/"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:

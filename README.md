@@ -13,6 +13,13 @@ The repository key file (`.ngc`) must be downloaded from dbGaP and the path to t
 Since the dataset consists of large files, the location of the user's cache may need to be changed to a directory with more storage.
 This can be done by following the instructions outlined [here](https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration).
 
+## Download referencew files and generate STAR index for file processing
+Download reference annotation GTF and genome FASTA:
+`bash scripts/00-reference_download.sh`
+
+Make STAR index for alignment:
+`bash scripts/01-generate_star_genome_index.sh`
+
 ## Filtering metadata for accession numbers to download and downloading files :
 
 `pixi run scripts/01-target-subset-download.sh [sample group]`

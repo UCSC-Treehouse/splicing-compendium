@@ -11,10 +11,9 @@ logs/
 reports/
 .snakemake/
 .rds
-
 references/
 metadata/
-
+shiba-run-data
 results/*
 !results/.gitkeep
 

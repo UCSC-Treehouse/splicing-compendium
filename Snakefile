@@ -5,7 +5,7 @@ import os
 # a symbolic link is used to refer to the data directory /private/groups/treehouse/working-projects/celiang/bulk as "shiba-run-data"
 # symlink is created with ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data
 
-# Usage example for testing one job at a time: snakemake --until all -j 1
+# Usage example for testing one job at a time: snakemake -p -j 1 results/gtex_SRR601500_shiba/
 
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 SAMPLE_GROUP = "gtex"
@@ -17,7 +17,7 @@ RESULTS_DIR = "results/gtex-subset-shiba-output/"
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
-        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLE)
+        expand("results/{sample_group}_{sample}_shiba/", sample_group = [SAMPLE_GROUP], sample = SAMPLE)
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -95,6 +95,7 @@ rule index_bams:
 rule run_shiba:
     input:
         bam = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        bai = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
         config_template = "scripts/shiba_config_template.yaml"
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",

@@ -109,13 +109,13 @@ rule run_shiba:
         Rscript generate_experiment_file.R --sample={wildcards.sample} --bam={input.bam} --output={output.experiment_file} --group={wildcards.sample_group}
 
         # create config file for each experiment.tsv generated
-        cp {input.config_template} {output.config_file}
-        echo "workdir: {output.shiba_output}" >> {output.config_file}
-        echo "experiment_table: {output.experiment_file}" >> {output.config_file}
+        cp "{input.config_template}" "{output.config_file}"
+        echo 'workdir: {output.shiba_output}' >> "{output.config_file}"
+        echo 'experiment_table: {output.experiment_file}' >> "{output.config_file}"
 
         # Run Shiba
-        shiba.py -p {threads} {output.config_file}
+        shiba.py -p "{threads}" "{output.config_file}" &> "{log}"
 
         # zip splicing results to save space
-        pigz {output.shiba_output}/*.txt
+        pigz "{output.shiba_output}"/*.txt
         """

@@ -5,6 +5,8 @@ import os
 # a symbolic link is used to refer to the data directory /private/groups/treehouse/working-projects/celiang/bulk as "shiba-run-data"
 # symlink is created with ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data
 
+# Usage example for testing one job at a time: snakemake --until all -j 1
+
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"

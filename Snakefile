@@ -96,7 +96,7 @@ rule run_shiba:
     input:
         bam = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         bai = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
-        config_template = "scripts/shiba_config_template.yaml"
+        config_template = "shiba_config_template.yaml"
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
         config_file = "{sample_group}_{sample}_shiba_config.yaml",
@@ -107,16 +107,16 @@ rule run_shiba:
     shell:
         """
         # Create experiment.tsv for Shiba run
-        Rscript scripts/generate_experiment_file.R --sample={wildcards.sample} --bam={input.bam} --output={output.experiment_file} --group={wildcards.sample_group}
+        Rscript generate_experiment_file.R --sample={wildcards.sample} --bam={input.bam} --output={output.experiment_file} --group={wildcards.sample_group}
 
         # create config file for each experiment.tsv generated
-        cp "{input.config_template}" "{output.config_file}"
-        echo 'workdir: {output.shiba_output}' >> "{output.config_file}"
-        echo 'experiment_table: {output.experiment_file}' >> "{output.config_file}"
+        cp {input.config_template} {output.config_file}
+        echo 'workdir: {output.shiba_output}' >> {output.config_file}
+        echo 'experiment_table: {output.experiment_file}' >> {output.config_file}
 
         # Run Shiba
-        shiba.py -p "{threads}" "{output.config_file}" &> "{log}"
+        shiba.py -p {threads} {output.config_file} &> {log}
 
         # zip splicing results to save space
-        pigz "{output.shiba_output}"/*.txt
+        pigz {output.shiba_output}/*.txt
         """

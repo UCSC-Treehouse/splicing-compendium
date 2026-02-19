@@ -63,4 +63,4 @@ experiment_df <- data.frame(
   )
 
 # Write output files
-readr::write_tsv(target_experiment, file = opt$output)
+readr::write_tsv(experiment_df, file = opt$output)

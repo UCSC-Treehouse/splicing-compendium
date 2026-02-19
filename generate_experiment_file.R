@@ -18,7 +18,7 @@ option_list <-list(
     opt_str = "--bam",
     type = "character",
     help = "Specify input path for sample .bam file to obtain accession IDs from"),
-make_option(
+  make_option(
     opt_str = "--sample",
     type = "character",
     help = "Specify accession ID of bam"),
@@ -38,13 +38,10 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 base_dir <- here::here()
 
 # define paths to files
-input_file <- file.path(opt$input)
+input_file <- file.path(opt$bam)
 
-# check that input file exists
+# check that input bam exists
 if(!file.exists(input_file)) {stop("Please enter valid input file for --input")}
-
-# read in files
-accessions <- readr::read_table(input_file, col_names = c("md5", "fastq_file"))
 
 # create output directory if it does not exist
 out_dir <- dirname(opt$output)

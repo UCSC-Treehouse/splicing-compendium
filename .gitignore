@@ -19,3 +19,4 @@ results/*
 
 # TARGET ngc key
 *.ngc
+._.DS_Store

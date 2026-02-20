@@ -7,26 +7,50 @@ import os
 
 # Usage example for testing one job at a time: snakemake -p -j 1
 
+pathvars:
+    data_dir = "shiba-run-data",
+    reports_dir = "reports",
+    results_dir = "results",
+    references_dir = "references",
+    logs = "logs"
+
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 SAMPLE_GROUP = "gtex"
-REPORTS_DIR = "reports"
 GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
 # SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
-SAMPLE = "SRR601500"
-RESULTS_DIR = "results/gtex-subset-shiba-output/"
+SAMPLES = ["SRR601500"]
 
-pathvars:
- data_dir = "shiba-run-data"
- reports_dir = "reports"
- results_dir = "results"
- references_dir = "references"
- logs: "logs"
 
-# create All rule with expanded wildcards because cannot run target rules wih wildcards
+# create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLE)
+        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
 
+# rule to temporarily unzip a file (which will be deleted when done with it)
+rule unzip_file:
+    input: "{file}.gz"
+    output: temp("{file}")
+    localrule: True
+    shell: "gunzip -c {input} > {output}"
+
+rule star_index:
+    input:
+        genome_fasta = "<references_dir>/GRCh38.primary_assembly.genome.fa",
+        genome_gtf = "<references_dir>/gencode.v47.primary_assembly.annotation.gtf"
+    output:
+        index_dir = "<references_dir>/gencode.v47.primary_assembly-STAR-database"
+    log:
+        "<logs>/star_index.log"
+    threads: 16
+    shell:
+        """
+        STAR \
+            --genomeDir {output.index_dir} \
+            --genomeFastaFiles {input.genome_fasta} \
+            --sjdbGTFfile {input.genome_gtf} \
+            --runMode genomeGenerate \
+            --runThreadN {threads}
+        """
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -91,16 +115,11 @@ rule align_reads:
 
 # Third rule: index alignments
 rule index_bams:
-    input:
-        "{file}.bam"
-    output:
-        "{file}.bam.bai"
-    shell:
-        """
-        samtools index {input}
-        """
+    input: "{file}.bam"
+    output: "{file}.bam.bai"
+    shell: "samtools index {input}"
 
-# Fourth rule: run shiba on samples
+# Fourth rule: run shiba on a single sample
 rule run_shiba:
     input:
         bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",

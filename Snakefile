@@ -111,6 +111,7 @@ rule run_shiba:
 
         # create config file for each experiment.tsv generated
         cp {input.config_template} {output.config_file}
+        echo "\n" >> {output.config_file}
         echo 'workdir: {output.shiba_output}' >> {output.config_file}
         echo 'experiment_table: {output.experiment_file}' >> {output.config_file}
 

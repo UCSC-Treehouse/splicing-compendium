@@ -1,7 +1,7 @@
 container:
   docker://naotokubota/shiba:v0.8.1
 gtf:
-  ../../data/references/gencode.v47.primary_assembly.annotation.gtf
+  references/gencode.v47.primary_assembly.annotation.gtf
 unannotated:
   True
 

@@ -15,23 +15,31 @@ GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
 SAMPLE = "SRR601500"
 RESULTS_DIR = "results/gtex-subset-shiba-output/"
 
+pathvars:
+ data_dir = "shiba-run-data"
+ reports_dir = "reports"
+ results_dir = "results"
+ references_dir = "references"
+ logs: "logs"
+
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
         expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLE)
 
+
 # first rule: trim reads with fastp
 rule trim_reads:
     input:
-        fastq1 = "shiba-run-data/{sample_group}/fastq/{sample}_1.fastq.gz",
-        fastq2 = "shiba-run-data/{sample_group}/fastq/{sample}_2.fastq.gz"
+        fastq1 = "<data_dir>/{sample_group}/fastq/{sample}_1.fastq.gz",
+        fastq2 = "<data_dir>/{sample_group}/fastq/{sample}_2.fastq.gz"
     output:
-        fastq1 = temp("shiba-run-data/{sample_group}/trimmed/{sample}_1.fastq.gz"),
-        fastq2 = temp("shiba-run-data/{sample_group}/trimmed/{sample}_2.fastq.gz"),
-        fastp_html = "reports/{sample_group}/{sample}_fastp.html",
-        fastp_json = "reports/{sample_group}/{sample}_fastp.json"
+        fastq1 = temp("<data_dir>/{sample_group}/trimmed/{sample}_1.fastq.gz"),
+        fastq2 = temp("<data_dir>/{sample_group}/trimmed/{sample}_2.fastq.gz"),
+        fastp_html = "<reports_dir>/{sample_group}/{sample}_fastp.html",
+        fastp_json = "<reports_dir>/{sample_group}/{sample}_fastp.json"
     log:
-        "logs/{sample_group}/trimming-{sample}.log"
+        "<logs>/{sample_group}/trimming-{sample}.log"
     threads: 8
     shell:
         """
@@ -50,14 +58,14 @@ rule trim_reads:
 # Second rule: Align reads
 rule align_reads:
     input:
-        fastq1 = "shiba-run-data/{sample_group}/trimmed/{sample}_1.fastq.gz",
-        fastq2 = "shiba-run-data/{sample_group}/trimmed/{sample}_2.fastq.gz",
-        index = GENOME_DIR
+        fastq1 = "<data_dir>/{sample_group}/trimmed/{sample}_1.fastq.gz",
+        fastq2 = "<data_dir>/{sample_group}/trimmed/{sample}_2.fastq.gz",
+        index = "<references_dir>/gencode.v47.primary_assembly-STAR-database"
     output:
-        bam = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-        sj = "shiba-run-data/{sample_group}/star-output/{sample}/SJ.out.tab"
+        bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        sj = "<data_dir>/{sample_group}/star-output/{sample}/SJ.out.tab"
     log:
-        "logs/{sample_group}/star-alignment-{sample}.log"
+        "<logs>/{sample_group}/star-alignment-{sample}.log"
     threads: 16
     resources:
       mem_mb=48000
@@ -66,7 +74,7 @@ rule align_reads:
         STAR \
             --readFilesCommand zcat \
             --readFilesIn {input.fastq1} {input.fastq2} \
-            --outFileNamePrefix "shiba-run-data/{wildcards.sample_group}/star-output/{wildcards.sample}/" \
+            --outFileNamePrefix "<data_dir>/{wildcards.sample_group}/star-output/{wildcards.sample}/" \
             --genomeDir {input.index} \
             --runThreadN {threads} \
             --outSAMtype BAM SortedByCoordinate \
@@ -77,8 +85,8 @@ rule align_reads:
             --outBAMsortingBinsN 200 \
             >> {log} 2>&1
 
-        rm -rf "shiba-run-data/{wildcards.sample_group}/star-output/{wildcards.sample}/_STARpass1"
-        rm -rf "shiba-run-data/{wildcards.sample_group}/star-output/{wildcards.sample}/_STARgenome"
+        rm -rf "<data_dir>/{wildcards.sample_group}/star-output/{wildcards.sample}/_STARpass1"
+        rm -rf "<data_dir>/{wildcards.sample_group}/star-output/{wildcards.sample}/_STARgenome"
       """
 
 # Third rule: index alignments
@@ -95,15 +103,15 @@ rule index_bams:
 # Fourth rule: run shiba on samples
 rule run_shiba:
     input:
-        bam = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-        bai = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
+        bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        bai = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
         config_template = "shiba_config_template.yaml"
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
         config_file = "{sample_group}_{sample}_shiba_config.yaml",
         shiba_output = directory("results/{sample_group}_{sample}_shiba/")
     log:
-        "logs/{sample_group}/shiba-run-{sample}.log"
+        "<logs>/{sample_group}/shiba-run-{sample}.log"
     threads: 1
     shell:
         """

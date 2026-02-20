@@ -55,10 +55,10 @@ dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 # construct experiment.tsv for one sample at a time
 experiment_df <- data.frame(
+    sample = opt$sample,
     bam_path = opt$bam,
     group = opt$group,
     technology = "short",
-    sample = opt$sample,
     stringsAsFactors = FALSE
   )
 

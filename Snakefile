@@ -11,13 +11,14 @@ import os
 SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"
 GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
-SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
+# SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
+SAMPLE = "SRR601500"
 RESULTS_DIR = "results/gtex-subset-shiba-output/"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
-        expand("results/{sample_group}_{sample}_shiba/", sample_group = [SAMPLE_GROUP], sample = SAMPLE)
+        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLE)
 
 # first rule: trim reads with fastp
 rule trim_reads:

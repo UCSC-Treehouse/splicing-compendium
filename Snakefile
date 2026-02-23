@@ -16,7 +16,7 @@ pathvars:
 
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 SAMPLE_GROUP = "gtex"
-GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
+GENOME_BASE = "gencode.v47.primary_assembly"
 # SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
 SAMPLES = ["SRR601500"]
 
@@ -24,21 +24,24 @@ SAMPLES = ["SRR601500"]
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
+        expand("<results_dir>/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
 
 # rule to temporarily unzip a file (which will be deleted when done with it)
 rule unzip_file:
-    input: "{file}.gz"
-    output: temp("{file}")
+    input:
+        "{file}.gz"
+    output:
+        temp("{file}")
     localrule: True
-    shell: "gunzip -c {input} > {output}"
+    shell:
+        "gunzip -c {input} > {output}"
 
 rule star_index:
     input:
         genome_fasta = "<references_dir>/GRCh38.primary_assembly.genome.fa",
-        genome_gtf = "<references_dir>/gencode.v47.primary_assembly.annotation.gtf"
+        genome_gtf = f"<references_dir>/{GENOME_BASE}.annotation.gtf"
     output:
-        index_dir = "<references_dir>/gencode.v47.primary_assembly-STAR-database"
+        index_dir = f"<references_dir>/{GENOME_BASE}-STAR-database"
     log:
         "<logs>/star_index.log"
     threads: 16
@@ -84,7 +87,7 @@ rule align_reads:
     input:
         fastq1 = "<data_dir>/{sample_group}/trimmed/{sample}_1.fastq.gz",
         fastq2 = "<data_dir>/{sample_group}/trimmed/{sample}_2.fastq.gz",
-        index = "<references_dir>/gencode.v47.primary_assembly-STAR-database"
+        index = f"<references_dir>/{GENOME_BASE}-STAR-database"
     output:
         bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         sj = "<data_dir>/{sample_group}/star-output/{sample}/SJ.out.tab"
@@ -115,9 +118,12 @@ rule align_reads:
 
 # Third rule: index alignments
 rule index_bams:
-    input: "{file}.bam"
-    output: "{file}.bam.bai"
-    shell: "samtools index {input}"
+    input:
+        "{file}.bam"
+    output:
+        "{file}.bam.bai"
+    shell:
+        "samtools index {input}"
 
 # Fourth rule: run shiba on a single sample
 rule run_shiba:

@@ -8679,7 +8679,6 @@ packages:
   - snakemake-minimal 9.16.3.*
   license: MIT
   license_family: MIT
-  purls: []
   size: 10492
   timestamp: 1770308886427
 - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-common-1.22.0-pyhd4c3c12_0.conda

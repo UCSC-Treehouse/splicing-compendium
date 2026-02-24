@@ -22,14 +22,16 @@ SAMPLES = ["SRR601500"]
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        expand("<results_dir>/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
+        expand("<results_dir>/{sample_group}/{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
 
-# rule to temporarily unzip a file (which will be deleted when done with it)
-rule unzip_file:
+# rule to temporarily unzip fasta or gtf files (which will be deleted when done)
+rule unzip_refs:
     input:
         "{file}.gz"
     output:
         temp("{file}")
+    wildcard_constraints:
+        file = r".+\.(fa|fasta|gtf)"
     localrule: True
     shell:
         "gunzip -c {input} > {output}"
@@ -130,30 +132,27 @@ rule run_shiba:
         bai = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
         config_template = "shiba_config_template.yaml"
     output:
-        experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
-        config_file = "{sample_group}_{sample}_shiba_config.yaml",
-        shiba_output = directory("results/{sample_group}/{sample}_shiba/")
+        shiba_out = directory("<results_dir>/{sample_group}/{sample}_shiba/")
     log:
         "<logs>/{sample_group}/shiba-run-{sample}.log"
     threads: 1
     shell:
         """
-        # Create experiment.tsv for Shiba run
-        Rscript generate_experiment_file.R \
-          --sample "{wildcards.sample}" \
-          --group "{wildcards.sample_group}" \
-          --bam "{input.bam}" \
-          --output "{output.experiment_file}"
+        # Create a one sample experiment.tsv for Shiba run
+        experiment_file={output.shiba_out}/experiment.tsv
+        echo 'sample\tbam_path\tgroup\ttechnology' > $experiment_file
+        echo '{wildcards.sample}\t{input.bam}\t{wildcards.sample_group}\tshort' >> $experiment_file
 
         # create config file for each experiment.tsv generated
-        cp {input.config_template} {output.config_file}
-        echo 'workdir: {output.shiba_output}' >> {output.config_file}
-        echo 'experiment_table: {output.experiment_file}' >> {output.config_file}
+        config_file={output.shiba_out}/shiba_config.yaml
+        cp {input.config_template} $config_file
+        echo 'workdir: {output.shiba_out}' >> $config_file
+        echo "experiment_table: $experiment_file" >> $config_file
 
         # Run Shiba
-        shiba.py -p {threads} {output.config_file} &> {log}
+        shiba.py -p {threads} $config_file &> {log}
 
         # zip splicing results to save space
-        pigz {output.shiba_output}/splicing/*.txt
-        pigz {output.shiba_output}/expression/*.txt
+        pigz {output.shiba_out}/splicing/*.txt
+        pigz {output.shiba_out}/expression/*.txt
         """

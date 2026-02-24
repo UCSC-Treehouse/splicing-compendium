@@ -2,8 +2,6 @@
 import os
 
 # define sample paths
-# a symbolic link is used to refer to the data directory /private/groups/treehouse/working-projects/celiang/bulk as "shiba-run-data"
-# symlink is created with ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data
 
 # Usage example for testing one job at a time: snakemake -p -j 1
 
@@ -134,25 +132,28 @@ rule run_shiba:
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
         config_file = "{sample_group}_{sample}_shiba_config.yaml",
-        shiba_output = directory("results/{sample_group}_{sample}_shiba/")
+        shiba_output = directory("results/{sample_group}/{sample}_shiba/")
     log:
         "<logs>/{sample_group}/shiba-run-{sample}.log"
     threads: 1
     shell:
         """
         # Create experiment.tsv for Shiba run
-        Rscript generate_experiment_file.R --sample={wildcards.sample} --bam={input.bam} --output={output.experiment_file} --group={wildcards.sample_group}
+        Rscript generate_experiment_file.R \
+          --sample "{wildcards.sample}" \
+          --group "{wildcards.sample_group}" \
+          --bam "{input.bam}" \
+          --output "{output.experiment_file}"
 
         # create config file for each experiment.tsv generated
         cp {input.config_template} {output.config_file}
-        echo 'workdir:' >> {output.config_file}
-        echo '  {output.shiba_output}' >> {output.config_file}
-        echo 'experiment_table:' >> {output.config_file}
-        echo '  {output.experiment_file}' >> {output.config_file}
+        echo 'workdir: {output.shiba_output}' >> {output.config_file}
+        echo 'experiment_table: {output.experiment_file}' >> {output.config_file}
 
         # Run Shiba
         shiba.py -p {threads} {output.config_file} &> {log}
 
         # zip splicing results to save space
-        pigz {output.shiba_output}/*.txt
+        pigz {output.shiba_output}/splicing/*.txt
+        pigz {output.shiba_output}/expression/*.txt
         """

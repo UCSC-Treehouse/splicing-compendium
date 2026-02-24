@@ -4,9 +4,6 @@ set -euo pipefail
 # Set the working directory to the directory of this file
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-# read in project accession as variable
-accession="PRJNA597870"
-
 # Set paths as variables
 data_dir=$(realpath ..)
 ref_dir="${data_dir}/references"

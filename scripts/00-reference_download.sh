@@ -24,9 +24,6 @@ reference_urls=(
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/GRCh38.primary_assembly.genome.fa.gz"
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.primary_assembly.annotation.gtf.gz"
     "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M37/gencode.vM37.primary_assembly.annotation.gtf.gz"
-    "https://teichlab.github.io/scg_lib_structs/data/10X-Genomics/737K-april-2014_rc.txt.gz"
-    "https://teichlab.github.io/scg_lib_structs/data/10X-Genomics/737K-august-2016.txt.gz"
-    "https://teichlab.github.io/scg_lib_structs/data/10X-Genomics/3M-february-2018.txt.gz"
 )
 
 gtex_metadata_urls=(

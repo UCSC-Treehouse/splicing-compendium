@@ -115,10 +115,8 @@ rule run_shiba:
 
         # create config file for each experiment.tsv generated
         cp {input.config_template} {output.config_file}
-        echo 'workdir:' >> {output.config_file}
-        echo '  {output.shiba_output}' >> {output.config_file}
-        echo 'experiment_table:' >> {output.config_file}
-        echo '  {output.experiment_file}' >> {output.config_file}
+        echo 'workdir: {output.shiba_output}' >> {output.config_file}
+        echo 'experiment_table: {output.experiment_file}' >> {output.config_file}
 
         # Run Shiba
         shiba.py -p {threads} {output.config_file} &> {log}

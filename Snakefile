@@ -9,15 +9,14 @@ import os
 SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"
 GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
-# SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
-SAMPLE = "SRR604528"
+SAMPLES = ["SRR604528"]
 pathvars:
     data_dir = "shiba-run-dir"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
-        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLE)
+        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -111,7 +110,7 @@ rule run_shiba:
           --sample "{wildcards.sample}" \
           --group "{wildcards.sample_group}" \
           --bam "{input.bam}" \
-          --output "{output.experiment_file}" 
+          --output "{output.experiment_file}"
 
         # create config file for each experiment.tsv generated
         cp {input.config_template} {output.config_file}

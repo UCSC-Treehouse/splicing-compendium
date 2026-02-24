@@ -41,7 +41,7 @@ rule star_index:
         genome_fasta = "<references_dir>/GRCh38.primary_assembly.genome.fa",
         genome_gtf = f"<references_dir>/{GENOME_BASE}.annotation.gtf"
     output:
-        index_dir = f"<references_dir>/{GENOME_BASE}-STAR-database"
+        index_dir = f"<references_dir>/star/{GENOME_BASE}"
     log:
         "<logs>/star_index.log"
     threads: 16
@@ -87,7 +87,7 @@ rule align_reads:
     input:
         fastq1 = "<data_dir>/{sample_group}/trimmed/{sample}_1.fastq.gz",
         fastq2 = "<data_dir>/{sample_group}/trimmed/{sample}_2.fastq.gz",
-        index = f"<references_dir>/{GENOME_BASE}-STAR-database"
+        index = f"<references_dir>/star/{GENOME_BASE}"
     output:
         bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         sj = "<data_dir>/{sample_group}/star-output/{sample}/SJ.out.tab"

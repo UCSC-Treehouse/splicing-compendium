@@ -12,7 +12,7 @@ SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"
 GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
 # SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
-SAMPLE = "SRR601500"
+SAMPLE = "SRR604528"
 RESULTS_DIR = "results/gtex-subset-shiba-output/"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
@@ -121,5 +121,6 @@ rule run_shiba:
         shiba.py -p {threads} {output.config_file} &> {log}
 
         # zip splicing results to save space
-        pigz {output.shiba_output}/*.txt
+        pigz {output.shiba_output}/splicing/*.txt
+        pigz {output.shiba_output}/expression/*.txt
         """

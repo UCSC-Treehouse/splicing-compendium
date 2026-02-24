@@ -11,7 +11,8 @@ REPORTS_DIR = "reports"
 GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
 # SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
 SAMPLE = "SRR604528"
-RESULTS_DIR = "results/gtex-subset-shiba-output/"
+pathvars:
+    data_dir = "shiba-run-dir"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:

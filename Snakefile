@@ -94,8 +94,8 @@ rule index_bams:
 # Fourth rule: run shiba on samples
 rule run_shiba:
     input:
-        bam = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-        bai = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
+        bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        bai = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
         config_template = "shiba_config_template.yaml"
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",

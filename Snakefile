@@ -100,7 +100,7 @@ rule run_shiba:
     output:
         experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
         config_file = "{sample_group}_{sample}_shiba_config.yaml",
-        shiba_output = directory("results/{sample_group}_{sample}_shiba/")
+        shiba_output = directory("results/{sample_group}/{sample}_shiba/")
     log:
         "logs/{sample_group}/shiba-run-{sample}.log"
     threads: 1

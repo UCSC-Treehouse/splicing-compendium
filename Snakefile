@@ -107,7 +107,11 @@ rule run_shiba:
     shell:
         """
         # Create experiment.tsv for Shiba run
-        Rscript generate_experiment_file.R --sample={wildcards.sample} --bam={input.bam} --output={output.experiment_file} --group={wildcards.sample_group}
+        Rscript generate_experiment_file.R \
+          --sample "{wildcards.sample}" \
+          --group "{wildcards.sample_group}" \
+          --bam "{input.bam}" \
+          --output "{output.experiment_file}" 
 
         # create config file for each experiment.tsv generated
         cp {input.config_template} {output.config_file}

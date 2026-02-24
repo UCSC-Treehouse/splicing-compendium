@@ -34,7 +34,12 @@ Activate environment
 pixi shell
 ```
 
-Run Snakemake workflow
+# Run Snakemake workflow
+
+a symbolic link is used in this workflow and created with `ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data`
+
+# Usage example for testing one job at a time: snakemake -p -j 1
+
 ```
 snakemake -p --cores 8
 ```

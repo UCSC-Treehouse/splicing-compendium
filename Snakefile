@@ -2,8 +2,6 @@
 import os
 
 # define sample paths
-# a symbolic link is used to refer to the data directory /private/groups/treehouse/working-projects/celiang/bulk as "shiba-run-data"
-# symlink is created with ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data
 
 # Usage example for testing one job at a time: snakemake -p -j 1
 

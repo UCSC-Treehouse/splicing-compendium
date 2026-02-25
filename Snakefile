@@ -128,6 +128,10 @@ rule run_shiba:
         # Run Shiba
         shiba.py -p {threads} {params.config_file} &> {log}
 
+        # move experiment.tsv and config.yaml into shiba results dir
+        mv "{params.config_file}" "{output.shiba_output}"
+        mv "{params.experiment_file}" "{output.shiba_output}"
+
         # zip splicing results to save space
         pigz -p {threads} \
          {output.shiba_out}/annotation/*.gtf \

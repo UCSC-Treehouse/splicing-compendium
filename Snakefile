@@ -22,7 +22,7 @@ pathvars:
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        expand("<results>/{sample}_shiba/", sample = SAMPLES)
+        expand("<results>/shiba/{sample}/", sample = SAMPLES)
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -35,7 +35,7 @@ rule trim_reads:
         fastp_html = "<reports>/{sample}_fastp.html",
         fastp_json = "<reports>/{sample}_fastp.json"
     log:
-        "<logs>/fastp/{sample}.log"
+        "<logs>/fastp/{sample}-fastp.log"
     threads: 8
     shell:
         """
@@ -47,7 +47,7 @@ rule trim_reads:
             -h {output.fastp_html} \
             -j {output.fastp_json} \
             --thread {threads} \
-            >> {log} 2>&1
+            > {log} 2>&1
         """
 
 # Second rule: Align reads
@@ -60,7 +60,7 @@ rule align_reads:
         bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         sj = "<data>/star-output/{sample}/SJ.out.tab"
     log:
-        "<logs>/star/{sample}.log"
+        "<logs>/star/{sample}-star.log"
     params:
         star_dir = lambda wildcards, output: os.path.dirname(output.bam)
     threads: 16
@@ -81,7 +81,7 @@ rule align_reads:
             --bamRemoveDuplicatesType UniqueIdentical \
             --limitBAMsortRAM 60500000000 \
             --outBAMsortingBinsN 200 \
-            >> {log} 2>&1
+            > {log} 2>&1
 
         rm -rf "{params.star_dir}/_STARpass1"
         rm -rf "{params.star_dir}/_STARgenome"
@@ -106,7 +106,7 @@ rule run_shiba:
     output:
         shiba_out = directory("<results>/shiba/{sample}")
     log:
-        "<logs>/shiba/{sample}.log"
+        "<logs>/shiba/{sample}-shiba.log"
     params:
         experiment_table = lambda wildcards, output: os.path.join(output.shiba_out, "experiment.tsv"),
         config_file = lambda wildcards, output: os.path.join(output.shiba_out, "shiba_config.yaml"),
@@ -129,6 +129,10 @@ rule run_shiba:
         shiba.py -p {threads} {params.config_file} &> {log}
 
         # zip splicing results to save space
-        pigz {output.shiba_out}/results/splicing/*.txt
-        pigz {output.shiba_out}/results/expression/*.txt
+        pigz -p {threads} \
+         {output.shiba_out}/annotation/*.gtf \
+         {output.shiba_out}/events/*.txt \
+         {output.shiba_out}/results/splicing/*.txt \
+         {output.shiba_out}/results/expression/*.txt
+
         """

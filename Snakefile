@@ -111,15 +111,19 @@ rule run_shiba:
           --sample "{wildcards.sample}" \
           --group "{wildcards.sample_group}" \
           --bam "{input.bam}" \
-          --output "{output.shiba_output}/{params.experiment_file}"
+          --output "{params.experiment_file}"
 
         # create config file for each experiment.tsv generated
-        cp {input.config_template} "{output.shiba_output}/{params.config_file}"
-        echo 'workdir: {output.shiba_output}' >> "{output.shiba_output}/{params.config_file}"
-        echo 'experiment_table: {params.experiment_file}' >> "{output.shiba_output}/{params.config_file}"
+        cp {input.config_template} "{params.config_file}"
+        echo 'workdir: {output.shiba_output}' >> "{params.config_file}"
+        echo 'experiment_table: {params.experiment_file}' >> "{params.config_file}"
 
         # Run Shiba
         shiba.py -p {threads} {params.config_file} &> {log}
+
+        # move experiment.tsv and config.yaml into shiba results dir
+        mv "{params.config_file}" "{output.shiba_output}"
+        mv "{params.experiment_file}" "{output.shiba_output}"
 
         # zip splicing results to save space
         pigz {output.shiba_output}/results/splicing/*.txt

@@ -68,7 +68,6 @@ rule align_reads:
       mem_mb=48000
     shell:
         """
-        star_dir=$(dirname "{output.bam}")
         STAR \
             --readFilesIn {input.fastq1} {input.fastq2} \
             --readFilesCommand zcat \

@@ -7,7 +7,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # Set paths as variables
 data_dir=$(realpath ..)
 ref_dir="${data_dir}/references"
-genome_dir="${ref_dir}/gencode.v47.primary_assembly-STAR-database"
+genome_dir="${ref_dir}/star/gencode.v47.primary_assembly"
 fa_file="${ref_dir}/GRCh38.primary_assembly.genome.fa.gz"
 gtf_file="${ref_dir}/gencode.v47.primary_assembly.annotation.gtf"
 log_dir="${data_dir}/logs"

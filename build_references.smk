@@ -15,27 +15,23 @@ rule all:
         genome_fasta = f"<references>/{config['genome_assembly']}.fa.gz"
 
 
-rule download_genome_fasta:
+rule download_fasta:
     output:
         f"<references>/{config['genome_id']}.fa.gz"
-    log:
-        "<logs>/download_genome_fasta.log"
     localrule: True
     shell:
-        "curl -fsSL '{config[genome_fasta_url]}' -o {output} >> {log} 2>&1"
+        "curl -fsSL '{config[genome_fasta_url]}' -o {output}"
 
 
-rule download_genome_gtf:
+rule download_gtf:
     output:
         f"<references>/{config['genome_id']}.annotation.gtf.gz"
-    log:
-        "<logs>/download_genome_gtf.log"
     localrule: True
     shell:
-        "curl -fsSL '{config[genome_gtf_url]}' -o {output} >> {log} 2>&1"
+        "curl -fsSL '{config[genome_gtf_url]}' -o {output}"
 
 
-rule unzip_file:
+rule unzip_files:
     input:
         "{file}.gz"
     output:
@@ -54,7 +50,7 @@ rule star_index:
     output:
         index_dir = directory(f"<references>/star/{config['genome_id']}")
     log:
-        "<logs>/star_index.log"
+        f"<logs>/star-index/{config['genome_id']}.log"
     threads: 16
     shell:
         """
@@ -63,5 +59,7 @@ rule star_index:
             --genomeFastaFiles {input.genome_fasta} \
             --sjdbGTFfile {input.genome_gtf} \
             --runMode genomeGenerate \
-            --runThreadN {threads}
+            --runThreadN {threads} \
+            >> {log} 2>&1
+
         """

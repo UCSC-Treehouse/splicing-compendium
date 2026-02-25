@@ -101,7 +101,7 @@ rule run_shiba:
         bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         bai = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
         gtf = f"<references>/{GENOME_ID}.annotation.gtf",
-        config_template = "shiba_config_template.yaml"
+        config_template = "templates/shiba_config_template.yaml"
     output:
         shiba_out = directory("<results>/shiba/{sample}")
     log:

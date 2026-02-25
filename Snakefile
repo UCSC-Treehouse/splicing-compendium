@@ -11,12 +11,12 @@ REPORTS_DIR = "reports"
 GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
 SAMPLES = ["SRR604528"]
 pathvars:
-    data_dir = "shiba-run-dir"
+    data_dir = "shiba-run-data"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
-        expand("results/{sample_group}_{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
+        expand("results/{sample_group}/{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -116,10 +116,10 @@ rule run_shiba:
         # create config file for each experiment.tsv generated
         cp {input.config_template} "{output.shiba_output}/{params.config_file}"
         echo 'workdir: {output.shiba_output}' >> "{output.shiba_output}/{params.config_file}"
-        echo 'experiment_table: {output.experiment_file}' >> "{output.shiba_output}/{params.config_file}"
+        echo 'experiment_table: {params.experiment_file}' >> "{output.shiba_output}/{params.config_file}"
 
         # Run Shiba
-        shiba.py -p {threads} {output.config_file} &> {log}
+        shiba.py -p {threads} {params.config_file} &> {log}
 
         # zip splicing results to save space
         pigz {output.shiba_output}/results/splicing/*.txt

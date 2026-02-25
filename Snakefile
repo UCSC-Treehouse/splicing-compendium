@@ -13,7 +13,7 @@ SAMPLE_GROUP = config["sample_group"]
 SAMPLES = ["SRR5259058"]
 
 pathvars:
-    data = f"shiba-run-data/{SAMPLE_GROUP}",
+    data = f"data/{SAMPLE_GROUP}",
     reports = f"reports/{SAMPLE_GROUP}",
     results = f"results/{SAMPLE_GROUP}",
     logs = f"logs/{SAMPLE_GROUP}",

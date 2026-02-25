@@ -3,10 +3,7 @@
 .RData
 .Ruserdata
 .DS_Store
-data/*
-!data/readme
-!data/*.sh
-!data/metadata
+data/
 logs/
 reports/
 .snakemake/

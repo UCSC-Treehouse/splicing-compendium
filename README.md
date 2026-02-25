@@ -67,9 +67,15 @@ pixi run snakemake --cores 16
 To run a different sample group, you can either modify the config file or specify the sample group on the command line with:
 
 ```
-pixi run snakemake --cores 16 --config sample_group=[sample group]
+pixi run snakemake --cores 16 --config sample_group={sample group}
 ```
 
+By default, the workflow will run on all samples found in the `data` directory for the specified sample group.
+To run on a subset of samples, you can either specify the desired samples in the `config.yaml` file or on the command line with:
+
+```
+pixi run snakemake --cores 16 --config sample_group={sample group} samples="['sample1','sample2',...]"
+```
 
 # Transferring files between OpenStack instances
 

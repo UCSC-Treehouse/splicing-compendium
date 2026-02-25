@@ -9,14 +9,16 @@ configfile: "config.yaml"
 
 GENOME_ID = config["genome_id"]
 SAMPLE_GROUP = config["sample_group"]
-# SAMPLES, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
-SAMPLES = ["SRR5259058"]
+if config.get("samples"):
+    SAMPLES = config["samples"]
+else:
+    SAMPLES, = glob_wildcards(os.path.join("data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
 
 pathvars:
-    data = f"data/{SAMPLE_GROUP}",
-    reports = f"reports/{SAMPLE_GROUP}",
-    results = f"results/{SAMPLE_GROUP}",
-    logs = f"logs/{SAMPLE_GROUP}",
+    data = os.path.join("data", SAMPLE_GROUP),
+    reports = os.path.join("reports", SAMPLE_GROUP),
+    results = os.path.join("results", SAMPLE_GROUP),
+    logs = os.path.join("logs", SAMPLE_GROUP),
     references = "references"
 
 # create all rule with expanded wildcards because cannot run target rules with wildcards

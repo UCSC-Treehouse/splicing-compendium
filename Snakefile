@@ -115,6 +115,7 @@ rule run_shiba:
     shell:
         """
         mkdir -p {output.shiba_out}
+
         # Create a one sample experiment.tsv for Shiba run
         echo 'sample\tbam_path\tgroup\ttechnology' > {params.experiment_table}
         echo '{wildcards.sample}\t{input.bam}\t{params.sample_group}\tshort' >> {params.experiment_table}
@@ -127,10 +128,6 @@ rule run_shiba:
 
         # Run Shiba
         shiba.py -p {threads} {params.config_file} &> {log}
-
-        # move experiment.tsv and config.yaml into shiba results dir
-        mv "{params.config_file}" "{output.shiba_output}"
-        mv "{params.experiment_file}" "{output.shiba_output}"
 
         # zip splicing results to save space
         pigz -p {threads} \

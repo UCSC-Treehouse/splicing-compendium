@@ -1,22 +1,25 @@
 [workspace]
 authors = ["Cindy Liang <celiang@ucsc.edu>"]
 channels = ["conda-forge", "bioconda"]
-name = "splicing-project"
-platforms = ["linux-64", "osx-arm64"]
+name = "shiba"
+platforms = ["linux-64"]
 version = "0.1.0"
 
 [tasks]
 
 [dependencies]
-python = "3.12.*"
-snakemake = ">=9.16.3,<10"
-shiba = "==0.8.1"
-star = "==2.7.11b"
-r-base = ">=4.4.1,<4.5"
-r-renv = ">=1.1.6,<2"
+shiba = "==0.7.1"
+snakemake = ">=9.6.2,<10"
+quarto = ">=1.7.32,<2"
+r-base = "==4.4.2"
+sra-tools = ">=3.2.1,<4"
+r-renv = ">=1.1.5,<2"
 fastp = ">=1.0.1,<2"
-quarto = ">=1.7.0,<2"
-graphviz = ">=12.2.0,<13"
-pigz = ">=2.8,<3"
-rsync = ">=3.4,<4"
 samtools = ">=1.22.1,<2"
+pigz = ">=2.8,<3"
+star = { version = "==2.7.9a", channel = "bioconda" }
+graphviz = ">=12.2.1,<13"
+rsync = ">=3.4.1,<4"
+
+[pypi-dependencies]
+styleframe = ">=4.2, <5"

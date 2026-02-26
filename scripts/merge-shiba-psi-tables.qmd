@@ -1,0 +1,72 @@
+---
+title: Merge Shiba PSI tables
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+Shiba is run one sample at a time using our snakemake workflow. 
+We then merge PSI tables produced for each sample.
+
+## Set up
+
+## Directories and files
+
+```{r define_paths}
+# find the project directory
+base_dir <- here::here()
+
+# find the root-level repo directory
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+# define the data directories
+# shiba pilot results
+results_dir <- file.path(base_dir, "results")
+target_subset_results_dir <-file.path(results_dir, "target-subset-shiba-output/results")
+splice_results_dir <- file.path(target_subset_results_dir, "splicing")
+
+# output directory of results
+out_dir <- file.path(results_dir, "splicing_summaries")
+
+# create output directory if it does not already exist
+dir.create(out_dir, showWarnings = FALSE)
+
+# define output files
+
+# combined dataframe of PSI values across all quantified splice event types
+combined_psi_file <- file.path(out_dir, "combined_psi_results.rds")
+
+# long summary file of the counts of PSI values per PSI value bin (0, 1, 0 < PSI < 1, NA) for each sample, pooled by splice event type (one aggregate count of the number of PSI values in the bin for one splice event type within a sample)
+sample_psi_summary_file <- file.path(out_dir, "sample_psi_summary.rds")
+
+# long summary file of the counts of PSI values per PSI value bin (0, 1, 0 < PSI < 1, NA), per individual splicing event
+# so the max number of counts per bin possible is the number of samples (88)
+pos_id_psi_summary_file <- file.path(out_dir, "pos_id_psi_summary.rds")
+```
+
+You can add options to executable code like this
+
+```{r read_file_paths}
+# define list of unzipped PSI results files corresponding to event types quantified by Shiba bulk analysis
+psi_files <- c(
+  se = "PSI_SE.txt.gz",
+  afe = "PSI_AFE.txt.gz",
+  ale = "PSI_ALE.txt.gz",
+  five = "PSI_FIVE.txt.gz",
+  three = "PSI_THREE.txt.gz",
+  mse = "PSI_MSE.txt.gz",
+  mxe = "PSI_MXE.txt.gz",
+  ri = "PSI_RI.txt.gz"
+)
+
+# Construct bulk PSI result paths and name them according to event type
+bulk_psi_paths <- file.path(splice_results_dir, psi_files)
+names(bulk_psi_paths) <- names(psi_files)
+```
+
+

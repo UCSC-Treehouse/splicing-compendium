@@ -18,6 +18,10 @@ We then merge PSI tables produced for each sample.
 ## Directories and files
 
 ```{r define_paths}
+
+# samples list
+samples <- c("SRR601500", "SRR604528")
+
 # find the project directory
 base_dir <- here::here()
 
@@ -62,12 +66,32 @@ psi_files <- c(
 )
 
 # Construct bulk PSI result paths and name them according to event type
-bulk_psi_paths <- file.path(splice_results_dir, psi_files)
-names(bulk_psi_paths) <- names(psi_files)
+separate_runs_SRR601500_paths <- file.path(separate_runs_SRR601500 , psi_files)
+names(separate_runs_SRR601500_paths) <- names(psi_files)
 
-bulk_psi_paths <- file.path(splice_results_dir, psi_files)
-names(bulk_psi_paths) <- names(psi_files)
+separate_runs_SRR604528_paths <- file.path(separate_runs_SRR604528 , psi_files)
+names(separate_runs_SRR604528_paths) <- names(psi_files)
+
+one_run_SRR601500_paths <- file.path(one_run_SRR601500 , psi_files)
+names(one_run_SRR601500_paths) <- names(psi_files)
+
+one_run_SRR604528_paths <- file.path(one_run_SRR604528 , psi_files)
+names(one_run_SRR604528_paths) <- names(psi_files)
 
 ```
 
+Read in files
 
+```{r read_in_files}
+# Read in files using psi file paths and use purrr to make a list of psi dataframes
+bulk_splice_results <- bulk_psi_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types = readr::cols(.default = "c")) |>
+      # select for columns that will be used downstream in analysis so all dataframes have uniform column names
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      dplyr::mutate(across(contains("_PSI"), as.numeric)) 
+})
+
+# combine PSI values of all event types into one dataframe
+psi_combined <- purrr::list_rbind(bulk_splice_results, names_to = "event_type")
+```

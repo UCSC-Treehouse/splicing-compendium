@@ -3,20 +3,17 @@
 .RData
 .Ruserdata
 .DS_Store
-data/*
-!data/readme
-!data/*.sh
-!data/metadata
+data/
 logs/
 reports/
 .snakemake/
 .rds
 references/
 metadata/
-shiba-run-data
 results/*
 !results/.gitkeep
 
 # TARGET ngc key
 *.ngc
 ._.DS_Store
+data

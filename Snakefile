@@ -1,36 +1,46 @@
 # snakefile for compendium shiba run
+# Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 16
+# Usage: snakemake --cores 16
+
 import os
 
-# define sample paths
+configfile: "config.yaml"
 
-# Usage example for testing one job at a time: snakemake -p -j 1
 
-# replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
-SAMPLE_GROUP = "gtex"
-REPORTS_DIR = "reports"
-GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
-SAMPLES = ["SRR604528"]
+GENOME_ID = config["genome_id"]
+SAMPLE_GROUP = config["sample_group"]
+if config.get("samples"):
+    SAMPLES = config["samples"]
+else:
+    SAMPLES, = glob_wildcards(os.path.join("data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
+
 pathvars:
-    data_dir = "shiba-run-data"
+    data = os.path.join("data", SAMPLE_GROUP),
+    reports = os.path.join("reports", SAMPLE_GROUP),
+    results = os.path.join("results", SAMPLE_GROUP),
+    logs = os.path.join("logs", SAMPLE_GROUP),
+    references = "references"
 
-# create All rule with expanded wildcards because cannot run target rules wih wildcards
+# create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        expand("results/{sample_group}/{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
+        expand("<results>/shiba/{sample}/", sample = SAMPLES)
 
 # first rule: trim reads with fastp
 rule trim_reads:
     input:
-        fastq1 = "shiba-run-data/{sample_group}/fastq/{sample}_1.fastq.gz",
-        fastq2 = "shiba-run-data/{sample_group}/fastq/{sample}_2.fastq.gz"
+        fastq1 = "<data>/fastq/{sample}_1.fastq.gz",
+        fastq2 = "<data>/fastq/{sample}_2.fastq.gz"
     output:
-        fastq1 = temp("shiba-run-data/{sample_group}/trimmed/{sample}_1.fastq.gz"),
-        fastq2 = temp("shiba-run-data/{sample_group}/trimmed/{sample}_2.fastq.gz"),
-        fastp_html = "reports/{sample_group}/{sample}_fastp.html",
-        fastp_json = "reports/{sample_group}/{sample}_fastp.json"
+        fastq1 = temp("<data>/trimmed/{sample}_1.fastq.gz"),
+        fastq2 = temp("<data>/trimmed/{sample}_2.fastq.gz"),
+        fastp_html = "<reports>/{sample}_fastp.html",
+        fastp_json = "<reports>/{sample}_fastp.json"
     log:
-        "logs/{sample_group}/trimming-{sample}.log"
+        "<logs>/fastp/{sample}-fastp.log"
     threads: 8
+    resources:
+      mem_mb = 16000
     shell:
         """
         fastp \
@@ -41,30 +51,31 @@ rule trim_reads:
             -h {output.fastp_html} \
             -j {output.fastp_json} \
             --thread {threads} \
-            # output errors to snakemake logfile
-            >> {log} 2>&1
+            > {log} 2>&1
         """
 
 # Second rule: Align reads
 rule align_reads:
     input:
-        fastq1 = "shiba-run-data/{sample_group}/trimmed/{sample}_1.fastq.gz",
-        fastq2 = "shiba-run-data/{sample_group}/trimmed/{sample}_2.fastq.gz",
-        index = GENOME_DIR
+        fastq1 = "<data>/trimmed/{sample}_1.fastq.gz",
+        fastq2 = "<data>/trimmed/{sample}_2.fastq.gz",
+        index = f"<references>/star/{GENOME_ID}"
     output:
-        bam = "shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-        sj = "shiba-run-data/{sample_group}/star-output/{sample}/SJ.out.tab"
+        bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        sj = "<data>/star-output/{sample}/SJ.out.tab"
     log:
-        "logs/{sample_group}/star-alignment-{sample}.log"
+        "<logs>/star/{sample}-star.log"
+    params:
+        star_dir = lambda wildcards, output: os.path.dirname(output.bam)
     threads: 16
     resources:
-      mem_mb=48000
+      mem_mb = 48000
     shell:
         """
         STAR \
-            --readFilesCommand zcat \
             --readFilesIn {input.fastq1} {input.fastq2} \
-            --outFileNamePrefix "shiba-run-data/{wildcards.sample_group}/star-output/{wildcards.sample}/" \
+            --readFilesCommand zcat \
+            --outFileNamePrefix "{params.star_dir}/" \
             --genomeDir {input.index} \
             --runThreadN {threads} \
             --outSAMtype BAM SortedByCoordinate \
@@ -73,10 +84,10 @@ rule align_reads:
             --bamRemoveDuplicatesType UniqueIdentical \
             --limitBAMsortRAM 60500000000 \
             --outBAMsortingBinsN 200 \
-            >> {log} 2>&1
+            > {log} 2>&1
 
-        rm -rf "shiba-run-data/{wildcards.sample_group}/star-output/{wildcards.sample}/_STARpass1"
-        rm -rf "shiba-run-data/{wildcards.sample_group}/star-output/{wildcards.sample}/_STARgenome"
+        rm -rf "{params.star_dir}/_STARpass1"
+        rm -rf "{params.star_dir}/_STARgenome"
       """
 
 # Third rule: index alignments
@@ -86,46 +97,48 @@ rule index_bams:
     output:
         "{file}.bam.bai"
     shell:
-        """
-        samtools index {input}
-        """
+        "samtools index {input}"
 
-# Fourth rule: run shiba on samples
+# Fourth rule: run shiba on a single sample
 rule run_shiba:
     input:
-        bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-        bai = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
-        config_template = "shiba_config_template.yaml"
+        bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        bai = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
+        gtf = f"<references>/{GENOME_ID}.annotation.gtf",
+        config_template = "templates/shiba_config_template.yaml"
     output:
-        shiba_output = directory("results/{sample_group}/{sample}_shiba/")
-    params:
-        experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
-        config_file = "{sample_group}_{sample}_shiba_config.yaml"
+        shiba_out = directory("<results>/shiba/{sample}")
     log:
-        "logs/{sample_group}/shiba-run-{sample}.log"
-    threads: 1
+        "<logs>/shiba/{sample}-shiba.log"
+    params:
+        experiment_table = lambda wildcards, output: os.path.join(output.shiba_out, "experiment.tsv"),
+        config_file = lambda wildcards, output: os.path.join(output.shiba_out, "shiba_config.yaml"),
+        sample_group = SAMPLE_GROUP
+    threads: 2
+    resources:
+      mem_mb = 32000
     shell:
         """
-        # Create experiment.tsv for Shiba run
-        Rscript generate_experiment_file.R \
-          --sample "{wildcards.sample}" \
-          --group "{wildcards.sample_group}" \
-          --bam "{input.bam}" \
-          --output "{params.experiment_file}"
+        mkdir -p {output.shiba_out}
+
+        # Create a one sample experiment.tsv for Shiba run
+        echo 'sample\tbam_path\tgroup\ttechnology' > {params.experiment_table}
+        echo '{wildcards.sample}\t{input.bam}\t{params.sample_group}\tshort' >> {params.experiment_table}
 
         # create config file for each experiment.tsv generated
-        cp {input.config_template} "{params.config_file}"
-        echo 'workdir: {output.shiba_output}' >> "{params.config_file}"
-        echo 'experiment_table: {params.experiment_file}' >> "{params.config_file}"
+        cp {input.config_template} {params.config_file}
+        echo 'workdir: {output.shiba_out}' >> {params.config_file}
+        echo "experiment_table: {params.experiment_table}" >> {params.config_file}
+        echo 'gtf: {input.gtf}' >> {params.config_file}
 
         # Run Shiba
         shiba.py -p {threads} {params.config_file} &> {log}
 
-        # move experiment.tsv and config.yaml into shiba results dir
-        mv "{params.config_file}" "{output.shiba_output}"
-        mv "{params.experiment_file}" "{output.shiba_output}"
-
         # zip splicing results to save space
-        pigz {output.shiba_output}/results/splicing/*.txt
-        pigz {output.shiba_output}/results/expression/*.txt
+        pigz -p {threads} \
+         {output.shiba_out}/annotation/*.gtf \
+         {output.shiba_out}/events/*.txt \
+         {output.shiba_out}/results/splicing/*.txt \
+         {output.shiba_out}/results/expression/*.txt
+
         """

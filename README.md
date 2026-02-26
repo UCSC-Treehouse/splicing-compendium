@@ -1,7 +1,7 @@
 # Shiba run on bulk pediatric cancer RNA-seq samples
 
 To determine the existence of interesting aberrant splicing events in pediatric cancer samples, we are interested in running Shiba on a dataset of pediatric tumor bulk RNA-seq samples.
-This project currently contains scripts to filter metadata from publicly availible datasets.
+This project currently contains scripts to filter metadata from publicly available datasets.
 
 The datasets used in this project are under controlled access on dbGaP. They consist of:
 
@@ -13,37 +13,69 @@ The repository key file (`.ngc`) must be downloaded from dbGaP and the path to t
 Since the dataset consists of large files, the location of the user's cache may need to be changed to a directory with more storage.
 This can be done by following the instructions outlined [here](https://github.com/ncbi/sra-tools/wiki/05.-Toolkit-Configuration).
 
-## Download referencew files and generate STAR index for file processing
-Download reference annotation GTF and genome FASTA:
-`bash scripts/00-reference_download.sh`
+## Setting up the environment
 
-Make STAR index for alignment:
-`bash scripts/01-generate_star_genome_index.sh`
+The environment for this project is managed with Pixi and can be set up with the following command:
+
+```
+pixi install
+```
+
+Note that currently the only supported platform is Linux, so this command must be run on a Linux machine (e.g. OpenStack instance).
+
+## Configuration
+
+Most configuration for this project is managed with the `config.yaml` file.
+This file contains information about the reference genome and annotation to be used for STAR indexing and alignment, as well as sample group information for runs of the workflow.
+
+Note that input data files are expected to be found in the `data` directory of this project, and output files will be written to the `results` directory.
+Note that data files are organized by the sample group (e.g. TARGET, GTEx) in the `data` directory, and the sample group is specified in the `config.yaml` file.
+You may want to use symbolic links to point to the location of data files on your machine, if they are not stored in the project directory.
+
+For example, a symbolic link is used in this workflow could be created with
+
+```
+ln -s /private/groups/treehouse/working-projects/celiang/bulk data`
+```
+
+## Download reference files and generate STAR index for file processing
+
+Downloading reference files and generating the STAR index can be done with the Snakemake workflow in `build_references.smk`:
+
+```
+pixi run snakemake --cores 16 -s build_references.smk
+```
+
+This will create a `references` directory in the project directory, which will contain the reference genome fasta and annotation gtf files, as well as the STAR index.
+Other index files may be added later.
 
 ## Filtering metadata for accession numbers to download and downloading files :
 
 `pixi run scripts/01-target-subset-download.sh [sample group]`
 
-Replace [sample group] with the dataset to be downloaded (e.g. target, gtex)
+Replace [sample group] with the dataset to be downloaded (e.g. `target`, `gtex`)
 
-## Running Snakemake workflow for analyzing pediatric cancer samples with Shiba
 
-Activate environment
+## Running the main Snakemake workflow
 
-```
-pixi shell
-```
-
-# Run Snakemake workflow
-
-a symbolic link is used in this workflow and created with `ln -s /private/groups/treehouse/working-projects/celiang/bulk shiba-run-data`
-
-# Usage example for testing one job at a time: snakemake -p -j 1
+After updating the `config.yaml` file with the desired sample groups and reference genome information, the main Snakemake workflow can be run using the default config file with:
 
 ```
-snakemake -p --cores 8
+pixi run snakemake --cores 16
 ```
 
+To run a different sample group, you can either modify the config file or specify the sample group on the command line with:
+
+```
+pixi run snakemake --cores 16 --config sample_group={sample group}
+```
+
+By default, the workflow will run on all samples found in the `data` directory for the specified sample group.
+To run on a subset of samples, you can either specify the desired samples in the `config.yaml` file or on the command line with:
+
+```
+pixi run snakemake --cores 16 --config sample_group={sample group} samples="['sample1','sample2',...]"
+```
 
 # Transferring files between OpenStack instances
 
@@ -65,9 +97,3 @@ Then, from within ubuntu@10.50.100.47, transferred files were checked:
 Finally, from within ubuntu@10.50.100.19, the transferred files were offloaded using the checksum results:
 
 `bash transfer-and-offload-target.sh offload /mnt/splicing-project/data/logs/2025-10-01T04:12:24_transfer_checksum.txt`
-
-# Running Shiba on TARGET subset of 88 samples to obtain splice results for clustering
-Eventually, this step will be incorporated into the Snakemake pipeline.
-For the time being, the Shiba run on the TARGET subset was run using:
-
-`bash 02-target-subset-shiba-run.sh`

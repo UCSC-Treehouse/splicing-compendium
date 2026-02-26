@@ -52,6 +52,8 @@ rule star_index:
     log:
         f"<logs>/star-index/{config['genome_id']}.log"
     threads: 16
+    resources:
+      mem_mb = 48000
     shell:
         """
         STAR \
@@ -60,6 +62,6 @@ rule star_index:
             --sjdbGTFfile {input.genome_gtf} \
             --runMode genomeGenerate \
             --runThreadN {threads} \
-            >> {log} 2>&1
+            > {log} 2>&1
 
         """

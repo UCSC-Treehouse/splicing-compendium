@@ -39,6 +39,8 @@ rule trim_reads:
     log:
         "<logs>/fastp/{sample}-fastp.log"
     threads: 8
+    resources:
+      mem_mb = 16000
     shell:
         """
         fastp \
@@ -67,7 +69,7 @@ rule align_reads:
         star_dir = lambda wildcards, output: os.path.dirname(output.bam)
     threads: 16
     resources:
-      mem_mb=48000
+      mem_mb = 48000
     shell:
         """
         STAR \
@@ -112,7 +114,9 @@ rule run_shiba:
         experiment_table = lambda wildcards, output: os.path.join(output.shiba_out, "experiment.tsv"),
         config_file = lambda wildcards, output: os.path.join(output.shiba_out, "shiba_config.yaml"),
         sample_group = SAMPLE_GROUP
-    threads: 1
+    threads: 2
+    resources:
+      mem_mb = 32000
     shell:
         """
         mkdir -p {output.shiba_out}

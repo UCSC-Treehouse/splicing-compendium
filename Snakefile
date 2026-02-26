@@ -1,6 +1,6 @@
 # snakefile for compendium shiba run
-# Build reference indexes first: snakemake --snakefile build_references.smk -j 16
-# Usage: snakemake -j 8
+# Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 16
+# Usage: snakemake --cores 16
 
 import os
 

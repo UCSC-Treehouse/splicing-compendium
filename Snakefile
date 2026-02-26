@@ -2,19 +2,21 @@
 import os
 
 # define sample paths
-# a symbolic link is used to refer to the data directory /mnt/bulk as "shiba-run-data"
-# symlink is created with ln -s /mnt/bulk shiba-run-data
+
+# Usage example for testing one job at a time: snakemake -p -j 1
 
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 SAMPLE_GROUP = "gtex"
 REPORTS_DIR = "reports"
-GENOME_DIR = "/mnt/splicing-project/data/references/gencode.v47.primary_assembly-STAR-database"
-SAMPLE, = glob_wildcards(os.path.join("shiba-run-data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
+GENOME_DIR = "references/gencode.v47.primary_assembly-STAR-database"
+SAMPLES = ["SRR604528"]
+pathvars:
+    data_dir = "shiba-run-data"
 
 # create All rule with expanded wildcards because cannot run target rules wih wildcards
 rule all:
     input:
-        expand("shiba-run-data/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai", sample_group = SAMPLE_GROUP, sample = SAMPLE)
+        expand("results/{sample_group}/{sample}_shiba/", sample_group = SAMPLE_GROUP, sample = SAMPLES)
 
 # first rule: trim reads with fastp
 rule trim_reads:
@@ -86,4 +88,44 @@ rule index_bams:
     shell:
         """
         samtools index {input}
+        """
+
+# Fourth rule: run shiba on samples
+rule run_shiba:
+    input:
+        bam = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
+        bai = "<data_dir>/{sample_group}/star-output/{sample}/Aligned.sortedByCoord.out.bam.bai",
+        config_template = "shiba_config_template.yaml"
+    output:
+        shiba_output = directory("results/{sample_group}/{sample}_shiba/")
+    params:
+        experiment_file = "{sample_group}_{sample}_pilot_shiba_experiment.tsv",
+        config_file = "{sample_group}_{sample}_shiba_config.yaml"
+    log:
+        "logs/{sample_group}/shiba-run-{sample}.log"
+    threads: 1
+    shell:
+        """
+        # Create experiment.tsv for Shiba run
+        Rscript generate_experiment_file.R \
+          --sample "{wildcards.sample}" \
+          --group "{wildcards.sample_group}" \
+          --bam "{input.bam}" \
+          --output "{params.experiment_file}"
+
+        # create config file for each experiment.tsv generated
+        cp {input.config_template} "{params.config_file}"
+        echo 'workdir: {output.shiba_output}' >> "{params.config_file}"
+        echo 'experiment_table: {params.experiment_file}' >> "{params.config_file}"
+
+        # Run Shiba
+        shiba.py -p {threads} {params.config_file} &> {log}
+
+        # move experiment.tsv and config.yaml into shiba results dir
+        mv "{params.config_file}" "{output.shiba_output}"
+        mv "{params.experiment_file}" "{output.shiba_output}"
+
+        # zip splicing results to save space
+        pigz {output.shiba_output}/results/splicing/*.txt
+        pigz {output.shiba_output}/results/expression/*.txt
         """

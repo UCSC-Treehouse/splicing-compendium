@@ -33,15 +33,8 @@ results_dir <- file.path(base_dir, "results")
 shiba_gtex_path <- "gtex/shiba"
 splice_results_path <- "results/splicing"
 
-# shiba results of n = 2 samples processed in one run
-one_run_dir <-file.path(results_dir, shiba_gtex_path)
-one_run_SRR601500 <- file.path(one_run_dir, "SRR601500", splice_results_path)
-one_run_SRR604528 <- file.path(one_run_dir, "SRR604528", splice_results_path)
-
-# shiba results of n = 2 samples, each sample analyzed in a separate run
-separate_runs_dir <- file.path(results_dir, "results_separate_runs", shiba_gtex_path)
-separate_runs_SRR601500 <- file.path(separate_runs_dir, "SRR601500", splice_results_path)
-separate_runs_SRR604528 <- file.path(separate_runs_dir, "SRR604528", splice_results_path)
+# splice results directories for each sample
+separate_run_splice_results <- file.path(shiba_gtex_path, samples, splice_results_path)
 
 # output directory of results
 out_dir <- file.path(results_dir, "merged_shiba_results_tables")
@@ -66,19 +59,17 @@ psi_files <- c(
 )
 
 # Construct bulk PSI result paths and name them according to event type
-separate_runs_SRR601500_paths <- file.path(separate_runs_SRR601500 , psi_files)
-names(separate_runs_SRR601500_paths) <- names(psi_files)
+sample_psi_result_paths <- file.path(separate_run_splice_results[1] , psi_files)
+names(sample_psi_result_paths) <- names(psi_files)
 
-separate_runs_SRR604528_paths <- file.path(separate_runs_SRR604528 , psi_files)
-names(separate_runs_SRR604528_paths) <- names(psi_files)
-
-one_run_SRR601500_paths <- file.path(one_run_SRR601500 , psi_files)
-names(one_run_SRR601500_paths) <- names(psi_files)
-
-one_run_SRR604528_paths <- file.path(one_run_SRR604528 , psi_files)
-names(one_run_SRR604528_paths) <- names(psi_files)
 
 ```
+
+Check paths
+```{r}
+sample_psi_result_paths
+```
+
 
 Read in files
 

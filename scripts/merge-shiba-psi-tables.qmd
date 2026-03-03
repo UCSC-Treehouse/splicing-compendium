@@ -20,6 +20,8 @@ We then merge PSI tables produced for each sample.
 ```{r define_paths}
 
 # samples list
+# noting here that it will become terrible to paste infinite sample names in this list
+# so maybe we want to ultimately have the script read in a file with all the samples for the big run
 samples <- c("SRR601500", "SRR604528")
 
 # find the project directory
@@ -50,7 +52,7 @@ sample_psi_result_paths <- lapply(samples, function(sample) {
   
   # make path for splice results directory for each sample in samples list
   sample_splice_results_dir <- file.path(
-    base_dir,
+    results_dir,
     shiba_gtex_path,
     sample,
     splice_results_path
@@ -69,9 +71,6 @@ sample_psi_result_paths <- lapply(samples, function(sample) {
 # name the outer list of paths by sample ID
 names(sample_psi_result_paths) <- samples
 
-# # splice results directories for each sample
-# separate_run_splice_results <- file.path(shiba_gtex_path, samples, splice_results_path)
-
 # output directory of results
 out_dir <- file.path(results_dir, "merged_shiba_results_tables")
 
@@ -79,40 +78,22 @@ out_dir <- file.path(results_dir, "merged_shiba_results_tables")
 dir.create(out_dir, showWarnings = FALSE)
 ```
 
-Print out paths to spot-check
-```{r}
-sample_psi_result_paths
-```
-
-Read file paths
-
-```{r read_file_paths}
-
-# Construct bulk PSI result paths and name them according to event type
-sample_psi_result_paths <- file.path(separate_run_splice_results , psi_files)
-names(sample_psi_result_paths) <- names(psi_files)
-
-
-```
-
-Check paths
-```{r}
-sample_psi_result_paths
-```
-
-
 Read in files
 
 ```{r read_in_files}
 # Read in files using psi file paths and use purrr to make a list of psi dataframes
-bulk_splice_results <- bulk_psi_paths |>
+splice_results <- sample_psi_result_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types = readr::cols(.default = "c")) |>
       # select for columns that will be used downstream in analysis so all dataframes have uniform column names
       dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      # turn PSI values numeric to ensure we can do math on them
       dplyr::mutate(across(contains("_PSI"), as.numeric)) 
 })
 
+# spot-check what one file looks like
+splice_results[1]
+
 # combine PSI values of all event types into one dataframe
-psi_combined <- purrr::list_rbind(bulk_splice_results, names_to = "event_type")
+# psi_combined <- purrr::list_rbind(bulk_splice_results, names_to = "event_type")
 ```

@@ -33,20 +33,7 @@ results_dir <- file.path(base_dir, "results")
 shiba_gtex_path <- "gtex/shiba"
 splice_results_path <- "results/splicing"
 
-# splice results directories for each sample
-separate_run_splice_results <- file.path(shiba_gtex_path, samples, splice_results_path)
-
-# output directory of results
-out_dir <- file.path(results_dir, "merged_shiba_results_tables")
-
-# create output directory if it does not already exist
-dir.create(out_dir, showWarnings = FALSE)
-```
-
-Read file paths
-
-```{r read_file_paths}
-# define list of unzipped PSI results files corresponding to event types quantified by Shiba bulk analysis
+# define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
   se = "PSI_SE.txt.gz",
   afe = "PSI_AFE.txt.gz",
@@ -58,8 +45,51 @@ psi_files <- c(
   ri = "PSI_RI.txt.gz"
 )
 
+# construct PSI result paths of each splice event for each sample
+sample_psi_result_paths <- lapply(samples, function(sample) {
+  
+  # make path for splice results directory for each sample in samples list
+  sample_splice_results_dir <- file.path(
+    base_dir,
+    shiba_gtex_path,
+    sample,
+    splice_results_path
+  )
+  
+  # construct path to each splice event type PSI result
+  paths <- file.path(sample_splice_results_dir, psi_files)
+  
+  # name PSI result paths by event type
+  names(paths) <- names(psi_files)
+  
+  # save the result to variable
+  return(paths)
+})
+
+# name the outer list of paths by sample ID
+names(sample_psi_result_paths) <- samples
+
+# # splice results directories for each sample
+# separate_run_splice_results <- file.path(shiba_gtex_path, samples, splice_results_path)
+
+# output directory of results
+out_dir <- file.path(results_dir, "merged_shiba_results_tables")
+
+# create output directory if it does not already exist
+dir.create(out_dir, showWarnings = FALSE)
+```
+
+Print out paths to spot-check
+```{r}
+sample_psi_result_paths
+```
+
+Read file paths
+
+```{r read_file_paths}
+
 # Construct bulk PSI result paths and name them according to event type
-sample_psi_result_paths <- file.path(separate_run_splice_results[1] , psi_files)
+sample_psi_result_paths <- file.path(separate_run_splice_results , psi_files)
 names(sample_psi_result_paths) <- names(psi_files)
 
 

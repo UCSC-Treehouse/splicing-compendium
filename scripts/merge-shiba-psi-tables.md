@@ -1,24 +1,15 @@
----
-title: Merge Shiba PSI tables
-author: "Cindy Liang (celiang@ucsc.edu)"
-format:
-  gfm:
-    df-print: kable
-editor_options:
-  markdown:
-    wrap: sentence
-date: "`r format(Sys.time(), '%B %d, %Y')`"
----
+# Merge Shiba PSI tables
+Cindy Liang (celiang@ucsc.edu)
+2026-03-03
 
-Shiba is run one sample at a time using our snakemake workflow. 
-We then merge PSI tables produced for each sample.
+Shiba is run one sample at a time using our snakemake workflow. We then
+merge PSI tables produced for each sample.
 
 ## Set up
 
 ## Directories and files
 
-```{r define_paths}
-
+``` r
 # samples list
 # noting here that it will become terrible to paste infinite sample names in this list
 # so maybe we want to ultimately have the script read in a file with all the samples for the big run
@@ -83,7 +74,7 @@ dir.create(out_dir, showWarnings = FALSE)
 
 Read in files
 
-```{r read_in_files}
+``` r
 # Read in files in the nested list of samples' PSI values
 # should return a nested list, where the outer list is each sample and the inner lists are data frames for each splice event type
 splice_results <- sample_psi_result_paths |>
@@ -104,20 +95,25 @@ splice_results <- sample_psi_result_paths |>
 
 Combine PSI dataframes for all samples into one
 
-```{r}
+``` r
 # combine individual event types' PSI tables into one to obtain a named list of all splice events per sample
 sample_splice_list <- purrr::map(splice_results, dplyr::bind_rows, .id = "event_type")
 
 # combine each samples' PSI tables to obtain one PSI table for all samples
 combined_splice_df <- dplyr::bind_rows(sample_splice_list, .id = "sample")
-
 ```
 
-Low hanging fruit: Is there anything shared at all between the two samples? If not, we might need to change the actual shiba run to combine the junctions file upstram of PSI calculation
-```{r}
+Low hanging fruit: Is there anything shared at all between the two
+samples? If not, we might need to change the actual shiba run to combine
+the junctions file upstram of PSI calculation
+
+``` r
 combined_splice_df |>
   dplyr::filter(!is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
 ```
 
-Looks like we need to go in and fiddle with the actual Shiba run to get consistent position ID assignments across samples
+| sample | event_type | pos_id | gene_id | label | SRR601500_PSI | SRR604528_PSI |
+|:-------|:-----------|:-------|:--------|:------|--------------:|--------------:|
 
+Looks like we need to go in and fiddle with the actual Shiba run to get
+consistent position ID assignments across samples

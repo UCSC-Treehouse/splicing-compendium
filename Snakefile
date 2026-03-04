@@ -65,11 +65,12 @@ rule align_reads:
         sj = "<data>/star-output/{sample}/SJ.out.tab"
     log:
         "<logs>/star/{sample}-star.log"
-    params:
-        star_dir = lambda wildcards, output: os.path.dirname(output.bam)
     threads: 16
     resources:
       mem_mb = 48000
+    params:
+        star_dir = lambda wildcards, output: os.path.dirname(output.bam),
+        samtools_memory = lambda wildcards, resources, threads: int(resources.mem_mb / threads * 0.9)  # use 90% of available memory for samtools sorting
     shell:
         """
         STAR \
@@ -78,13 +79,16 @@ rule align_reads:
             --outFileNamePrefix "{params.star_dir}/" \
             --genomeDir {input.index} \
             --runThreadN {threads} \
-            --outSAMtype BAM SortedByCoordinate \
+            --outSAMtype BAM Unsorted \
+            --outSAMunmapped Within \
             --twopassMode Basic \
             --quantMode GeneCounts \
             --bamRemoveDuplicatesType UniqueIdentical \
-            --limitBAMsortRAM 60500000000 \
-            --outBAMsortingBinsN 200 \
             > {log} 2>&1
+
+        # sort separately to save memory
+        samtools sort -@ {threads}  -m {params.samtools_memory}M -o {output.bam} {params.star_dir}/Aligned.out.bam
+        rm {params.star_dir}/Aligned.out.bam
 
         rm -rf "{params.star_dir}/_STARpass1"
         rm -rf "{params.star_dir}/_STARgenome"

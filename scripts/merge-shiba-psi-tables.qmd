@@ -47,7 +47,7 @@ psi_files <- c(
   ri = "PSI_RI.txt.gz"
 )
 
-# construct PSI result paths of each splice event for each sample
+# Build a nested list of PSI result paths, where the outer list is the sample IDs and the inner list is the splice event PSI matrices for each sample
 sample_psi_result_paths <- lapply(samples, function(sample) {
   
   # make path for splice results directory for each sample in samples list
@@ -81,19 +81,36 @@ dir.create(out_dir, showWarnings = FALSE)
 Read in files
 
 ```{r read_in_files}
-# Read in files using psi file paths and use purrr to make a list of psi dataframes
+# Read in files in the nested list of samples' PSI values
+# should return a nested list, where the outer list is each sample and the inner lists are data frames for each splice event type
 splice_results <- sample_psi_result_paths |>
-  purrr::map(\(path){
-    readr::read_tsv(path, col_types = readr::cols(.default = "c")) |>
-      # select for columns that will be used downstream in analysis so all dataframes have uniform column names
-      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
-      # turn PSI values numeric to ensure we can do math on them
-      dplyr::mutate(across(contains("_PSI"), as.numeric)) 
-})
-
-# spot-check what one file looks like
-splice_results[1]
+  # iterate over each sample''s PSI file paths
+  purrr::map(\(sample_paths) {
+    # iterate over each splice event type's file path corresponding to a sample
+    purrr::map(sample_paths, \(path) {
+      # read each event types' PSI results
+      readr::read_tsv(path, col_types = readr::cols(.default = "c")) |>
+        # select for columns that will be used downstream in analysis so all dataframes have uniform column names
+        dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+        # turn PSI values numeric to ensure we can do math on them
+        dplyr::mutate(across(contains("_PSI"), as.numeric)) 
+    }
+    )
+  })
 
 # combine PSI values of all event types into one dataframe
 # psi_combined <- purrr::list_rbind(bulk_splice_results, names_to = "event_type")
 ```
+
+Test combining psi values
+
+```{r}
+
+combined_splice_list <- purrr::map(splice_results, dplyr::bind_rows, .id = "event_type")
+
+super_combined_splice_list <- dplyr::bind_rows(combined_splice_list, .id = "sample")
+
+
+```
+
+

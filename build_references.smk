@@ -17,7 +17,7 @@ rule all:
 
 rule download_fasta:
     output:
-        f"<references>/{config['genome_id']}.fa.gz"
+        f"<references>/{config['genome_assembly']}.fa.gz"
     localrule: True
     shell:
         "curl -fsSL '{config[genome_fasta_url]}' -o {output}"
@@ -45,7 +45,7 @@ rule unzip_files:
 
 rule star_index:
     input:
-        genome_fasta = f"<references>/{config['genome_id']}.fa",
+        genome_fasta = f"<references>/{config['genome_assembly']}.fa",
         genome_gtf = f"<references>/{config['genome_id']}.annotation.gtf"
     output:
         index_dir = directory(f"<references>/star/{config['genome_id']}")

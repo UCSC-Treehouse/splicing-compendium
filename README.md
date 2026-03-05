@@ -35,7 +35,7 @@ You may want to use symbolic links to point to the location of data files on you
 For example, a symbolic link is used in this workflow could be created with
 
 ```
-ln -s /private/groups/treehouse/working-projects/celiang/bulk data`
+ln -s /mnt/bulk data
 ```
 
 ## Download reference files and generate STAR index for file processing

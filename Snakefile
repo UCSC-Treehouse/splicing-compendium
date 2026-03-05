@@ -65,7 +65,7 @@ rule align_reads:
         sj = "<data>/star-output/{sample}/SJ.out.tab"
     log:
         "<logs>/star/{sample}-star.log"
-    threads: 15
+    threads: 7
     resources:
       mem_mb = 60000
     params:
@@ -87,7 +87,12 @@ rule align_reads:
             > {log} 2>&1
 
         # sort separately to save memory
-        samtools sort -@ {threads}  -m {params.samtools_memory}M -o {output.bam} {params.star_dir}/Aligned.out.bam
+        samtools sort \
+          -@ {threads}  \
+          -m {params.samtools_memory}M \
+          -o {output.bam} 
+          {params.star_dir}/Aligned.out.bam
+          
         rm {params.star_dir}/Aligned.out.bam
 
         rm -rf "{params.star_dir}/_STARpass1"
@@ -102,7 +107,7 @@ rule index_bams:
         "{file}.bam.bai"
     threads: 4
     shell:
-        "samtools index {input} --threads {threads}"
+        "samtools index -@ {threads} {input}"
 
 # Fourth rule: run shiba on a single sample
 rule run_shiba:

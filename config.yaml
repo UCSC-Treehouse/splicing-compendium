@@ -1,7 +1,7 @@
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
 sample_group: gtex
 # if the samples list is empty, all samples for the sample group found in the data directory will be run
-samples: []
+samples: [SRR601500]
 
 genome_id: gencode.v47.primary_assembly
 genome_assembly: GRCh38.primary_assembly.genome

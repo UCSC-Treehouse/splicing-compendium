@@ -1,0 +1,68 @@
+---
+title: "Test Wilcoxon ranksums on TARGET subset"
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Set up
+## Directories and files
+
+```{r}
+# find the root-level repo directory
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+# define the data directories
+# exploration dir
+exploration_dir <- file.path(repo_root, "exploration/compare_psi_distributions")
+data_dir <- file.path(exploration_dir, "data")
+
+# target subset metadata
+target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
+# target subset combined psi results
+combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
+
+```
+
+## read in files
+
+```{r}
+# read in TARGET sample metadata
+target_metadata <- readr::read_csv(target_metadata_file)
+
+# combined PSI results from notebook 01-target_subset_psi_value_comparison
+psi_combined <- readRDS(combined_psi_file)
+```
+## Combine PSI table with TARGET metadata to associate samples with cancer type
+```{r}
+
+# We only care about body site and run fields in target metadata
+target_metadata <- target_metadata |>
+  dplyr::select(study_name, Run) |>
+  dplyr::mutate(Run = paste0(Run, "_PSI"))
+
+# we need to associate the body site with accession number, so first pivot the table longer (so that we are back to one column of just accession IDs)
+cancer_type_psi_table <- psi_combined |>
+  tidyr::pivot_longer(
+    cols = contains("_PSI"),
+    names_to = "Run",
+    values_to = "PSI"
+    ) |>
+  dplyr::left_join(target_metadata, by = c("Run"))
+
+```
+
+Calculate Wilcoxon ranksum for PSI distributions
+```{r}
+# make two data frames, one of wilms tumor and one of everything else
+
+# then pivot wider by Run (accession) so that we can calculate all PSI values for a given pos_id
+
+```
+
+

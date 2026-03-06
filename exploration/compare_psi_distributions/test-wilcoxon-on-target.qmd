@@ -11,6 +11,36 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
 ## Set up
+## load libraries
+```{r}
+# load libraries
+library(ggplot2)
+
+set.seed(1)
+
+# define global size for plots
+global_size <- 20
+
+# define plot theme (size) presets
+plot_theme = list(
+ theme_bw(),
+ theme(
+   legend.position = "right",
+   axis.title = element_text(size = global_size),
+   plot.title = element_text(size = global_size),
+   axis.text = element_text(size = global_size),
+   axis.text.x = element_text(
+     hjust = 1,
+     margin = margin(t = 0, r = 80, b = 0, l = 0),
+     size = global_size
+   ),
+   legend.title = element_text(size=global_size),
+   legend.text=element_text(size=global_size - 8)
+ )
+)
+```
+
+
 ## Directories and files
 
 ```{r}
@@ -87,6 +117,8 @@ Run wilcoxon ranksum test
 wide_cancer_type_psi[is.na(wide_cancer_type_psi)] <- 0
 
 wilcox_test_events <- wide_cancer_type_psi |>
+  # subset randomly by 1000 events because wilcoxon test takes a really long time
+  dplyr::slice_sample(n = 1000) |>
   # perform wilcoxon ranksum row by row (per pos_id PSI values)
   dplyr::rowwise() |>
   dplyr::mutate(wilcox_p =
@@ -95,16 +127,69 @@ wilcox_test_events <- wide_cancer_type_psi |>
                     dplyr::c_across(ends_with("_query"))
                   )$p.value) |>
   dplyr::ungroup()
-  
-# filter for 
 
 ```
+
 Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions
+Make series of histograms faceted by pos_id
 ```{r}
+#| label: fig-hist_fail_wilcox_test_dists
+#| fig-width: 11
+#| fig-height: 8
+
 fail_wilcox_test_events <- wilcox_test_events |>
   dplyr::filter(wilcox_p >= 0.05) |>
-  # arbitrarily grab a couple
-  
+  # arbitrarily grab a couple to plot distributions
+ dplyr::slice_sample(n = 50)
 
+# pivot longer so distribution can be plotted
+long_fail_wilcox <- fail_wilcox_test_events |>
+  tidyr::pivot_longer(
+    contains("_PSI"),
+    names_to = "sample", 
+    values_to = "PSI"
+  ) |>
+  # extract group info
+  dplyr::mutate(
+    group = stringr::str_split_i(sample, "_", i = 3))
+
+ggplot(long_fail_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
+  ggridges::geom_density_ridges(stat = "binline", bins = 20, scale = 0.8) + 
+  facet_wrap(~ pos_id) + 
+  labs(title = "PSI distributions of wilcox ranksum p >= 0.05 events",
+       x = "PSI value",
+       y = "Number of samples") 
 ```
+These actually look fairly reasonable for a wilcox test to fail. 
+Check what it looks like when the wilcox test is successful
+```{r}
+#| label: fig-hist_sig_wilcox_test_dists
+#| fig-width: 11
+#| fig-height: 8
+
+succeed_wilcox_test_events <- wilcox_test_events |>
+  dplyr::filter(wilcox_p < 0.05) |>
+  # arbitrarily grab a couple to plot distributions
+ dplyr::slice_sample(n = 50)
+
+# pivot longer so distribution can be plotted
+long_succeed_wilcox <- succeed_wilcox_test_events |>
+  tidyr::pivot_longer(
+    contains("_PSI"),
+    names_to = "sample", 
+    values_to = "PSI"
+  ) |>
+  # extract group info
+  dplyr::mutate(
+    group = stringr::str_split_i(sample, "_", i = 3))
+
+ggplot(long_succeed_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
+  ggridges::geom_density_ridges(stat = "binline", bins = 20, scale = 0.8) + 
+  facet_wrap(~ pos_id) + 
+  labs(title = "PSI distributions of wilcox ranksum p < 0.05 events",
+       x = "PSI value",
+       y = "Number of samples") 
+```
+I used ridgeplots because stacked histograms made it hard to figure out where the ref and query distributions were
+
 

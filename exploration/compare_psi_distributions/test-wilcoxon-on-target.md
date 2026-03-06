@@ -161,7 +161,7 @@ long_fail_wilcox <- fail_wilcox_test_events |>
     group = stringr::str_split_i(sample, "_", i = 3))
 
 ggplot(long_fail_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 0.8) + 
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1) + 
   facet_wrap(~ pos_id) + 
   labs(title = "PSI distributions of wilcox ranksum p >= 0.05 events",
        x = "PSI value",
@@ -199,7 +199,7 @@ long_succeed_wilcox <- succeed_wilcox_test_events |>
     group = stringr::str_split_i(sample, "_", i = 3))
 
 ggplot(long_succeed_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 0.8) + 
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1) + 
   facet_wrap(~ pos_id) + 
   labs(title = "PSI distributions of wilcox ranksum p < 0.05 events",
        x = "PSI value",

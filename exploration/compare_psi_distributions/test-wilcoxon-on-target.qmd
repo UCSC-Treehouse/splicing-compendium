@@ -38,12 +38,14 @@ target_metadata <- readr::read_csv(target_metadata_file)
 # combined PSI results from notebook 01-target_subset_psi_value_comparison
 psi_combined <- readRDS(combined_psi_file)
 ```
+
 ## Combine PSI table with TARGET metadata to associate samples with cancer type
 ```{r}
 
 # We only care about body site and run fields in target metadata
-target_metadata <- target_metadata |>
+filtered_target_metadata <- target_metadata |>
   dplyr::select(study_name, Run) |>
+  dplyr::filter(grepl("TARGET", study_name)) |>
   dplyr::mutate(Run = paste0(Run, "_PSI"))
 
 # we need to associate the body site with accession number, so first pivot the table longer (so that we are back to one column of just accession IDs)
@@ -53,16 +55,56 @@ cancer_type_psi_table <- psi_combined |>
     names_to = "Run",
     values_to = "PSI"
     ) |>
-  dplyr::left_join(target_metadata, by = c("Run"))
+  dplyr::inner_join(
+    filtered_target_metadata, 
+    by = c("Run")) |>
+  # assign group type (ref vs query)
+    dplyr::mutate(
+    group = dplyr::case_when(
+      study_name ==  "TARGET: Kidney\\, Wilms Tumor (WT)" ~ "query",
+      study_name !=  "TARGET: Kidney\\, Wilms Tumor (WT)" ~ "ref"
+    )
+  )
 
 ```
 
 Calculate Wilcoxon ranksum for PSI distributions
 ```{r}
-# make two data frames, one of wilms tumor and one of everything else
 
 # then pivot wider by Run (accession) so that we can calculate all PSI values for a given pos_id
+wide_cancer_type_psi <- cancer_type_psi_table |>
+  dplyr::select(Run, group, gene_id, pos_id, label, event_type, PSI) |>
+  tidyr::pivot_wider(
+    names_from = c(Run, group),
+    values_from = PSI
+  )
 
 ```
 
+Run wilcoxon ranksum test
+```{r}
+# for now convert NA PSI values to 0 (otherwise will get "not enough y observations" in wilcoxon test)
+wide_cancer_type_psi[is.na(wide_cancer_type_psi)] <- 0
+
+wilcox_test_events <- wide_cancer_type_psi |>
+  # perform wilcoxon ranksum row by row (per pos_id PSI values)
+  dplyr::rowwise() |>
+  dplyr::mutate(wilcox_p =
+                  wilcox.test(
+                    dplyr::c_across(ends_with("_ref")),
+                    dplyr::c_across(ends_with("_query"))
+                  )$p.value) |>
+  dplyr::ungroup()
+  
+# filter for 
+
+```
+Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions
+```{r}
+fail_wilcox_test_events <- wilcox_test_events |>
+  dplyr::filter(wilcox_p >= 0.05) |>
+  # arbitrarily grab a couple
+  
+
+```
 

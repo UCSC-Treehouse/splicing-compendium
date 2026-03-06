@@ -21,7 +21,7 @@ base_dir <- here::here()
 # splice results directory
 results_dir <- file.path(base_dir, "results")
 
-# merged shiba PSI table of two samplesß
+# merged shiba PSI table of two samples
 merged_psi_table_dir <- file.path(results_dir, "merged_shiba_results_tables")
 
 # merged PSI file of two samples
@@ -31,7 +31,7 @@ merged_psi_file <- file.path(merged_psi_table_dir, "merged_psi_table.tsv")
 shiba_gtex_path <- file.path(results_dir, "gtex/shiba")
 
 # path to splice results of shiba run done on two samples at once
-merged_splice_results_path <- "two-samples-together/results/splicing"
+merged_splice_results_path <- "two_samples_together/results/splicing"
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
@@ -64,14 +64,12 @@ splice_results <- psi_paths |>
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
       dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
-      dplyr::mutate(across(contains("_PSI")), as.numeric)
+      dplyr::mutate(across(contains("_PSI"), as.numeric))
   })
 
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
 combined_splice_results_ref <- purrr::list_rbind(splice_results, names_to = "event_type")
-
-# merge the two tables to compare PSI values
-comparison_table <- combined_splice_results_ref |>
-  dplyr::full_join(merged_psi_table)
 ```
-
+Use R setdiff
+For annotated sites are they all the same
+If differences are in the novel sites, how different are they

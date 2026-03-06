@@ -75,6 +75,19 @@ For annotated sites are they all the same
 If differences are in the novel sites, how different are they
 
 ```{r}
-probs::setdiff(combined_splice_results_ref, merged_psi_table)
+# produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
+unique_reference <- probs::setdiff(combined_splice_results_ref, merged_psi_table)
+
+# produce dataframe of elements in merged splice results reference dataframe but not in the reference df
+unique_merged <- probs::setdiff(merged_psi_table, combined_splice_results_ref)
+```
+
+Start by counting the number of events that are annotated vs. unannotated that are different
+```{r}
+table(unique_merged$label)
+```
+
+```{r}
+table(unique_reference$label)
 ```
 

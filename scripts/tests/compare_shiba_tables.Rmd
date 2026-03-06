@@ -1,0 +1,77 @@
+---
+title: Compare merged PSI table vs. Shiba PSI tables
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Set up
+## Directories and files
+
+```{r}
+# find the project directory
+base_dir <- here::here()
+
+# define the data directories
+# splice results directory
+results_dir <- file.path(base_dir, "results")
+
+# merged shiba PSI table of two samplesß
+merged_psi_table_dir <- file.path(results_dir, "merged_shiba_results_tables")
+
+# merged PSI file of two samples
+merged_psi_file <- file.path(merged_psi_table_dir, "merged_psi_table.tsv")
+
+# general shiba results paths
+shiba_gtex_path <- file.path(results_dir, "gtex/shiba")
+
+# path to splice results of shiba run done on two samples at once
+merged_splice_results_path <- "two-samples-together/results/splicing"
+
+# define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
+psi_files <- c(
+  se = "PSI_SE.txt",
+  afe = "PSI_AFE.txt",
+  ale = "PSI_ALE.txt",
+  five = "PSI_FIVE.txt",
+  three = "PSI_THREE.txt",
+  mse = "PSI_MSE.txt",
+  mxe = "PSI_MXE.txt",
+  ri = "PSI_RI.txt"
+)
+
+# construct psi table paths of shiba results of two samples run together
+psi_paths <-file.path(shiba_gtex_path, merged_splice_results_path, psi_files)
+names(psi_paths) <- names(psi_files)
+
+```
+
+Read in files
+```{r}
+
+# read in manually combined splice table
+merged_psi_table <- readr::read_tsv(merged_psi_file)
+
+# read in splice results to compare against manually combined results
+
+splice_results <- psi_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
+      # select for columns that will be used in downstream analysis
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      dplyr::mutate(across(contains("_PSI")), as.numeric)
+  })
+
+# combine psi values of samples run together into one dataframe to compare against manually combined dataframe
+combined_splice_results_ref <- purrr::list_rbind(splice_results, names_to = "event_type")
+
+# merge the two tables to compare PSI values
+comparison_table <- combined_splice_results_ref |>
+  dplyr::full_join(merged_psi_table)
+```
+

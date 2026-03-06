@@ -91,3 +91,5 @@ table(unique_merged$label)
 table(unique_reference$label)
 ```
 
+Weirdly, several events look like they have the same info for both tables, e.g. 
+SE@chr10@119580471-119580846@119580010-119581922

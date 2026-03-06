@@ -37,45 +37,24 @@ plot_theme = list(
 ## Directories and files
 
 ``` r
-# find the root-level repo directory
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-
-# define the data directories
-# exploration dir
-exploration_dir <- file.path(repo_root, "exploration/compare_psi_distributions")
-data_dir <- file.path(exploration_dir, "data")
+data_dir <- file.path("data")
 
 # target subset metadata
 target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
 # target subset combined psi results
 combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
+
+
+# output
+wilcox_results_file <- file.path(data_dir, "wilcox_test_results.tsv")
 ```
 
 ## read in files
 
 ``` r
 # read in TARGET sample metadata
-target_metadata <- readr::read_csv(target_metadata_file)
-```
+target_metadata <- readr::read_csv(target_metadata_file, col_types = c(.default = "c"))
 
-    Warning: One or more parsing issues, call `problems()` on your data frame for details,
-    e.g.:
-      dat <- vroom(...)
-      problems(dat)
-
-    Rows: 27279 Columns: 119
-    ── Column specification ────────────────────────────────────────────────────────
-    Delimiter: ","
-    chr  (75): Run, analyte_type, Assay Type, BioProject, BioSample, biospecimen...
-    dbl  (19): Bytes, Consent_Code, Bases, AvgSpotLen, version, AvgReadLength (r...
-    num   (1): run (run)
-    lgl  (22): data_type (run), research_project (exp), research_project (run), ...
-    dttm  (2): ReleaseDate, create_date
-
-    ℹ Use `spec()` to retrieve the full column specification for this data.
-    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-``` r
 # combined PSI results from notebook 01-target_subset_psi_value_comparison
 psi_combined <- readRDS(combined_psi_file)
 ```
@@ -86,13 +65,13 @@ psi_combined <- readRDS(combined_psi_file)
 # We only care about body site and run fields in target metadata
 filtered_target_metadata <- target_metadata |>
   dplyr::select(study_name, Run) |>
-  dplyr::filter(grepl("TARGET", study_name)) |>
-  dplyr::mutate(Run = paste0(Run, "_PSI"))
+  dplyr::filter(grepl("TARGET", study_name))
 
 # we need to associate the body site with accession number, so first pivot the table longer (so that we are back to one column of just accession IDs)
 cancer_type_psi_table <- psi_combined |>
   tidyr::pivot_longer(
     cols = contains("_PSI"),
+    names_pattern = "(.*)_PSI",
     names_to = "Run",
     values_to = "PSI"
     ) |>
@@ -108,61 +87,88 @@ cancer_type_psi_table <- psi_combined |>
   )
 ```
 
+Filter to positions where there are sufficient samples.
+
+``` r
+min_samples <- 5
+
+# require at least min_samples for each group to have non-NA PSI values
+cancer_type_psi_table_filtered <- cancer_type_psi_table |>
+  tidyr::drop_na(PSI) |>
+  dplyr::group_by(pos_id) |>
+  dplyr::mutate(
+    ref_count = sum(group == "ref"), 
+    query_count = sum(group == "query")
+  ) |>
+  dplyr::filter(
+    ref_count >= min_samples, 
+    query_count >= min_samples
+  )|>
+  # filter where all PSI values are identical
+  dplyr::filter(any(PSI != PSI[1])) |>
+  dplyr::ungroup()
+
+
+filtered_events <- unique(cancer_type_psi_table_filtered$pos_id)
+
+cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
+  dplyr::filter(pos_id %in% filtered_events[1:1000])
+```
+
 Calculate Wilcoxon ranksum for PSI distributions
 
 ``` r
-# then pivot wider by Run (accession) so that we can calculate all PSI values for a given pos_id
-wide_cancer_type_psi <- cancer_type_psi_table |>
-  dplyr::select(Run, group, gene_id, pos_id, label, event_type, PSI) |>
-  tidyr::pivot_wider(
-    names_from = c(Run, group),
-    values_from = PSI
-  )
+use_cached_wilcox <-file.exists(wilcox_results_file) && params$use_cache
 ```
 
 Run wilcoxon ranksum test
 
 ``` r
-# for now convert NA PSI values to 0 (otherwise will get "not enough y observations" in wilcoxon test)
-wide_cancer_type_psi[is.na(wide_cancer_type_psi)] <- 0
+if (use_cached_wilcox) {
+  wilcox_test_events <- readr::read_tsv(wilcox_results_file)
+} else {
+wilcox_test_events <- cancer_type_psi_table_filtered |>
+  dplyr::group_by(pos_id) |>
+  rstatix::wilcox_test(
+    PSI ~ group,
+    ref.group = "ref"
+  ) |>
+  # add multiple testing adjustment
+  dplyr::mutate(
+    p_adj = p.adjust(p, method = "BH")
+  )
 
-wilcox_test_events <- wide_cancer_type_psi |>
-  # subset randomly by 1000 events because wilcoxon test takes a really long time
-  dplyr::slice_sample(n = 1000) |>
-  # perform wilcoxon ranksum row by row (per pos_id PSI values)
-  dplyr::rowwise() |>
-  dplyr::mutate(wilcox_p =
-                  wilcox.test(
-                    dplyr::c_across(ends_with("_ref")),
-                    dplyr::c_across(ends_with("_query"))
-                  )$p.value) |>
-  dplyr::ungroup()
+  readr::write_tsv(wilcox_test_events, wilcox_results_file)
+}
 ```
 
+    Rows: 275294 Columns: 9
+    ── Column specification ────────────────────────────────────────────────────────
+    Delimiter: "\t"
+    chr (4): pos_id, .y., group1, group2
+    dbl (5): n1, n2, statistic, p, p_adj
+
+    ℹ Use `spec()` to retrieve the full column specification for this data.
+    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
 Filter for distributions that failed the wilcoxon test to see if they
-look like biologically interesting distributions Make series of
+look like biologically interesting distributions. Make a series of
 histograms faceted by pos_id
 
 ``` r
 fail_wilcox_test_events <- wilcox_test_events |>
-  dplyr::filter(wilcox_p >= 0.05) |>
+  dplyr::filter(p >= 0.05) |>
   # arbitrarily grab a couple to plot distributions
- dplyr::slice_sample(n = 50)
+ dplyr::slice_sample(n = 36)
 
-# pivot longer so distribution can be plotted
-long_fail_wilcox <- fail_wilcox_test_events |>
-  tidyr::pivot_longer(
-    contains("_PSI"),
-    names_to = "sample", 
-    values_to = "PSI"
-  ) |>
-  # extract group info
-  dplyr::mutate(
-    group = stringr::str_split_i(sample, "_", i = 3))
+# select data from original data
+fail_wilcox_psi <- cancer_type_psi_table |>
+  dplyr::filter(pos_id %in% fail_wilcox_test_events$pos_id) |>
+  tidyr::drop_na(PSI)
 
-ggplot(long_fail_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1) + 
-  facet_wrap(~ pos_id) + 
+ggplot(fail_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1, alpha = 0.5) + 
+  facet_wrap(~ pos_id, ncol = 6) + 
   labs(title = "PSI distributions of wilcox ranksum p >= 0.05 events",
        x = "PSI value",
        y = "Number of samples") 
@@ -174,6 +180,7 @@ ggplot(long_fail_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
 src="test-wilcoxon-on-target_files/figure-commonmark/fig-hist_fail_wilcox_test_dists-1.png"
 id="fig-hist_fail_wilcox_test_dists" />
 
+
 Figure 1
 
 </div>
@@ -182,26 +189,20 @@ These actually look fairly reasonable for a wilcox test to fail. Check
 what it looks like when the wilcox test is successful
 
 ``` r
-succeed_wilcox_test_events <- wilcox_test_events |>
-  dplyr::filter(wilcox_p < 0.05) |>
+pass_wilcox_test_events <- wilcox_test_events |>
+  dplyr::filter(p_adj <= 0.05) |>
   # arbitrarily grab a couple to plot distributions
- dplyr::slice_sample(n = 50)
+ dplyr::slice_min(p_adj, n = 36)
 
 # pivot longer so distribution can be plotted
-long_succeed_wilcox <- succeed_wilcox_test_events |>
-  tidyr::pivot_longer(
-    contains("_PSI"),
-    names_to = "sample", 
-    values_to = "PSI"
-  ) |>
-  # extract group info
-  dplyr::mutate(
-    group = stringr::str_split_i(sample, "_", i = 3))
+pass_wilcox_psi <- cancer_type_psi_table|>
+  dplyr::filter(pos_id %in% pass_wilcox_test_events$pos_id) |>
+  tidyr::drop_na(PSI)
 
-ggplot(long_succeed_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1) + 
+ggplot(pass_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1, alpha = 0.5) + 
   facet_wrap(~ pos_id) + 
-  labs(title = "PSI distributions of wilcox ranksum p < 0.05 events",
+  labs(title = "PSI distributions of wilcox ranksum smallest p_adjust events",
        x = "PSI value",
        y = "Number of samples") 
 ```
@@ -211,6 +212,7 @@ ggplot(long_succeed_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) 
 <img
 src="test-wilcoxon-on-target_files/figure-commonmark/fig-hist_sig_wilcox_test_dists-1.png"
 id="fig-hist_sig_wilcox_test_dists" />
+
 
 Figure 2
 

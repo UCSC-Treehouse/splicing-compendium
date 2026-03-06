@@ -8,6 +8,8 @@ editor_options:
   markdown:
     wrap: sentence
 date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  use_cache: TRUE
 ---
 
 ## Set up
@@ -51,6 +53,9 @@ target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
 # target subset combined psi results
 combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
 
+
+# output
+wilcox_results_file <- file.path(data_dir, "wilcox_test_results.tsv")
 ```
 
 ## read in files
@@ -125,9 +130,17 @@ cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
 
 Calculate Wilcoxon ranksum for PSI distributions
 
+
+```{r}
+use_cached_wilcox <-file.exists(wilcox_results_file) && params$use_cache
+```
+
 Run wilcoxon ranksum test
 ```{r}
-wilcox_test_events <- cancer_type_psi_table_subset |>
+if (use_cached_wilcox) {
+  wilcox_test_events <- readr::read_tsv(wilcox_results_file)
+} else {
+wilcox_test_events <- cancer_type_psi_table_filtered |>
   dplyr::group_by(pos_id) |>
   rstatix::wilcox_test(
     PSI ~ group,
@@ -138,34 +151,30 @@ wilcox_test_events <- cancer_type_psi_table_subset |>
     p_adj = p.adjust(p, method = "BH")
   )
 
+  readr::write_tsv(wilcox_test_events, wilcox_results_file)
+}
 ```
 
-Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions
-Make series of histograms faceted by pos_id
+Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions.
+Make a series of histograms faceted by pos_id
 ```{r}
 #| label: fig-hist_fail_wilcox_test_dists
 #| fig-width: 11
 #| fig-height: 8
 
 fail_wilcox_test_events <- wilcox_test_events |>
-  dplyr::filter(wilcox_p >= 0.05) |>
+  dplyr::filter(p >= 0.05) |>
   # arbitrarily grab a couple to plot distributions
- dplyr::slice_sample(n = 50)
+ dplyr::slice_sample(n = 36)
 
-# pivot longer so distribution can be plotted
-long_fail_wilcox <- fail_wilcox_test_events |>
-  tidyr::pivot_longer(
-    contains("_PSI"),
-    names_to = "sample", 
-    values_to = "PSI"
-  ) |>
-  # extract group info
-  dplyr::mutate(
-    group = stringr::str_split_i(sample, "_", i = 3))
+# select data from original data
+fail_wilcox_psi <- cancer_type_psi_table |>
+  dplyr::filter(pos_id %in% fail_wilcox_test_events$pos_id) |>
+  tidyr::drop_na(PSI)
 
-ggplot(long_fail_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1) + 
-  facet_wrap(~ pos_id) + 
+ggplot(fail_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1, alpha = 0.5) + 
+  facet_wrap(~ pos_id, ncol = 6) + 
   labs(title = "PSI distributions of wilcox ranksum p >= 0.05 events",
        x = "PSI value",
        y = "Number of samples") 
@@ -177,26 +186,20 @@ Check what it looks like when the wilcox test is successful
 #| fig-width: 11
 #| fig-height: 8
 
-succeed_wilcox_test_events <- wilcox_test_events |>
-  dplyr::filter(wilcox_p < 0.05) |>
+pass_wilcox_test_events <- wilcox_test_events |>
+  dplyr::filter(p_adj <= 0.05) |>
   # arbitrarily grab a couple to plot distributions
- dplyr::slice_sample(n = 50)
+ dplyr::slice_min(p_adj, n = 36)
 
 # pivot longer so distribution can be plotted
-long_succeed_wilcox <- succeed_wilcox_test_events |>
-  tidyr::pivot_longer(
-    contains("_PSI"),
-    names_to = "sample", 
-    values_to = "PSI"
-  ) |>
-  # extract group info
-  dplyr::mutate(
-    group = stringr::str_split_i(sample, "_", i = 3))
+pass_wilcox_psi <- cancer_type_psi_table|>
+  dplyr::filter(pos_id %in% pass_wilcox_test_events$pos_id) |>
+  tidyr::drop_na(PSI)
 
-ggplot(long_succeed_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1) + 
+ggplot(pass_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1, alpha = 0.5) + 
   facet_wrap(~ pos_id) + 
-  labs(title = "PSI distributions of wilcox ranksum p < 0.05 events",
+  labs(title = "PSI distributions of wilcox ranksum smallest p_adjust events",
        x = "PSI value",
        y = "Number of samples") 
 ```

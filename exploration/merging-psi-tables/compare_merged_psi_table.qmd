@@ -73,3 +73,8 @@ combined_splice_results_ref <- purrr::list_rbind(splice_results, names_to = "eve
 Use R setdiff
 For annotated sites are they all the same
 If differences are in the novel sites, how different are they
+
+```{r}
+probs::setdiff(combined_splice_results_ref, merged_psi_table)
+```
+

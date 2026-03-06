@@ -1,6 +1,6 @@
 # Test Wilcoxon ranksums on TARGET subset
 Cindy Liang (celiang@ucsc.edu)
-2026-03-05
+2026-03-06
 
 ## Set up
 
@@ -161,7 +161,7 @@ long_fail_wilcox <- fail_wilcox_test_events |>
     group = stringr::str_split_i(sample, "_", i = 3))
 
 ggplot(long_fail_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_density_ridges(stat = "binline", bins = 20, scale = 0.8) + 
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 0.8) + 
   facet_wrap(~ pos_id) + 
   labs(title = "PSI distributions of wilcox ranksum p >= 0.05 events",
        x = "PSI value",
@@ -199,7 +199,7 @@ long_succeed_wilcox <- succeed_wilcox_test_events |>
     group = stringr::str_split_i(sample, "_", i = 3))
 
 ggplot(long_succeed_wilcox, aes(x = PSI, y = group, fill = group, alpha = 0.5)) +
-  ggridges::geom_density_ridges(stat = "binline", bins = 20, scale = 0.8) + 
+  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 0.8) + 
   facet_wrap(~ pos_id) + 
   labs(title = "PSI distributions of wilcox ranksum p < 0.05 events",
        x = "PSI value",

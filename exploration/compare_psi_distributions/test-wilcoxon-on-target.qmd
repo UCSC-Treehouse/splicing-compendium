@@ -44,13 +44,7 @@ plot_theme = list(
 ## Directories and files
 
 ```{r}
-# find the root-level repo directory
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-
-# define the data directories
-# exploration dir
-exploration_dir <- file.path(repo_root, "exploration/compare_psi_distributions")
-data_dir <- file.path(exploration_dir, "data")
+data_dir <- file.path("data")
 
 # target subset metadata
 target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
@@ -63,7 +57,7 @@ combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
 
 ```{r}
 # read in TARGET sample metadata
-target_metadata <- readr::read_csv(target_metadata_file)
+target_metadata <- readr::read_csv(target_metadata_file, col_types = c(.default = "c"))
 
 # combined PSI results from notebook 01-target_subset_psi_value_comparison
 psi_combined <- readRDS(combined_psi_file)
@@ -75,13 +69,13 @@ psi_combined <- readRDS(combined_psi_file)
 # We only care about body site and run fields in target metadata
 filtered_target_metadata <- target_metadata |>
   dplyr::select(study_name, Run) |>
-  dplyr::filter(grepl("TARGET", study_name)) |>
-  dplyr::mutate(Run = paste0(Run, "_PSI"))
+  dplyr::filter(grepl("TARGET", study_name))
 
 # we need to associate the body site with accession number, so first pivot the table longer (so that we are back to one column of just accession IDs)
 cancer_type_psi_table <- psi_combined |>
   tidyr::pivot_longer(
     cols = contains("_PSI"),
+    names_pattern = "(.*)_PSI",
     names_to = "Run",
     values_to = "PSI"
     ) |>
@@ -98,35 +92,51 @@ cancer_type_psi_table <- psi_combined |>
 
 ```
 
-Calculate Wilcoxon ranksum for PSI distributions
-```{r}
+Filter to positions where there are sufficient samples.
 
-# then pivot wider by Run (accession) so that we can calculate all PSI values for a given pos_id
-wide_cancer_type_psi <- cancer_type_psi_table |>
-  dplyr::select(Run, group, gene_id, pos_id, label, event_type, PSI) |>
-  tidyr::pivot_wider(
-    names_from = c(Run, group),
-    values_from = PSI
-  )
+```{r}
+min_samples <- 5
+
+# require at least min_samples for each group to have non-NA PSI values
+cancer_type_psi_table_filtered <- cancer_type_psi_table |>
+  tidyr::drop_na(PSI) |>
+  dplyr::group_by(pos_id) |>
+  dplyr::mutate(
+    ref_count = sum(group == "ref"), 
+    query_count = sum(group == "query")
+  ) |>
+  dplyr::filter(
+    ref_count >= min_samples, 
+    query_count >= min_samples
+  )|>
+  # filter where all PSI values are identical
+  dplyr::filter(any(PSI != PSI[1])) |>
+  dplyr::ungroup()
+
+
+filtered_events <- unique(cancer_type_psi_table_filtered$pos_id)
+
+cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
+  dplyr::filter(pos_id %in% filtered_events[1:1000])
 
 ```
 
+
+
+Calculate Wilcoxon ranksum for PSI distributions
+
 Run wilcoxon ranksum test
 ```{r}
-# for now convert NA PSI values to 0 (otherwise will get "not enough y observations" in wilcoxon test)
-wide_cancer_type_psi[is.na(wide_cancer_type_psi)] <- 0
-
-wilcox_test_events <- wide_cancer_type_psi |>
-  # subset randomly by 1000 events because wilcoxon test takes a really long time
-  dplyr::slice_sample(n = 1000) |>
-  # perform wilcoxon ranksum row by row (per pos_id PSI values)
-  dplyr::rowwise() |>
-  dplyr::mutate(wilcox_p =
-                  wilcox.test(
-                    dplyr::c_across(ends_with("_ref")),
-                    dplyr::c_across(ends_with("_query"))
-                  )$p.value) |>
-  dplyr::ungroup()
+wilcox_test_events <- cancer_type_psi_table_subset |>
+  dplyr::group_by(pos_id) |>
+  rstatix::wilcox_test(
+    PSI ~ group,
+    ref.group = "ref"
+  ) |>
+  # add multiple testing adjustment
+  dplyr::mutate(
+    p_adj = p.adjust(p, method = "BH")
+  )
 
 ```
 

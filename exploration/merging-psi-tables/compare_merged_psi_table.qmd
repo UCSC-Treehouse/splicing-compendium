@@ -55,10 +55,9 @@ Read in files
 ```{r}
 
 # read in manually combined splice table
-merged_psi_table <- readr::read_tsv(merged_psi_file)
+test_psi_table <- readr::read_tsv(merged_psi_file)
 
 # read in splice results to compare against manually combined results
-
 splice_results <- psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
@@ -68,7 +67,7 @@ splice_results <- psi_paths |>
   })
 
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
-combined_splice_results_ref <- purrr::list_rbind(splice_results, names_to = "event_type")
+ref_splice_results <- purrr::list_rbind(splice_results, names_to = "event_type")
 ```
 Use R setdiff
 For annotated sites are they all the same
@@ -76,20 +75,85 @@ If differences are in the novel sites, how different are they
 
 ```{r}
 # produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
-unique_reference <- probs::setdiff(combined_splice_results_ref, merged_psi_table)
+unique_reference <- setdiff(ref_splice_results$pos_id, test_psi_table$pos_id)
 
-# produce dataframe of elements in merged splice results reference dataframe but not in the reference df
-unique_merged <- probs::setdiff(merged_psi_table, combined_splice_results_ref)
+# produce dataframe of elements in merged splice results dataframe but not in the reference df
+unique_test <- setdiff(test_psi_table$pos_id, ref_splice_results$pos_id)
 ```
 
-Start by counting the number of events that are annotated vs. unannotated that are different
+1839 pos_ids unique in test df
+657 pos_ids unique in ref df
+
+Count number of unique events annotated vs. unannotated in each group
 ```{r}
-table(unique_merged$label)
+
+print("Number of unique annotated and unannotated events in test table")
+
+# filter for the pos_ids in the test df that are unique
+unique_test_psi_table <- test_psi_table |>
+  dplyr::filter(pos_id %in% unique_test)
+
+# count the number of novel vs annotated events
+table(unique_test_psi_table$label)
+
+print("Number of unique annotated and unannotated events in reference table")
+
+# filter for the pos_ids in the ref df that are unique
+unique_reference_psi_table <- ref_splice_results |>
+  dplyr::filter(pos_id %in% unique_reference)
+
+# count the number of novel vs annotated events
+table(unique_reference_psi_table$label)
+
 ```
+Inspect individual position IDs of SE events in the merged (test) PSI table that have PSI values in both samples
+```{r}
+unique_se_test <- unique_test_psi_table |>
+  dplyr::filter(event_type == "se",
+                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
+```
+
+Spot-check how close pos_ids are by eye for one event type for now
+```{r}
+complete_unique_test_psi_table <- unique_test_psi_table |>
+  dplyr::filter(
+                # we're most interested in events that have PSI values in both samples
+                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI), 
+                )
+```
+
+There are no SE events in the pos-ids unique only to the test table.
+Of the events unique only to the test table, that have values in both samples, only two are unannotated 
+
+A lot of the unique events in the test table are AFE events in gene ENSG00000214655.11, so look for AFE events in this gene in the ref table
 
 ```{r}
-table(unique_reference$label)
+afe_ref_table <- ref_splice_results |>
+  dplyr::filter(gene_id == "ENSG00000214655.11",
+                event_type == "afe")
 ```
 
-Weirdly, several events look like they have the same info for both tables, e.g. 
-SE@chr10@119580471-119580846@119580010-119581922
+We are more concerned by thigns that are missing in the test (merged) table  in 
+
+There are surprisingly no AFE events in this gene in the ref table!
+If we just search this gene in the ref table, there are only ALE, FIVE, THREE, and RI events
+
+Notes:
+
+We are most concerned if unannotated events have altered positions in the merged table and are unmatched
+
+Check the unique unannotated events in the shiba ref table first
+Are there things where it will change the position a little bit? or calls across samples are ending up in different rows?
+Looking for unannotated events where neither samples have NA PSI values 
+
+Keep in same notebook for now
+Head tables (no screenshots)
+
+New header every time you start another part of an analysis
+
+Check junction counts as well or any other stats--> will the values even be kept after we tun our distribution comparison
+
+dim() to get dimensions of table, show column names
+How many splice event types are present in each table
+
+

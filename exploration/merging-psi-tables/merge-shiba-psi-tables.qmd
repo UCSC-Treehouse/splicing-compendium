@@ -58,10 +58,8 @@ psi_files <- c(
 # names(sample_psi_result_paths) <- samples
 
 # output directory of results
-out_dir <- file.path(results_dir, "merged_shiba_results_tables")
-
 # output merged file for test samples
-out_file <- file.path(out_dir, "merged_psi_table.tsv")
+out_file <- file.path("merged_psi_table.tsv")
 
 # create output directory if it does not already exist
 dir.create(out_dir, showWarnings = FALSE)

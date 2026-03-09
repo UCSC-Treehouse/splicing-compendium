@@ -37,10 +37,10 @@ splice_results_path <- "results/splicing"
 
 # make sample paths
 sample_paths <- file.path(
-    shiba_gtex_path,
-    samples,
-    splice_results_path
-  )
+  shiba_gtex_path,
+  samples,
+  splice_results_path
+)
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
@@ -112,8 +112,7 @@ Combine PSI dataframes for all samples into one
 merged_psi <- sample_psi_tables |>
   purrr::reduce( \(x, y) {
     dplyr::full_join(x, y, by = c("pos_id", "gene_id", "label", "event_type") )
-  }
-  )
+  })
 
 ```
 

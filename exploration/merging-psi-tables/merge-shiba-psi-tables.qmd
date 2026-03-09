@@ -54,15 +54,9 @@ psi_files <- c(
   ri = "PSI_RI.txt.gz"
 )
 
-# name the outer list of paths by sample ID
-# names(sample_psi_result_paths) <- samples
-
 # output directory of results
 # output merged file for test samples
 out_file <- file.path("merged_psi_table.tsv")
-
-# create output directory if it does not already exist
-dir.create(out_dir, showWarnings = FALSE)
 ```
 
 Define functions

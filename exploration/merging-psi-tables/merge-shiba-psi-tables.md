@@ -1,6 +1,6 @@
 # Merge Shiba PSI tables
 Cindy Liang (celiang@ucsc.edu)
-2026-03-05
+2026-03-09
 
 Shiba is run one sample at a time using our snakemake workflow. We then
 merge PSI tables produced for each sample.
@@ -28,10 +28,10 @@ splice_results_path <- "results/splicing"
 
 # make sample paths
 sample_paths <- file.path(
-    shiba_gtex_path,
-    samples,
-    splice_results_path
-  )
+  shiba_gtex_path,
+  samples,
+  splice_results_path
+)
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
@@ -45,17 +45,9 @@ psi_files <- c(
   ri = "PSI_RI.txt.gz"
 )
 
-# name the outer list of paths by sample ID
-# names(sample_psi_result_paths) <- samples
-
 # output directory of results
-out_dir <- file.path(results_dir, "merged_shiba_results_tables")
-
 # output merged file for test samples
-out_file <- file.path(out_dir, "merged_psi_table.tsv")
-
-# create output directory if it does not already exist
-dir.create(out_dir, showWarnings = FALSE)
+out_file <- file.path("merged_psi_table.tsv")
 ```
 
 Define functions
@@ -101,8 +93,7 @@ Combine PSI dataframes for all samples into one
 merged_psi <- sample_psi_tables |>
   purrr::reduce( \(x, y) {
     dplyr::full_join(x, y, by = c("pos_id", "gene_id", "label", "event_type") )
-  }
-  )
+  })
 ```
 
 Save output as a table

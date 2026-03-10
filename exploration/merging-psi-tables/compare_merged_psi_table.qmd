@@ -24,14 +24,14 @@ results_dir <- file.path(base_dir, "results")
 # merged shiba PSI table of two samples
 merged_psi_table_dir <- file.path(results_dir, "merged_shiba_results_tables")
 
-# merged PSI file of two samples
+# merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 merged_psi_file <- file.path(merged_psi_table_dir, "merged_psi_table.tsv")
 
 # general shiba results paths
 shiba_gtex_path <- file.path(results_dir, "gtex/shiba")
 
 # path to splice results of shiba run done on two samples at once
-merged_splice_results_path <- "two_samples_together/results/splicing"
+shiba_splice_results_path <- "two_samples_together/results/splicing"
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
@@ -46,19 +46,18 @@ psi_files <- c(
 )
 
 # construct psi table paths of shiba results of two samples run together
-psi_paths <-file.path(shiba_gtex_path, merged_splice_results_path, psi_files)
+shiba_psi_paths <-file.path(shiba_gtex_path, shiba_splice_results_path, psi_files)
 names(psi_paths) <- names(psi_files)
 
 ```
 
 Read in files
 ```{r}
-
 # read in manually combined splice table
-test_psi_table <- readr::read_tsv(merged_psi_file)
+merged_psi_table <- readr::read_tsv(merged_psi_file)
 
 # read in splice results to compare against manually combined results
-splice_results <- psi_paths |>
+shiba_splice_results_paths <- shiba_psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
@@ -67,52 +66,56 @@ splice_results <- psi_paths |>
   })
 
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
-ref_splice_results <- purrr::list_rbind(splice_results, names_to = "event_type")
+shiba_splice_results <- purrr::list_rbind(shiba_splice_results_paths, names_to = "event_type")
 ```
+## Obtain splice events unique to each table
+
 Use R setdiff
 For annotated sites are they all the same
 If differences are in the novel sites, how different are they
 
 ```{r}
 # produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
-unique_reference <- setdiff(ref_splice_results$pos_id, test_psi_table$pos_id)
+unique_shiba <- setdiff(shiba_splice_results$pos_id, merged_psi_table$pos_id)
 
 # produce dataframe of elements in merged splice results dataframe but not in the reference df
-unique_test <- setdiff(test_psi_table$pos_id, ref_splice_results$pos_id)
+unique_merged <- setdiff(merged_psi_table$pos_id, shiba_splice_results$pos_id)
 ```
 
-1839 pos_ids unique in test df
-657 pos_ids unique in ref df
-
-Count number of unique events annotated vs. unannotated in each group
+Print the number of unique events annotated vs. unannotated in each group
 ```{r}
 
-print("Number of unique annotated and unannotated events in test table")
+print("Number of unique annotated and unannotated events in merged table")
 
-# filter for the pos_ids in the test df that are unique
-unique_test_psi_table <- test_psi_table |>
-  dplyr::filter(pos_id %in% unique_test)
+# filter for the pos_ids in the merged df that are unique
+unique_merged_psi_table <- merged_psi_table |>
+  dplyr::filter(pos_id %in% unique_merged)
 
 # count the number of novel vs annotated events
-table(unique_test_psi_table$label)
+table(unique_merged_psi_table $label)
+
+print("---------------")
 
 print("Number of unique annotated and unannotated events in reference table")
 
 # filter for the pos_ids in the ref df that are unique
-unique_reference_psi_table <- ref_splice_results |>
+unique_shiba_psi_table <- ref_splice_results |>
   dplyr::filter(pos_id %in% unique_reference)
 
 # count the number of novel vs annotated events
-table(unique_reference_psi_table$label)
+table(unique_shiba_psi_table$label)
 
 ```
-Inspect individual position IDs of SE events in the merged (test) PSI table that have PSI values in both samples
+## Inspect individual position IDs of unique events
+
 ```{r}
-unique_se_test <- unique_test_psi_table |>
+# Filter for splice events that have real PSI values in all samples; start with skipped exon events for now
+unique_se_in_shiba <- unique_shiba_psi_table |>
   dplyr::filter(event_type == "se",
                 !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
 ```
 
+Examine 
 Spot-check how close pos_ids are by eye for one event type for now
 ```{r}
 complete_unique_test_psi_table <- unique_test_psi_table |>

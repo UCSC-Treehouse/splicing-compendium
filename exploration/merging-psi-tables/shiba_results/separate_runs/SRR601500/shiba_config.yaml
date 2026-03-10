@@ -1,0 +1,22 @@
+container: docker://naotokubota/shiba:v0.8.1
+unannotated: True
+# Junction read filtering
+minimum_anchor_length: 6
+minimum_intron_length: 70
+maximum_intron_length: 500000
+strand: XS
+# PSI calculation
+only_psi: True
+only_psi_group: False
+fdr: 0.05
+delta_psi: 0.1
+reference_group: Ref
+alternative_group: Alt
+minimum_reads: 10
+individual_psi: True
+# setting ttest to false in hopes of speeding up the Shiba run, since I don't need the statistics; just PSI values
+ttest: False
+excel: False
+workdir: results/gtex/shiba/SRR601500
+experiment_table: results/gtex/shiba/SRR601500/experiment.tsv
+gtf: references/gencode.v47.primary_assembly.annotation.gtf

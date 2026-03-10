@@ -1,6 +1,6 @@
 # Merge Shiba PSI tables
 Cindy Liang (celiang@ucsc.edu)
-2026-03-09
+2026-03-10
 
 Shiba is run one sample at a time using our snakemake workflow. We then
 merge PSI tables produced for each sample.
@@ -17,18 +17,21 @@ samples <- c("SRR601500", "SRR604528")
 
 # find the project directory
 base_dir <- here::here()
+# exploration dir
+exploration_dir <- file.path(base_dir, "exploration/merging-psi-tables")
 
 # define the data directories
 # splice results directory
-results_dir <- file.path(base_dir, "results")
+results_dir <- file.path(exploration_dir, "shiba_results")
+combined_dir <- file.path(results_dir, "combined_run")
+separate_dir <- file.path(results_dir, "separate_runs")
 
-# general shiba results paths
-shiba_gtex_path <- file.path(results_dir, "gtex/shiba")
+# shiba splice results path
 splice_results_path <- "results/splicing"
 
 # make sample paths
 sample_paths <- file.path(
-  shiba_gtex_path,
+  separate_dir,
   samples,
   splice_results_path
 )
@@ -46,6 +49,7 @@ psi_files <- c(
 )
 
 # output directory of results
+out_dir <- file.path(base_dir, "merged_results")
 # output merged file for test samples
 out_file <- file.path("merged_psi_table.tsv")
 ```

@@ -1,0 +1,15 @@
+{
+  "tool": {
+    "name": "Shiba",
+    "version": "v0.8.1"
+  },
+  "run": {
+    "command": "/private/groups/treehouse/working-projects/celiang/splicing-compendium/.pixi/envs/default/bin/shiba.py -p 1 results/gtex/shiba/SRR601500/shiba_config.yaml",
+    "start_time": "2026-02-25T20:32:09.101224",
+    "end_time": "2026-02-25T21:36:45.004467",
+    "duration_seconds": 3875.903
+  },
+  "experiment": {
+    "table_path": "results/gtex/shiba/SRR601500/experiment.tsv"
+  }
+}

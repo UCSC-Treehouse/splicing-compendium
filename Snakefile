@@ -1,6 +1,6 @@
 # snakefile for compendium shiba run
-# Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 16
-# Usage: snakemake --cores 16
+# Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 15
+# Usage: snakemake --cores 15
 
 import os
 
@@ -38,9 +38,9 @@ rule trim_reads:
         fastp_json = "<reports>/{sample}_fastp.json"
     log:
         "<logs>/fastp/{sample}-fastp.log"
-    threads: 8
+    threads: 7
     resources:
-      mem_mb = 16000
+      mem_mb = 20000
     shell:
         """
         fastp \
@@ -65,9 +65,9 @@ rule align_reads:
         sj = "<data>/star-output/{sample}/SJ.out.tab"
     log:
         "<logs>/star/{sample}-star.log"
-    threads: 16
+    threads: 7
     resources:
-      mem_mb = 48000
+      mem_mb = 60000
     params:
         star_dir = lambda wildcards, output: os.path.dirname(output.bam),
         samtools_memory = lambda wildcards, resources, threads: int(resources.mem_mb / threads * 0.9)  # use 90% of available memory for samtools sorting
@@ -87,7 +87,12 @@ rule align_reads:
             > {log} 2>&1
 
         # sort separately to save memory
-        samtools sort -@ {threads}  -m {params.samtools_memory}M -o {output.bam} {params.star_dir}/Aligned.out.bam
+        samtools sort \
+          -@ {threads}  \
+          -m {params.samtools_memory}M \
+          -o {output.bam} 
+          {params.star_dir}/Aligned.out.bam
+          
         rm {params.star_dir}/Aligned.out.bam
 
         rm -rf "{params.star_dir}/_STARpass1"
@@ -100,8 +105,9 @@ rule index_bams:
         "{file}.bam"
     output:
         "{file}.bam.bai"
+    threads: 4
     shell:
-        "samtools index {input}"
+        "samtools index -@ {threads} {input}"
 
 # Fourth rule: run shiba on a single sample
 rule run_shiba:
@@ -118,7 +124,7 @@ rule run_shiba:
         experiment_table = lambda wildcards, output: os.path.join(output.shiba_out, "experiment.tsv"),
         config_file = lambda wildcards, output: os.path.join(output.shiba_out, "shiba_config.yaml"),
         sample_group = SAMPLE_GROUP
-    threads: 2
+    threads: 4
     resources:
       mem_mb = 32000
     shell:

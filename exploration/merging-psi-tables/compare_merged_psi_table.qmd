@@ -64,53 +64,54 @@ shiba_splice_results_paths <- shiba_psi_paths |>
   })
 
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
-shiba_splice_results <- purrr::list_rbind(shiba_splice_results_paths, names_to = "event_type")
+shiba_psi_table <- purrr::list_rbind(shiba_splice_results_paths, names_to = "event_type")
 ```
 ## Obtain splice events unique to each table
 
-Use R setdiff
-For annotated sites are they all the same
-If differences are in the novel sites, how different are they
-
 ```{r}
 # produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
-unique_shiba <- setdiff(shiba_splice_results$pos_id, merged_psi_table$pos_id)
+unique_shiba <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
 
 # produce dataframe of elements in merged splice results dataframe but not in the reference df
-unique_merged <- setdiff(merged_psi_table$pos_id, shiba_splice_results$pos_id)
+unique_merged <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
 ```
 
-Print the number of unique events annotated vs. unannotated in each group
+Print the number of unique annotated vs. unannotated events in each event type for the merged table
 ```{r}
+# filter for pos_ids unique to the shiba dataframe
+unique_shiba_psi_table <- shiba_psi_table |>
+  dplyr::filter(pos_id %in% unique_shiba)
 
-print("Number of unique annotated and unannotated events in merged table")
+# print summary of how many unique events with values in both samples are novel vs. unannotated
+unique_shiba_psi_table |> 
+  dplyr::summarise(.by = c(event_type, label), n = dplyr::n())
+```
 
+Print the number of unique annotated vs. unannotated events in each event type for the merged table
+```{r}
 # filter for the pos_ids in the merged df that are unique
 unique_merged_psi_table <- merged_psi_table |>
   dplyr::filter(pos_id %in% unique_merged)
 
-# count the number of novel vs annotated events
-table(unique_merged_psi_table $label)
-
-print("---------------")
-
-print("Number of unique annotated and unannotated events in reference table")
-
-# filter for the pos_ids in the ref df that are unique
-unique_shiba_psi_table <- ref_splice_results |>
-  dplyr::filter(pos_id %in% unique_reference)
-
-# count the number of novel vs annotated events
-table(unique_shiba_psi_table$label)
+# print summary of how many unique events with values in both samples are novel vs unannotated
+unique_merged_psi_table |> 
+  dplyr::summarise(.by = c(event_type, label), n = dplyr::n())
 
 ```
+For both tables, there are more annotated unique events than unannotated ones, which may be concerning.
+These probably represent splice events that are annotated but only found in one of the two samples.
+
 ## Inspect individual position IDs of unique events
+
+Start with skipped exon events because they are simpler to check on IGV. 
 
 ```{r}
 # Filter for splice events that have real PSI values in all samples; start with skipped exon events for now
 unique_se_in_shiba <- unique_shiba_psi_table |>
   dplyr::filter(event_type == "se",
                 !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
+
+unique_se_in_shiba
 ```
 
 Examine 

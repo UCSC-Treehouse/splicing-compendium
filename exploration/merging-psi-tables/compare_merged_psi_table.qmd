@@ -58,7 +58,7 @@ psi_files <- c(
 )
 
 # construct psi table paths of shiba results of two samples run together
-shiba_psi_paths <-file.path(shiba_dir, psi_files)
+shiba_psi_paths <-file.path(shiba_splice_results_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
 
 # make sample paths to the junctions.bed files for separate splice runs
@@ -70,12 +70,6 @@ junction_paths <- file.path(
 )
 
 ```
-
-```{r}
-bed <- read.table("/Users/cindyliang/repos/splicing-compendium/exploration/merging-psi-tables/shiba_results/separate_runs/SRR601500/junctions/junctions.bed",
-                  header = TRUE, sep="\t",stringsAsFactors=FALSE, quote="")
-```
-
 
 Define function to read in junctions.bed files
 ```{r}
@@ -101,9 +95,11 @@ read_junctions <- function(sample_id, junction_paths) {
 
 Read in files
 ```{r}
-
 # read in manually combined splice table
 merged_psi_table <- readr::read_tsv(merged_psi_file)
+
+# read in manually merged junctions table
+merged_junctions <- read_junctions(samples, junction_paths)
 
 # read in shiba splice results to compare against manually combined results
 shiba_splice_results_paths <- shiba_psi_paths |>
@@ -204,6 +200,17 @@ shiba_psi_table |>
 There are no RI events in @GL000219.1 region in the shiba PSI table.
 Instead, these reads might be assigned to ALE events (GL000219.1@77669-78842 is in three ALE events in the shiba table)
 
+#### Check junction counts for GL000219.1@77669
+```{r}
+merged_junctions |>
+  dplyr::filter(chr == "GL000219.1",
+                start == "77669")
+```
+There are two entries for a junction at GL000219.1@77669-78842.
+One has a junction count of 14 for SRR601500, which would have received a PSI value score since it exceeds the threshold of 10
+The second one for SRR604528 should not have received a PSI score since it is below 10
+I wonder if shiba is counting both inclusion and exclusion junction reads together to calculate PSI values
+
 #### IGV screenshots of region 
 Check on IGV - does this event look like an ALE or RI?
 
@@ -216,6 +223,16 @@ shiba_psi_table |>
 
 There are also no RI events in the chr3@139355790 region in the shiba PSI table.
 Instead, these reads might be assigned to ALE events.
+
+#### Check junction counts for RI@chr3@139355790-139356919
+```{r}
+merged_junctions |>
+  dplyr::filter(chr == "chr3",
+                start == "139355790",
+                end == "139356919")
+```
+This is a good example of us probably needing to merge the junctions.bed files.
+The junction counts for chr3 139355790-139356919 are high for both samples (>>10)
 
 #### IGV screenshots of region 
 Check on IGV - does this event look like an ALE or RI?
@@ -230,6 +247,14 @@ shiba_psi_table |>
 
 There are no events in the Shiba PSI table with the start coordinate chr6@99400311.
 
-Check junction counts as well or any other stats for these three events --> will the values even be kept after we run our distribution comparison?
+#### Check junction counts for RI@chr6@99400311-99400544
+```{r}
+merged_junctions |>
+  dplyr::filter(chr == "chr6",
+                start == "99400311",
+                end == "99400544")
+```
+This looks like another example of an event with strong junction support in both samples 
 
-
+#### IGV screenshots of region 
+Check on IGV - does this event look like an ALE or RI?

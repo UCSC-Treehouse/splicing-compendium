@@ -66,6 +66,19 @@ shiba_splice_results_paths <- shiba_psi_paths |>
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
 shiba_psi_table <- purrr::list_rbind(shiba_splice_results_paths, names_to = "event_type")
 ```
+## Obtain dimensions of the merged and shiba tables to compare values
+```{r}
+paste0("Merged PSI table dimensions ", 
+       dim(merged_psi_table)[1], 
+       "x", 
+       dim(merged_psi_table)[2])
+
+paste0("Shiba PSI table dimensions ", 
+       dim(shiba_psi_table)[1],
+       "x",
+       dim(shiba_psi_table)[2])
+```
+
 ## Obtain splice events unique to each table
 
 ```{r}
@@ -76,11 +89,22 @@ unique_shiba <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
 unique_merged <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
 ```
 
+## Obtain dimensions of the merged and shiba tables to compare values
+
+```{r}
+paste0("Number of total unique merged events: ", 
+       length(unique_merged))
+
+paste0("Number of total unique Shiba events: ", 
+       length(unique_shiba))
+```
+
 Print the number of unique annotated vs. unannotated events in each event type for the merged table
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
 unique_shiba_psi_table <- shiba_psi_table |>
-  dplyr::filter(pos_id %in% unique_shiba)
+  dplyr::filter(pos_id %in% unique_shiba,
+                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
 
 # print summary of how many unique events with values in both samples are novel vs. unannotated
 unique_shiba_psi_table |> 
@@ -91,7 +115,8 @@ Print the number of unique annotated vs. unannotated events in each event type f
 ```{r}
 # filter for the pos_ids in the merged df that are unique
 unique_merged_psi_table <- merged_psi_table |>
-  dplyr::filter(pos_id %in% unique_merged)
+  dplyr::filter(pos_id %in% unique_merged,
+                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
 
 # print summary of how many unique events with values in both samples are novel vs unannotated
 unique_merged_psi_table |> 
@@ -103,59 +128,57 @@ These probably represent splice events that are annotated but only found in one 
 
 ## Inspect individual position IDs of unique events
 
-Start with skipped exon events because they are simpler to check on IGV. 
+We are most concerned if unannotated events have altered positions in the merged table and are unmatched in the shiba table (is Shiba doing something strange to assign reads into position coordinates?)
+
+Check for one event type. 
+From the table above, RI events are the simplest to spot-check on IGV that have unannotated and annotated events with PSI values in both samples in the merged table.
 
 ```{r}
 # Filter for splice events that have real PSI values in all samples; start with skipped exon events for now
-unique_se_in_shiba <- unique_shiba_psi_table |>
-  dplyr::filter(event_type == "se",
+unique_se_in_merged <- unique_merged_psi_table |>
+  dplyr::filter(event_type == "ri",
                 !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
 
-unique_se_in_shiba
+unique_se_in_merged
 ```
 
-Examine 
-Spot-check how close pos_ids are by eye for one event type for now
+## Search for the closest RI events in the shiba PSI table
+
+### Look for RI events in GL000219.1
 ```{r}
-complete_unique_test_psi_table <- unique_test_psi_table |>
-  dplyr::filter(
-                # we're most interested in events that have PSI values in both samples
-                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI), 
-                )
+shiba_psi_table |>
+  dplyr::filter(stringr::str_detect(pos_id, "GL000219.1@77669"))
 ```
 
-There are no SE events in the pos-ids unique only to the test table.
-Of the events unique only to the test table, that have values in both samples, only two are unannotated 
+There are no RI events in @GL000219.1 region in the shiba PSI table.
+Instead, these reads might be assigned to ALE events (GL000219.1@77669-78842 is in three ALE events in the shiba table)
 
-A lot of the unique events in the test table are AFE events in gene ENSG00000214655.11, so look for AFE events in this gene in the ref table
+#### IGV screenshots of region 
+Check on IGV - does this event look like an ALE or RI?
+
+### Look for RI events in chr3@139355790
 
 ```{r}
-afe_ref_table <- ref_splice_results |>
-  dplyr::filter(gene_id == "ENSG00000214655.11",
-                event_type == "afe")
+shiba_psi_table |>
+  dplyr::filter(stringr::str_detect(pos_id, "chr3@139355790"))
 ```
 
-We are more concerned by thigns that are missing in the test (merged) table  in 
+There are also no RI events in the chr3@139355790 region in the shiba PSI table.
+Instead, these reads might be assigned to ALE events.
 
-There are surprisingly no AFE events in this gene in the ref table!
-If we just search this gene in the ref table, there are only ALE, FIVE, THREE, and RI events
+#### IGV screenshots of region 
+Check on IGV - does this event look like an ALE or RI?
 
-Notes:
+### Look for RI events in chr6@99400311
+This is the only unmatched RI annotated event in the merged table.
 
-We are most concerned if unannotated events have altered positions in the merged table and are unmatched
+```{r}
+shiba_psi_table |>
+  dplyr::filter(stringr::str_detect(pos_id, "chr6@99400311"))
+```
 
-Check the unique unannotated events in the shiba ref table first
-Are there things where it will change the position a little bit? or calls across samples are ending up in different rows?
-Looking for unannotated events where neither samples have NA PSI values 
+There are no events in the Shiba PSI table with the start coordinate chr6@99400311.
 
-Keep in same notebook for now
-Head tables (no screenshots)
-
-New header every time you start another part of an analysis
-
-Check junction counts as well or any other stats--> will the values even be kept after we tun our distribution comparison
-
-dim() to get dimensions of table, show column names
-How many splice event types are present in each table
+Check junction counts as well or any other stats for these three events --> will the values even be kept after we run our distribution comparison?
 
 

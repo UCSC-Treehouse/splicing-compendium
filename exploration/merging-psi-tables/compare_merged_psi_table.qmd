@@ -14,22 +14,36 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 ## Directories and files
 
 ```{r}
+# define samples list
+samples <- c("SRR601500", "SRR604528")
+
 # find the project directory
 base_dir <- here::here()
 
 # define the data directories
 # psi table comparison dir
 merging_dir <- file.path(base_dir, "exploration/merging-psi-tables")
+# splice results dir
+shiba_dir <- shiba_dir <- file.path(merging_dir, "shiba_results")
+
+# separate runs dir
+separate_dir <- file.path(shiba_dir, "separate_runs")
 
 # shiba splice results directory of two samples run together
-shiba_dir <- file.path(merging_dir, "shiba_results/combined_run/splicing")
+shiba_combined_dir <- file.path(shiba_dir, "combined_run")
+shiba_splice_results_dir <- file.path(shiba_combined_dir, "splicing")
+shiba_junctions_dir <- file.path(shiba_combined_dir, "junctions")
 
 # merged PSI table of two samples run separately with shiba
 merged_psi_table_dir <- file.path(merging_dir, "merged_results")
 
 # Read in file paths
+
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 merged_psi_file <- file.path(merged_psi_table_dir, "merged_psi_table.tsv")
+
+# shiba junctions file
+shiba_junctions <- file.path(shiba_junctions_dir, "junctions.bed")
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
@@ -47,14 +61,51 @@ psi_files <- c(
 shiba_psi_paths <-file.path(shiba_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
 
+# make sample paths to the junctions.bed files for separate splice runs
+junction_paths <- file.path(
+  
+  separate_dir,
+  samples,
+  "junctions"
+)
+
+```
+
+```{r}
+bed <- read.table("/Users/cindyliang/repos/splicing-compendium/exploration/merging-psi-tables/shiba_results/separate_runs/SRR601500/junctions/junctions.bed",
+                  header = TRUE, sep="\t",stringsAsFactors=FALSE, quote="")
+```
+
+
+Define function to read in junctions.bed files
+```{r}
+# Make function for reading event types for a single sample
+read_junctions <- function(sample_id, junction_paths) {
+  # construct file path for each sample
+  file_paths <- file.path(junction_paths, "junctions.bed")
+  # name each PSI table file path by event type
+  names(file_paths) <- names(sample_id)
+  
+  # read in files
+  purrr::map(file_paths, \(file) {
+    read.table(file, 
+               header = TRUE, 
+               sep="\t",
+               stringsAsFactors=FALSE, 
+               quote="")
+  }) |>
+    # merge individual event type PSI tables to get one PSI table per sample
+    dplyr::bind_rows(.id = "ID")
+}
 ```
 
 Read in files
 ```{r}
+
 # read in manually combined splice table
 merged_psi_table <- readr::read_tsv(merged_psi_file)
 
-# read in splice results to compare against manually combined results
+# read in shiba splice results to compare against manually combined results
 shiba_splice_results_paths <- shiba_psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>

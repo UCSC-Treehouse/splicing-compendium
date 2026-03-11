@@ -1,6 +1,6 @@
 # Compare merged PSI table vs. Shiba PSI tables
 Cindy Liang (celiang@ucsc.edu)
-2026-03-10
+2026-03-11
 
 ## Set up
 
@@ -286,9 +286,16 @@ SRR604528 should not have received a PSI score since it is below 10 I
 wonder if shiba is counting both inclusion and exclusion junction reads
 together to calculate PSI values
 
-#### IGV screenshots of region
+#### IGV screenshots of GL000219.1@77669-78842
 
 Check on IGV - does this event look like an ALE or RI?
+
+![](images/Screenshot%202026-03-11%20at%2011.48.56%20AM.png)
+
+The red bar shows the GL000219.1@77669-78842 region, which was called as
+a retained intron event in the merged table but looks like an
+unannotated ALE event (so was correctly called in the shiba table and
+incorrectly called in the merged table).
 
 ### Look for RI events in chr3@139355790
 
@@ -323,9 +330,23 @@ This is a good example of us probably needing to merge the junctions.bed
 files. The junction counts for chr3 139355790-139356919 are high for
 both samples (\>\>10)
 
-#### IGV screenshots of region
+#### IGV screenshots of chr3@139355790-139356919
 
 Check on IGV - does this event look like an ALE or RI?
+
+![](images/chr3@139355790-139356919.png)
+
+Interestingly, this event looks like a retained intron event and not an
+ALE event.
+
+![](images/chr3@139355790-139356919_fusion_alignments.png)
+
+Looking at the alignments, there might actually be a fusion between
+MRPS22 and COPB2 in both samples (alignments for SRR601500 not shown).
+Shiba doesn’t handle fusions as far as I am aware, so it makes sense
+that it calls the event as an ALE event instead (it would be an ALE for
+MRPS22 if the alignments were more separated between the genes). I am
+inclined to agree with the Shiba call on this one also.
 
 ### Look for RI events in chr6@99400311
 
@@ -333,14 +354,16 @@ This is the only unmatched RI annotated event in the merged table.
 
 ``` r
 shiba_psi_table |>
-  dplyr::filter(stringr::str_detect(pos_id, "chr6@99400311"))
+  dplyr::filter(stringr::str_detect(pos_id, "chr6@99400"))
 ```
 
 | event_type | pos_id | gene_id | label | SRR601500_PSI | SRR604528_PSI |
-|:-----------|:-------|:--------|:------|--------------:|--------------:|
+|:---|:---|:---|:---|---:|---:|
+| se | SE@chr6@99400544-99401630@99400311-99402540 | ENSG00000132424.17 | annotated | 0.9716981 | 1 |
 
 There are no events in the Shiba PSI table with the start coordinate
-chr6@99400311.
+chr6@99400311. The closest event is a skipped exon event at
+chr6@99400544-99401630
 
 #### Check junction counts for RI@chr6@99400311-99400544
 
@@ -359,6 +382,30 @@ merged_junctions |>
 This looks like another example of an event with strong junction support
 in both samples
 
-#### IGV screenshots of region
+#### IGV screenshots of chr6@99400311-99400544
 
 Check on IGV - does this event look like an ALE or RI?
+
+![](images/chr6@99400311-99400544.png)
+
+This looks like areal event
+
+### IGV screenshots of chr6@99400544-99401630
+
+This is the region of the closest splice event detected in the Shiba
+table to chr6@99400311-99400544, which was categorized as a skipped exon
+event that had high inclusion levels in both samples.
+
+I think I agree with it, it seems to be saying that transcripts with two
+last exons (3rd, 6th, 8th, and 11th rows of RefSeq isoforms) are
+abundant in these samples, which makes more sense than a retained
+intron. The “retained intron” being called in the merged table is likely
+reads from PNISR transcripts that only have one last exon (2nd row in
+Refseq isoforms).
+
+![](images/chr6@99400544-99401630.png)
+
+## Conclusions
+
+I generally agree with the calls in the Shiba table more than the merged
+table, so I think we should merge the bed files.

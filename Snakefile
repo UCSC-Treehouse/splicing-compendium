@@ -90,9 +90,9 @@ rule align_reads:
         samtools sort \
           -@ {threads}  \
           -m {params.samtools_memory}M \
-          -o {output.bam} 
+          -o {output.bam} \
           {params.star_dir}/Aligned.out.bam
-          
+
         rm {params.star_dir}/Aligned.out.bam
 
         rm -rf "{params.star_dir}/_STARpass1"

@@ -154,8 +154,7 @@ Print the number of unique annotated vs. unannotated events in each event type f
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
 unique_shiba_psi_table <- shiba_psi_table |>
-  dplyr::filter(pos_id %in% unique_shiba,
-                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
+  dplyr::filter(pos_id %in% unique_shiba)
 
 # print summary of how many unique events with values in both samples are novel vs. unannotated
 unique_shiba_psi_table |> 
@@ -172,12 +171,15 @@ Print the number of unique annotated vs. unannotated events in each event type f
 ```{r}
 # filter for the pos_ids in the merged df that are unique
 unique_merged_psi_table <- merged_psi_table |>
-  dplyr::filter(pos_id %in% unique_merged,
-                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
+  dplyr::filter(pos_id %in% unique_merged)
 
 # print summary of how many unique events with values in both samples are novel vs unannotated
 unique_merged_psi_table |> 
-  dplyr::summarise(.by = c(event_type, label), n = dplyr::n())
+  dplyr::summarise(.by = c(event_type), 
+                   count_annotated = sum(label == "annotated"),
+                   frac_annotated = count_annotated / dplyr::n(),
+                   count_unannotated = sum(label == "unannotated"),
+                   frac_unannotated = count_unannotated / dplyr::n())
 
 ```
 

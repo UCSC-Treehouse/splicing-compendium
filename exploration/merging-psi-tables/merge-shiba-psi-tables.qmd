@@ -24,14 +24,8 @@ We then merge PSI tables produced for each sample.
 # so maybe we want to ultimately have the script read in a file with all the samples for the big run
 samples <- c("SRR601500", "SRR604528")
 
-# find the project directory
-base_dir <- here::here()
-# exploration dir
-exploration_dir <- file.path(base_dir, "exploration/merging-psi-tables")
-
-# define the data directories
 # splice results directory
-results_dir <- file.path(exploration_dir, "shiba_results")
+results_dir <- file.path("shiba_results")
 combined_dir <- file.path(results_dir, "combined_run")
 separate_dir <- file.path(results_dir, "separate_runs")
 
@@ -66,7 +60,7 @@ out_file <- file.path("merged_psi_table.tsv")
 Define functions
 ```{r}
 # Make function for reading event types for a single sample
-read_sample <- function(sample_id, sample_path, psi_files) {
+read_sample <- function(sample_id, sample_path, psi_files = psi_files) {
   # construct file path for each sample
   file_paths <- file.path(sample_path, psi_files)
   # name each PSI table file path by event type
@@ -90,12 +84,7 @@ Read in files
 
 # read in one samples' PSI table
 # take in list of samples and sample paths as input
-sample_psi_tables <- purrr::map2(
-  samples, 
-  sample_paths, 
-  # read in one sample and one sample path at a time
-  \(sample, sample_path){read_sample(sample, sample_path, psi_files=psi_files)}
-  ) |>
+sample_psi_tables <- purrr::map2(samples, sample_paths, read_sample) |>
   # name the list of data frames the sample names
   purrr::set_names(samples)
 

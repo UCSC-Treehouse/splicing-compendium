@@ -1,0 +1,2 @@
+sample	bam_path	group	technology
+SRR601500	shiba-run-data/gtex/star-output/SRR601500/Aligned.sortedByCoord.out.bam	gtex	short

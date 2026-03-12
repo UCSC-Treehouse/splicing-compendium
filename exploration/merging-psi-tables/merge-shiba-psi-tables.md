@@ -1,0 +1,96 @@
+# Merge Shiba PSI tables
+Cindy Liang (celiang@ucsc.edu)
+2026-03-11
+
+Shiba is run one sample at a time using our snakemake workflow. We then
+merge PSI tables produced for each sample.
+
+## Set up
+
+## Directories and files
+
+``` r
+# samples list
+# noting here that it will become terrible to paste infinite sample names in this list
+# so maybe we want to ultimately have the script read in a file with all the samples for the big run
+samples <- c("SRR601500", "SRR604528")
+
+# splice results directory
+results_dir <- file.path("shiba_results")
+combined_dir <- file.path(results_dir, "combined_run")
+separate_dir <- file.path(results_dir, "separate_runs")
+
+# shiba splice results path
+splice_results_path <- "results/splicing"
+
+# make sample paths
+sample_paths <- file.path(
+  separate_dir,
+  samples,
+  splice_results_path
+)
+
+# define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
+psi_file_list <- c(
+  se = "PSI_SE.txt.gz",
+  afe = "PSI_AFE.txt.gz",
+  ale = "PSI_ALE.txt.gz",
+  five = "PSI_FIVE.txt.gz",
+  three = "PSI_THREE.txt.gz",
+  mse = "PSI_MSE.txt.gz",
+  mxe = "PSI_MXE.txt.gz",
+  ri = "PSI_RI.txt.gz"
+)
+
+# output directory of results
+out_dir <- file.path("merged_results")
+# output merged file for test samples
+out_file <- file.path(out_dir, "merged_psi_table.tsv")
+```
+
+Define functions
+
+``` r
+# Make function for reading event types for a single sample
+read_sample <- function(sample_id, sample_path, psi_files = psi_file_list) {
+  # construct file path for each sample
+  file_paths <- file.path(sample_path, psi_files)
+  # name each PSI table file path by event type
+  names(file_paths) <- names(psi_files)
+  
+  # read in files
+  purrr::map(file_paths, \(file) {
+      readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
+      # select for columns that will be used downstream in analysis so all dataframes have uniform column names
+      dplyr::select(pos_id, gene_id, label, contains("_PSI"))
+    }) |>
+      # merge individual event type PSI tables to get one PSI table per sample
+      dplyr::bind_rows(.id = "event_type")
+}
+```
+
+Read in files
+
+``` r
+# read in one samples' PSI table
+# take in list of samples and sample paths as input
+sample_psi_tables <- purrr::map2(samples, sample_paths, read_sample) |>
+  # name the list of data frames the sample names
+  purrr::set_names(samples)
+```
+
+Combine PSI dataframes for all samples into one
+
+``` r
+# combine individual event types' PSI tables into one 
+merged_psi <- sample_psi_tables |>
+  purrr::reduce( \(x, y) {
+    dplyr::full_join(x, y, by = c("pos_id", "gene_id", "label", "event_type") )
+  })
+```
+
+Save output as a table
+
+``` r
+readr::write_tsv(merged_psi, out_file)
+```

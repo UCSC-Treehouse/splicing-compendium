@@ -18,6 +18,8 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 # define samples list
 samples <- c("SRR601500", "SRR604528")
 
+# define repo directory to access merged psi table dir
+base_dir = here::here()
 
 # define the data directories
 # psi table comparison dir
@@ -42,7 +44,7 @@ merged_psi_table_dir <- file.path(merging_dir, "merged_results")
 merged_psi_file <- file.path(merged_psi_table_dir, "merged_psi_table.tsv")
 
 # shiba junctions file
-shiba_junctions <- file.path(shiba_junctions_dir, "junctions.bed")
+shiba_junctions_file <- file.path(shiba_junctions_dir, "junctions.bed")
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
@@ -89,7 +91,7 @@ read_junctions <- function(sample_id, junction_paths) {
                quote="")
   }) |>
     # merge individual event type PSI tables to get one PSI table per sample
-    dplyr::bind_rows(.id = "ID")
+    purrr::reduce(dplyr::full_join(by = "ID"))
 }
 ```
 
@@ -101,6 +103,8 @@ merged_psi_table <- readr::read_tsv(merged_psi_file)
 
 # read in manually merged junctions table
 merged_junctions <- read_junctions(samples, junction_paths)
+
+shiba_junctions <- read.table(shiba_junctions_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, quote = "")
 
 # read in shiba splice results to compare against manually combined results
 shiba_splice_results_paths <- shiba_psi_paths |>
@@ -236,6 +240,7 @@ The red bar shows the GL000219.1\@77669-78842 region, which was called as a reta
 shiba_psi_table |>
   dplyr::filter(stringr::str_detect(pos_id, "chr3@139355790"))
 ```
+
 
 There are also no RI events in the chr3\@139355790 region in the shiba PSI table.
 Instead, these reads might be assigned to ALE events.

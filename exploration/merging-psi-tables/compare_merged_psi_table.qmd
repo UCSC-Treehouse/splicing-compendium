@@ -119,6 +119,26 @@ shiba_splice_results_paths <- shiba_psi_paths |>
 shiba_psi_table <- purrr::list_rbind(shiba_splice_results_paths, names_to = "event_type")
 ```
 
+## Spot check differences between merged and shiba junction files
+
+```{r}
+# print head of one chromosome's junctions for merged bed table
+merged_junctions |>
+  dplyr::filter(chr == "chr1") |>
+  head()
+```
+
+Check junction counts of shiba junctions.bed file
+
+```{r}
+# print head of one chromosome's junctions for merged bed table
+shiba_junctions |>
+  dplyr::filter(chr == "chr1") |>
+  head()
+```
+
+It is reassuring to see that junctions that are NA in samples in the merged table appear as 0 in the shiba table (e.g. chr1:14599-185016)
+
 ## Obtain dimensions of the merged and shiba tables to compare values
 
 ```{r}
@@ -153,7 +173,9 @@ paste0("Number of total unique Shiba events: ",
        length(unique_shiba))
 ```
 
-Print the number of unique annotated vs. unannotated events in each event type for the merged table
+## Examine percentage of each splice event type in each PSI table
+
+Print the number of annotated vs. unannotated events in each event type only in the merged table
 
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
@@ -170,7 +192,7 @@ unique_shiba_psi_table |>
                      )
 ```
 
-Print the number of unique annotated vs. unannotated events in each event type for the merged table
+Print the number of annotated vs. unannotated events in each event type only in the merged table
 
 ```{r}
 # filter for the pos_ids in the merged df that are unique
@@ -191,125 +213,64 @@ unique_merged_psi_table |>
 
 We are most concerned if unannotated events have altered positions in the merged table and are unmatched in the shiba table (is Shiba doing something strange to assign reads into position coordinates?)
 
-Check for one event type.
-From the table above, RI events are the simplest to spot-check on IGV that have unannotated and annotated events with PSI values in both samples in the merged table.
+Check for one event type (SE)
 
 ```{r}
-# Filter for splice events that have real PSI values in all samples; start with skipped exon events for now
-unique_se_in_merged <- unique_merged_psi_table |>
+# filter for unannotated SE events only in the merged table
+se_only_in_merged <- unique_merged_psi_table |>
   dplyr::filter(event_type == "se",
                 label == "unannotated")
 
-unique_se_in_merged
+se_only_in_merged
 ```
 
-## Search for the closest SE events in the shiba PSI table
+### IGV view of alignments at chr10@112448882-112449019\@112447467-112460524
 
-### Look for SE events closest to SE@chr10@112448882-112449019@112447467-112460524
+![](images/chr10_112447467-112460524.png)
+
+Above: IGV screenshot of this unannotated skipped exon event (SE\@chr10@112448882-112449019\@112447467-112460524) sample alignments and Refseq track.
+Red highlight indicates the second position coordinate (chr10:112447467-112460524).
+An alternate explanation for this event if it is not a real skipped exon is that it is just the last exon in a ZDHHC6 isoform
+
+Look for closest match to this event in the shiba PSI table
 
 ```{r}
 shiba_psi_table |>
   dplyr::filter(gene_id == "ENSG00000151532.15")
 ```
 
-SE@chr10@112448382-112448489@112447467-112448882 is the closest match.
-Although it is the same pos_id as the unannotated event only found in the merged table, it is labeled as an annotated event in the shiba table and has no PSi values for either sample
+Check junction counts for ENSG00000151532.15 events in the shiba table close to the position start
 
-#### Check junction counts for SE@chr10@112448382-112448489@112447467-112448882
+```{r}
+shiba_junctions |>
+  dplyr::filter(chr == "chr10",
+                between(as.double(start), 112447467 - 20, 112447467 + 20)) |>
+  # print in markdown format so full values will be printed out instead of truncated
+  knitr::kable(format = "markdown")
+```
+
+Check junction counts for this region on the merged junctions file
 
 ```{r}
 merged_junctions |>
   dplyr::filter(chr == "chr10",
-                start == "112447467")
+                between(as.double(start), 112447467 - 20, 112447467 + 20)) |>
+  knitr::kable(format = "markdown")
 ```
 
-There are two entries for a junction at GL000219.1\@77669-78842.
-One has a junction count of 14 for SRR601500, which would have received a PSI value score since it exceeds the threshold of 10 The second one for SRR604528 should not have received a PSI score since it is below 10 I wonder if shiba is counting both inclusion and exclusion junction reads together to calculate PSI values
+Check alignments for this locus on IGV for the closest events in the shiba table
 
-#### IGV screenshots of GL000219.1\@77669-78842
+![](images/chr10_112447467-112448882.png)
 
-Check on IGV - does this event look like an ALE or RI?
+Above: IGV screenshot of this skipped exon event (SE\@chr10\@112448382-112448489\@112447467-112448882) sample alignments and Refseq track.
+Red highlight indicates the second position coordinate (chr10:112447467-112448882).
 
-![](images/Screenshot%202026-03-11%20at%2011.48.56%20AM.png)
+![](images/Screenshot 2026-03-12 at 3.53.35 PM.png)
 
-The red bar shows the GL000219.1\@77669-78842 region, which was called as a retained intron event in the merged table but looks like an unannotated ALE event (so was correctly called in the shiba table and incorrectly called in the merged table).
+Above: IGV screenshot of the second kipped exon event detected for VTI1A (SE\@chr10\@112533530-112533550\@112527164-112538246) sample alignments and Refseq track.
+Red highlight indicates the second position coordinate.
 
-### Look for RI events in chr3\@139355790
-
-```{r}
-shiba_psi_table |>
-  dplyr::filter(stringr::str_detect(pos_id, "chr3@139355790"))
-```
-
-
-There are also no RI events in the chr3\@139355790 region in the shiba PSI table.
-Instead, these reads might be assigned to ALE events.
-
-#### Check junction counts for RI\@chr3\@139355790-139356919
-
-```{r}
-merged_junctions |>
-  dplyr::filter(chr == "chr3",
-                start == "139355790",
-                end == "139356919")
-```
-
-This is a good example of us probably needing to merge the junctions.bed files.
-The junction counts for chr3 139355790-139356919 are high for both samples (\>\>10)
-
-#### IGV screenshots of chr3\@139355790-139356919
-
-Check on IGV - does this event look like an ALE or RI?
-
-![](images/chr3@139355790-139356919.png)
-
-Interestingly, this event looks like a retained intron event and not an ALE event.
-
-![](images/chr3@139355790-139356919_fusion_alignments.png)
-
-Looking at the alignments, there might actually be a fusion between MRPS22 and COPB2 in both samples (alignments for SRR601500 not shown).
-Shiba doesn't handle fusions as far as I am aware, so it makes sense that it calls the event as an ALE event instead (it would be an ALE for MRPS22 if the alignments were more separated between the genes).
-I am inclined to agree with the Shiba call on this one also.
-
-### Look for RI events in chr6\@99400311
-
-This is the only unmatched RI annotated event in the merged table.
-
-```{r}
-shiba_psi_table |>
-  dplyr::filter(stringr::str_detect(pos_id, "chr6@99400"))
-```
-
-There are no events in the Shiba PSI table with the start coordinate chr6\@99400311.
-The closest event is a skipped exon event at chr6\@99400544-99401630
-
-#### Check junction counts for RI\@chr6\@99400311-99400544
-
-```{r}
-merged_junctions |>
-  dplyr::filter(chr == "chr6",
-                start == "99400311",
-                end == "99400544")
-```
-
-This looks like another example of an event with strong junction support in both samples
-
-#### IGV screenshots of chr6\@99400311-99400544
-
-Check on IGV - does this event look like an ALE or RI?
-
-![](images/chr6@99400311-99400544.png)
-
-This looks like areal event
-
-### IGV screenshots of chr6\@99400544-99401630
-
-This is the region of the closest splice event detected in the Shiba table to chr6\@99400311-99400544, which was categorized as a skipped exon event that had high inclusion levels in both samples.
-
-I think I agree with it, it seems to be saying that transcripts with two last exons (3rd, 6th, 8th, and 11th rows of RefSeq isoforms) are abundant in these samples, which makes more sense than a retained intron.
-The "retained intron" being called in the merged table is likely reads from PNISR transcripts that only have one last exon (2nd row in Refseq isoforms).
-
-![](images/chr6@99400544-99401630.png)
+It seems like this event is not detected in the merged table, so it is not too concerning that this event would be dropped in the merged table (due to PSI values/junctions not being detected at that locus for all samples).
 
 ## Conclusions
 

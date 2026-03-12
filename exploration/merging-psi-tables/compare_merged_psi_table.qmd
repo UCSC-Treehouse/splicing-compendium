@@ -183,9 +183,6 @@ unique_merged_psi_table |>
 
 ```
 
-For both tables, there are more annotated unique events than unannotated ones, which may be concerning.
-These probably represent splice events that are annotated but only found in one of the two samples.
-
 ## Inspect individual position IDs of unique events
 
 We are most concerned if unannotated events have altered positions in the merged table and are unmatched in the shiba table (is Shiba doing something strange to assign reads into position coordinates?)
@@ -196,30 +193,30 @@ From the table above, RI events are the simplest to spot-check on IGV that have 
 ```{r}
 # Filter for splice events that have real PSI values in all samples; start with skipped exon events for now
 unique_se_in_merged <- unique_merged_psi_table |>
-  dplyr::filter(event_type == "ri",
-                !is.na(SRR601500_PSI) & !is.na(SRR604528_PSI))
+  dplyr::filter(event_type == "se",
+                label == "unannotated")
 
 unique_se_in_merged
 ```
 
-## Search for the closest RI events in the shiba PSI table
+## Search for the closest SE events in the shiba PSI table
 
-### Look for RI events in GL000219.1
+### Look for SE events closest to SE@chr10@112448882-112449019@112447467-112460524
 
 ```{r}
 shiba_psi_table |>
-  dplyr::filter(stringr::str_detect(pos_id, "GL000219.1@77669"))
+  dplyr::filter(gene_id == "ENSG00000151532.15")
 ```
 
-There are no RI events in @GL000219.1 region in the shiba PSI table.
-Instead, these reads might be assigned to ALE events (GL000219.1\@77669-78842 is in three ALE events in the shiba table)
+SE@chr10@112448382-112448489@112447467-112448882 is the closest match.
+Although it is the same pos_id as the unannotated event only found in the merged table, it is labeled as an annotated event in the shiba table and has no PSi values for either sample
 
-#### Check junction counts for GL000219.1\@77669
+#### Check junction counts for SE@chr10@112448382-112448489@112447467-112448882
 
 ```{r}
 merged_junctions |>
-  dplyr::filter(chr == "GL000219.1",
-                start == "77669")
+  dplyr::filter(chr == "chr10",
+                start == "112447467")
 ```
 
 There are two entries for a junction at GL000219.1\@77669-78842.

@@ -226,6 +226,8 @@ se_only_in_merged |>
   knitr::kable(format = "markdown")
 ```
 
+I don't care as much about the events with NA values in both samples (from eyeballing the junction counts tables, it seems like these junctions would just be assigned 0 anyway), so I will check cases where there is a PSI value in at least one sample.
+
 ## Check event where the PSI is low in one sample and NA in the other
 
 ### IGV view of alignments at chr10@112448882-112449019\@112447467-112460524
@@ -276,7 +278,37 @@ Red highlight indicates the second position coordinate.
 
 It seems like this event is not detected in the merged table, so it is not too concerning that this event would be dropped in the merged table (due to PSI values/junctions not being detected at that locus for all samples).
 
-## Check event where the PSI is high in one sample but NA in another (SE\@chr8\@144510368-144510507\@144510015-144510598)
+### Check SE\@chr12\@98745524-98750748\@98735634-98751355
+
+![](images/chr12_98735634_98751355.png)
+
+Above: IGV views of alignments at the highlighted locus chr12:98735634-98751355 (flanking exons of ANKS1B event from ENSG ID)
+
+![](images/chr12_98745524_98750748.png)
+
+Above: IGV views of alignments at the highlighted locus chr12:98745524-98750748 (skipped exon of ANKS1B event)
+
+This event looks like a miscategorized splice event as well (if anything, it looks like an unannotated retained intron in ANKS1B), so it is less of a concern that this event would be filtered out if we select for splice events with numeric PSI values in some minimum number of samples.
+
+Check junction counts for positions nearby in the shiba junctions table
+
+```{r}
+shiba_junctions |>
+  dplyr::filter(chr == "chr12",
+                between(as.double(start), 98735634 - 20, 98735634 + 20)) |>
+  knitr::kable(format = "markdown")
+```
+
+Check closest junction counts in merged table
+
+```{r}
+merged_junctions |>
+  dplyr::filter(chr == "chr12",
+                between(as.double(start), 98735634 - 20, 98735634 + 20)) |>
+  knitr::kable(format = "markdown")
+```
+
+## Check event where the PSI is high in one sample but NA in another
 
 ### IGV view of alignments at chr8\@144510368-144510507\@144510015-144510598
 
@@ -321,3 +353,48 @@ The junction counts for events near the start position of this event are the sam
 It seems that when Shiba is run one sample at a time, it will call chr8:144510015-144510368 as its own splice event instead of assigning it to the chr8:144510015-144510360 event.
 
 The chr8:144510015-144510368 event is only found in the merged table, which might be a good sign since it is not a real event and would be dropped from our analysis if we filtered only for events with numeric PSI values in all (or some minimum number of) samples.
+
+## Check IGV alignments at SE\@chr3\@44862358-44862527\@44862116-44864197
+
+|     |                                                |
+|-----|------------------------------------------------|
+|     | SE\@chr3\@44862358-44862527\@44862116-44864197 |
+
+![](images/chr3_44862358_44862527.png)
+
+Above: IGV views of alignments at the highlighted locus chr3:44862358-44862527 (skipped exon of TMEM42 event)
+
+![](images/chr3_44862116_44864197.png)
+
+Above: IGV views of alignments at the highlighted locus chr3:44862116-44864197 (flanking exon of TMEM42 event)
+
+This actually looks like a real unannotated exon skipping event that occurs in both samples, so I'm surprised that the PSI value was NA for one of the samples.
+
+Look for closest match in shiba PSI table - surprisingly, there are no events for this gene
+
+```{r}
+shiba_psi_table |>
+  dplyr::filter(gene_id == "ENSG00000169964.8") |>
+  knitr::kable(format = "markdown")
+```
+
+Check junction counts in merged and shiba junctions tables.
+This time, I am looking for junctions matching the start and/or end position of the unannotated exon
+
+```{r}
+shiba_junctions |>
+  dplyr::filter(chr == "chr3",
+                between(as.double(start), 44862527 - 20, 44862527 + 20)) |>
+  knitr::kable(format = "markdown")
+```
+
+Check merged
+
+```{r}
+merged_junctions |>
+  dplyr::filter(chr == "chr3",
+                between(as.double(start), 44862527 - 20, 44862527 + 20)) |>
+  knitr::kable(format = "markdown")
+```
+
+Considering that there are high junction counts for this exon, I am surprised that there are no splice events for this gene in the shiba PSI table.

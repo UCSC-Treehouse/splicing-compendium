@@ -196,12 +196,12 @@ pass_wilcox_psi <- cancer_type_psi_table|>
   dplyr::filter(pos_id %in% pass_wilcox_test_events$pos_id) |>
   tidyr::drop_na(PSI)
 
-ggplot(pass_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
-  ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1, alpha = 0.5) + 
+ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
+  ggridges::geom_density_ridges(stat = "binline", bins = 20, alpha = 0.5) + 
   facet_wrap(~ pos_id) + 
   labs(title = "PSI distributions of wilcox ranksum smallest p_adjust events",
        x = "PSI value",
-       y = "Number of samples") 
+       y = "Density") 
 ```
 I used ridgeplots because stacked histograms made it hard to figure out where the ref and query distributions were
 

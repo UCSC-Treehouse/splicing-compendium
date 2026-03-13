@@ -175,13 +175,38 @@ paste0("Number of total unique Shiba events: ",
 
 ## Examine percentage of each splice event type in each PSI table
 
-Print the number of annotated vs. unannotated events in each event type only in the merged table
+Print the number of annotated vs. unannotated events across all event types in each table
+
+Together table
 
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
 unique_shiba_psi_table <- shiba_psi_table |>
   dplyr::filter(pos_id %in% unique_shiba)
 
+# print summary of how many unique events with values that are novel vs. unannotated
+unique_shiba_psi_table |> 
+  dplyr::summarise(.by = c(label), 
+                   count = dplyr::n())
+                     
+```
+
+Separate table
+
+```{r}
+# filter for the pos_ids in the merged df that are unique
+unique_merged_psi_table <- merged_psi_table |>
+  dplyr::filter(pos_id %in% unique_merged)
+
+unique_merged_psi_table |> 
+  dplyr::summarise(.by = c(label), 
+                   count = dplyr::n())
+
+```
+
+Print the number of annotated vs. unannotated events in each event type only in the together table
+
+```{r}
 # print summary of how many unique events with values in both samples are novel vs. unannotated
 unique_shiba_psi_table |> 
   dplyr::summarise(.by = c(event_type), 
@@ -192,13 +217,9 @@ unique_shiba_psi_table |>
                      )
 ```
 
-Print the number of annotated vs. unannotated events in each event type only in the merged table
+Print the number of annotated vs. unannotated events in each event type only in the separate table
 
 ```{r}
-# filter for the pos_ids in the merged df that are unique
-unique_merged_psi_table <- merged_psi_table |>
-  dplyr::filter(pos_id %in% unique_merged)
-
 # print summary of how many unique events with values in both samples are novel vs unannotated
 unique_merged_psi_table |> 
   dplyr::summarise(.by = c(event_type), 
@@ -230,11 +251,11 @@ I don't care as much about the events with NA values in both samples (from eyeba
 
 ## Check event where the PSI is low in one sample and NA in the other
 
-### IGV view of alignments at chr10@112448882-112449019\@112447467-112460524
+### IGV view of alignments at chr10\@112448882-112449019\@112447467-112460524
 
 ![](images/chr10_112447467-112460524.png)
 
-Above: IGV screenshot of this unannotated skipped exon event (SE\@chr10@112448882-112449019\@112447467-112460524) sample alignments and Refseq track.
+Above: IGV screenshot of this unannotated skipped exon event (SE\@chr10\@112448882-112449019\@112447467-112460524) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate (chr10:112447467-112460524).
 An alternate explanation for this event if it is not a real skipped exon is that it is just the last exon in a ZDHHC6 isoform
 
@@ -271,7 +292,7 @@ Check alignments for this locus on IGV for the closest events in the shiba table
 Above: IGV screenshot of this skipped exon event (SE\@chr10\@112448382-112448489\@112447467-112448882) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate (chr10:112447467-112448882).
 
-![](images/Screenshot 2026-03-12 at 3.53.35 PM.png)
+![](images/Screenshot%202026-03-12%20at%203.53.35%20PM.png)
 
 Above: IGV screenshot of the second kipped exon event detected for VTI1A (SE\@chr10\@112533530-112533550\@112527164-112538246) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate.

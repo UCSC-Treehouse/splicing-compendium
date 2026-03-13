@@ -46,7 +46,7 @@ base_dir <- here::here()
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
 # define metadata directory
-metadata_dir <- file.path(repo_root, "data/metadata")
+metadata_dir <- file.path(repo_root, "metadata")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 
 # define paths to input files
@@ -72,15 +72,39 @@ gtex_ages <- readr::read_tsv(gtex_ages_file, col_types = readr::cols(.default = 
 Combine GTEX age table with GTEX accessions to filter by age and check how many samples of each age bracket are represented by each tumor type
 
 ```{r}
+
+# tissue types of interest
+tissue_types <- c("Brain - Nucleus accumbens (basal ganglia)",
+                  "Brain - Caudate (basal ganglia)",
+                  "Brain - Spinal cord (cervical c-1)",
+                  "Brain - Hypothalamus",
+                  "Kidney - Cortex",
+                  "Brain - Frontal Cortex (BA9)",
+                  "Muscle - Skeletal",
+                  "Brain - Cerebellum",
+                  "Whole Blood",
+                  "Brain - Cerebellar Hemisphere",
+                  "Brain - Hippocampus",
+                  "Brain - Anterior cingulate cortex (BA24)",
+                  "Brain - Cortex",
+                  "Brain - Putamen (basal ganglia)",
+                  "Brain - Substantia nigra",
+                  "Brain - Amygdala"
+                  )
+
 # Merge GTEX SRA table with ages metadata to associate IDs with ages
 gtex_sra_ages <- gtex_sra |>
   dplyr::left_join(gtex_ages, by = "SUBJID") |>
   dplyr::filter(
     analyte_type == "RNA:Total RNA",
     # Exclude cell line samples
-    !grepl("Cells", body_site)
+    !grepl("Cells", body_site),
+    # filter for polyA samples
+    LibraryLayout == "PAIRED",
+    # filter for tissue types in select list
+    body_site %in% tissue_types
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate)
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, LibrarySelection)
 
 # Summarize number of samples per tissue type in each age bracket
 gtex_ages_summary <- gtex_sra_ages |>
@@ -88,15 +112,25 @@ gtex_ages_summary <- gtex_sra_ages |>
   dplyr::summarise(age_count = dplyr::n())
 ```
 
-check distribution of accession IDs in each version number before filtering out cell lines. Only versions up to 4 are recorded, all others are NA
+We end up with 5405 samples after this filtering.
+
+Check library selection method of GTEx samples that are paired:
 
 ```{r}
-gtex_sra |>
+unique(gtex_sra_ages$LibrarySelection)
+```
+
+The metadata says cDNA, but the GTex website says all their versions are polyA selected: <https://www.gtexportal.org/home/methods>
+
+check distribution of accession IDs in each version number after filtering. Only versions up to 4 are recorded, all others are NA
+
+```{r}
+gtex_sra_ages |>
   dplyr::group_by(version) |>
   dplyr::summarise(version_count = dplyr::n())
 ```
 
-Check distribution of GTEX create dates for accessions without version number, after filtering out cell line data. Unfortunately, no creation date is recorded for versions above 4.
+Check distribution of GTEX create dates for accessions without version number. No creation date is recorded for samples from unrecorded versions
 
 ```{r}
 gtex_sra_ages |>
@@ -107,6 +141,8 @@ gtex_sra_ages |>
 
 Check distribution of GTEX release dates of accession IDs without version numbers. The release date for version 6p1 is 2015 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v6.p1)), so these values represent samples from later versions that are only accessible on AnVIL.
 
+Gtex v8 and above are also only accessible on anvil: <https://www.gtexportal.org/home/protectedDataAccess>
+
 ```{r}
 gtex_sra_ages |>
   dplyr::mutate(ReleaseDate = stringr::str_remove(ReleaseDate, "-.*")) |>
@@ -115,8 +151,6 @@ gtex_sra_ages |>
 ```
 
 Plot distribution of ages across tissue types in GTEX to visually check age bins in each tissue type.
-
-There appear to be samples in the youngest age bracket (20-29 years) for every tissue type, except for "Cervix - Endocervix". Additionally, the next youngest age bracket for "Cervix - Endocervix" samples is 40-49 years, instead of 30-39 years.
 
 ```{r}
 #| label: fig-gtex_age_distribution
@@ -179,7 +213,7 @@ Estimate amount of space GTEX samples will take up if cell lines and version num
 
 ```{r}
 gtex_sra_version_filtered <- gtex_sra_ages |>
-  dplyr::filter(version <= 6)
+  dplyr::filter(ReleaseDate < 2015)
 
 # estimate amount of space files will take up
 gtex_sra_version_filtered_space <- (sum(gtex_sra_version_filtered$Bytes) / 1e12)
@@ -190,83 +224,21 @@ Print number of samples in all tissue types after excluding cell lines and versi
 
 ```{r n_in_each_tissue_type_after_version_filtering}
 gtex_sra_ages |>
-  dplyr::filter(version <= 6) |>
+  dplyr::filter(ReleaseDate < 2015) |>
   dplyr::group_by(body_site) |>
   dplyr::summarize(n_after_excluding_versions = dplyr::n())
-```
-
-Estimate amount of space GTEX samples will take up if only cell lines are excluded
-
-```{r}
-# estimate amount of space files will take up
-gtex_sra_space <- (sum(gtex_sra_ages$Bytes) / 1e12)
-paste0("About ", gtex_sra_space, " terabytes of space will be taken up by file downloads.")
-```
-
-Print number of samples in each tissue type of full GTEX dataset, excluding cell lines only
-
-```{r n-in-each-tissuetype}
-gtex_sra_ages |>
-  dplyr::group_by(body_site) |>
-  dplyr::summarize(n = dplyr::n())
-```
-
-Filter for GTEX samples in the youngest age brackets for each tissue type. Subset samples by sorting data by age and taking lowest 7 values per tissue type by minimum age.
-
-```{r}
-gtex_age_subsampled <- gtex_sra_ages |>
-  # filter for samples from GTEX version 6 or below (versions above this value are stored in AnVIL and cannot be accessed through sra-toolkit)
-  # Only versions up to 4 are recorded in this metadata, all other samples have an NA value for this column
-  dplyr::filter(version <= 6) |>
-  # take smallest age in each bracket and convert to numeric for slicing
-  dplyr::mutate(
-    age_min = as.numeric(stringr::str_split_i(AGE, "-", 1))
-  ) |>
-  # select rows with smallest age_min while ignoring ties
-  dplyr::slice_min(age_min, n = 7, with_ties = FALSE, by = body_site)
-
-# count how many rows there are
-paste0("There are ", nrow(gtex_age_subsampled), " accessions matching the filters.")
-
-# estimate amount of space files will take up
-subsampled_gtex_space <- (sum(gtex_age_subsampled$Bytes) / 1e12)
-paste0("About ", subsampled_gtex_space, " terabytes of space will be taken up by file downloads.")
-```
-
-Print breakdown of number of samples per tissue type after subsampling GTEX
-
-The majority of samples have 7 replicates, but one has 6 (ectocervix) and one has 5 (endocervix)
-
-```{r}
-gtex_age_subsampled |>
-  dplyr::count(body_site) |>
-  tidyr::pivot_wider(
-    names_from = n,
-    values_from = body_site
-  )
-```
-
-Summarize size of samples in GTEX subset
-
-```{r gtex_size_table}
-gtex_age_subsampled |>
-  dplyr::summarise(mean(Bytes), max(Bytes))
-```
-
-Summarize library type (paired or unpaired) to inform alignment approach
-
-```{r}
-table(gtex_age_subsampled$LibraryLayout)
 ```
 
 Export filtered and subsampled GTEX accession file
 
 ```{r}
 # Move run ID to first column, like in TARGET accessions file
-gtex_age_subsampled <- gtex_age_subsampled |>
+gtex_select <- gtex_sra_ages |>
+  # filter for versions earlier than 6, as they are on SRA
+  dplyr::filter(ReleaseDate < 2015) |>
   dplyr::relocate(Run)
 
-readr::write_tsv(gtex_age_subsampled, file = file.path(gtex_accession_path))
+readr::write_tsv(gtex_select, file = file.path(gtex_accession_path))
 ```
 
 # Filter TARGET dataset for download

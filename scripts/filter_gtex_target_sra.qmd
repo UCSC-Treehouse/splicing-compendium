@@ -209,7 +209,7 @@ ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
   scale_x_discrete(guide = guide_axis(angle = 45))
 ```
 
-Estimate amount of space GTEX samples will take up if cell lines and version numbers above 4 are excluded
+Estimate amount of space GTEX samples will take up if cell lines and version numbers above 6 are excluded
 
 ```{r}
 gtex_sra_version_filtered <- gtex_sra_ages |>
@@ -220,11 +220,12 @@ gtex_sra_version_filtered_space <- (sum(gtex_sra_version_filtered$Bytes) / 1e12)
 paste0("About ", gtex_sra_version_filtered_space, " terabytes of space will be taken up by file downloads.")
 ```
 
-Print number of samples in all tissue types after excluding cell lines and version numbers above 4
+There are 2353 samples fitting this criteria to download.
+
+Print number of samples in all tissue types after excluding cell lines and version numbers above 6
 
 ```{r n_in_each_tissue_type_after_version_filtering}
-gtex_sra_ages |>
-  dplyr::filter(ReleaseDate < 2015) |>
+gtex_sra_version_filtered |>
   dplyr::group_by(body_site) |>
   dplyr::summarize(n_after_excluding_versions = dplyr::n())
 ```
@@ -233,9 +234,7 @@ Export filtered and subsampled GTEX accession file
 
 ```{r}
 # Move run ID to first column, like in TARGET accessions file
-gtex_select <- gtex_sra_ages |>
-  # filter for versions earlier than 6, as they are on SRA
-  dplyr::filter(ReleaseDate < 2015) |>
+gtex_select <- gtex_sra_version_filtered |>
   dplyr::relocate(Run)
 
 readr::write_tsv(gtex_select, file = file.path(gtex_accession_path))
@@ -246,21 +245,28 @@ readr::write_tsv(gtex_select, file = file.path(gtex_accession_path))
 Estimate amount of space all of TARGET will take up, only excluding cell line samples
 
 ```{r}
-target_no_cell_line_sra <- target_sra |>
+target_filtered_sra <- target_sra |>
   # filter only for accession IDs with sequence files associated with them
   dplyr::filter(
     # Filter for TARGET samples
-    biospecimen_repository == "NCI_TARGET",
+    # biospecimen_repository == "NCI_TARGET"
     # exclude cell line RNA-seq
     study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
+    # exclude osteosarcomas due to their complex transcriptome and we have no bone gtex
+    study_name != "TARGET: Osteosarcoma (OS)",
     # filter for samples with fastqs
-    grepl("fastq", `DATASTORE filetype`)
+    grepl("fastq", `DATASTORE filetype`),
+    # filter for paired end reads
+    LibraryLayout == "PAIRED",
+    LibrarySelection == "PolyA",
+    # filter out ssRNA-seq because I don't know how to process that data
+    # `Assay Type`!= "ssRNA-seq"
   ) |>
   # transform Bytes column to numeric for estimating space
   dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
   # select for only relevant columns
   dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection
   )
 
 # count how many rows there are
@@ -268,39 +274,6 @@ paste0("There are ", nrow(target_no_cell_line_sra), " accessions matching the fi
 
 # estimate amount of space files will take up
 file_space <- sum(target_no_cell_line_sra$Bytes) / 1e12
-paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
-```
-
-Filter accession metadata for TARGET RNA-seq datasets
-
-```{r}
-# filter accession table for accession IDs of TARGET samples with fastqs
-target_filtered_sra <- target_sra |>
-  # filter only for accession IDs with sequence files associated with them
-  dplyr::filter(
-    # Filter for TARGET samples
-    biospecimen_repository == "NCI_TARGET",
-    # exclude osteosarcomas due to their complex transcriptome
-    study_name != "TARGET: Osteosarcoma (OS)",
-    # also exclude the pilot phase 1 ALL samples because there are far more ALL samples in pilot phase 2
-    study_name != "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1",
-    # exclude cell line RNA-seq
-    study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
-    # filter for samples with fastqs
-    grepl("fastq", `DATASTORE filetype`)
-  ) |>
-  # transform Bytes column to numeric for estimating space
-  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
-  # select for only relevant columns
-  dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout
-  )
-
-# count how many rows there are
-paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
-
-# estimate amount of space files will take up
-file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
 
@@ -322,53 +295,6 @@ Summarize distribution of tumor types across TARGET samples:
 
 ```{r}
 target_filtered_sra |> dplyr::count(study_name)
-```
-
-Conclusions: The predominant cancer type in the TARGET dataset consist of leukemias (ALL and AML).
-
-Subsample TARGET dataset to obtain a max of 20 samples per tumor type (aiming to take up \~ half the space of the huge OpenStack instance, \~1.3TB
-
-```{r}
-subsampled_target <- target_filtered_sra |>
-  dplyr::slice_sample(n = 15, by = study_name)
-
-# count how many rows there are
-paste0("There are ", nrow(subsampled_target), " accessions matching the filters.")
-
-# estimate amount of space files will take up
-subsampled_file_space <- (sum(subsampled_target$Bytes) / 1e12)
-paste0("About ", subsampled_file_space, " terabytes of space will be taken up by file downloads.")
-```
-
-Summarize distribution of tumor types across TARGET samples, to confirm subsampling:
-
-```{r}
-subsampled_target |> dplyr::count(study_name)
-```
-
-Note: Clear Cell Sarcoma samples are the least represented in this subsampled dataset, since it has the smallest N.
-
-Check max Bytes of dataset to estimate max filesize to enable for download
-
-```{r}
-subsampled_target |>
-  dplyr::summarise(mean(Bytes), max(Bytes))
-```
-
-Print Byte info of accession ID that was filling the cache:
-
-```{r target_size_table}
-subsampled_target |>
-  dplyr::filter(Run == "SRR1559070") |>
-  dplyr::select(Run, Bytes, study_name)
-```
-
-SRR1559070 is the sample that produced the prefetch and fasterq-dump errors due to its large file size. Since it is the largest file in the subset I am downloading, set the max prefetch file size to a value well above this sample's estimated bytes (50000000 Bytes, or 50 GB).
-
-Check whether libraries are paired or unpaired for alignment
-
-```{r}
-table(subsampled_target$LibraryLayout)
 ```
 
 Export filtered and subsampled TARGET accession file

@@ -23,9 +23,7 @@ base_dir = here::here()
 
 # define the data directories
 # psi table comparison dir
-merging_dir <- file.path(base_dir, "exploration/merging-psi-tables")
-# splice results dir
-shiba_dir <- shiba_dir <- file.path(merging_dir, "shiba_results")
+shiba_dir <- file.path("shiba_results")
 
 # separate runs dir
 separate_dir <- file.path(shiba_dir, "separate_runs")
@@ -35,11 +33,8 @@ shiba_combined_dir <- file.path(shiba_dir, "combined_run")
 shiba_splice_results_dir <- file.path(shiba_combined_dir, "splicing")
 shiba_junctions_dir <- file.path(shiba_combined_dir, "junctions")
 
-# merged PSI table of two samples run separately with shiba
-merged_psi_table_dir <- file.path(merging_dir, "merged_results")
-
 # Read in file paths
-
+merged_psi_table_dir <- file.path("merged_results")
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 merged_psi_file <- file.path(merged_psi_table_dir, "merged_psi_table.tsv")
 

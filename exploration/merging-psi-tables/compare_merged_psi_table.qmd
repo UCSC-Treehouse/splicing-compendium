@@ -128,6 +128,7 @@ Check junction counts of shiba junctions.bed file
 # print head of one chromosome's junctions for merged bed table
 shiba_junctions |>
   dplyr::filter(chr == "chr1") |>
+  dplyr::arrange(start)
   head()
 ```
 
@@ -136,10 +137,7 @@ It is reassuring to see that junctions that are NA in samples in the merged tabl
 ## Obtain dimensions of the merged and shiba tables to compare values
 
 ```{r}
-paste0("Merged PSI table dimensions ", 
-       dim(merged_psi_table)[1], 
-       "x", 
-       dim(merged_psi_table)[2])
+dim(merged_psi_table)
 
 paste0("Shiba PSI table dimensions ", 
        dim(shiba_psi_table)[1],
@@ -151,7 +149,7 @@ paste0("Shiba PSI table dimensions ",
 
 ```{r}
 # produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
-unique_shiba <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
+combined_only <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
 
 # produce dataframe of elements in merged splice results dataframe but not in the reference df
 unique_merged <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
@@ -175,8 +173,11 @@ Together table
 
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
-unique_shiba_psi_table <- shiba_psi_table |>
-  dplyr::filter(pos_id %in% unique_shiba)
+shiba_psi_table <- shiba_psi_table |>
+  dplyr::mutate(
+    combined_only = pos_id %in% unique_shiba,
+    merged_only = pos_id %in% unique_merged
+  )
 
 # print summary of how many unique events with values that are novel vs. unannotated
 unique_shiba_psi_table |> 

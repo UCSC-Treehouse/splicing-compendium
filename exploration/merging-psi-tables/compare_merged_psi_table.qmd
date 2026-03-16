@@ -91,10 +91,10 @@ read_junctions <- function(junction_paths) {
 Read in files
 
 ```{r}
-# read in manually combined splice table
+# read merged splice table from separate runs
 merged_psi_table <- readr::read_tsv(merged_psi_file)
 
-# read in manually merged junctions table
+# read and merge junctions bedfile
 merged_junctions <- read_junctions(junction_paths)
 
 shiba_junctions <- read.table(shiba_junctions_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, quote = "")

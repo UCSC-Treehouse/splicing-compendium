@@ -19,7 +19,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 samples <- c("SRR601500", "SRR604528")
 
 # define the data directories
-# psi table comparison dir
+# shiba results dir
 shiba_dir <- file.path("shiba_results")
 
 # directory of shiba results produced from the same shiba run
@@ -111,9 +111,10 @@ combined_splice_results_paths <- shiba_psi_paths |>
       dplyr::mutate(across(contains("_PSI"), as.numeric))
   })
 
-# combine psi values of samples run together into one dataframe to compare against manually combined dataframe
+# combine psi values of samples run together into one dataframe to compare against separate PSI dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
+
 ## Check differences between separate and combined junction files
 
 ```{r}
@@ -141,17 +142,18 @@ Generally, when there is a NA value for a junction on the separate junctions bed
 ```{r}
 # dimensions of separate PSI table (separate)
 dim(separate_junctions)
-``` 
+```
 
 ```{r}
 # dimensions of combined PSI table
 dim(combined_junctions)
 ```
 
-There are only ~50 more junctions in the separate junctions table than the combined table.
+There are only \~50 more junctions in the separate junctions table than the combined table.
 One possible explanation is that there are extra junctions represent positions that are very close together (in other words, a fewer number of junctions would have been called if there were better read support from all possible junction regions like in the combined bedfile).
 
 Check if the junction IDs in each table are identical
+
 ```{r}
 setequal(separate_junctions$ID, combined_junctions$ID)
 ```
@@ -159,18 +161,20 @@ setequal(separate_junctions$ID, combined_junctions$ID)
 ### Investogate junctions only found in each junction table
 
 Junctions found only in separate junctions table
+
 ```{r}
 separate_only_junctions <- dplyr::setdiff(separate_junctions$ID, combined_junctions$ID)
 length(separate_only_junctions)
 ```
 
 Junctions found only in combined junctions table
+
 ```{r}
 combined_only_junctions <- dplyr::setdiff(combined_junctions$ID, separate_junctions$ID)
 length(combined_only_junctions)
 ```
 
-There is a very small fraction of junctions that are only found in the combined or separate junctions tables. 
+There is a very small fraction of junctions that are only found in the combined or separate junctions tables.
 
 ### Check junction counts of junctions only found in separate junctions table
 
@@ -191,7 +195,7 @@ combined_junctions_categorized <- combined_junctions |>
     )
   )
 
-# create tables containing only junction IDs found in the separate or combined tables
+# create table containing junction IDs found only in the separate junctions table
 separate_only_junctions_table <- separate_junctions |>
   dplyr::filter(
     ID %in% separate_only_junctions
@@ -214,12 +218,16 @@ separate_only_junctions_table |>
   )
 ```
 
-For the junctions that exceed the PSI threshold, check if they are close to any junctions in the combined table
+For the junctions that exceed the PSI threshold of 10 counts, check if they are close to any junctions in the combined table
+
 ```{r}
+# examine counts of junctions only in separate junctions table with equal to or over 10 counts
 separate_only_junctions_table |>
   dplyr::filter(below_ten == "no")
 ```
-Check combined junctions table
+
+Check combined junctions table for junctions with the same start positions as the junctions from above
+
 ```{r}
 combined_junctions_categorized |>
   dplyr::filter(
@@ -231,25 +239,25 @@ combined_junctions_categorized |>
 ```
 
 The combined junctions file appears to assign reads into junctions differently.
-For instance, it consolidated the chr3 and chr6 events only found in the separate junctions table into one larger junction (chr3:139355790-139355791	and	chr3:139356918-139356919 have been combined to chr3:139355790-139356919).
+For instance, it consolidated the chr3 and chr6 events only found in the separate junctions table into one larger junction (chr3:139355790-139355791 and chr3:139356918-139356919 have been combined to chr3:139355790-139356919).
 However, the combined junction counts don't fully add up (63 + 21 != 103) so there may be other reads being consolidated into other junctions.
-Since this only impacts a very small number of junctions, we are tentatively OK with moving forward with the separate shiba runs method for now. 
+Since this only impacts a very small number of junctions, we are tentatively OK with moving forward with the separate shiba runs method for now.
 
 ## Examine splice events only found in combined or separate splice tables
 
 ### Obtain dimensions of each PSI table
 
 ```{r}
-# dimensions of separate PSI table (separate)
+# dimensions of separate PSI table 
 dim(separate_psi_table)
-``` 
+```
 
 ```{r}
 # dimensions of combined PSI table
 dim(combined_psi_table)
 ```
 
-There are 1,586 more splice events in the separte PSI table than the combined table. 
+There are 1,586 more splice events in the separte PSI table than the combined table.
 However, it is still a small fraction of the total number of events.
 
 ### Examine splice events only present in each PSI table
@@ -293,6 +301,7 @@ combined_psi_summary <- combined_psi_table |>
 
 combined_psi_summary            
 ```
+
 Together, the unmatched splice events in the separate PSI table make up a small percent of the events.
 
 ## Inspect individual position IDs of unique events
@@ -334,7 +343,7 @@ combined_psi_table |>
   knitr::kable(format = "markdown")
 ```
 
-Check junction counts for ENSG00000151532.15 events in the shiba table close to the position start
+Check junction counts for ENSG00000151532.15 events in the combined junctions table close to the position start
 
 ```{r}
 combined_junctions |>
@@ -342,7 +351,8 @@ combined_junctions |>
                 dplyr::between(as.double(start), 112447467 - 20, 112447467 + 20)) |>
   knitr::kable(format = "markdown")
 ```
-Check junction counts for this region on the merged junctions file
+
+Check junction counts for this region on the separate junctions table
 
 ```{r}
 separate_junctions |>
@@ -358,7 +368,7 @@ Check alignments for this locus on IGV for the closest events in the combined ta
 Above: IGV screenshot of this skipped exon event (SE\@chr10\@112448382-112448489\@112447467-112448882) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate (chr10:112447467-112448882).
 
-![](images/Screenshot%202026-03-12%20at%203.53.35%20PM.png)
+![](images/Screenshot 2026-03-12 at 3.53.35 PM.png)
 
 Above: IGV screenshot of the second kipped exon event detected for VTI1A (SE\@chr10\@112533530-112533550\@112527164-112538246) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate.
@@ -413,7 +423,7 @@ combined_psi_table |>
   knitr::kable(format = "markdown")
 ```
 
-The closest event in the shiba table is SE\@chr8\@144510360-144510507\@144510015-144510598, which is an annotated skipped exon event.
+The closest event in the combined table is SE\@chr8\@144510360-144510507\@144510015-144510598, which is an annotated skipped exon event.
 
 We can actually see that the coordinates are very close to the unannotated event in the separate PSI table (SE\@chr8144510368-144510507\@144510015-144510598).
 The event has the same second position (junctions of the flanking exons), but the first position (junctions of the exon that is skipped) is just off by 8bp, causing it to be called as unannotated
@@ -426,6 +436,7 @@ combined_junctions |>
                 dplyr::between(as.double(start), 144510015 - 20, 144510015 + 20)) |>
   knitr::kable(format = "markdown")
 ```
+
 Check junction counts for this region on the separate junctions file
 
 ```{r}
@@ -456,7 +467,7 @@ Above: IGV views of alignments at the highlighted locus chr3:44862116-44864197 (
 
 This actually looks like a real unannotated exon skipping event that occurs in both samples, so I'm surprised that the PSI value was NA for one of the samples.
 
-Look for closest match in shiba PSI table - surprisingly, there are no events for this gene
+Look for closest match in combined PSI table - surprisingly, there are no events for this gene
 
 ```{r}
 combined_psi_table |>
@@ -483,5 +494,5 @@ separate_junctions |>
   knitr::kable(format = "markdown")
 ```
 
-Considering that there are high junction counts for this exon, I am surprised that there are no splice events for this gene in the shiba PSI table.
+Considering that there are high junction counts for this exon, I am surprised that there are no splice events for this gene in the combined PSI table.
 But since this was the only skipped exon event that looked real and missed in the combined table, we should continue with running Shiba separately on our files.

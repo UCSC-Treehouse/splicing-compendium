@@ -88,17 +88,22 @@ read_junctions <- function(junction_paths) {
 Read in files
 
 ```{r}
+
+## read in splice data from separate shiba run
+
 # read merged splice table from separate runs
-merged_psi_table <- readr::read_tsv(merged_psi_file)
+separate_psi_table <- readr::read_tsv(separate_psi_file)
 
 # read and merge junctions bedfile
-merged_junctions <- read_junctions(junction_paths)
+separate_junctions <- read_junctions(junction_paths)
+
+## read in splice data from combined shiba run
 
 # read junctions file from combined run
-shiba_junctions <- read.table(shiba_junctions_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, quote = "")
+combined_junctions <- read.table(combined_junctions_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, quote = "")
 
-# read in shiba splice results to compare against manually combined results
-shiba_splice_results_paths <- shiba_psi_paths |>
+# read in combined splice results to compare against separate results
+combined_splice_results_paths <- shiba_psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
@@ -107,29 +112,30 @@ shiba_splice_results_paths <- shiba_psi_paths |>
   })
 
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
-shiba_psi_table <- purrr::list_rbind(shiba_splice_results_paths, names_to = "event_type")
+combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
 
-## Spot check differences between merged and shiba junction files
+## Spot check differences between separate and combined junction files
 
 ```{r}
-# print head of one chromosome's junctions for merged bed table
-merged_junctions |>
-  dplyr::filter(chr == "chrX") |>
+# print head of one chromosome's junctions for separate bed table
+separate_junctions |>
+  dplyr::filter(chr == "chr1") |>
+  dplyr::arrange(start) |>
   head() 
 ```
 
-Check junction counts of shiba junctions.bed file
+Check junction counts of combined junctions.bed file
 
 ```{r}
 # print head of one chromosome's junctions for merged bed table
-shiba_junctions |>
+combined_junctions |>
   dplyr::filter(chr == "chr1") |>
   dplyr::arrange(start) |>
   head()
 ```
 
-It is reassuring to see that junctions that are NA in samples in the merged table appear as 0 in the shiba table (e.g. chr1:14599-185016)
+Generally, when there is a NA value for a junction on the separate junctions bedfile, the combined junctions bedfile will have a value of 0 for that sample and junction.
 
 ## Obtain dimensions of the merged and shiba tables to compare values
 

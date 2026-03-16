@@ -97,6 +97,7 @@ merged_psi_table <- readr::read_tsv(merged_psi_file)
 # read and merge junctions bedfile
 merged_junctions <- read_junctions(junction_paths)
 
+# read junctions file from combined run
 shiba_junctions <- read.table(shiba_junctions_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, quote = "")
 
 # read in shiba splice results to compare against manually combined results

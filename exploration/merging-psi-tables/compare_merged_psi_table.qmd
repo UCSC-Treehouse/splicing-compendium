@@ -118,7 +118,7 @@ shiba_psi_table <- purrr::list_rbind(shiba_splice_results_paths, names_to = "eve
 ```{r}
 # print head of one chromosome's junctions for merged bed table
 merged_junctions |>
-  dplyr::filter(chr == "chr1") |>
+  dplyr::filter(chr == "chrX") |>
   head() 
 ```
 
@@ -128,7 +128,7 @@ Check junction counts of shiba junctions.bed file
 # print head of one chromosome's junctions for merged bed table
 shiba_junctions |>
   dplyr::filter(chr == "chr1") |>
-  dplyr::arrange(start)
+  dplyr::arrange(start) |>
   head()
 ```
 
@@ -137,94 +137,58 @@ It is reassuring to see that junctions that are NA in samples in the merged tabl
 ## Obtain dimensions of the merged and shiba tables to compare values
 
 ```{r}
+# dimensions of merged PSI table (separate)
 dim(merged_psi_table)
+```
 
-paste0("Shiba PSI table dimensions ", 
-       dim(shiba_psi_table)[1],
-       "x",
-       dim(shiba_psi_table)[2])
+```{r}
+# dimensions of combined PSI table
+dim(shiba_psi_table)
 ```
 
 ## Obtain splice events unique to each table
 
 ```{r}
 # produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
-combined_only <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
+together_only_list <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
 
 # produce dataframe of elements in merged splice results dataframe but not in the reference df
-unique_merged <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
+separate_only_list <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
 ```
 
 ## Obtain dimensions of the merged and shiba tables to compare values
 
 ```{r}
+# events only present in separate tables
+
 paste0("Number of total unique merged events: ", 
-       length(unique_merged))
+       length(separate_only_list))
 
 paste0("Number of total unique Shiba events: ", 
-       length(unique_shiba))
+       length(together_only_list))
 ```
 
 ## Examine percentage of each splice event type in each PSI table
 
 Print the number of annotated vs. unannotated events across all event types in each table
 
-Together table
+Together / combined table
 
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
-shiba_psi_table <- shiba_psi_table |>
+shiba_psi_summary <- shiba_psi_table |>
   dplyr::mutate(
-    combined_only = pos_id %in% unique_shiba,
-    merged_only = pos_id %in% unique_merged
-  )
+    together_only = pos_id %in% together_only_list,
+    separate_only = pos_id %in% separate_only_list
+  ) |>
 
 # print summary of how many unique events with values that are novel vs. unannotated
-unique_shiba_psi_table |> 
-  dplyr::summarise(.by = c(label), 
-                   count = dplyr::n())
-                     
+  dplyr::summarise(.by = c(label, together_only, separate_only), 
+                   count = dplyr::n()) |>
+  dplyr::mutate(Frac = count/sum(count))
+
+shiba_psi_summary            
 ```
-
-Separate table
-
-```{r}
-# filter for the pos_ids in the merged df that are unique
-unique_merged_psi_table <- merged_psi_table |>
-  dplyr::filter(pos_id %in% unique_merged)
-
-unique_merged_psi_table |> 
-  dplyr::summarise(.by = c(label), 
-                   count = dplyr::n())
-
-```
-
-Print the number of annotated vs. unannotated events in each event type only in the together table
-
-```{r}
-# print summary of how many unique events with values in both samples are novel vs. unannotated
-unique_shiba_psi_table |> 
-  dplyr::summarise(.by = c(event_type), 
-                   count_annotated = sum(label == "annotated"),
-                   frac_annotated = count_annotated / dplyr::n(),
-                   count_unannotated = sum(label == "unannotated"),
-                   frac_unannotated = count_unannotated / dplyr::n()
-                     )
-```
-
-Print the number of annotated vs. unannotated events in each event type only in the separate table
-
-```{r}
-# print summary of how many unique events with values in both samples are novel vs unannotated
-unique_merged_psi_table |> 
-  dplyr::summarise(.by = c(event_type), 
-                   count_annotated = sum(label == "annotated"),
-                   frac_annotated = count_annotated / dplyr::n(),
-                   count_unannotated = sum(label == "unannotated"),
-                   frac_unannotated = count_unannotated / dplyr::n())
-
-```
-
 ## Inspect individual position IDs of unique events
 
 We are most concerned if unannotated events have altered positions in the merged table and are unmatched in the shiba table (is Shiba doing something strange to assign reads into position coordinates?)

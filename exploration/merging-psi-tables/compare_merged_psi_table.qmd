@@ -114,8 +114,7 @@ combined_splice_results_paths <- shiba_psi_paths |>
 # combine psi values of samples run together into one dataframe to compare against manually combined dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
-
-## Spot check differences between separate and combined junction files
+## Check differences between separate and combined junction files
 
 ```{r}
 # print head of one chromosome's junctions for separate bed table
@@ -137,19 +136,74 @@ combined_junctions |>
 
 Generally, when there is a NA value for a junction on the separate junctions bedfile, the combined junctions bedfile will have a value of 0 for that sample and junction.
 
-## Obtain dimensions of the merged and shiba tables to compare values
+### Obtain dimensions of the separate and combined junction count tables to compare values
 
 ```{r}
-# dimensions of merged PSI table (separate)
-dim(merged_psi_table)
-```
+# dimensions of separate PSI table (separate)
+dim(separate_psi_table)
+``` 
 
 ```{r}
 # dimensions of combined PSI table
-dim(shiba_psi_table)
+dim(combined_psi_table)
 ```
 
-## Obtain splice events unique to each table
+There are 1,586 more junctions in the separate junctions table than the combined table.
+One possible explanation is that these extra junctions represent positions that are very close together (in other words, a fewer number of junctions would have been called if there were better read support from all possible junction regions like in the combined bedfile).
+
+Check if the junction IDs in each table are identical
+```{r}
+setequal(separate_junctions$ID, combined_junctions$ID)
+```
+
+### Investogate junctions only found in each junction table
+
+Junctions found only in separate junctions table
+```{r}
+separate_only_junctions <- dplyr::setdiff(separate_junctions$ID, combined_junctions$ID)
+length(separate_only_junctions)
+```
+
+Junctions found only in combined junctions table
+```{r}
+combined_only_junctions <- dplyr::setdiff(combined_junctions$ID, separate_junctions$ID)
+length(combined_only_junctions)
+```
+
+There is a very small fraction of junctions that are only found in the combined or separate junctions tables. 
+
+### Check junction counts of junctions only found in separate junctions table
+
+Of the small fraction of unmatched junctions, how many of them would not be turned into a PSI value due to insufficient coverage?
+
+```{r}
+# create tables containining only junction IDs found in the separate or combined tables
+separate_only_junctions_table <- separate_junctions |>
+  dplyr::filter(
+    ID %in% separate_only_junctions
+  ) |>
+  dplyr::mutate(
+    below_ten = dplyr::case_when(
+      SRR601500 < 10 | is.na(SRR601500) ~ "SRR601500",
+      SRR601500 < 10 | is.na(SRR604528) ~ "SRR604528",
+      SRR601500 < 10 & SRR601500 < 10 ~ "both",
+      is.na(SRR601500) & is.na(SRR604528) ~ "both",
+      SRR601500 >= 10 ~ "no",
+      SRR604528 >= 10 ~ "no"
+    )
+  )
+  
+
+separate_only_junctions_table |>
+  dplyr::summarise(
+    .by = c( below_ten),
+    n = dplyr::n()
+  )
+```
+
+
+
+## Examine splice events only found in combined or separate splice tables
 
 ```{r}
 # produce dataframe of elements in combined splice results reference dataframe but not in merged psi df
@@ -163,7 +217,6 @@ separate_only_list <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
 
 ```{r}
 # events only present in separate tables
-
 paste0("Number of total unique merged events: ", 
        length(separate_only_list))
 

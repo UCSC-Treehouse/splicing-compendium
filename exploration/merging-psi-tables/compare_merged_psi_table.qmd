@@ -177,7 +177,21 @@ There is a very small fraction of junctions that are only found in the combined 
 Of the small fraction of unmatched junctions, how many of them would not be turned into a PSI value due to insufficient coverage?
 
 ```{r}
-# create tables containining only junction IDs found in the separate or combined tables
+
+# Categorize IDs in combined junctions table according to counts
+combined_junctions_categorized <- combined_junctions |>
+  dplyr::mutate(
+    below_ten = dplyr::case_when(
+      SRR601500 < 10 | is.na(SRR601500) ~ "SRR601500",
+      SRR601500 < 10 | is.na(SRR604528) ~ "SRR604528",
+      SRR601500 < 10 & SRR601500 < 10 ~ "both",
+      is.na(SRR601500) & is.na(SRR604528) ~ "both",
+      SRR601500 >= 10 ~ "no",
+      SRR604528 >= 10 ~ "no"
+    )
+  )
+
+# create tables containing only junction IDs found in the separate or combined tables
 separate_only_junctions_table <- separate_junctions |>
   dplyr::filter(
     ID %in% separate_only_junctions
@@ -193,7 +207,6 @@ separate_only_junctions_table <- separate_junctions |>
     )
   )
   
-
 separate_only_junctions_table |>
   dplyr::summarise(
     .by = c( below_ten),
@@ -201,7 +214,26 @@ separate_only_junctions_table |>
   )
 ```
 
+For the junctions that exceed the PSI threshold, check if they are close to any junctions in the combined table
+```{r}
+separate_only_junctions_table |>
+  dplyr::filter(below_ten == "no")
+```
+Check combined junctions table
+```{r}
+combined_junctions_categorized |>
+  dplyr::filter(
+    below_ten == "no",
+    # deprioritize nonstandard chromosomes
+    chr %in% c("chr3", "chr6"),
+    start %in% c(139355790, 139356918, 99400311, 99400543)
+  )
+```
 
+The combined junctions file appears to assign reads into junctions differently.
+For instance, it consolidated the chr3 and chr6 events only found in the separate junctions table into one larger junction (chr3:139355790-139355791	and	chr3:139356918-139356919 have been combined to chr3:139355790-139356919).
+However, the combined junction counts don't fully add up (63 + 21 != 103) so there may be other reads being consolidated into other junctions.
+Since this only impacts a very small number of junctions, we are tentatively OK with moving forward with the separate shiba runs method for now. 
 
 ## Examine splice events only found in combined or separate splice tables
 
@@ -213,7 +245,7 @@ together_only_list <- setdiff(shiba_psi_table$pos_id, merged_psi_table$pos_id)
 separate_only_list <- setdiff(merged_psi_table$pos_id, shiba_psi_table$pos_id)
 ```
 
-## Obtain dimensions of the merged and shiba tables to compare values
+### Obtain dimensions of the merged and shiba tables to compare values
 
 ```{r}
 # events only present in separate tables

@@ -59,33 +59,31 @@ names(shiba_psi_paths) <- names(psi_files)
 
 # make sample paths to the junctions.bed files for separate splice runs
 junction_paths <- file.path(
-  
   separate_dir,
   samples,
-  "junctions"
+  "junctions",
+  "junctions.bed"
 )
 
+# name the paths
+names(junction_paths) <- names(samples)
 ```
 
 Define function to read in junctions.bed files
 
 ```{r}
-# Make function for reading event types for a single sample
-read_junctions <- function(sample_id, junction_paths) {
-  # construct file path for each sample
-  file_paths <- file.path(junction_paths, "junctions.bed")
-  # name each PSI table file path by event type
-  names(file_paths) <- names(sample_id)
-  
+# Make function for reading junctions from multiple samples run separately
+read_junctions <- function(junction_paths) {
   # read in files
-  purrr::map(file_paths, \(file) {
+  purrr::map(junction_paths, \(file) {
     read.table(file, 
                header = TRUE, 
                sep="\t",
                stringsAsFactors=FALSE, 
                quote="")
   }) |>
-    # merge individual event type PSI tables to get one PSI table per sample
+    # merge junctions tables from multiple samples 
+    # the resulting table separates junction counts from each sample by columns with the sample ID
     purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
 }
 ```
@@ -97,7 +95,7 @@ Read in files
 merged_psi_table <- readr::read_tsv(merged_psi_file)
 
 # read in manually merged junctions table
-merged_junctions <- read_junctions(samples, junction_paths)
+merged_junctions <- read_junctions(junction_paths)
 
 shiba_junctions <- read.table(shiba_junctions_file, header = TRUE, sep = "\t", stringsAsFactors = FALSE, quote = "")
 

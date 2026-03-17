@@ -305,6 +305,41 @@ being consolidated into other junctions. Since this only impacts a very
 small number of junctions, we are tentatively OK with moving forward
 with the separate shiba runs method for now.
 
+## Examine splice events that are consistently present in both combined and separate splice tables
+
+To help us prioritize what splice event types we may be the most
+confident in after merging separate Shiba PSI tables, we are interested
+in seeing a breakdown of what event types are most represented in both
+PSI tables
+
+``` r
+# obtain df of splice events that are shared between both combined and separate tables
+shared_events <- dplyr::intersect(combined_psi_table, separate_psi_table) |>
+  dplyr::summarise(
+    .by = c(event_type),
+    count = dplyr::n()
+  ) |>
+  dplyr::mutate(
+    frac = count / sum(count)
+  )
+
+shared_events
+```
+
+| event_type | count |      frac |
+|:-----------|------:|----------:|
+| se         | 63234 | 0.1879922 |
+| afe        | 99852 | 0.2968561 |
+| ale        | 76448 | 0.2272769 |
+| five       | 14573 | 0.0433250 |
+| three      | 18908 | 0.0562127 |
+| mse        | 45679 | 0.1358019 |
+| mxe        |   559 | 0.0016619 |
+| ri         | 17112 | 0.0508733 |
+
+Of the events that are the same between the combined and separate PSI
+tables, SE, AFE, ALE, and MSE events are the most abundant.
+
 ## Examine splice events only found in combined or separate splice tables
 
 ### Obtain dimensions of each PSI table

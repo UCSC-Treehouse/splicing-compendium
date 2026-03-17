@@ -1,7 +1,7 @@
 [workspace]
 authors = ["Cindy Liang <celiang@ucsc.edu>"]
 channels = ["conda-forge", "bioconda"]
-name = "splicing-project"
+name = "splicing-compendium"
 platforms = ["linux-64"]
 version = "0.1.0"
 
@@ -12,7 +12,7 @@ python = "3.12.*"
 snakemake = ">=9.16.3,<10"
 shiba = "==0.8.1"
 star = "==2.7.11b"
-r-base = ">=4.4.1,<4.5"
+r-base = "==4.4.2"
 r-renv = ">=1.1.6,<2"
 fastp = ">=1.0.1,<2"
 quarto = ">=1.7.0,<2"

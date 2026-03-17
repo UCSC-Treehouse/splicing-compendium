@@ -88,10 +88,9 @@ rule align_reads:
 
         # sort separately to save memory
         samtools sort \
-          -@ {threads}  \
+          -@ {threads} \
           -m {params.samtools_memory}M \
-          -o {output.bam} \
-          {params.star_dir}/Aligned.out.bam
+          -o {params.star_dir}/Aligned.out.bam
 
         rm {params.star_dir}/Aligned.out.bam
 

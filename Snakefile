@@ -90,7 +90,8 @@ rule align_reads:
         samtools sort \
           -@ {threads} \
           -m {params.samtools_memory}M \
-          -o {params.star_dir}/Aligned.out.bam
+          -o {output.bam} \
+          {params.star_dir}/Aligned.out.bam
 
         rm {params.star_dir}/Aligned.out.bam
 

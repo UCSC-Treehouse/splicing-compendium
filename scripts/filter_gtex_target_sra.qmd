@@ -16,7 +16,7 @@ The goals of this notebook are to filter the following SRA tables for files to d
 
 -   GTEX SRA table and metadata matching ages to subject IDs, for samples from the youngest donors
 
-Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance. 
+Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
 
 Metadata used for this analysis are:
 
@@ -58,6 +58,7 @@ Read in directory and file paths
 
 ```{r}
 # find the project directory (splicing-compendium)
+# working directory is in scripts
 base_dir <- here::here()
 
 # define metadata directory
@@ -137,8 +138,7 @@ The metadata says cDNA, but the GTex website says all their versions are polyA s
 
 ### Check GTEx versions in filtered samples
 
-Gtex v8 and above are also only accessible on anvil: <https://www.gtexportal.org/home/protectedDataAccess>
-So we must filter out samples that come from GTEx v8 and above
+Gtex v8 and above are also only accessible on anvil: <https://www.gtexportal.org/home/protectedDataAccess> So we must filter out samples that come from GTEx v8 and above
 
 Check number of samples in each GTEx version after filtering.
 
@@ -147,11 +147,10 @@ gtex_sra_ages |>
   dplyr::group_by(version) |>
   dplyr::summarise(version_count = dplyr::n())
 ```
+
 Only versions up to 4 are recorded, all others are NA.
 
-Check distribution of GTEx create dates for accessions without version number. 
-Can we associate a GTEx version with these samples based on when each version was released?
-No creation date is recorded for samples from unrecorded versions, so we will just filter those out
+Check distribution of GTEx create dates for accessions without version number. Can we associate a GTEx version with these samples based on when each version was released? No creation date is recorded for samples from unrecorded versions, so we will just filter those out
 
 ```{r}
 gtex_sra_ages |>
@@ -159,8 +158,8 @@ gtex_sra_ages |>
   dplyr::group_by(create_date) |>
   dplyr::summarise(date_count = dplyr::n())
 ```
-The release date for version 8p2 is 2019-07-18 [source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2), so these values represent samples from later versions that are only accessible on AnVIL.
-We should filter out samples with release dates greater than or equal to 2018.
+
+The release date for version 8p2 is 2019-07-18 [source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
 
 ```{r}
 gtex_sra_ages |>
@@ -170,6 +169,7 @@ gtex_sra_ages |>
 ```
 
 Filter GTEx samples for accessions downloadable outside of AnVIL
+
 ```{r}
 gtex_sra_downloadable <- gtex_sra_ages |>
   dplyr::filter(ReleaseDate < 2018)
@@ -183,7 +183,7 @@ Estimate amount of space filtered GTEX samples will take up
 
 ```{r}
 # estimate amount of space files will take up
-gtex_sra_downloadable_space <- (sum(gtex_sra_version_filtered$Bytes) / 1e12)
+gtex_sra_downloadable_space <- (sum(gtex_sra_downloadable$Bytes) / 1e12)
 paste0("About ", gtex_sra_downloadable_space, " terabytes of space will be taken up by file downloads.")
 ```
 
@@ -223,9 +223,10 @@ ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   plot_theme
 ```
-As expected, there is a very small fraction of filtered GTEx samples under the PEDAYA (< 30 years) category.
 
-Print number of samples in all tissue types after excluding cell lines and version numbers above 6
+As expected, there is a very small fraction of filtered GTEx samples under the PEDAYA (\< 30 years) category.
+
+Print number of samples in all tissue types after excluding cell lines and version numbers above 8
 
 ```{r n_in_each_tissue_type_after_version_filtering}
 gtex_sra_downloadable |>
@@ -247,25 +248,25 @@ readr::write_tsv(gtex_select, file = file.path(gtex_accession_path))
 
 ## Filter TARGET dataset for download
 
-Estimate amount of space all of TARGET will take up, only excluding cell line samples
+Estimate amount of space filtered TARGET samples will take up
 
 ```{r}
 target_filtered_sra <- target_sra |>
-  # filter only for accession IDs with sequence files associated with them
+  # filter for TARGET accessions
   dplyr::filter(
     # Filter for TARGET samples
     biospecimen_repository == "NCI_TARGET",
     # exclude cell line RNA-seq
     study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
-    # exclude osteosarcomas due to their complex transcriptome and we have no bone gtex
+    # exclude osteosarcomas because they have a complex transcriptome and we have no bone GTEx comparator
     study_name != "TARGET: Osteosarcoma (OS)",
-    # # filter for samples with fastqs
-    # grepl("fastq", `DATASTORE filetype`),
-    # # filter for paired end reads
+    # filter for samples with fastqs
+    grepl("fastq", `DATASTORE filetype`),
+    # filter for paired end reads
     LibraryLayout == "PAIRED",
     # Filter for RNA-seq
     analyte_type == "RNA",
-    # filter out ssRNA-seq because I don't know how to process that data
+    # filter out ssRNA-seq
     `Assay Type`!= "ssRNA-seq"
   ) |>
   # transform Bytes column to numeric for estimating space
@@ -282,15 +283,14 @@ paste0("There are ", nrow(target_filtered_sra), " accessions matching the filter
 file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
-Summarize distribution of library prep type for TARGET samples (when I filter for "paired", no results show up)
+
+Summarize distribution of library selection type for TARGET samples (when I filter for "polyA", no results show up)
 
 ```{r}
 target_filtered_sra |> dplyr::count(LibrarySelection)
 ```
 
-This information unfortunately tells me nothing. 
-For now, I will just export the SRA table of the TARGET samples under my existing filters.
-I sent a message to ask Maryke how she found out some of her TARGET samples were ribo-D.
+This information unfortunately tells me nothing. For now, I will just export the SRA table of the TARGET samples under my existing filters (don't filter by library selection).
 
 Summarize distribution of tumor types across TARGET samples:
 

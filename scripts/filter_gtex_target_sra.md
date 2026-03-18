@@ -342,9 +342,7 @@ target_filtered_sra <- target_sra |>
     # filter for paired end reads
     LibraryLayout == "PAIRED",
     # Filter for RNA-seq
-    analyte_type == "RNA",
-    # filter out ssRNA-seq
-    `Assay Type`!= "ssRNA-seq"
+    analyte_type == "RNA"
   ) |>
   # transform Bytes column to numeric for estimating space
   dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>

@@ -76,15 +76,24 @@ base_dir <- here::here()
 metadata_dir <- file.path(base_dir, "metadata")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 
-# define paths to input files
+## define paths to input files
+# TARGET accessions metadata from dbGaP
 target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
-gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
+
+## ALL expansion phase 2 metadata
+# sample telemetry report that includes sample IDs of ALL expansion phase 2 samples
+all_phase_two_telemetry <- file.path(gtex_target_metadata_dir, "phs000464.v23.txt")
+# excel sheet that includes sample IDs of 266 ribo-D RNA-seq samples from the TARGET ALL phase 2 expansion
+# sample IDs are under "RNA_barcode_D" column in the first tab
+ribod_all_phase_two_samples <- file.path(gtex_target_metadata_dir, "41588_2017_BFng3909_MOESM2_ESM.xlsx")
 
 # define path to output files
 target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.tsv")
 
 # read in files
 target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
+all_phase_two_telemetry <- readr::read_tsv(all_phase_two_telemetry, col_names = TRUE)
+all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "Table S1 cohort")
 ```
 
 ## Filter TARGET dataset for download
@@ -109,11 +118,13 @@ target_filtered_sra <- target_sra |>
     analyte_type == "RNA"
   ) |>
   # transform Bytes column to numeric for estimating space
-  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
+  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric)
+
+  # don't select for relevant columns for now in case they become useful
   # select for only relevant columns
-  dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection
-  )
+  # dplyr::select(
+  #   Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection
+  # )
 
 # count how many rows there are
 paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
@@ -123,13 +134,13 @@ file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
 
-Summarize distribution of library selection type for TARGET samples (when I filter for "polyA", no results show up)
+## Make list of samples we know are ribo-D
 
-```{r}
-target_filtered_sra |> dplyr::count(LibrarySelection)
-```
+### TARGET ALL Expansion Phase 2
 
-This information unfortunately tells me nothing. For now, I will just export the SRA table of the TARGET samples under my existing filters (don't filter by library selection).
+This excel sheet has 266 RNAseq samples that are riboD
+"DNA barcode" column corresponds to sample_)_id column in the sample telemetry report for the study: https://www.ncbi.nlm.nih.gov/gap/sstr/report/phs000464.v23.p8
+
 
 Summarize distribution of tumor types across TARGET samples:
 

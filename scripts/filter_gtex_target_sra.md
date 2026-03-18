@@ -109,14 +109,26 @@ gtex_sra_ages <- gtex_sra |>
     # filter for tissue types in select list
     body_site %in% tissue_types
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, LibrarySelection)
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection)
 
 dim(gtex_sra_ages)
 ```
 
-    [1] 5405   13
+    [1] 5405   14
 
 We end up with 5405 samples after this filtering.
+
+Note that I do not filter for GTEx samples with fastq under the
+`DATASTORE filetype` column because there are none (I was still able to
+download fastqs without this filter)
+
+``` r
+unique(gtex_sra_ages$`DATASTORE filetype`)
+```
+
+     [1] "sra,bam,run.zq" "sra,run.zq,bam" "bam,sra,run.zq" "run.zq,bam,sra"
+     [5] "run.zq,sra,bam" "bam,run.zq,sra" "crai,cram"      "cram,crai"     
+     [9] "sra,run.zq"     "run.zq,sra"    
 
 Check library selection method of GTEx samples that are paired:
 
@@ -200,7 +212,7 @@ gtex_sra_downloadable <- gtex_sra_ages |>
 dim(gtex_sra_downloadable)
 ```
 
-    [1] 2416   13
+    [1] 2416   14
 
 2416 GTEx samples remain that are downloadable outside of AnVIL.
 

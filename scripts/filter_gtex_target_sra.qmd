@@ -249,18 +249,19 @@ target_filtered_sra <- target_sra |>
   # filter only for accession IDs with sequence files associated with them
   dplyr::filter(
     # Filter for TARGET samples
-    # biospecimen_repository == "NCI_TARGET"
+    biospecimen_repository == "NCI_TARGET",
     # exclude cell line RNA-seq
     study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
     # exclude osteosarcomas due to their complex transcriptome and we have no bone gtex
     study_name != "TARGET: Osteosarcoma (OS)",
-    # filter for samples with fastqs
-    grepl("fastq", `DATASTORE filetype`),
-    # filter for paired end reads
+    # # filter for samples with fastqs
+    # grepl("fastq", `DATASTORE filetype`),
+    # # filter for paired end reads
     LibraryLayout == "PAIRED",
-    LibrarySelection == "PolyA",
+    # Filter for RNA-seq
+    analyte_type == "RNA",
     # filter out ssRNA-seq because I don't know how to process that data
-    # `Assay Type`!= "ssRNA-seq"
+    `Assay Type`!= "ssRNA-seq"
   ) |>
   # transform Bytes column to numeric for estimating space
   dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
@@ -270,26 +271,21 @@ target_filtered_sra <- target_sra |>
   )
 
 # count how many rows there are
-paste0("There are ", nrow(target_no_cell_line_sra), " accessions matching the filters.")
+paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
 
 # estimate amount of space files will take up
-file_space <- sum(target_no_cell_line_sra$Bytes) / 1e12
+file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
-
-Summarize distribution of analyte type for TARGET samples (RNA, DNA, or both)
-
-```{r}
-target_filtered_sra |> dplyr::count(analyte_type)
-```
-
-Summarize distribution of assay type for TARGET samples
+Summarize distribution of library prep type for TARGET samples (when I filter for "paired", no results show up)
 
 ```{r}
-target_filtered_sra |> dplyr::count(`Assay Type`)
+target_filtered_sra |> dplyr::count(LibrarySelection)
 ```
 
-Conclusions: All TARGET samples appear to be RNA-seq. Another dataset with matched DNA & RNA sequencing will be needed to examine SNV status of pediatric cancers.
+This information unfortunately tells me nothing. 
+For now, I will just export the SRA table of the TARGET samples under my existing filters.
+I sent a message to ask Maryke how she found out some of her TARGET samples were ribo-D.
 
 Summarize distribution of tumor types across TARGET samples:
 
@@ -300,7 +296,7 @@ target_filtered_sra |> dplyr::count(study_name)
 Export filtered and subsampled TARGET accession file
 
 ```{r}
-target_accessions <- subsampled_target |>
+target_accessions <- target_filtered_sra |>
   dplyr::select(Run, `SRA Study`, BioProject, BioSample, study_name)
 
 readr::write_tsv(target_accessions, file = file.path(target_accession_path))

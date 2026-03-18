@@ -1,0 +1,153 @@
+---
+title: Filtering GTEX and TARGET samples from SRA
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+The goals of this notebook are to filter the following SRA tables for files to download:
+
+-   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing splicing
+
+Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
+
+Metadata used for this analysis are:
+
+-   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
+
+We also use this resource: <https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1>
+
+In order to filter for what samples have gone through polyA selection, check this documentation linked above
+
+we should also include what center did the sequencing (BCC / British Columbia Cancer Agency) as it is a source of batch
+
+-   Prioritize downloading all of TARGET data regardless (just prioritize excluding samples we know for sure are ribo deplete from the ALL paper)
+
+-   Look for info on TARGET pages to filter for what samples are defininitely polyA, try to filter down to samples that we know for sure are polyA and start downloading those
+
+-   NO!!!: For now just start downloading GTEx (since I am reasonably sure they are all polyA)
+
+-   Try to email st jude ?\
+    prioritize samples with larger N
+
+## Setup
+
+```{r, setup, include=FALSE}
+# load libraries
+library(ggplot2)
+
+# define global size for plots
+global_size <- 20
+
+# define plot theme (size) presets
+plot_theme = list(
+ theme_bw(),
+ theme(
+   legend.position = "right",
+   axis.title = element_text(size = global_size),
+   plot.title = element_text(size = global_size),
+   axis.text = element_text(size = global_size),
+   axis.text.x = element_text(
+     hjust = 1,
+     margin = margin(t = 0, r = 80, b = 0, l = 0),
+     size = global_size
+   ),
+   legend.title = element_text(size=global_size),
+   legend.text=element_text(size=global_size - 8)
+ )
+)
+```
+
+## Read in input and output paths
+
+Read in directory and file paths
+
+```{r}
+# find the project directory (splicing-compendium)
+# working directory is in scripts
+base_dir <- here::here()
+
+# define metadata directory
+metadata_dir <- file.path(base_dir, "metadata")
+gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+
+# define paths to input files
+target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
+gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
+
+# define path to output files
+target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.tsv")
+
+# read in files
+target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
+```
+
+## Filter TARGET dataset for download
+
+Estimate amount of space filtered TARGET samples will take up
+
+```{r}
+target_filtered_sra <- target_sra |>
+  # filter for TARGET accessions
+  dplyr::filter(
+    # Filter for TARGET samples
+    biospecimen_repository == "NCI_TARGET",
+    # exclude cell line RNA-seq
+    study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
+    # exclude osteosarcomas because they have a complex transcriptome and we have no bone GTEx comparator
+    study_name != "TARGET: Osteosarcoma (OS)",
+    # filter for samples with fastqs
+    grepl("fastq", `DATASTORE filetype`),
+    # filter for paired end reads
+    LibraryLayout == "PAIRED",
+    # Filter for RNA-seq
+    analyte_type == "RNA"
+  ) |>
+  # transform Bytes column to numeric for estimating space
+  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
+  # select for only relevant columns
+  dplyr::select(
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection
+  )
+
+# count how many rows there are
+paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+file_space <- sum(target_filtered_sra$Bytes) / 1e12
+paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Summarize distribution of library selection type for TARGET samples (when I filter for "polyA", no results show up)
+
+```{r}
+target_filtered_sra |> dplyr::count(LibrarySelection)
+```
+
+This information unfortunately tells me nothing. For now, I will just export the SRA table of the TARGET samples under my existing filters (don't filter by library selection).
+
+Summarize distribution of tumor types across TARGET samples:
+
+```{r}
+target_filtered_sra |> dplyr::count(study_name)
+```
+
+Export filtered and subsampled TARGET accession file
+
+```{r}
+target_accessions <- target_filtered_sra |>
+  dplyr::select(Run, `SRA Study`, BioProject, BioSample, study_name)
+
+readr::write_tsv(target_accessions, file = file.path(target_accession_path))
+```
+
+Print session info
+
+```{r}
+sessionInfo()
+```

@@ -102,10 +102,12 @@ Associate sample IDs from Liu et al. 2017 that were recorded to have undergone r
 all_phase_two_ribo_d_to_remove <- all_phase_two_ribod |>
   dplyr::left_join(target_sra, by = c("RNA_barcode_D" = "biospecimen_repository_sample_id"))
 
+# define list of rna barcode IDs to exclude
+all_phase_two_exclude_list <- all_phase_two_ribo_d_to_remove$RNA_barcode_D
+
 ```
 
-
-Filter
+Filter TARGET data
 
 ```{r}
 target_filtered_sra <- target_sra |>
@@ -122,7 +124,9 @@ target_filtered_sra <- target_sra |>
     # filter for paired end reads
     LibraryLayout == "PAIRED",
     # Filter for RNA-seq
-    analyte_type == "RNA"
+    analyte_type == "RNA",
+    # exclude samples that have been documented to be ribo-D
+    !biospecimen_repository_sample_id %in% all_phase_two_exclude_list
   ) |>
   # transform Bytes column to numeric for estimating space
   dplyr::mutate_at(dplyr::vars(Bytes), as.numeric)

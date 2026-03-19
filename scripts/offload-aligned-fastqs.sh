@@ -19,6 +19,7 @@ datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 data_dir="../data"
 group_dir="${data_dir}/target"
 bam_dir="${group_dir}/star-output"
+fastq_dir="${group_dir}/fastq"
 log_dir="../logs"
 
 # create directories if they don't already exist
@@ -33,3 +34,14 @@ mapfile -t dirs < <(find "${bam_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%
 
 # echo everything in the array to test
 echo "${dirs[@]}"
+
+# iterate through array to remove the fastq files corresponding to the accession ID
+for accession in "${dirs[@]}"; do
+   # construct pats to fastqs based on accessions in the bam dir
+   fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
+   fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
+
+   # remove fastq files
+   rm ${fastq1_path}
+   rm ${fastq2_path}
+done

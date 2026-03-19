@@ -96,7 +96,26 @@ all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "
 
 ## Filter TARGET dataset for download
 
-Associate sample IDs from Liu et al. 2017 that were recorded to have undergone ribo-D selection with accession IDs 
+### Check TARGET documentation for any tissue types recorded to be ribo D
+
+Based off the information on the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, check whether there are cancer types that are recorded to be ribo-deplete instead of polyA selected
+
+| TARGET cancer type | Documented library selection method | Sequencing center |
+|----|----|----|
+| ALL phase 1 | PolyA | BCC |
+| ALL phase 2 | PolyA | BCC |
+| ALL phase 3 | Unspecified | St Jude |
+| AML | PolyA (for ssRNA-seq) | BCC |
+| AML induction failure | PolyA (for ssRNA-seq) | BCC |
+| Kidney - Wilms tumor | PolyA | BCC |
+| Kidney - clear cell sarcoma | **Ribo-deplete** | NCI Center for Cancer Research |
+| Kidney - Rhabdoid tumor | PolyA | BCC |
+| Neuroblastoma | polyA | BCC |
+
+### Make lists of specific sample IDs that we know are ribo D
+
+Associate sample IDs from Liu et al. 2017 that were recorded to have undergone ribo-D selection with accession IDs
+
 ```{r}
 # Associate sample IDs that are recorded as ribo-deplete from the Liu et al 2017 study with run accessions from the TARGET dbGaP metadata
 all_phase_two_ribo_d_to_remove <- all_phase_two_ribod |>
@@ -107,7 +126,7 @@ all_phase_two_exclude_list <- all_phase_two_ribo_d_to_remove$RNA_barcode_D
 
 ```
 
-Filter TARGET data
+### Filter TARGET data
 
 ```{r}
 target_filtered_sra <- target_sra |>
@@ -125,17 +144,17 @@ target_filtered_sra <- target_sra |>
     LibraryLayout == "PAIRED",
     # Filter for RNA-seq
     analyte_type == "RNA",
-    # exclude samples that have been documented to be ribo-D
-    !biospecimen_repository_sample_id %in% all_phase_two_exclude_list
+    # exclude ALL phase 2 samples that have been documented to be ribo-D
+    !biospecimen_repository_sample_id %in% all_phase_two_exclude_list,
+    # exclude all rhabdoid tumor samples as they are ribo-D
+    study_name != "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
   ) |>
   # transform Bytes column to numeric for estimating space
-  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric)
-
-  # don't select for relevant columns for now in case they become useful
+  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
   # select for only relevant columns
-  # dplyr::select(
-  #   Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection
-  # )
+  dplyr::select(
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+  )
 
 # count how many rows there are
 paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
@@ -145,18 +164,16 @@ file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
 
-## Make list of samples we know are ribo-D
-
-### TARGET ALL Expansion Phase 2
-
-This excel sheet has 266 RNAseq samples that are riboD
-"DNA barcode" column corresponds to sample_)_id column in the sample telemetry report for the study: https://www.ncbi.nlm.nih.gov/gap/sstr/report/phs000464.v23.p8
-
-
 Summarize distribution of tumor types across TARGET samples:
 
 ```{r}
 target_filtered_sra |> dplyr::count(study_name)
+```
+
+Summarize distribution of sequencing centers across filtered TARGET samples
+
+```{r}
+target_filtered_sra |> dplyr::count(`Center Name`)
 ```
 
 Export filtered and subsampled TARGET accession file

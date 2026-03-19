@@ -144,10 +144,7 @@ target_filtered_sra |> dplyr::count(`Center Name`)
 Export filtered and subsampled TARGET accession file
 
 ```{r}
-target_accessions <- target_filtered_sra |>
-  dplyr::select(Run, `SRA Study`, BioProject, BioSample, study_name)
-
-readr::write_tsv(target_accessions, file = file.path(target_accession_path))
+readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))
 ```
 
 Print session info

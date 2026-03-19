@@ -1,6 +1,6 @@
 # Filtering GTEX and TARGET samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-03-18
+2026-03-19
 
 ## Introduction
 
@@ -178,10 +178,7 @@ target_filtered_sra |> dplyr::count(`Center Name`)
 Export filtered and subsampled TARGET accession file
 
 ``` r
-target_accessions <- target_filtered_sra |>
-  dplyr::select(Run, `SRA Study`, BioProject, BioSample, study_name)
-
-readr::write_tsv(target_accessions, file = file.path(target_accession_path))
+readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))
 ```
 
 Print session info

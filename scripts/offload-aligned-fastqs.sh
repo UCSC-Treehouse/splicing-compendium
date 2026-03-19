@@ -14,13 +14,22 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set paths as variables
-git_path=$(git rev-parse --git_dir)
-root_dir=$(dirname "$git_path")
-data_dir="$(root_dir)/data"
-log_dir="$(root_dir)/logs"
+# git_path=$(git rev-parse --git-dir)
+# root_dir=$(dirname "$git_path")
+data_dir="../data"
+group_dir="${data_dir}/target"
+bam_dir="${group_dir}/star-output"
+log_dir="../logs"
 
 # create directories if they don't already exist
 mkdir -p $log_dir
 
 # define output files
-fastq_offloaded="$(log_dir)/fastq_offloaded_$(datetime).txt"
+fastq_to_offload="${log_dir}/fastq_to_offload_${datetime}.txt"
+
+# create list of subdirectories holding bam files from workflow
+# use mapfile to read lines from find to put directory names into an array
+mapfile -t dirs < <(find "${bam_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
+
+# echo everything in the array to test
+echo "${dirs[@]}"

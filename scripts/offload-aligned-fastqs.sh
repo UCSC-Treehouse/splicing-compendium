@@ -32,9 +32,6 @@ fastq_to_offload="${log_dir}/fastq_to_offload_${datetime}.txt"
 # use mapfile to read lines from find to put directory names into an array
 mapfile -t dirs < <(find "${bam_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
 
-# echo everything in the array to test
-echo "${dirs[@]}"
-
 # iterate through array to remove the fastq files corresponding to the accession ID
 for accession in "${dirs[@]}"; do
    # construct pats to fastqs based on accessions in the bam dir

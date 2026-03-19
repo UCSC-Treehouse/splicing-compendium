@@ -81,8 +81,6 @@ gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
 
 ## ALL expansion phase 2 metadata
-# sample telemetry report that includes sample IDs of ALL expansion phase 2 samples
-all_phase_two_telemetry <- file.path(gtex_target_metadata_dir, "phs000464.v23.txt")
 # excel sheet that includes sample IDs of 266 ribo-D RNA-seq samples from the TARGET ALL phase 2 expansion
 # sample IDs are under "RNA_barcode_D" column in the first tab
 ribod_all_phase_two_samples <- file.path(gtex_target_metadata_dir, "41588_2017_BFng3909_MOESM2_ESM.xlsx")
@@ -98,7 +96,16 @@ all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "
 
 ## Filter TARGET dataset for download
 
-Estimate amount of space filtered TARGET samples will take up
+Associate sample IDs from Liu et al. 2017 that were recorded to have undergone ribo-D selection with accession IDs 
+```{r}
+# Associate sample IDs that are recorded as ribo-deplete from the Liu et al 2017 study with run accessions from the TARGET dbGaP metadata
+all_phase_two_ribo_d_to_remove <- all_phase_two_ribod |>
+  dplyr::left_join(target_sra, by = c("RNA_barcode_D" = "biospecimen_repository_sample_id"))
+
+```
+
+
+Filter
 
 ```{r}
 target_filtered_sra <- target_sra |>

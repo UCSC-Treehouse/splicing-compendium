@@ -34,11 +34,16 @@ mapfile -t dirs < <(find "${bam_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%
 
 # iterate through array to remove the fastq files corresponding to the accession ID
 for accession in "${dirs[@]}"; do
-   # construct pats to fastqs based on accessions in the bam dir
-   fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
-   fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
+    # construct pats to fastqs based on accessions in the bam dir
+    fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
+    fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
 
-   # remove fastq files
-   rm ${fastq1_path}
-   rm ${fastq2_path}
+    # remove fastq files if they exist
+    if [ -f "${fastq1_path}" ]; then
+        rm ${fastq1_path}
+    fi
+
+        if [ -f "${fastq2_path}" ]; then
+        rm ${fastq2_path}
+    fi
 done

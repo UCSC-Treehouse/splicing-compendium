@@ -333,6 +333,8 @@ We are most concerned if unannotated events have altered positions in the merged
 
 Check for one event type (SE)
 
+For skipped exon events, the first coordinate spans the intron of the exclusion event (intron_c of [this diagram](https://sika-zheng-lab.github.io/Shiba/output/shiba/#psi_setxt)) and the second coordinate spans the exon of the inclusion event.
+
 ```{r}
 # filter for unannotated SE events only in the merged table
 se_only_in_separate <- separate_psi_table |>

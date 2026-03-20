@@ -314,7 +314,7 @@ psi_summary <- shared_events |>
     separate_only = pos_id %in% separate_only_list
   ) |>
 # print summary of how many unique events with values that are novel vs. unannotated
-  dplyr::summarise(.by = c(label),
+  dplyr::summarise(.by = c(label, event_type),
                    combined_only = sum(combined_only),
                    separate_only = sum(separate_only),
                    # dplyr::n() gives the size of the group (annotated events or unannotated events)

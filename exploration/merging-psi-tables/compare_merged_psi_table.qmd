@@ -249,16 +249,15 @@ To help us prioritize what splice event types we may be the most confident in af
 
 ```{r}
 # obtain df of splice events that are shared between both combined and separate tables
-shared_events <- dplyr::intersect(combined_psi_table, separate_psi_table) |>
-  dplyr::summarise(
-    .by = c(event_type),
-    count = dplyr::n()
-  ) |>
-  dplyr::mutate(
-    frac = count / sum(count)
-  )
+shared_events <- dplyr::full_join(
+  combined_psi_table, 
+  separate_psi_table,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  suffix = c("_combined", "_separate")) # label PSI values by table they came from
 
-shared_events
+head(shared_events)
+
+# recording a note that we may want to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
 ```
 
 Of the events that are the same between the combined and separate PSI tables, SE, AFE, ALE, and MSE events are the most abundant.
@@ -309,17 +308,21 @@ Fraction of annotated vs. unannotated events in the combined table
 
 ```{r}
 # filter for pos_ids unique to the shiba dataframe
-combined_psi_summary <- combined_psi_table |>
+psi_summary <- shared_events |>
   dplyr::mutate(
     combined_only = pos_id %in% combined_only_list,
     separate_only = pos_id %in% separate_only_list
   ) |>
 # print summary of how many unique events with values that are novel vs. unannotated
-  dplyr::summarise(.by = c(label, combined_only, separate_only), 
-                   count = dplyr::n()) |>
-  dplyr::mutate(Frac = count/sum(count))
+  dplyr::summarise(.by = c(label),
+                   combined_only = sum(combined_only),
+                   separate_only = sum(separate_only),
+                   # dplyr::n() gives the size of the group (annotated events or unannotated events)
+                   total = dplyr::n(),
+                   combined_frac = combined_only / total,
+                   separate_frac = separate_only / total)
 
-combined_psi_summary            
+psi_summary            
 ```
 
 Together, the unmatched splice events in the separate PSI table make up a small percent of the events.

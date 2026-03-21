@@ -86,12 +86,12 @@ gtex_sra_ages <- gtex_sra |>
     # filter for tissue types in select list
     body_site %in% tissue_types
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection)
 
 dim(gtex_sra_ages)
 ```
 
-    [1] 2107   15
+    [1] 2107   14
 
 We end up with 2107 samples after this filtering.
 
@@ -188,7 +188,7 @@ gtex_sra_downloadable <- gtex_sra_ages |>
 dim(gtex_sra_downloadable)
 ```
 
-    [1] 973  15
+    [1] 973  14
 
 973 GTEx samples remain that are downloadable outside of AnVIL.
 

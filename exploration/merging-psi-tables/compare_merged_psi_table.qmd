@@ -152,11 +152,83 @@ dim(combined_junctions)
 There are only \~50 more junctions in the separate junctions table than the combined table.
 One possible explanation is that there are extra junctions represent positions that are very close together (in other words, a fewer number of junctions would have been called if there were better read support from all possible junction regions like in the combined bedfile).
 
-Check if the junction IDs in each table are identical
+Check if all NAs in one sample turn into 0 in the combined table
 
 ```{r}
-setequal(separate_junctions$ID, combined_junctions$ID)
+# filter separate junctions table for events with NAs in either or both samples
+# there were no position IDs where both samples had NA junctions
+separate_one_na <- separate_junctions |>
+  dplyr::filter(is.na(SRR601500) | is.na(SRR604528)) |>
+  # convert NAs to 0 to compare to combined junctions
+  dplyr::mutate(
+    SRR601500 = dplyr::case_when(
+      is.na(SRR601500) ~ 0,
+      !is.na(SRR601500) ~ SRR601500
+    ),
+    SRR604528 = dplyr::case_when(
+      is.na(SRR604528) ~ 0,
+      !is.na(SRR604528) ~ SRR604528
+    )
+  )
+
+# check dimensions
+dim(separate_one_na)
+
+# obtain position IDs of events where one sample has NA junction counts
+na_junc_ids <- separate_one_na$ID
+
+# filter combined junctions table for these junction IDs
+combined_junctions_to_compare <- combined_junctions |>
+  dplyr::filter(ID %in% na_junc_ids)
+
+# check dimensions
+dim(combined_junctions_to_compare)
+
+# Because the dimensions of the junctions tables are unequal, not all junctions with NAs are converted exactly to 0 in the combined junctions data frame
+
 ```
+I could not find function that would do what I want (compare all values in the two dataframes for differences), so I am combining the dataframes here 
+```{r}
+# combine junctions tables 
+compare_zero_junctions <- dplyr::full_join(
+  separate_one_na, 
+  combined_junctions_to_compare, 
+  by = c("ID", "chr", "start", "end"),
+  suffix = c("_combined", "_separate")) |>
+  # label events that have different junction counts
+  dplyr::mutate(
+    # make sure column classes are the same
+    SRR601500_combined = as.integer(SRR601500_combined),
+    SRR601500_separate = as.integer(SRR601500_separate),
+    SRR604528_combined = as.integer(SRR604528_combined),
+    SRR604528_separate = as.integer(SRR604528_separate),
+    match_type =
+      dplyr::case_when(
+        (SRR601500_combined == SRR601500_separate) & 
+          (SRR604528_combined == SRR604528_separate) ~ "all same",
+        (SRR604528_combined == SRR604528_separate) & 
+          (SRR601500_combined != SRR601500_separate) ~ "only SRR604528 same",
+        (SRR604528_combined != SRR604528_separate) & 
+          (SRR601500_combined == SRR601500_separate) ~ "only SRR601500 same",
+        (SRR604528_combined != SRR604528_separate) & 
+          (SRR601500_combined != SRR601500_separate) ~ "all different"
+      )
+  ) 
+
+compare_zero_junctions |>
+  dplyr::summarise(
+    .by = c("match_type"),
+    n = dplyr::n()
+  )
+```
+Investigate what NA means - these correspond to 133 unmatched junction IDs.
+From eyeballing these, the unmatched junction IDs appear to be one bp junctions that we don't trust.
+
+```{r}
+compare_zero_junctions |>
+  dplyr::filter(is.na(match_type))
+```
+In conclusion, not all junctions that are NA in the separate table are 0 in the combined table, but the majority of the junctions are.
 
 ### Investogate junctions only found in each junction table
 

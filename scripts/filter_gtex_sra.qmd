@@ -1,5 +1,5 @@
 ---
-title: Filtering GTEX and TARGET samples from SRA
+title: Filtering GTEX samples from SRA
 author: "Cindy Liang (celiang@ucsc.edu)"
 format:
   gfm:
@@ -12,15 +12,12 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 The goals of this notebook are to filter the following SRA tables for files to download:
 
--   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing splicing
-
 -   GTEX SRA table and metadata matching ages to subject IDs, for samples from the youngest donors
 
 Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
 
 Metadata used for this analysis are:
 
--   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
 -   `GTEX_SraRunTable.csv`, metadata file of dbGaP accession IDs containing GTEX samples.
 -   `GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt`, public annotation file consisting of GTEX sample IDs and their ages in 10-year brackets, obtained from <https://storage.googleapis.com/adult-gtex/annotations/v10/metadata-files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt> , which is accessible by clicking the download icon next to "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt" on the [GTEX v10 metadata page](https://gtexportal.org/home/downloads/adult-gtex/metadata). The download command for this is in `data/scripts/00-reference_download.sh`.
 
@@ -66,17 +63,13 @@ metadata_dir <- file.path(base_dir, "metadata")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 
 # define paths to input files
-target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
 gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
 
 # define path to output files
-target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.tsv")
 gtex_accession_path <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
 
 # read in files
-target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
-
 gtex_sra <- readr::read_csv(gtex_sra_file, col_types = readr::cols(Bytes = "d", .default = "c")) |>
   dplyr::rename(SUBJID = submitted_subject_id)
 
@@ -90,22 +83,10 @@ Combine GTEX age table with GTEX accessions so that we can check how many sample
 ```{r}
 # Define tissue types of interest
 # kidney, brain (CNS), muscle, and blood samples
-tissue_types <- c("Brain - Nucleus accumbens (basal ganglia)",
-                  "Brain - Caudate (basal ganglia)",
-                  "Brain - Spinal cord (cervical c-1)",
-                  "Brain - Hypothalamus",
+tissue_types <- c(
                   "Kidney - Cortex",
-                  "Brain - Frontal Cortex (BA9)",
                   "Muscle - Skeletal",
-                  "Brain - Cerebellum",
-                  "Whole Blood",
-                  "Brain - Cerebellar Hemisphere",
-                  "Brain - Hippocampus",
-                  "Brain - Anterior cingulate cortex (BA24)",
-                  "Brain - Cortex",
-                  "Brain - Putamen (basal ganglia)",
-                  "Brain - Substantia nigra",
-                  "Brain - Amygdala"
+                  "Whole Blood"
                   )
 
 # Merge GTEX SRA table with ages metadata to associate IDs with ages
@@ -121,12 +102,12 @@ gtex_sra_ages <- gtex_sra |>
     # filter for tissue types in select list
     body_site %in% tissue_types
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection)
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
 
 dim(gtex_sra_ages)
 ```
 
-We end up with 5405 samples after this filtering.
+We end up with 2107 samples after this filtering.
 
 Note that I do not filter for GTEx samples with fastq under the `DATASTORE filetype` column because there are none (I was still able to download fastqs without this filter)
 
@@ -185,7 +166,7 @@ gtex_sra_downloadable <- gtex_sra_ages |>
 dim(gtex_sra_downloadable)
 ```
 
-2416 GTEx samples remain that are downloadable outside of AnVIL.
+973 GTEx samples remain that are downloadable outside of AnVIL.
 
 Estimate amount of space filtered GTEX samples will take up
 
@@ -241,9 +222,6 @@ gtex_sra_downloadable |>
   dplyr::group_by(body_site) |>
   dplyr::summarize(n_samples = dplyr::n())
 ```
-
-Just from eyeballing the numbers, our filtered GTEx is predominantly made up of brain samples, which may impact splice comparison results.
-
 ### Export filtered GTEX accession file
 
 ```{r}
@@ -252,65 +230,6 @@ gtex_select <- gtex_sra_downloadable |>
   dplyr::relocate(Run)
 
 readr::write_tsv(gtex_select, file = file.path(gtex_accession_path))
-```
-
-## Filter TARGET dataset for download
-
-Estimate amount of space filtered TARGET samples will take up
-
-```{r}
-target_filtered_sra <- target_sra |>
-  # filter for TARGET accessions
-  dplyr::filter(
-    # Filter for TARGET samples
-    biospecimen_repository == "NCI_TARGET",
-    # exclude cell line RNA-seq
-    study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
-    # exclude osteosarcomas because they have a complex transcriptome and we have no bone GTEx comparator
-    study_name != "TARGET: Osteosarcoma (OS)",
-    # filter for samples with fastqs
-    grepl("fastq", `DATASTORE filetype`),
-    # filter for paired end reads
-    LibraryLayout == "PAIRED",
-    # Filter for RNA-seq
-    analyte_type == "RNA"
-  ) |>
-  # transform Bytes column to numeric for estimating space
-  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
-  # select for only relevant columns
-  dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection
-  )
-
-# count how many rows there are
-paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
-
-# estimate amount of space files will take up
-file_space <- sum(target_filtered_sra$Bytes) / 1e12
-paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
-```
-
-Summarize distribution of library selection type for TARGET samples (when I filter for "polyA", no results show up)
-
-```{r}
-target_filtered_sra |> dplyr::count(LibrarySelection)
-```
-
-This information unfortunately tells me nothing. For now, I will just export the SRA table of the TARGET samples under my existing filters (don't filter by library selection).
-
-Summarize distribution of tumor types across TARGET samples:
-
-```{r}
-target_filtered_sra |> dplyr::count(study_name)
-```
-
-Export filtered and subsampled TARGET accession file
-
-```{r}
-target_accessions <- target_filtered_sra |>
-  dplyr::select(Run, `SRA Study`, BioProject, BioSample, study_name)
-
-readr::write_tsv(target_accessions, file = file.path(target_accession_path))
 ```
 
 Print session info

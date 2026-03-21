@@ -197,11 +197,6 @@ compare_zero_junctions <- dplyr::full_join(
   suffix = c("_combined", "_separate")) |>
   # label events that have different junction counts
   dplyr::mutate(
-    # make sure column classes are the same
-    SRR601500_combined = as.integer(SRR601500_combined),
-    SRR601500_separate = as.integer(SRR601500_separate),
-    SRR604528_combined = as.integer(SRR604528_combined),
-    SRR604528_separate = as.integer(SRR604528_separate),
     match_type =
       dplyr::case_when(
         (SRR601500_combined == SRR601500_separate) & 
@@ -226,27 +221,146 @@ From eyeballing these, the unmatched junction IDs appear to be one bp junctions 
 
 ```{r}
 compare_zero_junctions |>
-  dplyr::filter(is.na(match_type))
+  dplyr::filter(is.na(match_type)) |>
+  head()
 ```
-In conclusion, not all junctions that are NA in the separate table are 0 in the combined table, but the majority of the junctions are.
+
+Try filtering out junctions that are too short to be incorporated into PSI calculation
+
+Below are the default junction length thresholds shiba uses for PSI calculation ([source](https://sika-zheng-lab.github.io/Shiba/quickstart/diff_splicing_bulk/?h=junction+length#1-prepare-inputs)):
+minimum_anchor_length:
+  6 
+minimum_intron_length:
+  70 
+maximum_intron_length:
+  500000 
+strand:
+  XS 
+
+Filter out junctions less than 6bp in length
+```{r}
+compare_zero_junctions_lenfiltered <- compare_zero_junctions |>
+  dplyr::mutate(
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end))
+  ) |>
+  dplyr::filter(
+    junc_len > 6
+  )
+
+compare_zero_junctions_lenfiltered |>
+  dplyr::summarise(
+    .by = c("match_type"),
+    n = dplyr::n()
+  )
+```
+Once we filter out junctions greater than 6bp, all junctions match between the tables for values where NAs are repalced with 0.
+
+Comapre full table after filtering for junctions > 6bp
+```{r}
+# combine junctions tables 
+compare_all_junctions <- dplyr::full_join(
+  separate_junctions, 
+  combined_junctions, 
+  by = c("ID", "chr", "start", "end"),
+  suffix = c("_separate", "_combined")) |>
+  # label events that have different junction counts
+  dplyr::mutate(
+    # convert NA values in each sample to 0
+
+    SRR601500_separate = dplyr::case_when(
+      is.na(SRR601500_separate) ~ 0,
+      !is.na(SRR601500_separate) ~ SRR601500_separate
+    ),
+    
+    SRR604528_separate = dplyr::case_when(
+      is.na(SRR604528_separate) ~ 0,
+      !is.na(SRR604528_separate) ~ SRR604528_separate
+    ),
+    
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end)),
+    match_type =
+      dplyr::case_when(
+        (SRR601500_combined == SRR601500_separate) & 
+          (SRR604528_combined == SRR604528_separate) ~ "all same",
+        (SRR604528_combined == SRR604528_separate) & 
+          (SRR601500_combined != SRR601500_separate) ~ "only SRR604528 same",
+        (SRR604528_combined != SRR604528_separate) & 
+          (SRR601500_combined == SRR601500_separate) ~ "only SRR601500 same",
+        (SRR604528_combined != SRR604528_separate) & 
+          (SRR601500_combined != SRR601500_separate) ~ "all different"
+      )
+  ) |>
+  dplyr::filter(
+    junc_len > 6
+  )
+
+compare_all_junctions |>
+  dplyr::summarise(
+    .by = c("match_type"),
+    n = dplyr::n()
+  )
+```
+Once we filter out junctions < 6bp, and replace the the NA values in the separate jucntions with 0, the values are all the same.
+
+
+### Filter out junctions that would not make it into PSI calculation
+
+```{r}
+# filter out junctions that are below 6bp
+
+separate_junctions_len_filtered <- separate_junctions |> 
+  dplyr::mutate(
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end))
+  ) |>
+  dplyr::filter(
+    junc_len > 6
+  )
+
+dim(separate_junctions_len_filtered)
+
+combined_junctions_len_filtered <- combined_junctions |> 
+  dplyr::mutate(
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end))
+  ) |>
+  dplyr::filter(
+    junc_len > 6
+  )
+
+dim(combined_junctions_len_filtered)
+
+```
+
+Check nas - there are none so I'm not sure about the warning
+```{r}
+combined_junctions_len_filtered |>
+  dplyr::filter(is.na(junc_len))
+
+separate_junctions_len_filtered |>
+  dplyr::filter(is.na(junc_len))
+```
+
 
 ### Investogate junctions only found in each junction table
 
-Junctions found only in separate junctions table
+Junctions found only in separate junctions table after filtering by length
 
 ```{r}
-separate_only_junctions <- dplyr::setdiff(separate_junctions$ID, combined_junctions$ID)
+separate_only_junctions <- dplyr::setdiff(separate_junctions_len_filtered$ID, combined_junctions_len_filtered$ID)
 length(separate_only_junctions)
 ```
 
 Junctions found only in combined junctions table
 
 ```{r}
-combined_only_junctions <- dplyr::setdiff(combined_junctions$ID, separate_junctions$ID)
+combined_only_junctions <- dplyr::setdiff(combined_junctions_len_filtered$ID, separate_junctions_len_filtered$ID)
 length(combined_only_junctions)
 ```
 
-There is a very small fraction of junctions that are only found in the combined or separate junctions tables.
+When we remove junctions smaller than 6bp, the tables now have the same IDs
 
 ### Check junction counts of junctions only found in separate junctions table
 

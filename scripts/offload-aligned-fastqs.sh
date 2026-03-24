@@ -13,16 +13,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set paths as variables
-# git_path=$(git rev-parse --git-dir)
-# root_dir=$(dirname "$git_path")
 data_dir="../data"
 group_dir="${data_dir}/target"
 bam_dir="${group_dir}/star-output"
 fastq_dir="${group_dir}/fastq"
 
-# create list of subdirectories holding bam files from workflow
-# use mapfile to read lines from find to put directory names into an array
-# iterate through output directories
+# iterate through star output directories to obtain accessions of samples with alignments present
 for accession_dir in "${bam_dir}"/*/; do
   if [ -f "${accession_dir}/Aligned.sortedByCoord.out.bam" ]; then
     accession=$(basename "$accession_dir")

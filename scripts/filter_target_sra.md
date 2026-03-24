@@ -1,6 +1,6 @@
 # Filtering GTEX and TARGET samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-03-19
+2026-03-23
 
 ## Introduction
 
@@ -22,6 +22,10 @@ Metadata used for this analysis are:
   samples with the TARGET dataset. Created by downloading the SRA run
   table on dbGaP, with the “phs000218” filter (parent phs ID for TARGET
   dataset)
+- `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of
+  TARGET sequences downloaded and analyzed from the pilot Shiba run, to
+  exclude from this filtering
+- 
 
 We also use the [TARGET Molecular Characterization
 Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1)
@@ -48,11 +52,14 @@ base_dir <- here::here()
 
 # define metadata directory
 metadata_dir <- file.path(base_dir, "metadata")
+pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 
 ## define paths to input files
 # TARGET accessions metadata from dbGaP
 target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
+# TARGET accessions analyzed in pilot Shiba run to exclude from final accessions list
+pilot_target_file <- file.path(pilot_dir, "target_accessions.tsv")
 
 ## ALL expansion phase 2 metadata
 # excel sheet that includes sample IDs of 265 ribo-D RNA-seq samples from the TARGET ALL phase 2 expansion
@@ -65,7 +72,16 @@ target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.
 # read in files
 target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
 all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "Table S1 cohort")
+pilot_target <- readr::read_tsv(pilot_target_file)
 ```
+
+    Rows: 88 Columns: 5
+    ── Column specification ────────────────────────────────────────────────────────
+    Delimiter: "\t"
+    chr (5): Run, SRA Study, BioProject, BioSample, study_name
+
+    ℹ Use `spec()` to retrieve the full column specification for this data.
+    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 
 ## Filter TARGET dataset for download
 
@@ -90,8 +106,9 @@ ribo-deplete instead of polyA selected
 
 ### Make lists of specific sample IDs that we know are ribo D
 
-Associate sample IDs from Liu et al. 2017 that were recorded to have
-undergone ribo-D selection with accession IDs
+Associate sample IDs from [Liu et
+al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11) that
+were recorded to have undergone ribo-D selection with accession IDs
 
 ``` r
 # Associate sample IDs that are recorded as ribo-deplete from the Liu et al 2017 study with run accessions from the TARGET dbGaP metadata
@@ -123,7 +140,9 @@ target_filtered_sra <- target_sra |>
     # exclude ALL phase 2 samples that have been documented to be ribo-D
     !biospecimen_repository_sample_id %in% all_phase_two_exclude_list,
     # exclude all rhabdoid tumor samples as they are ribo-D according to TARGET documentation
-    study_name != "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
+    study_name != "TARGET: Kidney\\, Rhabdoid Tumor (RT)",
+    # exclude accessions downloaded from the pilot run
+    !Run %in% pilot_target$Run
   ) |>
   # transform Bytes column to numeric for estimating space
   dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
@@ -136,7 +155,7 @@ target_filtered_sra <- target_sra |>
 paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
 ```
 
-    [1] "There are 1078 accessions matching the filters."
+    [1] "There are 1010 accessions matching the filters."
 
 ``` r
 # estimate amount of space files will take up
@@ -144,7 +163,7 @@ file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
 
-    [1] "About 10.853352497101 terabytes of space will be taken up by file downloads."
+    [1] "About 10.139657685449 terabytes of space will be taken up by file downloads."
 
 Summarize distribution of tumor types across TARGET samples:
 
@@ -154,12 +173,11 @@ target_filtered_sra |> dplyr::count(study_name)
 
 | study_name                                                   |   n |
 |:-------------------------------------------------------------|----:|
-| TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 314 |
+| TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 304 |
 | TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     |   3 |
-| TARGET: Acute Myeloid Leukemia (AML)                         | 450 |
-| TARGET: Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      |  13 |
-| TARGET: Kidney, Wilms Tumor (WT)                             | 137 |
-| TARGET: Neuroblastoma (NBL)                                  | 161 |
+| TARGET: Acute Myeloid Leukemia (AML)                         | 435 |
+| TARGET: Kidney, Wilms Tumor (WT)                             | 122 |
+| TARGET: Neuroblastoma (NBL)                                  | 146 |
 
 Summarize distribution of sequencing centers across filtered TARGET
 samples
@@ -170,9 +188,9 @@ target_filtered_sra |> dplyr::count(`Center Name`)
 
 | Center Name |   n |
 |:------------|----:|
-| BCCAGSC     | 835 |
-| HAIB        |  66 |
-| NCI-KHAN    | 174 |
+| BCCAGSC     | 797 |
+| HAIB        |  64 |
+| NCI-KHAN    | 146 |
 | STJUDE      |   3 |
 
 Export filtered and subsampled TARGET accession file

@@ -14,18 +14,17 @@ The goals of this notebook are to filter the following SRA tables for files to d
 
 -   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing differential splicing
 
-Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
-We have access to 5 more instances, which equate to 13.2TB of space
+Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance. We have access to 5 more instances, which equate to 13.2TB of space
 
 Metadata used for this analysis are:
 
 -   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
+-   `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
+-   
 
 We also use the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, which describes what library prep approach was used for some samples.
 
-From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D.
-These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11).
-An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
+From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
 
 ## Setup
 
@@ -40,11 +39,14 @@ base_dir <- here::here()
 
 # define metadata directory
 metadata_dir <- file.path(base_dir, "metadata")
+pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 
 ## define paths to input files
 # TARGET accessions metadata from dbGaP
 target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
+# TARGET accessions analyzed in pilot Shiba run to exclude from final accessions list
+pilot_target_file <- file.path(pilot_dir, "target_accessions.tsv")
 
 ## ALL expansion phase 2 metadata
 # excel sheet that includes sample IDs of 265 ribo-D RNA-seq samples from the TARGET ALL phase 2 expansion
@@ -57,6 +59,7 @@ target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.
 # read in files
 target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
 all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "Table S1 cohort")
+pilot_target <- readr::read_tsv(pilot_target_file)
 ```
 
 ## Filter TARGET dataset for download
@@ -66,7 +69,7 @@ all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "
 Based off the information on the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, check whether there are cancer types that are recorded to be ribo-deplete instead of polyA selected
 
 | TARGET cancer type | Documented library selection method | Sequencing center |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | ALL phase 1 | PolyA | BCC |
 | ALL phase 2 | PolyA | BCC |
 | ALL phase 3 | Unspecified | St Jude |
@@ -79,7 +82,7 @@ Based off the information on the [TARGET Molecular Characterization Platforms](h
 
 ### Make lists of specific sample IDs that we know are ribo D
 
-Associate sample IDs from Liu et al. 2017 that were recorded to have undergone ribo-D selection with accession IDs
+Associate sample IDs from [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11) that were recorded to have undergone ribo-D selection with accession IDs
 
 ```{r}
 # Associate sample IDs that are recorded as ribo-deplete from the Liu et al 2017 study with run accessions from the TARGET dbGaP metadata
@@ -112,7 +115,9 @@ target_filtered_sra <- target_sra |>
     # exclude ALL phase 2 samples that have been documented to be ribo-D
     !biospecimen_repository_sample_id %in% all_phase_two_exclude_list,
     # exclude all rhabdoid tumor samples as they are ribo-D according to TARGET documentation
-    study_name != "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
+    study_name != "TARGET: Kidney\\, Rhabdoid Tumor (RT)",
+    # exclude accessions downloaded from the pilot run
+    !Run %in% pilot_target$Run
   ) |>
   # transform Bytes column to numeric for estimating space
   dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>

@@ -20,30 +20,22 @@ data_dir="../data"
 group_dir="${data_dir}/target"
 bam_dir="${group_dir}/star-output"
 fastq_dir="${group_dir}/fastq"
-log_dir="../logs"
-
-# create directories if they don't already exist
-mkdir -p $log_dir
-
-# define output files
-fastq_to_offload="${log_dir}/fastq_to_offload_${datetime}.txt"
 
 # create list of subdirectories holding bam files from workflow
 # use mapfile to read lines from find to put directory names into an array
-mapfile -t dirs < <(find "${bam_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
-
-# iterate through array to remove the fastq files corresponding to the accession ID
-for accession in "${dirs[@]}"; do
+# iterate through output directories
+for accession_dir in "${bam_dir}"/*/; do
+  if [ -f "${accession_dir}/Aligned.sortedByCoord.out.bam" ]; then
+    accession=$(basename "$accession_dir")
+  else
+    # go to the next directory if the aligned file does not exist
+    continue
+  fi
+  
     # construct pats to fastqs based on accessions in the bam dir
     fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
     fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
 
     # remove fastq files if they exist
-    if [ -f "${fastq1_path}" ]; then
-        rm ${fastq1_path}
-    fi
-
-        if [ -f "${fastq2_path}" ]; then
-        rm ${fastq2_path}
-    fi
+   rm -f ${fastq1_path} ${fastq2_path}
 done

@@ -27,10 +27,10 @@ for accession_dir in "${bam_dir}"/*/; do
     continue
   fi
   
-    # construct paths to fastqs based on accessions in the bam dir
-    fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
-    fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
+  # construct paths to fastqs based on accessions in the bam dir
+  fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
+  fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
 
-    # remove fastq files if they exist
-   rm -f ${fastq1_path} ${fastq2_path}
+  # remove fastq files if they exist
+  rm -f ${fastq1_path} ${fastq2_path}
 done

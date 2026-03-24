@@ -1,8 +1,7 @@
 #!/bin/bash
 
 # When OpenStack instances become full before data processing is done, we need to offload raw sequence files to clear space.
-# This script makes a list of fastq files to remove from the accession IDs of sligned files present in a directory
-# Then it removes these files
+# This script removes raw fastq files belonging to accession IDs of aligned files present in the star output directory
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -32,7 +31,7 @@ for accession_dir in "${bam_dir}"/*/; do
     continue
   fi
   
-    # construct pats to fastqs based on accessions in the bam dir
+    # construct paths to fastqs based on accessions in the bam dir
     fastq1_path="${fastq_dir}/${accession}_1.fastq.gz"
     fastq2_path="${fastq_dir}/${accession}_2.fastq.gz"
 

@@ -27,26 +27,6 @@ Metadata used for this analysis are:
 # load libraries
 library(ggplot2)
 
-# define global size for plots
-global_size <- 20
-
-# define plot theme (size) presets
-plot_theme = list(
- theme_bw(),
- theme(
-   legend.position = "right",
-   axis.title = element_text(size = global_size),
-   plot.title = element_text(size = global_size),
-   axis.text = element_text(size = global_size),
-   axis.text.x = element_text(
-     hjust = 1,
-     margin = margin(t = 0, r = 80, b = 0, l = 0),
-     size = global_size
-   ),
-   legend.title = element_text(size=global_size),
-   legend.text=element_text(size=global_size - 8)
- )
-)
 ```
 
 ## Read in input and output paths
@@ -82,12 +62,12 @@ Combine GTEX age table with GTEX accessions so that we can check how many sample
 
 ```{r}
 # Define tissue types of interest
-# kidney, brain (CNS), muscle, and blood samples
+# kidney, muscle, and blood samples
 tissue_types <- c(
-                  "Kidney - Cortex",
-                  "Muscle - Skeletal",
-                  "Whole Blood"
-                  )
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood"
+)
 
 # Merge GTEX SRA table with ages metadata to associate IDs with ages
 # then filter tables for our criteria (RNA, paired-end, select tissue types)

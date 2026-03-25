@@ -1,9 +1,9 @@
 ---
-title: Filtering GTEX and TARGET samples from SRA
+title: Filtering TARGET samples from SRA
 author: "Cindy Liang (celiang@ucsc.edu)"
 format:
   gfm:
-    df-print: kable
+    df-print: kable 
 editor: visual
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
@@ -20,7 +20,6 @@ Metadata used for this analysis are:
 
 -   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
 -   `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
--   
 
 We also use the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, which describes what library prep approach was used for some samples.
 
@@ -54,12 +53,12 @@ pilot_target_file <- file.path(pilot_dir, "target_accessions.tsv")
 ribod_all_phase_two_samples <- file.path(gtex_target_metadata_dir, "41588_2017_BFng3909_MOESM2_ESM.xlsx")
 
 # define path to output files
-target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.tsv")
+target_accession_path <-  file.path(gtex_target_metadata_dir, "target_accessions.tsv")
 
 # read in files
 target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
 all_phase_two_ribod <- readxl::read_excel(ribod_all_phase_two_samples, sheet = "Table S1 cohort")
-pilot_target <- readr::read_tsv(pilot_target_file)
+pilot_target <- readr::read_tsv(pilot_target_file, col_types = readr::cols(.default = "c"))
 ```
 
 ## Filter TARGET dataset for download
@@ -115,7 +114,7 @@ target_filtered_sra <- target_sra |>
     # exclude ALL phase 2 samples that have been documented to be ribo-D
     !biospecimen_repository_sample_id %in% all_phase_two_exclude_list,
     # exclude all rhabdoid tumor samples as they are ribo-D according to TARGET documentation
-    study_name != "TARGET: Kidney\\, Rhabdoid Tumor (RT)",
+    study_name != "TARGET: Kidney\\, Clear Cell Sarcoma of the Kidney (CCSK)",
     # exclude accessions downloaded from the pilot run
     !Run %in% pilot_target$Run
   ) |>

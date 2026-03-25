@@ -153,7 +153,7 @@ One possible explanation is that there are extra junctions represent positions t
 
 ### Check if all NAs in one sample turn into 0 in the combined table
 
-Filter out junctions that are too short to be incorporated into PSI calculation
+First, filter out junctions that are too short to be incorporated into PSI calculation
 
 Shiba uses the following default junction length thresholds to determine what junctions are used for PSI calculation ([source](https://sika-zheng-lab.github.io/Shiba/quickstart/diff_splicing_bulk/?h=junction+length#1-prepare-inputs)):
 minimum_anchor_length:
@@ -169,110 +169,90 @@ Since the minimum length of a junction to be used is 6, filter for junctions tha
 Here, I am operating on the assumption that these junctions would get filtered out anyway once PSI values are calculated.
 
 ```{r}
-
-# Filter junction tables for junctions that are > 6bp
-compare_junctions <- dplyr::full_join(
-  separate_junctions,
-  combined_junctions,
-  by = c("ID", "chr", "start", "end"),
-  suffix = c("_separate", "_combined")
-) |>
+# filter separate junctions table for junctions > 6bp and covnert NAs to 0 for comparison
+filtered_separate_junctions <- separate_junctions |>
   # calculate junction length
   dplyr::mutate(
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end)),
+    # replace NAs with 0
+    SRR601500 = dplyr::case_when(
+      is.na(SRR601500) ~ 0,
+      !is.na(SRR601500) ~ SRR601500
+    ),
+    SRR604528 = dplyr::case_when(
+      is.na(SRR604528) ~ 0,
+      !is.na(SRR604528) ~ SRR604528
+    )
+  ) |>
+  # filter out junctions < 6bp
+  dplyr::filter(
+    junc_len > 6
+  ) 
+
+# filter combined junctions table for junctions > 6bp
+filtered_combined_junctions <- combined_junctions |>
+  # calculate junction length
+  dplyr::mutate(
+    # calculate junction length
     junc_len = abs(as.numeric(start) - as.numeric(end))
   ) |>
-  # filter for junctions > 6bp for columns with an underscore
-  dplyr::filter(junc_len > 6) |>
-  # convert NAs to 0 in the separate junctions columns
-  dplyr::mutate(
-    SRR601500_separate = dplyr::case_when(
-      is.na(SRR601500_separate) ~ 0,
-      !is.na(SRR601500_separate) ~ SRR601500_separate
-    ),
-    SRR604528_separate = dplyr::case_when(
-      is.na(SRR604528_separate) ~ 0,
-      !is.na(SRR604528_separate) ~ SRR604528_separate
-    )
-  )
-  
-# Check if the separate and combined values are the same for each junction after filtering
-identical(compare_junctions$SRR601500_combined, compare_junctions$SRR601500_separate)
-identical(compare_junctions$SRR604528_combined, compare_junctions$SRR604528_separate)
-```
-Check where NAs might have been introduced to understand warning
-```{r}
-nas <- compare_junctions[!complete.cases(compare_junctions),]
-dim(nas)
-```
-
-There are no NA values in this dataframe.
-
-### Check junction counts of junctions only found in separate junctions table
-
-Of the small fraction of unmatched junctions, how many of them would not be turned into a PSI value due to insufficient coverage?
-
-```{r}
-
-# Categorize IDs in combined junctions table according to counts
-combined_junctions_categorized <- combined_junctions |>
-  dplyr::mutate(
-    below_ten = dplyr::case_when(
-      SRR601500 < 10 | is.na(SRR601500) ~ "SRR601500",
-      SRR601500 < 10 | is.na(SRR604528) ~ "SRR604528",
-      SRR601500 < 10 & SRR601500 < 10 ~ "both",
-      is.na(SRR601500) & is.na(SRR604528) ~ "both",
-      SRR601500 >= 10 ~ "no",
-      SRR604528 >= 10 ~ "no"
-    )
-  )
-
-# create table containing junction IDs found only in the separate junctions table
-separate_only_junctions_table <- separate_junctions |>
+  # filter out junctions < 6bp
   dplyr::filter(
-    ID %in% separate_only_junctions
+    junc_len > 6
+  ) 
+```
+
+Check above warning - what are the NAs in the dataframes?
+```{r}
+sum(is.na(filtered_combined_junctions))
+sum(is.na(filtered_separate_junctions))
+```
+Despite the warning about NAs being introduced by coercion, no NA values are present in either filtered dataframe.
+
+After filtering for junctions longer than 6bp and replacing NAs with 0, are there still junction IDs only in the combined or separate table?
+```{r}
+# obtain fraction of events only found in the combined or separate junctions table
+# Filter junction tables for junctions that are > 6bp
+compare_junctions <- dplyr::full_join(
+  filtered_separate_junctions,
+  filtered_combined_junctions,
+  by = c("ID", "chr", "start", "end"),
+  suffix = c("_separate", "_combined")
   ) |>
+  # label junction IDs by whether they are only in the combined or separate junctions table
   dplyr::mutate(
-    below_ten = dplyr::case_when(
-      SRR601500 < 10 | is.na(SRR601500) ~ "SRR601500",
-      SRR601500 < 10 | is.na(SRR604528) ~ "SRR604528",
-      SRR601500 < 10 & SRR601500 < 10 ~ "both",
-      is.na(SRR601500) & is.na(SRR604528) ~ "both",
-      SRR601500 >= 10 ~ "no",
-      SRR604528 >= 10 ~ "no"
+    combined_only = ID %in% combined_jcn_only,
+    separate_only = ID %in% separate_jcn_only,
+    shared = !ID %in% combined_jcn_only & !ID %in% separate_jcn_only
     )
+
+# Print summary table of number of values in each category
+compare_junctions |>
+  dplyr::summarise(
+    total = dplyr::n(),
+    combined_only = sum(combined_only),
+    separate_only = sum(separate_only),
+    shared = sum(shared),
+    frac_combined_only = combined_only / total,
+    frac_separate_only = separate_only / total,
+    frac_shared = shared / total
   )
   
-separate_only_junctions_table |>
-  dplyr::summarise(
-    .by = c( below_ten),
-    n = dplyr::n()
-  )
 ```
+Once we filter for junctions long enough to be included in splice calculation, all IDs are shared in both junction tables.
 
-For the junctions that exceed the PSI threshold of 10 counts, check if they are close to any junctions in the combined table
+### Check similarity of counts in junctions that are matched
+Of junctions with IDs that are the same between the tables, how many have the same counts once we replace NAs with 0?
 
 ```{r}
-# examine counts of junctions only in separate junctions table with equal to or over 10 counts
-separate_only_junctions_table |>
-  dplyr::filter(below_ten == "no")
+# identical returns false but all returns true
+# perhaps because the classes of the values are not the same
+all(compare_junctions$SRR601500_combined == compare_junctions$SRR601500_separate)
+all(compare_junctions$SRR604528_combined == compare_junctions$SRR604528_separate)
 ```
 
-Check combined junctions table for junctions with the same start positions as the junctions from above
-
-```{r}
-combined_junctions_categorized |>
-  dplyr::filter(
-    below_ten == "no",
-    # deprioritize nonstandard chromosomes
-    chr %in% c("chr3", "chr6"),
-    start %in% c(139355790, 139356918, 99400311, 99400543)
-  )
-```
-
-The combined junctions file appears to assign reads into junctions differently.
-For instance, it consolidated the chr3 and chr6 events only found in the separate junctions table into one larger junction (chr3:139355790-139355791 and chr3:139356918-139356919 have been combined to chr3:139355790-139356919).
-However, the combined junction counts don't fully add up (63 + 21 != 103) so there may be other reads being consolidated into other junctions.
-Since this only impacts a very small number of junctions, we are tentatively OK with moving forward with the separate shiba runs method for now.
+In conclusion, for this test case of 2 samples, once we filter out junctions smaller than 6bp in length and replace NAs with 0, the counts for both combined and separate tables become identical
 
 ## Examine splice events that are consistently present in both combined and separate splice tables
 

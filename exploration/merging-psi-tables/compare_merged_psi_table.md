@@ -538,6 +538,98 @@ I don’t care as much about the events with NA values in both samples
 junctions would just be assigned 0), so I will check cases where there
 is a PSI value in at least one sample.
 
+Presumably we get PSI = NA for both samples if the junction counts for
+the region are nonzero but are not enough to calculate PSI Look for
+junctions with start sites plus minus 20bp from the 155562153-155562349
+interval
+
+``` r
+# check separate junctions table for junction counts near this pos_id
+#se SE@chr1@155562153-155562349@155521618-155562779
+
+separate_junctions |>
+  dplyr::filter(
+    chr == "chr1",
+    # look for junctions with start site plus minus 20bp from the 155562153-155562349 interval
+    start <= 155562349 + 20 & 155562153 - 20 <= start
+  )
+```
+
+| chr  | start     | end       | ID                       | SRR601500 | SRR604528 |
+|:-----|:----------|:----------|:-------------------------|----------:|----------:|
+| chr1 | 155562295 | 155562779 | chr1:155562295-155562779 |         1 |        NA |
+| chr1 | 155562295 | 155562296 | chr1:155562295-155562296 |         3 |         8 |
+| chr1 | 155562349 | 155562779 | chr1:155562349-155562779 |        NA |         1 |
+| chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
+
+Do the same for end sites around the 155562153-155562349 interval
+
+``` r
+separate_junctions |>
+  dplyr::filter(
+    chr == "chr1",
+    # look for junctions with start site plus minus 20bp from the 155562153-155562349 interval
+    end <= 155562349 + 20 & 155562153 - 20 <= end
+  )
+```
+
+| chr  | start     | end       | ID                       | SRR601500 | SRR604528 |
+|:-----|:----------|:----------|:-------------------------|----------:|----------:|
+| chr1 | 155459898 | 155562153 | chr1:155459898-155562153 |         1 |        NA |
+| chr1 | 155521618 | 155562153 | chr1:155521618-155562153 |         6 |         6 |
+| chr1 | 155562295 | 155562296 | chr1:155562295-155562296 |         3 |         8 |
+| chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
+
+Look for junctions in the separate table with start sites plus minus
+20bp from the 155521618-155562779 interval
+
+``` r
+separate_junctions |>
+  dplyr::filter(
+    chr == "chr1",
+    # look for junctions with start site plus minus 20bp from the 155521618-155562779 interval
+    start <= 155562779 + 20 & 155521618 - 20 <= start
+  )
+```
+
+| chr  | start     | end       | ID                       | SRR601500 | SRR604528 |
+|:-----|:----------|:----------|:-------------------------|----------:|----------:|
+| chr1 | 155521618 | 155561886 | chr1:155521618-155561886 |         2 |        NA |
+| chr1 | 155521618 | 155562153 | chr1:155521618-155562153 |         6 |         6 |
+| chr1 | 155562295 | 155562779 | chr1:155562295-155562779 |         1 |        NA |
+| chr1 | 155562295 | 155562296 | chr1:155562295-155562296 |         3 |         8 |
+| chr1 | 155562778 | 155562779 | chr1:155562778-155562779 |         0 |         2 |
+| chr1 | 155562349 | 155562779 | chr1:155562349-155562779 |        NA |         1 |
+| chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
+
+Look for junctions in the separate table with end sites plus minus 20bp
+from the 155521618-155562779 interval
+
+``` r
+separate_junctions |>
+  dplyr::filter(
+    chr == "chr1",
+    # look for junctions with start site plus minus 20bp from the 155521618-155562779 interval
+    end <= 155562779 + 20 & 155521618 - 20 <= end
+  )
+```
+
+| chr  | start     | end       | ID                       | SRR601500 | SRR604528 |
+|:-----|:----------|:----------|:-------------------------|----------:|----------:|
+| chr1 | 155459898 | 155562153 | chr1:155459898-155562153 |         1 |        NA |
+| chr1 | 155521618 | 155561886 | chr1:155521618-155561886 |         2 |        NA |
+| chr1 | 155521618 | 155562153 | chr1:155521618-155562153 |         6 |         6 |
+| chr1 | 155562295 | 155562779 | chr1:155562295-155562779 |         1 |        NA |
+| chr1 | 155562295 | 155562296 | chr1:155562295-155562296 |         3 |         8 |
+| chr1 | 155562778 | 155562779 | chr1:155562778-155562779 |         0 |         2 |
+| chr1 | 155562349 | 155562779 | chr1:155562349-155562779 |        NA |         1 |
+| chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
+
+All the junction counts in these ranges are below 10bp. In cases where
+there are values for both samples, Shiba would have given the samples an
+NA PSI value due to there not being enough read support for PSI
+calculation.
+
 ## Check splice events where the PSI is low in one sample and NA in the other
 
 ### IGV view of alignments at chr10@112448882-112449019@112447467-112460524

@@ -113,7 +113,7 @@ target_filtered_sra <- target_sra |>
     analyte_type == "RNA",
     # exclude ALL phase 2 samples that have been documented to be ribo-D
     !biospecimen_repository_sample_id %in% all_phase_two_exclude_list,
-    # exclude all rhabdoid tumor samples as they are ribo-D according to TARGET documentation
+    # exclude all clear cell sarcoma samples as they are ribo-D according to TARGET documentation
     study_name != "TARGET: Kidney\\, Clear Cell Sarcoma of the Kidney (CCSK)",
     # exclude accessions downloaded from the pilot run
     !Run %in% pilot_target$Run

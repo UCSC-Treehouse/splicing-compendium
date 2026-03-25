@@ -344,7 +344,7 @@ Together, the unmatched splice events in the separate PSI table make up a small 
 
 ## Inspect individual position IDs of unique events
 
-We are most concerned if unannotated events have altered positions in the merged table and are unmatched in the shiba table (is Shiba doing something strange to assign reads into position coordinates?)
+We are most concerned if unannotated events have altered positions in the separate table and are unmatched in the combined table (is Shiba doing something strange to assign reads into position coordinates?)
 
 Check for one event type (SE)
 

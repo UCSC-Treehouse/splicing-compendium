@@ -10,6 +10,9 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
+As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
+Before doing so, we use this notebook to test that merging PSI tables and junction bedfiles from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.  
+
 ## Set up
 
 ## Directories and files
@@ -156,6 +159,7 @@ One possible explanation is that there are extra junctions represent positions t
 First, filter out junctions that are too short to be incorporated into PSI calculation
 
 Shiba uses the following default junction length thresholds to determine what junctions are used for PSI calculation ([source](https://sika-zheng-lab.github.io/Shiba/quickstart/diff_splicing_bulk/?h=junction+length#1-prepare-inputs)):
+```
 minimum_anchor_length:
   6 
 minimum_intron_length:
@@ -164,12 +168,13 @@ maximum_intron_length:
   500000 
 strand:
   XS 
-  
+  ```
+
 Since the minimum length of a junction to be used is 6, filter for junctions that are greater than 6 bp for comparison.
 Here, I am operating on the assumption that these junctions would get filtered out anyway once PSI values are calculated.
 
 ```{r}
-# filter separate junctions table for junctions > 6bp and covnert NAs to 0 for comparison
+# filter separate junctions table for junctions > 6bp and convert NAs to 0 for comparison
 filtered_separate_junctions <- separate_junctions |>
   # calculate junction length
   dplyr::mutate(
@@ -209,6 +214,12 @@ sum(is.na(filtered_combined_junctions))
 sum(is.na(filtered_separate_junctions))
 ```
 Despite the warning about NAs being introduced by coercion, no NA values are present in either filtered dataframe.
+
+Obtain list of junction IDs only in the separate or combined junctions tables
+```{r}
+combined_jcn_only <- setdiff(filtered_combined_junctions$ID, filtered_separate_junctions$ID)
+separate_jcn_only <- setdiff(filtered_separate_junctions$ID, filtered_combined_junctions$ID)
+```
 
 After filtering for junctions longer than 6bp and replacing NAs with 0, are there still junction IDs only in the combined or separate table?
 ```{r}
@@ -404,7 +415,7 @@ Check alignments for this locus on IGV for the closest events in the combined ta
 Above: IGV screenshot of this skipped exon event (SE\@chr10\@112448382-112448489\@112447467-112448882) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate (chr10:112447467-112448882).
 
-![](images/Screenshot 2026-03-12 at 3.53.35 PM.png)
+![](images/VTI1A.png)
 
 Above: IGV screenshot of the second kipped exon event detected for VTI1A (SE\@chr10\@112533530-112533550\@112527164-112538246) sample alignments and Refseq track.
 Red highlight indicates the second position coordinate.

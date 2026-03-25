@@ -1,6 +1,12 @@
 # Compare merged PSI table vs. Shiba PSI tables
 Cindy Liang (celiang@ucsc.edu)
-2026-03-16
+2026-03-24
+
+As part of our pipeline, we plan to merge Shiba tables created for
+individual samples to obtain a final PSI table of all samples. Before
+doing so, we use this notebook to test that merging PSI tables and
+junction bedfiles from separate runs will not introduce a large amount
+of untrustworthy splice events or junction counts.
 
 ## Set up
 
@@ -181,129 +187,166 @@ words, a fewer number of junctions would have been called if there were
 better read support from all possible junction regions like in the
 combined bedfile).
 
-Check if the junction IDs in each table are identical
+### Check if all NAs in one sample turn into 0 in the combined table
+
+First, filter out junctions that are too short to be incorporated into
+PSI calculation
+
+Shiba uses the following default junction length thresholds to determine
+what junctions are used for PSI calculation
+([source](https://sika-zheng-lab.github.io/Shiba/quickstart/diff_splicing_bulk/?h=junction+length#1-prepare-inputs)):
+
+    minimum_anchor_length:
+      6 
+    minimum_intron_length:
+      70 
+    maximum_intron_length:
+      500000 
+    strand:
+      XS 
+
+Since the minimum length of a junction to be used is 6, filter for
+junctions that are greater than 6 bp for comparison. Here, I am
+operating on the assumption that these junctions would get filtered out
+anyway once PSI values are calculated.
 
 ``` r
-setequal(separate_junctions$ID, combined_junctions$ID)
-```
-
-    [1] FALSE
-
-### Investogate junctions only found in each junction table
-
-Junctions found only in separate junctions table
-
-``` r
-separate_only_junctions <- dplyr::setdiff(separate_junctions$ID, combined_junctions$ID)
-length(separate_only_junctions)
-```
-
-    [1] 137
-
-Junctions found only in combined junctions table
-
-``` r
-combined_only_junctions <- dplyr::setdiff(combined_junctions$ID, separate_junctions$ID)
-length(combined_only_junctions)
-```
-
-    [1] 85
-
-There is a very small fraction of junctions that are only found in the
-combined or separate junctions tables.
-
-### Check junction counts of junctions only found in separate junctions table
-
-Of the small fraction of unmatched junctions, how many of them would not
-be turned into a PSI value due to insufficient coverage?
-
-``` r
-# Categorize IDs in combined junctions table according to counts
-combined_junctions_categorized <- combined_junctions |>
+# filter separate junctions table for junctions > 6bp and convert NAs to 0 for comparison
+filtered_separate_junctions <- separate_junctions |>
+  # calculate junction length
   dplyr::mutate(
-    below_ten = dplyr::case_when(
-      SRR601500 < 10 | is.na(SRR601500) ~ "SRR601500",
-      SRR601500 < 10 | is.na(SRR604528) ~ "SRR604528",
-      SRR601500 < 10 & SRR601500 < 10 ~ "both",
-      is.na(SRR601500) & is.na(SRR604528) ~ "both",
-      SRR601500 >= 10 ~ "no",
-      SRR604528 >= 10 ~ "no"
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end)),
+    # replace NAs with 0
+    SRR601500 = dplyr::case_when(
+      is.na(SRR601500) ~ 0,
+      !is.na(SRR601500) ~ SRR601500
+    ),
+    SRR604528 = dplyr::case_when(
+      is.na(SRR604528) ~ 0,
+      !is.na(SRR604528) ~ SRR604528
     )
-  )
-
-# create table containing junction IDs found only in the separate junctions table
-separate_only_junctions_table <- separate_junctions |>
-  dplyr::filter(
-    ID %in% separate_only_junctions
   ) |>
-  dplyr::mutate(
-    below_ten = dplyr::case_when(
-      SRR601500 < 10 | is.na(SRR601500) ~ "SRR601500",
-      SRR601500 < 10 | is.na(SRR604528) ~ "SRR604528",
-      SRR601500 < 10 & SRR601500 < 10 ~ "both",
-      is.na(SRR601500) & is.na(SRR604528) ~ "both",
-      SRR601500 >= 10 ~ "no",
-      SRR604528 >= 10 ~ "no"
-    )
-  )
-  
-separate_only_junctions_table |>
-  dplyr::summarise(
-    .by = c( below_ten),
-    n = dplyr::n()
-  )
-```
-
-| below_ten |   n |
-|:----------|----:|
-| no        |   5 |
-| SRR601500 | 101 |
-| SRR604528 |  31 |
-
-For the junctions that exceed the PSI threshold of 10 counts, check if
-they are close to any junctions in the combined table
-
-``` r
-# examine counts of junctions only in separate junctions table with equal to or over 10 counts
-separate_only_junctions_table |>
-  dplyr::filter(below_ten == "no")
-```
-
-| chr | start | end | ID | SRR601500 | SRR604528 | below_ten |
-|:---|:---|:---|:---|---:|---:|:---|
-| GL000219.1 | 77669 | 77670 | GL000219.1:77669-77670 | 27 | 16 | no |
-| chr3 | 139355790 | 139355791 | chr3:139355790-139355791 | 63 | 22 | no |
-| chr3 | 139356918 | 139356919 | chr3:139356918-139356919 | 21 | 18 | no |
-| chr6 | 99400311 | 99400312 | chr6:99400311-99400312 | 81 | 49 | no |
-| chr6 | 99400543 | 99400544 | chr6:99400543-99400544 | 94 | 43 | no |
-
-Check combined junctions table for junctions with the same start
-positions as the junctions from above
-
-``` r
-combined_junctions_categorized |>
+  # filter out junctions < 6bp
   dplyr::filter(
-    below_ten == "no",
-    # deprioritize nonstandard chromosomes
-    chr %in% c("chr3", "chr6"),
-    start %in% c(139355790, 139356918, 99400311, 99400543)
+    junc_len > 6
+  ) 
+```
+
+    Warning: There were 2 warnings in `dplyr::mutate()`.
+    The first warning was:
+    ℹ In argument: `junc_len = abs(as.numeric(start) - as.numeric(end))`.
+    Caused by warning:
+    ! NAs introduced by coercion
+    ℹ Run `dplyr::last_dplyr_warnings()` to see the 1 remaining warning.
+
+``` r
+# filter combined junctions table for junctions > 6bp
+filtered_combined_junctions <- combined_junctions |>
+  # calculate junction length
+  dplyr::mutate(
+    # calculate junction length
+    junc_len = abs(as.numeric(start) - as.numeric(end))
+  ) |>
+  # filter out junctions < 6bp
+  dplyr::filter(
+    junc_len > 6
+  ) 
+```
+
+    Warning: There were 2 warnings in `dplyr::mutate()`.
+    The first warning was:
+    ℹ In argument: `junc_len = abs(as.numeric(start) - as.numeric(end))`.
+    Caused by warning:
+    ! NAs introduced by coercion
+    ℹ Run `dplyr::last_dplyr_warnings()` to see the 1 remaining warning.
+
+Check above warning - what are the NAs in the dataframes?
+
+``` r
+sum(is.na(filtered_combined_junctions))
+```
+
+    [1] 0
+
+``` r
+sum(is.na(filtered_separate_junctions))
+```
+
+    [1] 0
+
+Despite the warning about NAs being introduced by coercion, no NA values
+are present in either filtered dataframe.
+
+Obtain list of junction IDs only in the separate or combined junctions
+tables
+
+``` r
+combined_jcn_only <- setdiff(filtered_combined_junctions$ID, filtered_separate_junctions$ID)
+separate_jcn_only <- setdiff(filtered_separate_junctions$ID, filtered_combined_junctions$ID)
+```
+
+After filtering for junctions longer than 6bp and replacing NAs with 0,
+are there still junction IDs only in the combined or separate table?
+
+``` r
+# obtain fraction of events only found in the combined or separate junctions table
+# Filter junction tables for junctions that are > 6bp
+compare_junctions <- dplyr::full_join(
+  filtered_separate_junctions,
+  filtered_combined_junctions,
+  by = c("ID", "chr", "start", "end"),
+  suffix = c("_separate", "_combined")
+  ) |>
+  # label junction IDs by whether they are only in the combined or separate junctions table
+  dplyr::mutate(
+    combined_only = ID %in% combined_jcn_only,
+    separate_only = ID %in% separate_jcn_only,
+    shared = !ID %in% combined_jcn_only & !ID %in% separate_jcn_only
+    )
+
+# Print summary table of number of values in each category
+compare_junctions |>
+  dplyr::summarise(
+    total = dplyr::n(),
+    combined_only = sum(combined_only),
+    separate_only = sum(separate_only),
+    shared = sum(shared),
+    frac_combined_only = combined_only / total,
+    frac_separate_only = separate_only / total,
+    frac_shared = shared / total
   )
 ```
 
-| chr | start | end | ID | SRR601500 | SRR604528 | below_ten |
-|:---|:---|:---|:---|---:|---:|:---|
-| chr3 | 139355790 | 139356919 | chr3:139355790-139356919 | 103 | 64 | no |
-| chr6 | 99400311 | 99400544 | chr6:99400311-99400544 | 42 | 20 | no |
+| total | combined_only | separate_only | shared | frac_combined_only | frac_separate_only | frac_shared |
+|---:|---:|---:|---:|---:|---:|---:|
+| 350239 | 0 | 0 | 350239 | 0 | 0 | 1 |
 
-The combined junctions file appears to assign reads into junctions
-differently. For instance, it consolidated the chr3 and chr6 events only
-found in the separate junctions table into one larger junction
-(chr3:139355790-139355791 and chr3:139356918-139356919 have been
-combined to chr3:139355790-139356919). However, the combined junction
-counts don’t fully add up (63 + 21 != 103) so there may be other reads
-being consolidated into other junctions. Since this only impacts a very
-small number of junctions, we are tentatively OK with moving forward
-with the separate shiba runs method for now.
+Once we filter for junctions long enough to be included in splice
+calculation, all IDs are shared in both junction tables.
+
+### Check similarity of counts in junctions that are matched
+
+Of junctions with IDs that are the same between the tables, how many
+have the same counts once we replace NAs with 0?
+
+``` r
+# identical returns false but all returns true
+# perhaps because the classes of the values are not the same
+all(compare_junctions$SRR601500_combined == compare_junctions$SRR601500_separate)
+```
+
+    [1] TRUE
+
+``` r
+all(compare_junctions$SRR604528_combined == compare_junctions$SRR604528_separate)
+```
+
+    [1] TRUE
+
+In conclusion, for this test case of 2 samples, once we filter out
+junctions smaller than 6bp in length and replace NAs with 0, the counts
+for both combined and separate tables become identical
 
 ## Examine splice events that are consistently present in both combined and separate splice tables
 
@@ -314,28 +357,27 @@ PSI tables
 
 ``` r
 # obtain df of splice events that are shared between both combined and separate tables
-shared_events <- dplyr::intersect(combined_psi_table, separate_psi_table) |>
-  dplyr::summarise(
-    .by = c(event_type),
-    count = dplyr::n()
-  ) |>
-  dplyr::mutate(
-    frac = count / sum(count)
-  )
+shared_events <- dplyr::full_join(
+  combined_psi_table, 
+  separate_psi_table,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  suffix = c("_combined", "_separate")) # label PSI values by table they came from
 
-shared_events
+head(shared_events)
 ```
 
-| event_type | count |      frac |
-|:-----------|------:|----------:|
-| se         | 63234 | 0.1879922 |
-| afe        | 99852 | 0.2968561 |
-| ale        | 76448 | 0.2272769 |
-| five       | 14573 | 0.0433250 |
-| three      | 18908 | 0.0562127 |
-| mse        | 45679 | 0.1358019 |
-| mxe        |   559 | 0.0016619 |
-| ri         | 17112 | 0.0508733 |
+| event_type | pos_id | gene_id | label | SRR601500_PSI_combined | SRR604528_PSI_combined | SRR601500_PSI_separate | SRR604528_PSI_separate |
+|:---|:---|:---|:---|---:|---:|---:|---:|
+| se | SE@GL000008.2@156667-156758@154715-157528 | ENSG00000296775.1 | annotated | NA | NA | NA | NA |
+| se | SE@GL000008.2@83860-84014@83545-85567 | ENSG00000296732.1 | annotated | NA | NA | NA | NA |
+| se | SE@GL000008.2@83860-84014@83545-85457 | ENSG00000296732.1 | annotated | NA | NA | NA | NA |
+| se | SE@GL000009.2@124033-124133@122622-124755 | ENSG00000306721.1 | annotated | NA | NA | NA | NA |
+| se | SE@GL000009.2@124164-124272@122622-124755 | ENSG00000306721.1 | annotated | NA | NA | NA | NA |
+| se | SE@GL000009.2@22153-22202@22061-28179 | ENSG00000297619.1 | annotated | NA | NA | NA | NA |
+
+``` r
+# recording a note that we may want to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
+```
 
 Of the events that are the same between the combined and separate PSI
 tables, SE, AFE, ALE, and MSE events are the most abundant.
@@ -398,25 +440,41 @@ Fraction of annotated vs. unannotated events in the combined table
 
 ``` r
 # filter for pos_ids unique to the shiba dataframe
-combined_psi_summary <- combined_psi_table |>
+psi_summary <- shared_events |>
   dplyr::mutate(
     combined_only = pos_id %in% combined_only_list,
     separate_only = pos_id %in% separate_only_list
   ) |>
 # print summary of how many unique events with values that are novel vs. unannotated
-  dplyr::summarise(.by = c(label, combined_only, separate_only), 
-                   count = dplyr::n()) |>
-  dplyr::mutate(Frac = count/sum(count))
+  dplyr::summarise(.by = c(label, event_type),
+                   combined_only = sum(combined_only),
+                   separate_only = sum(separate_only),
+                   # dplyr::n() gives the size of the group (annotated events or unannotated events)
+                   total = dplyr::n(),
+                   combined_frac = combined_only / total,
+                   separate_frac = separate_only / total)
 
-combined_psi_summary            
+psi_summary            
 ```
 
-| label       | combined_only | separate_only |  count |      Frac |
-|:------------|:--------------|:--------------|-------:|----------:|
-| annotated   | FALSE         | FALSE         | 338507 | 0.9635646 |
-| unannotated | FALSE         | FALSE         |  12143 | 0.0345652 |
-| unannotated | TRUE          | FALSE         |    260 | 0.0007401 |
-| annotated   | TRUE          | FALSE         |    397 | 0.0011301 |
+| label | event_type | combined_only | separate_only | total | combined_frac | separate_frac |
+|:---|:---|---:|---:|---:|---:|---:|
+| annotated | se | 7 | 4 | 66379 | 0.0001055 | 0.0000603 |
+| unannotated | se | 25 | 5 | 988 | 0.0253036 | 0.0050607 |
+| annotated | afe | 103 | 680 | 100422 | 0.0010257 | 0.0067714 |
+| unannotated | afe | 78 | 59 | 3041 | 0.0256495 | 0.0194015 |
+| annotated | ale | 211 | 834 | 78337 | 0.0026935 | 0.0106463 |
+| unannotated | ale | 54 | 123 | 1156 | 0.0467128 | 0.1064014 |
+| annotated | five | 47 | 17 | 15221 | 0.0030878 | 0.0011169 |
+| unannotated | five | 22 | 4 | 406 | 0.0541872 | 0.0098522 |
+| annotated | three | 28 | 11 | 19710 | 0.0014206 | 0.0005581 |
+| unannotated | three | 21 | 6 | 572 | 0.0367133 | 0.0104895 |
+| annotated | mse | 0 | 1 | 46169 | 0.0000000 | 0.0000217 |
+| unannotated | mse | 6 | 3 | 428 | 0.0140187 | 0.0070093 |
+| annotated | mxe | 0 | 8 | 586 | 0.0000000 | 0.0136519 |
+| unannotated | mxe | 0 | 2 | 17 | 0.0000000 | 0.1176471 |
+| annotated | ri | 1 | 13 | 14108 | 0.0000709 | 0.0009215 |
+| unannotated | ri | 54 | 69 | 6166 | 0.0087577 | 0.0111904 |
 
 Together, the unmatched splice events in the separate PSI table make up
 a small percent of the events.
@@ -428,6 +486,11 @@ the merged table and are unmatched in the shiba table (is Shiba doing
 something strange to assign reads into position coordinates?)
 
 Check for one event type (SE)
+
+For skipped exon events, the first coordinate spans the exon of the
+inclusion event and the second coordinate spans the intron of the
+exclusion event (intron_c of [this
+diagram](https://sika-zheng-lab.github.io/Shiba/output/shiba/#psi_setxt)).
 
 ``` r
 # filter for unannotated SE events only in the merged table
@@ -537,7 +600,7 @@ Above: IGV screenshot of this skipped exon event
 Refseq track. Red highlight indicates the second position coordinate
 (chr10:112447467-112448882).
 
-![](images/Screenshot%202026-03-12%20at%203.53.35%20PM.png)
+![](images/VTI1A.png)
 
 Above: IGV screenshot of the second kipped exon event detected for VTI1A
 (SE@chr10@112533530-112533550@112527164-112538246) sample alignments and

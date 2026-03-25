@@ -12,7 +12,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 The goals of this notebook are to filter the following SRA tables for files to download:
 
--   GTEX SRA table and metadata matching ages to subject IDs, for samples from the youngest donors
+-   GTEx SRA table and metadata matching ages to subject IDs, for samples from the youngest donors
 
 Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
 
@@ -100,22 +100,15 @@ gtex_sra_ages <- gtex_sra |>
     # filter for polyA samples
     LibraryLayout == "PAIRED",
     # filter for tissue types in select list
-    body_site %in% tissue_types
+    body_site %in% tissue_types,
+    # filter for accessions with fastqs
+    stringr::str_detect(`DATASTORE filetype`, "sra")
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection)
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
 
 dim(gtex_sra_ages)
 ```
-
-We end up with 2107 samples after this filtering.
-
-Note that I do not filter for GTEx samples with fastq under the `DATASTORE filetype` column because there are none (I was still able to download fastqs without this filter)
-
-```{r}
-
-unique(gtex_sra_ages$`DATASTORE filetype`)
-
-```
+We end up with 973 samples after this filtering.
 
 Check library selection method of GTEx samples that are paired:
 
@@ -137,16 +130,7 @@ gtex_sra_ages |>
   dplyr::summarise(version_count = dplyr::n())
 ```
 
-Only versions up to 4 are recorded, all others are NA.
-
-Check distribution of GTEx create dates for accessions without version number. Can we associate a GTEx version with these samples based on when each version was released? No creation date is recorded for samples from unrecorded versions, so we will just filter those out
-
-```{r}
-gtex_sra_ages |>
-  dplyr::filter(is.na(version)) |>
-  dplyr::group_by(create_date) |>
-  dplyr::summarise(date_count = dplyr::n())
-```
+Only versions up to 3 are recorded in these samples.
 
 The release date for version 8p2 is 2019-07-18 [source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
 
@@ -156,27 +140,17 @@ gtex_sra_ages |>
   dplyr::group_by(ReleaseDate) |>
   dplyr::summarise(date_count = dplyr::n())
 ```
-
-Filter GTEx samples for accessions downloadable outside of AnVIL
-
-```{r}
-gtex_sra_downloadable <- gtex_sra_ages |>
-  dplyr::filter(ReleaseDate < 2018)
-
-dim(gtex_sra_downloadable)
-```
-
-973 GTEx samples remain that are downloadable outside of AnVIL.
+All 973 filtered GTEx samples should be downloadable outside of AnVIL.
 
 Estimate amount of space filtered GTEX samples will take up
 
 ```{r}
 # estimate amount of space files will take up
-gtex_sra_downloadable_space <- (sum(gtex_sra_downloadable$Bytes) / 1e12)
-paste0("About ", gtex_sra_downloadable_space, " terabytes of space will be taken up by file downloads.")
+gtex_sra_ages_space <- (sum(gtex_sra_ages$Bytes) / 1e12)
+paste0("About ", gtex_sra_ages_space, " terabytes of space will be taken up by file downloads.")
 ```
 
-### Plot fraction of filtered GTEx samples in each age group
+### Plot sample composition of filtered GTEx accessions
 
 Plot distribution of ages in the filtered GTEx samples as a percent stacked bar plot.
 
@@ -186,23 +160,14 @@ Plot distribution of ages in the filtered GTEx samples as a percent stacked bar 
 #| fig-height: 8
 
 # Summarize number of samples per tissue type in each age bracket
-gtex_ages_summary <- gtex_sra_downloadable |>
+gtex_ages_summary <- gtex_sra_ages |>
   dplyr::group_by(body_site, AGE) |>
   dplyr::summarise(age_count = dplyr::n())
 
 ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
   geom_bar(position = "fill", stat = "identity") +
   scale_fill_brewer(palette = "Dark2") +
-  theme(
-    legend.position = "bottom",
-    plot.title = element_text(size = 11),
-    axis.text = element_text(size = 6),
-    axis.text.x = element_text(
-      hjust = 1,
-      margin = margin(t = 0, r = 80, b = 0, l = 0),
-      size = 5
-    )
-  ) +
+  plot_theme +
   labs(
     title = "Age distribution of GTEX noncancerous tissue types",
     x = "Tissue type of GTEX sample",
@@ -211,10 +176,21 @@ ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   plot_theme
 ```
-
 As expected, there is a very small fraction of filtered GTEx samples under the PEDAYA (\< 30 years) category.
 
-Print number of samples in all tissue types after excluding cell lines and version numbers above 8
+Check breakdwn of what sequencing center the tissue types are sequenced from
+```{r}
+# summarize number of samples in each tissue type come from what sequencing center
+gtex_sra_ages |>
+  dplyr::group_by(body_site, `Center Name`) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+
+```
+All samples appear to come from the Broad Institute
+
+Print table of the number of samples in all tissue types in the filtered GTEx set
 
 ```{r n_in_each_tissue_type_after_version_filtering}
 gtex_sra_downloadable |>

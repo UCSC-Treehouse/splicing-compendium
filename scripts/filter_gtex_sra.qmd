@@ -20,6 +20,7 @@ Metadata used for this analysis are:
 
 -   `GTEX_SraRunTable.csv`, metadata file of dbGaP accession IDs containing GTEX samples.
 -   `GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt`, public annotation file consisting of GTEX sample IDs and their ages in 10-year brackets, obtained from <https://storage.googleapis.com/adult-gtex/annotations/v10/metadata-files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt> , which is accessible by clicking the download icon next to "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt" on the [GTEX v10 metadata page](https://gtexportal.org/home/downloads/adult-gtex/metadata). The download command for this is in `data/scripts/00-reference_download.sh`.
+- `metadata/pilot_shiba_run/gtex_accessions.tsv` accessions file of GTEx sequences downloaded and analyzed from the pilot Shiba run, to exclude.
 
 ## Setup
 
@@ -60,11 +61,15 @@ base_dir <- here::here()
 
 # define metadata directory
 metadata_dir <- file.path(base_dir, "metadata")
+pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
 
 # define paths to input files
 gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
+# metadata containing ages of gtex samples
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
+# pilot gtex accessions to exclude
+pilot_gtex_file <- file.path(pilot_dir, "gtex_accessions.tsv")
 
 # define path to output files
 gtex_accession_path <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
@@ -72,8 +77,8 @@ gtex_accession_path <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv"
 # read in files
 gtex_sra <- readr::read_csv(gtex_sra_file, col_types = readr::cols(Bytes = "d", .default = "c")) |>
   dplyr::rename(SUBJID = submitted_subject_id)
-
 gtex_ages <- readr::read_tsv(gtex_ages_file, col_types = readr::cols(.default = "c"))
+gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default = "c"))
 ```
 
 ## Filtering GTEX samples for download
@@ -102,14 +107,14 @@ gtex_sra_ages <- gtex_sra |>
     # filter for tissue types in select list
     body_site %in% tissue_types,
     # filter for accessions with fastqs
-    stringr::str_detect(`DATASTORE filetype`, "sra")
+    stringr::str_detect(`DATASTORE filetype`, "sra"),
+    # exclude accessions already processed from pilot
+    !Run %in% gtex_pilot$Run
   ) |>
   dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
 
 dim(gtex_sra_ages)
 ```
-
-We end up with 973 samples after this filtering.
 
 Check library selection method of GTEx samples that are paired:
 

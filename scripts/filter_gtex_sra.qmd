@@ -192,7 +192,6 @@ gtex_ages_summary <- gtex_sra_downloadable |>
 
 ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
   geom_bar(position = "fill", stat = "identity") +
-  scale_color_brewer(palette = "Dark2") +
   scale_fill_brewer(palette = "Dark2") +
   theme(
     legend.position = "bottom",
@@ -222,6 +221,7 @@ gtex_sra_downloadable |>
   dplyr::group_by(body_site) |>
   dplyr::summarize(n_samples = dplyr::n())
 ```
+
 ### Export filtered GTEX accession file
 
 ```{r}
@@ -229,7 +229,7 @@ gtex_sra_downloadable |>
 gtex_select <- gtex_sra_downloadable |>
   dplyr::relocate(Run)
 
-readr::write_tsv(gtex_select, file = file.path(gtex_accession_path))
+readr::write_tsv(gtex_select, file = gtex_accession_path)
 ```
 
 Print session info

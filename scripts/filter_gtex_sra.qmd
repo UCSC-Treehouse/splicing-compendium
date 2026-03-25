@@ -119,14 +119,6 @@ gtex_sra_ages |>
 
 Only versions up to 4 are recorded, all others are NA.
 
-Check distribution of GTEx create dates for accessions without version number. Can we associate a GTEx version with these samples based on when each version was released? No creation date is recorded for samples from unrecorded versions, so we will just filter those out
-
-```{r}
-gtex_sra_ages |>
-  dplyr::filter(is.na(version)) |>
-  dplyr::group_by(create_date) |>
-  dplyr::summarise(date_count = dplyr::n())
-```
 
 The release date for version 8p2 is 2019-07-18 [source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
 

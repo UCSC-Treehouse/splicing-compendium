@@ -12,15 +12,15 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 The goals of this notebook are to filter the following SRA tables for files to download:
 
--   GTEx SRA table and metadata matching ages to subject IDs, for samples from the youngest donors
+-   GTEx SRA table and metadata matching ages to subject IDs
 
 Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
 
 Metadata used for this analysis are:
 
 -   `GTEX_SraRunTable.csv`, metadata file of dbGaP accession IDs containing GTEX samples.
--   `GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt`, public annotation file consisting of GTEX sample IDs and their ages in 10-year brackets, obtained from <https://storage.googleapis.com/adult-gtex/annotations/v10/metadata-files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt> , which is accessible by clicking the download icon next to "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt" on the [GTEX v10 metadata page](https://gtexportal.org/home/downloads/adult-gtex/metadata). The download command for this is in `data/scripts/00-reference_download.sh`.
-- `metadata/pilot_shiba_run/gtex_accessions.tsv` accessions file of GTEx sequences downloaded and analyzed from the pilot Shiba run, to exclude.
+-   `GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt`, public annotation file consisting of GTEX sample IDs and their ages in 10-year brackets, obtained from <https://storage.googleapis.com/adult-gtex/annotations/v10/metadata-files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt> , which is accessible by clicking the download icon next to "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt" on the [GTEx v10 metadata page](https://gtexportal.org/home/downloads/adult-gtex/metadata). The download command for this is in `data/scripts/00-reference_download.sh`.
+- `metadata/pilot_shiba_run/gtex_accessions.tsv` accessions file of GTEx sequences downloaded and analyzed from the pilot Shiba run, to exclude from the final list of accessions to download.
 
 ## Setup
 
@@ -81,9 +81,9 @@ gtex_ages <- readr::read_tsv(gtex_ages_file, col_types = readr::cols(.default = 
 gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default = "c"))
 ```
 
-## Filtering GTEX samples for download
+## Filtering GTEx samples for download
 
-Combine GTEX age table with GTEX accessions so that we can check how many samples of each age bracket are represented by each tumor type after filtering
+Combine GTEx age table with GTEx accessions so that we can check how many samples of each age bracket are represented by each tumor type after filtering
 
 ```{r}
 # Define tissue types of interest
@@ -94,7 +94,7 @@ tissue_types <- c(
   "Whole Blood"
 )
 
-# Merge GTEX SRA table with ages metadata to associate IDs with ages
+# Merge GTEx SRA table with ages metadata to associate IDs with ages
 # then filter tables for our criteria (RNA, paired-end, select tissue types)
 gtex_sra_ages <- gtex_sra |>
   dplyr::left_join(gtex_ages, by = "SUBJID") |>
@@ -102,7 +102,7 @@ gtex_sra_ages <- gtex_sra |>
     analyte_type == "RNA:Total RNA",
     # Exclude cell line samples
     !grepl("Cells", body_site),
-    # filter for polyA samples
+    # filter for paired-end samples
     LibraryLayout == "PAIRED",
     # filter for tissue types in select list
     body_site %in% tissue_types,
@@ -138,7 +138,8 @@ gtex_sra_ages |>
 
 Only versions up to 3 are recorded in these samples.
 
-The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
+The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. 
+We should filter out samples with release dates greater than or equal to 2018.
 
 ```{r}
 gtex_sra_ages |>
@@ -198,7 +199,7 @@ gtex_sra_ages |>
 
 ```
 
-All samples appear to come from the Broad Institute
+All samples appear to come from the Broad Institute.
 
 Print table of the number of samples in all tissue types in the filtered GTEx set
 

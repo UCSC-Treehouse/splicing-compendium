@@ -119,7 +119,7 @@ target_filtered_sra <- target_sra |>
     !Run %in% pilot_target$Run
   ) |>
   # transform Bytes column to numeric for estimating space
-  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
+  dplyr::mutate(Bytes = as.numeric(Bytes)) |>
   # select for only relevant columns
   dplyr::select(
     Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
@@ -136,7 +136,7 @@ paste0("About ", file_space, " terabytes of space will be taken up by file downl
 Summarize distribution of tumor types across TARGET samples:
 
 ```{r}
-target_filtered_sra |> dplyr::count(study_name)
+target_filtered_sra |> dplyr::count(study_name, `Center Name`)
 ```
 
 Summarize distribution of sequencing centers across filtered TARGET samples

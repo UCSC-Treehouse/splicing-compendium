@@ -252,7 +252,7 @@ Of junctions with IDs that are the same between the tables, how many have the sa
 ```{r}
 # identical returns false but all returns true
 # perhaps because the classes of the values are not the same
-all(compare_junctions$SRR601500_combined == compare_junctions$SRR601500_separate)
+all.equal(compare_junctions$SRR601500_combined, compare_junctions$SRR601500_separate)
 all(compare_junctions$SRR604528_combined == compare_junctions$SRR604528_separate)
 ```
 

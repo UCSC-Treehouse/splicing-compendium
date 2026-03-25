@@ -139,12 +139,6 @@ Summarize distribution of tumor types across TARGET samples:
 target_filtered_sra |> dplyr::count(study_name, `Center Name`)
 ```
 
-Summarize distribution of sequencing centers across filtered TARGET samples
-
-```{r}
-target_filtered_sra |> dplyr::count(`Center Name`)
-```
-
 Export filtered and subsampled TARGET accession file
 
 ```{r}

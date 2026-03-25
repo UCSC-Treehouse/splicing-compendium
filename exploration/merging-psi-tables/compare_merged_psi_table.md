@@ -1,6 +1,6 @@
 # Compare merged PSI table vs. Shiba PSI tables
 Cindy Liang (celiang@ucsc.edu)
-2026-03-24
+2026-03-25
 
 As part of our pipeline, we plan to merge Shiba tables created for
 individual samples to obtain a final PSI table of all samples. Before
@@ -205,10 +205,9 @@ what junctions are used for PSI calculation
     strand:
       XS 
 
-Since the minimum length of a junction to be used is 6, filter for
-junctions that are greater than 6 bp for comparison. Here, I am
-operating on the assumption that these junctions would get filtered out
-anyway once PSI values are calculated.
+Filter for junctions that are greater than 1 bp for comparison. Here, I
+am operating on the assumption that these junctions would get filtered
+out anyway once PSI values are calculated.
 
 ``` r
 # filter separate junctions table for junctions > 6bp and convert NAs to 0 for comparison
@@ -216,20 +215,13 @@ filtered_separate_junctions <- separate_junctions |>
   # calculate junction length
   dplyr::mutate(
     # calculate junction length
-    junc_len = abs(as.numeric(start) - as.numeric(end)),
-    # replace NAs with 0
-    SRR601500 = dplyr::case_when(
-      is.na(SRR601500) ~ 0,
-      !is.na(SRR601500) ~ SRR601500
-    ),
-    SRR604528 = dplyr::case_when(
-      is.na(SRR604528) ~ 0,
-      !is.na(SRR604528) ~ SRR604528
-    )
-  ) |>
-  # filter out junctions < 6bp
+    junc_len = abs(as.numeric(start) - as.numeric(end))
+    ) |>
+  # replace NA junction counts with 0
+  tidyr::replace_na(list(SRR604528 = 0, SRR601500 = 0)) |>
+  # filter out junctions < 1bp
   dplyr::filter(
-    junc_len > 6
+    junc_len > 1
   ) 
 ```
 
@@ -241,16 +233,16 @@ filtered_separate_junctions <- separate_junctions |>
     ℹ Run `dplyr::last_dplyr_warnings()` to see the 1 remaining warning.
 
 ``` r
-# filter combined junctions table for junctions > 6bp
+# filter combined junctions table for junctions > 1bp
 filtered_combined_junctions <- combined_junctions |>
   # calculate junction length
   dplyr::mutate(
     # calculate junction length
     junc_len = abs(as.numeric(start) - as.numeric(end))
   ) |>
-  # filter out junctions < 6bp
+  # filter out junctions < 1bp
   dplyr::filter(
-    junc_len > 6
+    junc_len > 1
   ) 
 ```
 
@@ -322,8 +314,8 @@ compare_junctions |>
 |---:|---:|---:|---:|---:|---:|---:|
 | 350239 | 0 | 0 | 350239 | 0 | 0 | 1 |
 
-Once we filter for junctions long enough to be included in splice
-calculation, all IDs are shared in both junction tables.
+Once we filter for junctions \> 1 bp , all IDs are shared in both
+junction tables.
 
 ### Check similarity of counts in junctions that are matched
 
@@ -333,7 +325,7 @@ have the same counts once we replace NAs with 0?
 ``` r
 # identical returns false but all returns true
 # perhaps because the classes of the values are not the same
-all(compare_junctions$SRR601500_combined == compare_junctions$SRR601500_separate)
+all.equal(compare_junctions$SRR601500_combined, compare_junctions$SRR601500_separate)
 ```
 
     [1] TRUE
@@ -345,7 +337,7 @@ all(compare_junctions$SRR604528_combined == compare_junctions$SRR604528_separate
     [1] TRUE
 
 In conclusion, for this test case of 2 samples, once we filter out
-junctions smaller than 6bp in length and replace NAs with 0, the counts
+junctions smaller than 1bp in length and replace NAs with 0, the counts
 for both combined and separate tables become identical
 
 ## Examine splice events that are consistently present in both combined and separate splice tables
@@ -379,8 +371,36 @@ head(shared_events)
 # recording a note that we may want to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
 ```
 
+Print summary of event types in the shared events table
+
+``` r
+shared_events |>
+  dplyr::summarise(.by = c(event_type, label),
+                   count = dplyr::n()) |>
+  dplyr::mutate(percent = count / sum(count) * 100)
+```
+
+| event_type | label       |  count |    percent |
+|:-----------|:------------|-------:|-----------:|
+| se         | annotated   |  66379 | 18.7667159 |
+| se         | unannotated |    988 |  0.2793280 |
+| afe        | annotated   | 100422 | 28.3913759 |
+| afe        | unannotated |   3041 |  0.8597536 |
+| ale        | annotated   |  78337 | 22.1474897 |
+| ale        | unannotated |   1156 |  0.3268251 |
+| five       | annotated   |  15221 |  4.3032914 |
+| five       | unannotated |    406 |  0.1147846 |
+| three      | annotated   |  19710 |  5.5724246 |
+| three      | unannotated |    572 |  0.1617162 |
+| mse        | annotated   |  46169 | 13.0529310 |
+| mse        | unannotated |    428 |  0.1210045 |
+| mxe        | annotated   |    586 |  0.1656743 |
+| mxe        | unannotated |     17 |  0.0048063 |
+| ri         | annotated   |  14108 |  3.9886233 |
+| ri         | unannotated |   6166 |  1.7432557 |
+
 Of the events that are the same between the combined and separate PSI
-tables, SE, AFE, ALE, and MSE events are the most abundant.
+tables, annotated SE, AFE, ALE, and MSE events are the most abundant.
 
 ## Examine splice events only found in combined or separate splice tables
 
@@ -418,18 +438,18 @@ separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_
 
 ``` r
 # events only present in separate tables
-paste0("Number of splice events only in separate PSI table: ", 
-       length(separate_only_list))
+# Number of splice events only in separate PSI table 
+length(separate_only_list)
 ```
 
-    [1] "Number of splice events only in separate PSI table: 1839"
+    [1] 1839
 
 ``` r
-paste0("Number of splice events only in combined PSI table: ", 
-       length(combined_only_list))
+# Number of splice events only in combined PSI table 
+length(combined_only_list)
 ```
 
-    [1] "Number of splice events only in combined PSI table: 657"
+    [1] 657
 
 ### Examine percentage of each splice event type in each PSI table
 
@@ -482,8 +502,8 @@ a small percent of the events.
 ## Inspect individual position IDs of unique events
 
 We are most concerned if unannotated events have altered positions in
-the merged table and are unmatched in the shiba table (is Shiba doing
-something strange to assign reads into position coordinates?)
+the separate table and are unmatched in the combined table (is Shiba
+doing something strange to assign reads into position coordinates?)
 
 Check for one event type (SE)
 
@@ -493,7 +513,7 @@ exclusion event (intron_c of [this
 diagram](https://sika-zheng-lab.github.io/Shiba/output/shiba/#psi_setxt)).
 
 ``` r
-# filter for unannotated SE events only in the merged table
+# filter for unannotated SE events only in the separate table
 se_only_in_separate <- separate_psi_table |>
   dplyr::filter(
     pos_id %in% separate_only_list,
@@ -597,7 +617,8 @@ combined table
 
 Above: IGV screenshot of this skipped exon event
 (SE@chr10@112448382-112448489@112447467-112448882) sample alignments and
-Refseq track. Red highlight indicates the second position coordinate
+Refseq track. Red highlight indicates the second position coordinate,
+which corresponds to the intron of the exclusion isoform
 (chr10:112447467-112448882).
 
 ![](images/VTI1A.png)
@@ -606,10 +627,10 @@ Above: IGV screenshot of the second kipped exon event detected for VTI1A
 (SE@chr10@112533530-112533550@112527164-112538246) sample alignments and
 Refseq track. Red highlight indicates the second position coordinate.
 
-It seems like this event is not detected in the merged table, so it is
-not too concerning that this event would be dropped in the merged table
-(due to PSI values/junctions not being detected at that locus for all
-samples).
+It seems like this event is not detected in the separate table, so it is
+not too concerning that this event would be dropped in the separate
+table (due to PSI values/junctions not being detected at that locus for
+all samples).
 
 ### Check SE@chr12@98745524-98750748@98735634-98751355
 

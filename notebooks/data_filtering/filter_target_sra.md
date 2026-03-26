@@ -172,7 +172,28 @@ target_filtered_sra |> dplyr::count(study_name, `Center Name`)
 | TARGET: Kidney, Wilms Tumor (WT) | BCCAGSC | 122 |
 | TARGET: Neuroblastoma (NBL) | NCI-KHAN | 146 |
 
-Export filtered and subsampled TARGET accession file
+## Divide TARGET accessions into groups of 1.2TB samples
+
+For partitioning data onto OpenStack instances, we need to divide the
+TARGET accessions based on how much space they will take up. So that
+there will be enough space for holding raw fastqs and alignments, we
+will aim to download a little under half the available space on the huge
+OpenStack instance (~1.2TB)
+
+``` r
+# define target sum of data
+max_tb <- 1.2
+
+target_filtered_sra <- target_filtered_sra |>
+  dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12,
+    # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
+    batch_id = ceiling(cumulative_tb / 1.2)
+  ) 
+```
+
+Export filtered TARGET accession file
 
 ``` r
 readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))
@@ -202,13 +223,13 @@ sessionInfo()
     [1] stats     graphics  grDevices utils     datasets  methods   base     
 
     loaded via a namespace (and not attached):
-     [1] crayon_1.5.3     vctrs_0.7.1      cli_3.6.5        knitr_1.51      
-     [5] rlang_1.1.7      xfun_0.56        generics_0.1.4   renv_1.0.11     
-     [9] jsonlite_2.0.0   glue_1.8.0       bit_4.6.0        rprojroot_2.1.1 
-    [13] htmltools_0.5.9  readxl_1.4.5     hms_1.1.4        rmarkdown_2.30  
-    [17] cellranger_1.1.0 evaluate_1.0.5   tibble_3.3.1     tzdb_0.5.0      
-    [21] fastmap_1.2.0    yaml_2.3.12      lifecycle_1.0.5  compiler_4.4.3  
-    [25] dplyr_1.2.0      pkgconfig_2.0.3  here_1.0.2       digest_0.6.39   
-    [29] R6_2.6.1         tidyselect_1.2.1 readr_2.2.0      parallel_4.4.3  
-    [33] vroom_1.7.0      pillar_1.11.1    magrittr_2.0.4   withr_3.0.2     
-    [37] tools_4.4.3      bit64_4.6.0-1   
+     [1] crayon_1.5.3      vctrs_0.7.2       cli_3.6.5         knitr_1.51       
+     [5] rlang_1.1.7       xfun_0.57         otel_0.2.0        generics_0.1.4   
+     [9] jsonlite_2.0.0    bit_4.6.0         glue_1.8.0        rprojroot_2.1.1  
+    [13] htmltools_0.5.9   readxl_1.4.5      hms_1.1.4         rmarkdown_2.30   
+    [17] cellranger_1.1.0  evaluate_1.0.5    tibble_3.3.1      tzdb_0.5.0       
+    [21] fastmap_1.2.0     yaml_2.3.12       lifecycle_1.0.5   compiler_4.4.3   
+    [25] dplyr_1.2.0       pkgconfig_2.0.3   here_1.0.2        rstudioapi_0.18.0
+    [29] digest_0.6.39     R6_2.6.1          tidyselect_1.2.1  readr_2.1.6      
+    [33] parallel_4.4.3    vroom_1.7.0       pillar_1.11.1     magrittr_2.0.4   
+    [37] withr_3.0.2       tools_4.4.3       bit64_4.6.0-1    

@@ -497,7 +497,8 @@ psi_summary
 | unannotated | ri | 54 | 69 | 6166 | 0.0087577 | 0.0111904 |
 
 Together, the unmatched splice events in the separate PSI table make up
-a small percent of the events.
+a small percent of the events. The most abundant events present only in
+the separate PSI table are unannotated ALE (~10%) and MXE (~11%) events.
 
 ## Inspect individual position IDs of unique events
 
@@ -538,10 +539,10 @@ I don’t care as much about the events with NA values in both samples
 junctions would just be assigned 0), so I will check cases where there
 is a PSI value in at least one sample.
 
-Presumably we get PSI = NA for both samples if the junction counts for
-the region are nonzero but are not enough to calculate PSI Look for
-junctions with start sites plus minus 20bp from the 155562153-155562349
-interval
+Investigate why events have NA PSI values for both samples: Presumably
+we get PSI = NA for both samples if the junction counts for the region
+are nonzero but are not enough to calculate PSI Look for junctions with
+start sites plus minus 20bp from the 155562153-155562349 interval
 
 ``` r
 # check separate junctions table for junction counts near this pos_id
@@ -562,6 +563,10 @@ separate_junctions |>
 | chr1 | 155562349 | 155562779 | chr1:155562349-155562779 |        NA |         1 |
 | chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
 
+From the above table, the only junction with the start site 155562349 in
+the separate table have below 10 counts for both samples. PSI would not
+be calculated for this junction due to the low counts.
+
 Do the same for end sites around the 155562153-155562349 interval
 
 ``` r
@@ -579,6 +584,10 @@ separate_junctions |>
 | chr1 | 155521618 | 155562153 | chr1:155521618-155562153 |         6 |         6 |
 | chr1 | 155562295 | 155562296 | chr1:155562295-155562296 |         3 |         8 |
 | chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
+
+From the above table, there are two junctions in the separate table with
+the end site 155562153, but the counts for both samples are again below
+10.
 
 Look for junctions in the separate table with start sites plus minus
 20bp from the 155521618-155562779 interval
@@ -601,6 +610,9 @@ separate_junctions |>
 | chr1 | 155562778 | 155562779 | chr1:155562778-155562779 |         0 |         2 |
 | chr1 | 155562349 | 155562779 | chr1:155562349-155562779 |        NA |         1 |
 | chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
+
+The two junctions with the start site 155521618 also have counts below
+10 for both samples.
 
 Look for junctions in the separate table with end sites plus minus 20bp
 from the 155521618-155562779 interval
@@ -625,10 +637,13 @@ separate_junctions |>
 | chr1 | 155562349 | 155562779 | chr1:155562349-155562779 |        NA |         1 |
 | chr1 | 155562349 | 155562350 | chr1:155562349-155562350 |        NA |         6 |
 
-All the junction counts in these ranges are below 10bp. In cases where
-there are values for both samples, Shiba would have given the samples an
-NA PSI value due to there not being enough read support for PSI
-calculation.
+There are a couple junctions with an end site matching 155562779, but
+the counts are also below 10 for both samples.
+
+I think PSI values are NA for both samples in
+SE@chr1@155562153-155562349@155521618-155562779 because the junction
+counts are too low for PSI calculation, but are nonzero so the position
+is recorded as a possible splice event.
 
 ## Check splice events where the PSI is low in one sample and NA in the other
 

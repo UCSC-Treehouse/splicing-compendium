@@ -139,7 +139,25 @@ Summarize distribution of tumor types across TARGET samples:
 target_filtered_sra |> dplyr::count(study_name, `Center Name`)
 ```
 
-Export filtered and subsampled TARGET accession file
+## Divide TARGET accessions into groups of 1.2TB samples
+
+For partitioning data onto OpenStack instances, we need to divide the TARGET accessions based on how much space they will take up.
+So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (~1.2TB)
+
+```{r}
+# define target sum of data
+max_tb <- 1.2
+
+target_filtered_sra <- target_filtered_sra |>
+  dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12,
+    # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
+    batch_id = ceiling(cumulative_tb / 1.2)
+  ) 
+```
+
+Export filtered TARGET accession file
 
 ```{r}
 readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))

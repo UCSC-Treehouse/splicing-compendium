@@ -63,38 +63,36 @@ if awk -v batch="${2}" 'NF>1 && $1 == batch' "${metadata_dir}/$1_accessions.tsv"
     time for ID in $(awk 'NR>1{print $1}' "${metadata_dir}/$1_accessions.tsv"); do
         # check that fastq or zipped fastq does not already exist
         if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
+
             # prefetch file dependencies
             # set max size of prefetch file to 50GB based on max file size of samples in accessions lists
             # continue even if an error is thrown
+            prefetch --ngc $dbgap_key --max-size 50000000 --output-directory $fastq_dir $ID || true
+            Check if prefetch file directory has been created
+            # Lack of directory means prefetch has failed; skip to next accession
+            if [ ! -d "${fastq_dir}/$ID" ]; then
+                # record the accession ID not downloaded
+                echo -e "$ID\tprefetch" >> $error_log_file
+                continue
+            fi
 
-            echo $ID
+            # download fastq file for each accession
+            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 4 --outdir $fastq_dir || true
 
-            # prefetch --ngc $dbgap_key --max-size 50000000 --output-directory $fastq_dir $ID || true
-            # Check if prefetch file directory has been created
-            # # Lack of directory means prefetch has failed; skip to next accession
-            # if [ ! -d "${fastq_dir}/$ID" ]; then
-            #     # record the accession ID not downloaded
-            #     echo -e "$ID\tprefetch" >> $error_log_file
-            #     continue
-            # fi
+            Check if fastq file exists
+            # If file is missing, record error in fastq-dump step and move on to next accession
+            if [ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq]; then
+                # record the accession ID not downloaded
+                echo -e "$ID\tfasterq-dump" >> $error_log_file
+                continue
+            fi
 
-            # # download fastq file for each accession
-            # fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 4 --outdir $fastq_dir || true
+            zip fastqs to save space
+            use default number of processes, which is 8 or number of online processors
+            pigz "${fastq_dir}"/${ID}_*.fastq
 
-            # Check if fastq file exists
-            # # If file is missing, record error in fastq-dump step and move on to next accession
-            # if [ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq]; then
-            #     # record the accession ID not downloaded
-            #     echo -e "$ID\tfasterq-dump" >> $error_log_file
-            #     continue
-            # fi
-
-            # zip fastqs to save space
-            # use default number of processes, which is 8 or number of online processors
-            # pigz "${fastq_dir}"/${ID}_*.fastq
-
-            # offload prefetch prerequisites
-            # rm -R "${fastq_dir}/${ID}"
+            offload prefetch prerequisites
+            rm -R "${fastq_dir}/${ID}"
 
         fi
 

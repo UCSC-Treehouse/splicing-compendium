@@ -24,7 +24,7 @@ fastq_dir="${group_dir}/fastq"
 log_dir="../logs/${1}_download"
 metadata_dir="../metadata/filter_target_gtex"
 target_accessions="${metadata_dir}/target_accessions.tsv"
-notebooks_dir="../notebooks"
+notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 
 # check that sample group inputted is valid
@@ -54,8 +54,8 @@ exec > >(tee $log_file) 2>&1
 quarto render ${target_filtering}
 
 # Select 1.2TB batch of accessions to download based on user input
-# batch ID is in the last column of the metadata
-if batch in $(awk 'NF>1{print $1}' "${metadata_dir}/$1_accessions.tsv") == ${2}; then
+# pass batch ID from user input into awk and look for values matching batch in last column
+if awk -v batch="${2}" 'NF>1 && $1 == batch' "${metadata_dir}/$1_accessions.tsv"; then
 
     # Use accession IDs in first column of accessions file to download fastqs for analysis
     # iterate through first column of TARGET accession metadata, which has accession IDs
@@ -67,7 +67,7 @@ if batch in $(awk 'NF>1{print $1}' "${metadata_dir}/$1_accessions.tsv") == ${2};
             # set max size of prefetch file to 50GB based on max file size of samples in accessions lists
             # continue even if an error is thrown
 
-            echo $ID $batch
+            echo $ID
 
             # prefetch --ngc $dbgap_key --max-size 50000000 --output-directory $fastq_dir $ID || true
             # Check if prefetch file directory has been created

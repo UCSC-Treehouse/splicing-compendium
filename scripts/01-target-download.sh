@@ -78,7 +78,7 @@ if awk -v batch="${2}" 'NF>1 && $1 == batch' "${metadata_dir}/$1_accessions.tsv"
             fi
 
             # download fastq file for each accession
-            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 4 --outdir $fastq_dir || true
+            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 15 --outdir $fastq_dir || true
 
             # Check if fastq file exists
             # If file is missing, record error in fastq-dump step and move on to next accession

@@ -65,9 +65,10 @@ if awk -v batch="${2}" 'NF>1 && $1 == batch' "${metadata_dir}/$1_accessions.tsv"
         if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
 
             # prefetch file dependencies
-            # set max size of prefetch file to 50GB based on max file size of samples in accessions lists
+            # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
             # continue even if an error is thrown
-            prefetch --ngc $dbgap_key --max-size 50000000 --output-directory $fastq_dir $ID || true
+            prefetch --ngc $dbgap_key --max-size 40000000000 --output-directory $fastq_dir $ID || true
+
             # Check if prefetch file directory has been created
             # Lack of directory means prefetch has failed; skip to next accession
             if [ ! -d "${fastq_dir}/$ID" ]; then

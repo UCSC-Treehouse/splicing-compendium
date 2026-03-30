@@ -70,7 +70,7 @@ rule align_reads:
       mem_mb = 60000
     params:
         star_dir = lambda wildcards, output: os.path.dirname(output.bam),
-        samtools_memory = lambda wildcards, resources, threads: int(resources.mem_mb / threads * 0.9)  # use 90% of available memory for samtools sorting
+        samtools_memory = lambda wildcards, resources, threads: int(resources.mem_mb / threads * 0.7)  # use 70% of available memory for samtools sorting
     shell:
         """
         STAR \

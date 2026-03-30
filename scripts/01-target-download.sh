@@ -2,6 +2,8 @@
 
 # Download script for TARGET bulk RNA-seq for pediatric cancer splicing analysis
 # this script downloads TARGET cancer datasets obtained from filter_target_sra.qmd, which includes all TARGET paired-end RNA-seq samples, excluding ssRNA-seq samples, cell lines and xenografts, and samples known to be ribo-deplete
+# usage: scripts/01-target-download.sh [gtex|target]
+# example for downloading target: scripts/01-target-download.sh target
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -16,23 +18,19 @@ target_key="/home/ubuntu/prj_11732_D43588.ngc"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # Set paths as variables
-storage_dir="/mnt"
-git_path=$(git rev-parse --git-dir)
-root_dir=$(dirname "$git_path")
-data_dir="${root_dir}/data"
-bulk_dir="${storage_dir}/bulk"
-group_dir="${bulk_dir}/$1"
+bulk_dir="/data/bulk"
+group_dir="${bulk_dir}/${1}"
 fastq_dir="${group_dir}/fastq"
-log_dir="${data_dir}/logs"
-metadata_dir="${data_dir}/metadata"
-target_gtex_dir="${metadata_dir}/filter_target_gtex"
+log_dir="/logs/${1}_download"
+metadata_dir="${data_dir}/metadata/filter_target_gtex"
+target_accessions="${metadata_dir}/target_accessions.tsv"
+notebooks_dir="/notebooks"
+target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
 if [ $1 == "target" ]; then
     dbgap_key=$target_key
-elif [ $1 == "gtex" ]; then
-    dbgap_key=$gtex_key
 else
     echo "please use valid sample group"
     # cause script to fail due to error
@@ -53,7 +51,7 @@ error_log_file="${log_dir}/${current_datetime}_${1}_download_errors.txt"
 exec > >(tee $log_file) 2>&1
 
 # Run filtering script to obtain accession IDs to download
-quarto render filter_target_sra.qmd
+quarto render ${target_filtering}
 
 # Use accession IDs in first column of accessions file to download fastqs for analysis
 # iterate through first column of TARGET accession metadata, which has accession IDs

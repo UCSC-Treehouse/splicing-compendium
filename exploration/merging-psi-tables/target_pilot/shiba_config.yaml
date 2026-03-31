@@ -18,5 +18,5 @@ individual_psi: True
 ttest: False
 excel: False
 workdir: exploration/merging-psi-tables/shiba_results/combined_run/target_pilot
-experiment_table: results/target/shiba/SRR1559043/experiment.tsv
+experiment_table: exploration/merging-psi-tables/target_pilot/experiment.tsv
 gtf: references/gencode.v47.primary_assembly.annotation.gtf

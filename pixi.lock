@@ -366,7 +366,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-scheduler-plugins-2.0.1-pyhd4c3c12_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-storage-plugins-4.3.2-pyhd4c3c12_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-minimal-9.16.3-pyhdfd78af_0.conda
-      - conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.4.1-h4304569_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.2.1-h4304569_1.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/star-2.7.9a-h9ee0642_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/statsmodels-0.14.6-py312h4f23490_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/stringtie-3.0.0-h29c0135_0.tar.bz2
@@ -5190,9 +5190,9 @@ packages:
   - pkg:pypi/snakemake?source=hash-mapping
   size: 874768
   timestamp: 1770308884470
-- conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.4.1-h4304569_0.conda
-  sha256: eb4b0af37741a31fbd8157e2604f1533b854d98ac7d0600d251ce2d2758475cf
-  md5: b5fecd658ae0be3df3d5f99724bedf8c
+- conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.2.1-h4304569_1.tar.bz2
+  sha256: 607b43e8f5b0c9e0e7228bbe19d3d50a6dc54d4b072b0ed508081fe468604264
+  md5: e25d29bf7be97231d3d01fedeb7e01c0
   depends:
   - ca-certificates
   - curl
@@ -5200,15 +5200,15 @@ packages:
   - libgcc-ng >=12
   - libstdcxx
   - libstdcxx-ng >=12
-  - ncbi-vdb >=3.4.1
-  - ncbi-vdb >=3.4.1,<4.0a0
+  - ncbi-vdb >=3.2.1
+  - ncbi-vdb >=3.2.1,<4.0a0
   - ossuuid
   - perl
   - perl-uri
   - perl-xml-libxml
   license: Public Domain
-  size: 30529262
-  timestamp: 1774677647927
+  size: 64003013
+  timestamp: 1750275321138
 - conda: https://conda.anaconda.org/bioconda/linux-64/star-2.7.9a-h9ee0642_0.tar.bz2
   sha256: dbdbe3cc75bf40914e4735f737a786dc0e50ed154c5236cc4dd9b3a96136fbe1
   md5: 0ac1051c6a32846b84cd982f238c2743

@@ -20,7 +20,7 @@ Metadata used for this analysis are:
 
 -   `GTEX_SraRunTable.csv`, metadata file of dbGaP accession IDs containing GTEX samples.
 -   `GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt`, public annotation file consisting of GTEX sample IDs and their ages in 10-year brackets, obtained from <https://storage.googleapis.com/adult-gtex/annotations/v10/metadata-files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt> , which is accessible by clicking the download icon next to "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt" on the [GTEx v10 metadata page](https://gtexportal.org/home/downloads/adult-gtex/metadata). The download command for this is in `data/scripts/00-reference_download.sh`.
-- `metadata/pilot_shiba_run/gtex_accessions.tsv` accessions file of GTEx sequences downloaded and analyzed from the pilot Shiba run, to exclude from the final list of accessions to download.
+-   `metadata/pilot_shiba_run/gtex_accessions.tsv` accessions file of GTEx sequences downloaded and analyzed from the pilot Shiba run, to exclude from the final list of accessions to download.
 
 ## Setup
 
@@ -138,8 +138,7 @@ gtex_sra_ages |>
 
 Only versions up to 3 are recorded in these samples.
 
-The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. 
-We should filter out samples with release dates greater than or equal to 2018.
+The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
 
 ```{r}
 gtex_sra_ages |>
@@ -209,11 +208,28 @@ gtex_sra_ages |>
   dplyr::summarize(n_samples = dplyr::n())
 ```
 
+## Divide GTEx accessions into groups of 1.2TB samples
+
+For partitioning data onto OpenStack instances, we need to divide the accessions based on how much space they will take up. So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
+
+```{r}
+# define target sum of data
+max_tb <- 1.2
+
+gtex_select_batched <- gtex_sra_ages |>
+  dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12,
+    # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
+    batch_id = ceiling(cumulative_tb / 1.2)
+  ) 
+```
+
 ### Export filtered GTEX accession file
 
 ```{r}
 # Move run ID to first column, like in TARGET accessions file
-gtex_select <- gtex_sra_ages |>
+gtex_select <- gtex_select_batched |>
   dplyr::relocate(Run)
 
 readr::write_tsv(gtex_select, file = gtex_accession_path)

@@ -82,7 +82,7 @@ if awk -v batch="${2}" 'NF>1 && $1 == batch' "${metadata_dir}/$1_accessions.tsv"
 
             # Check if fastq file exists
             # If file is missing, record error in fastq-dump step and move on to next accession
-            if [ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq ]; then
+            if [[ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq ]]; then
                 # record the accession ID not downloaded
                 echo -e "$ID\tfasterq-dump" >> $error_log_file
                 continue

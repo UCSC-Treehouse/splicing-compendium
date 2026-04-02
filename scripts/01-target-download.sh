@@ -57,10 +57,10 @@ quarto render ${target_filtering}
 # pass batch ID from user input (2nd input) into awk and look for values matching batch in last column
 # skip first line (header)
 # make sure value in the last column equals the batch given by user input and print the first column (accession ID)
-time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}_accessions.tsv"
+awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}_accessions.tsv"
     # Use accession IDs in first column of accessions file to download fastqs for analysis
     # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
-    while read -r ID; do
+    time while read -r ID; do
         # check that fastq or zipped fastq does not already exist
         if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
 

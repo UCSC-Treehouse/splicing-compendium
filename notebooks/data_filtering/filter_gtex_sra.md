@@ -282,6 +282,23 @@ gtex_select_batched <- gtex_sra_ages |>
   ) 
 ```
 
+Summarize number of accessions in each batch
+
+``` r
+gtex_select_batched |>
+  dplyr::summarise(
+    .by = batch_id,
+    n = dplyr::n()
+  )
+```
+
+| batch_id |   n |
+|---------:|----:|
+|        1 | 343 |
+|        2 | 289 |
+|        3 | 265 |
+|        4 |  55 |
+
 ### Export filtered GTEX accession file
 
 ``` r

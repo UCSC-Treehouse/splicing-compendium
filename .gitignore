@@ -17,3 +17,5 @@ results/*
 *.ngc
 ._.DS_Store
 data
+
+exploration/merging-psi-tables/shiba_results/combined_run/target_pilot

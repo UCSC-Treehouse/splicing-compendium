@@ -74,36 +74,6 @@ combined_splice_results_paths <- shiba_psi_paths |>
 # combine psi values of samples run together into one dataframe to compare against separate PSI dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
-## Examine splice events that are consistently present in both combined and separate splice tables
-
-To help us prioritize what splice event types we may be the most confident in after merging separate Shiba PSI tables, we are interested in seeing a breakdown of what event types are most represented in both PSI tables
-
-```{r}
-# obtain df of splice events that are shared between both combined and separate tables
-shared_events <- dplyr::full_join(
-  combined_psi_table, 
-  separate_psi_table,
-  by = c("event_type", "pos_id", "gene_id", "label"),
-  suffix = c("_combined", "_separate")) # label PSI values by table they came from
-
-head(shared_events)
-
-# recording a note that we may want to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
-```
-
-Print summary of event types in the shared events table
-```{r}
-shared_events |>
-  dplyr::summarise(.by = c(event_type, label),
-                   count = dplyr::n()) |>
-  dplyr::mutate(percent = count / sum(count) * 100)
-```
-
-
-Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, ALE, and MSE events are the most abundant.
-
-## Examine splice events only found in combined or separate splice tables
-
 ### Obtain dimensions of each PSI table
 
 ```{r}
@@ -116,8 +86,36 @@ dim(separate_psi_table)
 dim(combined_psi_table)
 ```
 
-There are 1,586 more splice events in the separte PSI table than the combined table.
-However, it is still a small fraction of the total number of events.
+There are 71,811 more splice events in the separate PSI table than the combined table.
+
+## Examine splice events that are consistently present in both combined and separate splice tables
+
+To help us prioritize what splice event types we may be the most confident in after merging separate Shiba PSI tables, we are interested in seeing a breakdown of what event types are most represented in both PSI tables
+
+```{r}
+# obtain df of splice events that are shared between both combined and separate tables
+shared_events <- dplyr::full_join(
+  combined_psi_table, 
+  separate_psi_table,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  # label PSI values by table they came from 
+  suffix = c("_combined", "_separate"))
+
+# Previously we wanted to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
+# however due to the size of the table, I receive a memory error: Error: vector memory limit of 16.0 Gb reached, see mem.maxVSize()
+```
+
+Print summary of event types in the shared events table
+```{r}
+shared_events |>
+  dplyr::summarise(.by = c(event_type, label),
+                   count = dplyr::n()) |>
+  dplyr::mutate(percent = count / sum(count) * 100)
+```
+
+Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, ALE, and MSE events are the most abundant.
+
+## Examine splice events only found in combined or separate splice tables
 
 ### Examine splice events only present in each PSI table
 
@@ -147,7 +145,7 @@ Print the number of annotated vs. unannotated events across all event types in e
 Fraction of annotated vs. unannotated events in the combined table
 
 ```{r}
-# filter for pos_ids unique to the shiba dataframe
+# filter for pos_ids unique to the combined dataframe
 psi_summary <- shared_events |>
   dplyr::mutate(
     combined_only = pos_id %in% combined_only_list,
@@ -159,33 +157,11 @@ psi_summary <- shared_events |>
                    separate_only = sum(separate_only),
                    # dplyr::n() gives the size of the group (annotated events or unannotated events)
                    total = dplyr::n(),
-                   combined_frac = combined_only / total,
-                   separate_frac = separate_only / total)
+                   combined_percent = combined_only / total * 100,
+                   separate_percent = separate_only / total * 100)
 
 psi_summary            
 ```
 
-Together, the unmatched splice events in the separate PSI table make up a small percent of the events.
-The most abundant events present only in the separate PSI table are unannotated ALE (~10%) and MXE (~11%) events.
-
-## Inspect individual position IDs of unique events
-
-We are most concerned if unannotated events have altered positions in the separate table and are unmatched in the combined table (is Shiba doing something strange to assign reads into position coordinates?)
-
-Check for one event type (SE)
-
-For skipped exon events, the first coordinate spans the exon of the inclusion event and the second coordinate spans the intron of the exclusion event (intron_c of [this diagram](https://sika-zheng-lab.github.io/Shiba/output/shiba/#psi_setxt)).
-
-```{r}
-# filter for unannotated SE events only in the separate table
-se_only_in_separate <- separate_psi_table |>
-  dplyr::filter(
-    pos_id %in% separate_only_list,
-    event_type == "se",
-    label == "unannotated")
-
-se_only_in_separate |>
-  # print in markdown format so full values will be printed out instead of truncated
-  knitr::kable(format = "markdown")
-```
-
+There are much more splice events only present in only the combined or separate PSI tables now
+The most abundant events present only in the separate PSI table are unannotated ALE (42%) and MXE (51%) events.

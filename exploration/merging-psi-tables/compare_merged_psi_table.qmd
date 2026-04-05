@@ -253,8 +253,10 @@ Of junctions with IDs that are the same between the tables, how many have the sa
 ```{r}
 # identical returns false but all returns true
 # perhaps because the classes of the values are not the same
-all.equal(compare_junctions$SRR601500_combined, compare_junctions$SRR601500_separate)
-all(compare_junctions$SRR604528_combined == compare_junctions$SRR604528_separate)
+all.equal(compare_junctions$SRR601500_combined,
+          compare_junctions$SRR601500_separate)
+all.equal(compare_junctions$SRR604528_combined,
+          compare_junctions$SRR604528_separate)
 ```
 
 In conclusion, for this test case of 2 samples, once we filter out junctions smaller than 1bp in length and replace NAs with 0, the counts for both combined and separate tables become identical

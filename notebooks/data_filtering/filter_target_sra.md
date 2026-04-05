@@ -1,6 +1,6 @@
 # Filtering TARGET samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-03-25
+2026-04-02
 
 ## Introduction
 
@@ -193,6 +193,29 @@ target_filtered_sra <- target_filtered_sra |>
   ) 
 ```
 
+Summarize number of accessions in each batch
+
+``` r
+target_filtered_sra |>
+  dplyr::summarise(
+    .by = batch_id,
+    n = dplyr::n()
+  )
+```
+
+| batch_id |   n |
+|---------:|----:|
+|        1 | 123 |
+|        2 | 107 |
+|        3 | 118 |
+|        4 | 115 |
+|        5 | 108 |
+|        6 | 109 |
+|        7 | 123 |
+|        8 | 108 |
+|        9 | 161 |
+|       10 |   4 |
+
 Export filtered TARGET accession file
 
 ``` r
@@ -226,10 +249,10 @@ sessionInfo()
      [1] crayon_1.5.3      vctrs_0.7.2       cli_3.6.5         knitr_1.51       
      [5] rlang_1.1.7       xfun_0.57         otel_0.2.0        generics_0.1.4   
      [9] jsonlite_2.0.0    bit_4.6.0         glue_1.8.0        rprojroot_2.1.1  
-    [13] htmltools_0.5.9   readxl_1.4.5      hms_1.1.4         rmarkdown_2.30   
+    [13] htmltools_0.5.9   readxl_1.4.5      hms_1.1.4         rmarkdown_2.31   
     [17] cellranger_1.1.0  evaluate_1.0.5    tibble_3.3.1      tzdb_0.5.0       
     [21] fastmap_1.2.0     yaml_2.3.12       lifecycle_1.0.5   compiler_4.4.3   
     [25] dplyr_1.2.0       pkgconfig_2.0.3   here_1.0.2        rstudioapi_0.18.0
-    [29] digest_0.6.39     R6_2.6.1          tidyselect_1.2.1  readr_2.1.6      
+    [29] digest_0.6.39     R6_2.6.1          tidyselect_1.2.1  readr_2.2.0      
     [33] parallel_4.4.3    vroom_1.7.0       pillar_1.11.1     magrittr_2.0.4   
     [37] withr_3.0.2       tools_4.4.3       bit64_4.6.0-1    

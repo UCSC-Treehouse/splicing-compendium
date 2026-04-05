@@ -10,7 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
-Shiba is run one sample at a time using our snakemake workflow. 
+Shiba is run one sample at a time using our snakemake workflow.
 We then merge PSI tables produced for each sample.
 
 ## Set up
@@ -41,7 +41,7 @@ Construct paths to separate TARGET pilot shiba output files
 samples <- readr::read_tsv(samples_file) |>
   dplyr::pull(sample) |>
   as.list()
-  
+
 # make sample paths
 sample_paths <- file.path(
   group_dir,
@@ -51,14 +51,14 @@ sample_paths <- file.path(
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_file_list <- c(
-  se = "PSI_SE.txt",
-  afe = "PSI_AFE.txt",
-  ale = "PSI_ALE.txt",
-  five = "PSI_FIVE.txt",
-  three = "PSI_THREE.txt",
-  mse = "PSI_MSE.txt",
-  mxe = "PSI_MXE.txt",
-  ri = "PSI_RI.txt"
+  se = "PSI_SE.txt.gz",
+  afe = "PSI_AFE.txt.gz",
+  ale = "PSI_ALE.txt.gz",
+  five = "PSI_FIVE.txt.gz",
+  three = "PSI_THREE.txt.gz",
+  mse = "PSI_MSE.txt.gz",
+  mxe = "PSI_MXE.txt.gz",
+  ri = "PSI_RI.txt.gz"
 )
 ```
 Define functions
@@ -69,7 +69,7 @@ read_sample <- function(sample_id, sample_path, psi_files = psi_file_list) {
   file_paths <- file.path(sample_path, psi_files)
   # name each PSI table file path by event type
   names(file_paths) <- names(psi_files)
-  
+
   # read in files
   purrr::map(file_paths, \(file) {
       readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
@@ -79,7 +79,7 @@ read_sample <- function(sample_id, sample_path, psi_files = psi_file_list) {
       # merge individual event type PSI tables to get one PSI table per sample
       dplyr::bind_rows(.id = "event_type")
 }
-  
+
 ```
 
 Read in files
@@ -97,7 +97,7 @@ sample_psi_tables <- purrr::map2(samples, sample_paths, read_sample) |>
 Combine PSI dataframes for all samples into one
 
 ```{r}
-# combine individual event types' PSI tables into one 
+# combine individual event types' PSI tables into one
 merged_psi <- sample_psi_tables |>
   purrr::reduce( \(x, y) {
     dplyr::full_join(x, y, by = c("pos_id", "gene_id", "label", "event_type") )

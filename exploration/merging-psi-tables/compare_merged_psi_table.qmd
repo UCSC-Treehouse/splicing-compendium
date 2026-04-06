@@ -127,6 +127,7 @@ shared_events <- dplyr::full_join(
 
 # Previously we wanted to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
 # however due to the size of the table, I receive a memory error: Error: vector memory limit of 16.0 Gb reached, see mem.maxVSize()
+# I pivot the summary table later on instead
 ```
 
 Print summary of event types in the shared events table
@@ -160,6 +161,7 @@ ggplot(shared_events_summary, aes(fill = event_type, x = label, y = percent)) +
   plot_theme
 ```
 Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, and ALE events are the most abundant.
+These may the the event types we want to prioritize in a biology vignette if we decide to merge the PSI tables.
 
 ## Examine splice events only found in combined or separate splice tables
 
@@ -188,10 +190,8 @@ length(combined_only_list)
 
 Print the number of annotated vs. unannotated events across all event types in each table
 
-Fraction of annotated vs. unannotated events in the combined table
-
 ```{r}
-# filter for pos_ids unique to the combined dataframe
+# filter for pos_ids unique to the combined or separate dataframes
 psi_summary <- shared_events |>
   dplyr::mutate(
     combined_only = pos_id %in% combined_only_list,

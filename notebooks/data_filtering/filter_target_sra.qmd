@@ -14,16 +14,20 @@ The goals of this notebook are to filter the following SRA tables for files to d
 
 -   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing differential splicing
 
-Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance. We have access to 5 more instances, which equate to 13.2TB of space
+Additionally, this notebook obtains an estimate of how much space files will take up. 
+There is 2.64Tb of free space on the huge OpenStack instance. 
+We have access to 5 more instances, which equate to 13.2TB of space
 
 Metadata used for this analysis are:
 
--   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
+-   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. 
+Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
 -   `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
 
 We also use the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, which describes what library prep approach was used for some samples.
 
-From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
+From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). 
+An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
 
 ## Setup
 
@@ -141,8 +145,8 @@ target_filtered_sra |> dplyr::count(study_name, `Center Name`)
 
 ## Divide TARGET accessions into groups of 1.2TB samples
 
-For partitioning data onto OpenStack instances, we need to divide the TARGET accessions based on how much space they will take up.
-So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (~1.2TB)
+For partitioning data onto OpenStack instances, we need to divide the TARGET accessions based on how much space they will take up. 
+So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
 
 ```{r}
 # define target sum of data
@@ -155,6 +159,16 @@ target_filtered_sra <- target_filtered_sra |>
     # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
     batch_id = ceiling(cumulative_tb / 1.2)
   ) 
+```
+
+Summarize number of accessions in each batch
+
+```{r}
+target_filtered_sra |>
+  dplyr::summarise(
+    .by = batch_id,
+    n = dplyr::n()
+  )
 ```
 
 Export filtered TARGET accession file

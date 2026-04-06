@@ -11,9 +11,37 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
-Before doing so, we use this notebook to test that merging PSI tables and junction bedfiles from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.  
+Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.  
 
 ## Set up
+```{r, setup, include=FALSE}
+# load libraries
+library(ggplot2)
+
+# define global size for plots
+global_size <- 20
+
+# define plot theme (size) presets
+plot_theme = list(
+ theme_bw(),
+ theme(
+   legend.position = "right",
+   axis.title = element_text(size = global_size),
+   plot.title = element_text(size = global_size),
+   axis.text = element_text(size = global_size),
+   axis.text.x = element_text(
+     hjust = 1,
+     margin = margin(t = 0, r = 80, b = 0, l = 0),
+     size = global_size
+   ),
+   legend.title = element_text(size=global_size),
+   legend.text=element_text(size=global_size - 8)
+ )
+)
+
+# color palette for splice event types
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+```
 
 ## Directories and files
 
@@ -55,13 +83,9 @@ names(shiba_psi_paths) <- names(psi_files)
 Read in files
 
 ```{r}
-
-## read in splice data from separate shiba run
-
-# read merged splice table from separate runs
+# read merged splice table from separate runs of Shiba on the TARGET pilot samples
 separate_psi_table <- readr::read_tsv(separate_psi_file)
 
-## read in splice data from combined shiba run
 # read in combined splice results to compare against separate results
 combined_splice_results_paths <- shiba_psi_paths |>
   purrr::map(\(path){
@@ -107,13 +131,35 @@ shared_events <- dplyr::full_join(
 
 Print summary of event types in the shared events table
 ```{r}
-shared_events |>
+shared_events_summary <- shared_events |>
   dplyr::summarise(.by = c(event_type, label),
+                   # count number of events in each event type and annotation category
                    count = dplyr::n()) |>
+  # take the percent of shared events in each category and annotation type over all events in the shared table
   dplyr::mutate(percent = count / sum(count) * 100)
+
+shared_events_summary
 ```
 
-Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, ALE, and MSE events are the most abundant.
+### Visualize breakdown of shared events with stacked bar plots
+```{r}
+#| label: fig-shared_splice_events
+#| fig-width: 11
+#| fig-height: 8
+
+ggplot(shared_events_summary, aes(fill = event_type, x = label, y = percent)) +
+  geom_bar(position = "stack", stat = "identity") +
+  scale_fill_manual(values = cbPalette) +
+  plot_theme +
+  labs(
+    title = "% of splice events shared between combined and merged PSI tables",
+    x = "Annotation status of event",
+    y = "Percentage of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, and ALE events are the most abundant.
 
 ## Examine splice events only found in combined or separate splice tables
 
@@ -155,8 +201,11 @@ psi_summary <- shared_events |>
   dplyr::summarise(.by = c(label, event_type),
                    combined_only = sum(combined_only),
                    separate_only = sum(separate_only),
-                   # dplyr::n() gives the size of the group (annotated events or unannotated events)
+                   # dplyr::n() gives the size of the group 
+                   # (annotated events or unannotated events of a given event type)
                    total = dplyr::n(),
+                   # for each event type/annotation combination, 
+                   # give % of events only in combined or separate tables
                    combined_percent = combined_only / total * 100,
                    separate_percent = separate_only / total * 100)
 
@@ -165,3 +214,44 @@ psi_summary
 
 There are much more splice events only present in only the combined or separate PSI tables now
 The most abundant events present only in the separate PSI table are unannotated ALE (42%) and MXE (51%) events.
+
+### Visualize breakdown of unshared events with stacked bar plots
+
+```{r}
+#| label: fig-unshared_splice_events
+#| fig-width: 11
+#| fig-height: 8
+
+# prep summary data frame for plotting
+
+plot_psi_summary <- psi_summary |>
+  dplyr::select(label, event_type, combined_percent, separate_percent) |>
+  # concatenate label and event type columns into one
+  tidyr::unite(label_event_type, c("label", "event_type")) |>
+  # pivot longer
+  tidyr::pivot_longer(
+    cols = c(combined_percent, separate_percent),
+    names_to = "method",
+    names_pattern = "(combined|separate)*",
+    values_to = "percent"
+  )
+
+ggplot(plot_psi_summary, aes(fill = method, x = label_event_type, y = percent)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of splice events unique to combined PSI tables",
+    x = "Annotation status of event",
+    y = "Percent of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
+Merging separate PSI tables from many samples originating from diverse cancer types appears to introduce many events that are only found in the separate PSI tables that have been merged.
+When we take the fraction of how many events are only found in the separate tables for each splice event type + annotation status combination present in both separate and combined tables, 
+the majority of unique splice events in the separate tables are labeled unannotated, which is suspicious.
+From the exploration on IGV of unmatched unannotated events in the n = 2 case, most of the unannotated events did not look like real splice events.
+
+It is also concerning that we get around 20% of unannotated events that are only found in the combined tables. 
+We probably need to merge the junctions and GTF files from each OpenStack's shiba run in our compendium pipeline.

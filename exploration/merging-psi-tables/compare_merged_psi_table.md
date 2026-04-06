@@ -311,3 +311,100 @@ It is also concerning that we get around 20% of unannotated events that
 are only found in the combined tables. We probably need to merge the
 junctions and GTF files from each OpenStack’s shiba run in our
 compendium pipeline.
+
+### Check how similar PSI values of shared events are
+
+Plot correlations of PSI values
+
+pivot longer
+
+``` r
+long_shared_events <- shared_events |>
+  # randomly subset 2000 events otherwise memory becomes an issue
+  dplyr::slice_sample(n = 2000) |>
+  tidyr::pivot_longer(
+    cols = matches("_combined|_separate"),
+    names_to = c("sample", "method"),
+    values_to = "PSI",
+    names_pattern = "(.*)_(combined|separate)"
+  ) |>
+  tidyr:: pivot_wider(
+    names_from = method,
+    values_from = PSI
+  )
+```
+
+``` r
+long_shared_unannotated <- long_shared_events |>
+  dplyr::filter(label == "unannotated")
+
+  ggplot(long_shared_unannotated) +
+    aes(
+      # read in columns to use for x and y from input
+      x = combined,
+      y = separate,
+    ) +
+    geom_point(size = 0.5, alpha = 0.5) +
+    labs(
+      title = "Spearman correlation of unannotated shared splice events",
+      x = "Combined run PSI values",
+      y = "Separate run PSI values") +
+    facet_wrap(vars(event_type)) +
+    
+    ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
+```
+
+    Warning: Removed 61776 rows containing non-finite outside the scale range
+    (`stat_cor()`).
+
+    Warning: Removed 61776 rows containing missing values or values outside the scale range
+    (`geom_point()`).
+
+<div id="fig-unannotated_psi_correlation">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-unannotated_psi_correlation-1.png"
+id="fig-unannotated_psi_correlation" />
+
+Figure 3
+
+</div>
+
+Manipulate shared df to long format
+
+``` r
+long_shared_annotated <- long_shared_events |>
+  dplyr::filter(label == "annotated")
+
+
+  ggplot(long_shared_annotated) +
+    aes(
+      # read in columns to use for x and y from input
+      x = combined,
+      y = separate,
+    ) +
+    geom_point(size = 0.5, alpha = 0.5) +
+    labs(
+      title = "Spearman correlation of annotated shared splice events",
+      x = "Combined run PSI values",
+      y = "Separate run PSI values") +
+    facet_wrap(vars(event_type)) +
+    
+    ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
+```
+
+    Warning: Removed 85448 rows containing non-finite outside the scale range
+    (`stat_cor()`).
+
+    Warning: Removed 85448 rows containing missing values or values outside the scale range
+    (`geom_point()`).
+
+<div id="fig-annotated_psi_correlation">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-annotated_psi_correlation-1.png"
+id="fig-annotated_psi_correlation" />
+
+Figure 4
+
+</div>

@@ -11,9 +11,10 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
-Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.  
+Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.
 
 ## Set up
+
 ```{r, setup, include=FALSE}
 # load libraries
 library(ggplot2)
@@ -104,6 +105,7 @@ combined_splice_results_paths <- shiba_psi_paths |>
 # combine psi values of samples run together into one dataframe to compare against separate PSI dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
+
 ### Obtain dimensions of each PSI table
 
 ```{r}
@@ -137,6 +139,7 @@ shared_events <- dplyr::full_join(
 ```
 
 Print summary of event types in the shared events table
+
 ```{r}
 shared_events_summary <- shared_events |>
   dplyr::summarise(.by = c(event_type, label),
@@ -149,6 +152,7 @@ shared_events_summary
 ```
 
 ### Visualize breakdown of shared events with stacked bar plots
+
 ```{r}
 #| label: fig-shared_splice_events
 #| fig-width: 11
@@ -166,6 +170,7 @@ ggplot(shared_events_summary, aes(fill = event_type, x = label, y = percent)) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   plot_theme
 ```
+
 Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, and ALE events are the most abundant.
 These may the the event types we want to prioritize in a biology vignette if we decide to merge the PSI tables.
 
@@ -218,8 +223,7 @@ psi_summary <- shared_events |>
 psi_summary            
 ```
 
-There are much more splice events only present in only the combined or separate PSI tables now
-The most abundant events present only in the separate PSI table are unannotated ALE (42%) and MXE (51%) events.
+There are much more splice events only present in only the combined or separate PSI tables now The most abundant events present only in the separate PSI table are unannotated ALE (42%) and MXE (51%) events.
 
 ### Visualize breakdown of unshared events with stacked bar plots
 
@@ -255,17 +259,18 @@ ggplot(plot_psi_summary, aes(fill = method, x = label_event_type, y = percent)) 
 ```
 
 Merging separate PSI tables from many samples originating from diverse cancer types appears to introduce many events that are only found in the separate PSI tables that have been merged.
-When we take the fraction of how many events are only found in the separate tables for each splice event type + annotation status combination present in both separate and combined tables, 
-the majority of unique splice events in the separate tables are labeled unannotated, which is suspicious.
+When we take the fraction of how many events are only found in the separate tables for each splice event type + annotation status combination present in both separate and combined tables, the majority of unique splice events in the separate tables are labeled unannotated, which is suspicious.
 From the exploration on IGV of unmatched unannotated events in the n = 2 case, most of the unannotated events did not look like real splice events.
 
-It is also concerning that we get around 20% of unannotated events that are only found in the combined tables. 
+It is also concerning that we get around 20% of unannotated events that are only found in the combined tables.
 We probably need to merge the junctions and GTF files from each OpenStack's shiba run in our compendium pipeline.
 
 ### Check how similar PSI values of shared events are
+
 Plot correlations of PSI values
 
 pivot longer
+
 ```{r}
 
 
@@ -284,7 +289,6 @@ long_shared_events <- shared_events |>
     values_from = PSI
   )
 ```
-
 
 ```{r}
 #| label: fig-unannotated_psi_correlation
@@ -311,6 +315,7 @@ long_shared_unannotated <- long_shared_events |>
 ```
 
 Manipulate shared df to long format
+
 ```{r}
 #| label: fig-annotated_psi_correlation
 #| fig-width: 11
@@ -335,3 +340,19 @@ long_shared_annotated <- long_shared_events |>
     
     ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
 ```
+
+### Takeaways so far
+
+-   In the worst case scenario, about 50% of some splice event types across all unique events found in both the combined and separate (merged) tables are only found in the separate tables.
+This is concerning if we assume all events found only in the separate tables are false.
+
+-   Most of the events found only in the separate tables are unannotated events, which are the event types we are hoping to capture most in the splice compendium
+
+-   If we only look at splice events shared between both separate and combined PSI tables, the PSI values appear identical.
+We may be able to be more confident in our splice table if we filter out everything with NA values (limit ourselves to PSI values of events found in all samples),
+but this may severely shrink down the number of splice events in the compendium.
+
+A next step for this notebook will be to compare the number of NA values in each table (I suspect there will be many more NAs in the separate tables)
+
+Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.
+For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.

@@ -18,7 +18,7 @@ target_key="/home/ubuntu/prj_11732_D43588.ngc"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # Set paths as variables
-data_dir="../data/bulk"
+data_dir="../data"
 group_dir="${data_dir}/${1}"
 fastq_dir="${group_dir}/fastq"
 log_dir="../logs/${1}_download"

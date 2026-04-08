@@ -88,7 +88,6 @@ read_psi <- function(psi_path, psi_files = psi_file_list) {
       tidyr::pivot_longer(
         cols = contains("_PSI"),
         names_to = "sample",
-        names_pattern = "(.+)_PSI",
         values_to = "psi",
         values_transform = as.numeric
       )

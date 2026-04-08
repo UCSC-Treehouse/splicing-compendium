@@ -361,10 +361,10 @@ long_shared_unannotated <- long_shared_events |>
     ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
 ```
 
-    Warning: Removed 56144 rows containing non-finite outside the scale range
+    Warning: Removed 56449 rows containing non-finite outside the scale range
     (`stat_cor()`).
 
-    Warning: Removed 56144 rows containing missing values or values outside the scale range
+    Warning: Removed 56449 rows containing missing values or values outside the scale range
     (`geom_point()`).
 
 <div id="fig-unannotated_psi_correlation">
@@ -400,10 +400,10 @@ long_shared_annotated <- long_shared_events |>
     ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
 ```
 
-    Warning: Removed 90101 rows containing non-finite outside the scale range
+    Warning: Removed 91020 rows containing non-finite outside the scale range
     (`stat_cor()`).
 
-    Warning: Removed 90101 rows containing missing values or values outside the scale range
+    Warning: Removed 91020 rows containing missing values or values outside the scale range
     (`geom_point()`).
 
 <div id="fig-annotated_psi_correlation">
@@ -445,3 +445,52 @@ needed to truly ask how many “real” splice events are in each of the
 tables. For instance, we maybe would need to do this experiment on
 simulated reads where we know going in what all the transcripts are,
 which may be beyond the scope of this project.
+
+## Compare NA values in each table
+
+I am once again doing this witha. subset of 2000 events per table until
+I get around the memory issue
+
+``` r
+na_summary_df <- long_shared_events |>
+  # make it longer again so we can summarize by the method
+  tidyr::pivot_longer(
+    cols = c("combined", "separate"),
+    names_to = c("method")
+  ) |>
+  dplyr::summarise(
+    .by = c(event_type, label, method),
+    na_count = sum(is.na(dplyr::across(everything()))),
+    total = dplyr::n(),
+    percent_na = na_count / total * 100
+  ) |>
+  # concatenate label and event type columns into one again for easy plotting
+  tidyr::unite(label_event_type, c("label", "event_type"))
+
+
+ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of NA values in separate vs. combined dfs",
+    x = "Annotation status of event",
+    y = "Percent of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
+<div id="fig-percent_na_comparison">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-percent_na_comparison-1.png"
+id="fig-percent_na_comparison" />
+
+Figure 5
+
+</div>
+
+Similar to
+<a href="#fig-unshared_splice_events" class="quarto-xref">Figure 2</a> ,
+we see the NA values becoming more of an issue in unannotated event
+types.

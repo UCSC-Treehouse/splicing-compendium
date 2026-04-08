@@ -1,0 +1,15 @@
+{
+  "tool": {
+    "name": "Shiba",
+    "version": "v0.8.1"
+  },
+  "run": {
+    "command": "/mnt/splicing-compendium/.pixi/envs/default/bin/shiba.py -p 15 exploration/merging-psi-tables/target_pilot/shiba_config.yaml",
+    "start_time": "2026-03-31T23:10:15.531236",
+    "end_time": "2026-04-03T03:44:14.201384",
+    "duration_seconds": 189238.67
+  },
+  "experiment": {
+    "table_path": "exploration/merging-psi-tables/target_pilot/experiment.tsv"
+  }
+}

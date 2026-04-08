@@ -269,11 +269,9 @@ We probably need to merge the junctions and GTF files from each OpenStack's shib
 
 Plot correlations of PSI values
 
-pivot longer
+pivot longer to create scatter plots
 
 ```{r}
-
-
 
 long_shared_events <- shared_events |>
   # randomly subset 2000 events otherwise memory becomes an issue
@@ -289,6 +287,8 @@ long_shared_events <- shared_events |>
     values_from = PSI
   )
 ```
+
+Make scatter plot of unannotated events
 
 ```{r}
 #| label: fig-unannotated_psi_correlation
@@ -314,7 +314,7 @@ long_shared_unannotated <- long_shared_events |>
     ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
 ```
 
-Manipulate shared df to long format
+Make scatterplot of annotated events
 
 ```{r}
 #| label: fig-annotated_psi_correlation

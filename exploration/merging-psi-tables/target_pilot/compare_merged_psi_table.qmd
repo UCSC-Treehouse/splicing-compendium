@@ -41,7 +41,15 @@ plot_theme = list(
 )
 
 # color palette for splice event types
-cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+cbPalette <- c(
+afe = "#999999", 
+ale = "#E69F00", 
+five = "#56B4E9", 
+mse = "#009E73", 
+mxe = "#F0E442", 
+ri = "#0072B2", 
+se = "#D55E00", 
+three = "#CC79A7")
 ```
 
 ## Directories and files

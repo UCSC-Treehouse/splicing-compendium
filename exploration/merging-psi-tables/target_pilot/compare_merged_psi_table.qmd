@@ -18,6 +18,7 @@ Before doing so, we use this notebook to test that merging PSI tables from separ
 ```{r, setup, include=FALSE}
 # load libraries
 library(ggplot2)
+library(patchwork)
 
 # define global size for plots
 global_size <- 20
@@ -139,22 +140,27 @@ all_events <- dplyr::full_join(
   separate_psi_table,
   by = c("event_type", "pos_id", "gene_id", "label"),
   # label PSI values by table they came from 
-  suffix = c("_combined", "_separate"))
-
-# Previously we wanted to pivot this table longer so a "method" column tells us whether the values are from the combined or separate table
-# however due to the size of the table, I receive a memory error: Error: vector memory limit of 16.0 Gb reached, see mem.maxVSize()
-# I pivot the summary table later on instead
+  suffix = c("_combined", "_separate")) |>
+  # categorize events by whether they are in the combined or separate tables
+  dplyr::mutate(
+    combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
+    # separate events are counted if the values for the event are not all NA or -1 (indicating NA introduced from merging)
+    separate_event = ! dplyr::if_all(ends_with("_separate"), ~ sign(.) < 0 | is.na(.)),
+    shared_event = combined_event & separate_event
+  ) 
 ```
 
-Print summary of event types in the shared events table
+Print summary of percentage of each event types found in both methods, or in only one
 
 ```{r}
-all_events_summary <- all_events |>
-  dplyr::summarise(.by = c(event_type, label),
-                   # count number of events in each event type and annotation category
-                   count = dplyr::n()) |>
-  # take the percent of shared events in each category and annotation type over all events in the shared table
-  dplyr::mutate(percent = count / sum(count) * 100)
+all_events_summary <- all_events |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    count = dplyr::n(),
+    shared_percent = sum(shared_event) / count * 100,
+    combined_only_percent = ( sum(combined_event) - sum(shared_event) ) / count * 100,
+    separate_only_percent = ( sum(separate_event) - sum(shared_event) ) / count * 100,
+)
 
 all_events_summary
 ```
@@ -166,21 +172,34 @@ all_events_summary
 #| fig-width: 11
 #| fig-height: 8
 
-ggplot(all_events_summary, aes(fill = event_type, x = label, y = percent)) +
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_manual(values = cbPalette) +
+# pivot summary plot longer so we can make grouped bar plots of the percentages
+long_all_events_summary <- all_events_summary |>
+  tidyr::pivot_longer(
+    cols = c(shared_percent, combined_only_percent, separate_only_percent),
+    names_to = "category",
+    values_to = "percent"
+  ) |>
+  # concatenate event type and label so unannotated and annotated events can be plotted together
+  tidyr::unite(label_event_type, c("label", "event_type"))
+
+ggplot(long_all_events_summary, aes(fill = category, x = label_event_type, y = percent)) +
+  geom_bar(position = "dodge", stat = "identity") +
   plot_theme +
   labs(
-    title = "% of splice events shared between combined and merged PSI tables",
+    title = "% of splice events only in combined PSI tables",
     x = "Annotation status of event",
     y = "Percentage of events"
   ) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   plot_theme
+
+
 ```
 
 Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, and ALE events are the most abundant.
 These may the the event types we want to prioritize in a biology vignette if we decide to merge the PSI tables.
+
+Plot % breakdw
 
 ## Examine splice events only found in combined or separate splice tables
 

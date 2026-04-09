@@ -134,7 +134,7 @@ To help us prioritize what splice event types we may be the most confident in af
 
 ```{r}
 # obtain df of splice events that are shared between both combined and separate tables
-shared_events <- dplyr::full_join(
+all_events <- dplyr::full_join(
   combined_psi_table, 
   separate_psi_table,
   by = c("event_type", "pos_id", "gene_id", "label"),
@@ -149,14 +149,14 @@ shared_events <- dplyr::full_join(
 Print summary of event types in the shared events table
 
 ```{r}
-shared_events_summary <- shared_events |>
+all_events_summary <- all_events |>
   dplyr::summarise(.by = c(event_type, label),
                    # count number of events in each event type and annotation category
                    count = dplyr::n()) |>
   # take the percent of shared events in each category and annotation type over all events in the shared table
   dplyr::mutate(percent = count / sum(count) * 100)
 
-shared_events_summary
+all_events_summary
 ```
 
 ### Visualize breakdown of shared events with stacked bar plots
@@ -166,7 +166,7 @@ shared_events_summary
 #| fig-width: 11
 #| fig-height: 8
 
-ggplot(shared_events_summary, aes(fill = event_type, x = label, y = percent)) +
+ggplot(all_events_summary, aes(fill = event_type, x = label, y = percent)) +
   geom_bar(position = "stack", stat = "identity") +
   scale_fill_manual(values = cbPalette) +
   plot_theme +
@@ -211,7 +211,7 @@ Print the number of annotated vs. unannotated events across all event types in e
 
 ```{r}
 # filter for pos_ids unique to the combined or separate dataframes
-psi_summary <- shared_events |>
+psi_summary <- all_events |>
   dplyr::mutate(
     combined_only = pos_id %in% combined_only_list,
     separate_only = pos_id %in% separate_only_list
@@ -281,7 +281,7 @@ pivot longer to create scatter plots
 
 ```{r}
 
-long_shared_events <- shared_events |>
+long_all_events <- all_events |>
   # randomly subset 2000 events otherwise memory becomes an issue
   dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
@@ -303,7 +303,7 @@ Make scatter plot of unannotated events
 #| fig-width: 11
 #| fig-height: 8
 
-long_shared_unannotated <- long_shared_events |>
+long_shared_unannotated <- long_all_events |>
   dplyr::filter(label == "unannotated")
 
   ggplot(long_shared_unannotated) +
@@ -329,7 +329,7 @@ Make scatterplot of annotated events
 #| fig-width: 11
 #| fig-height: 8
 
-long_shared_annotated <- long_shared_events |>
+long_shared_annotated <- long_all_events |>
   dplyr::filter(label == "annotated")
 
 

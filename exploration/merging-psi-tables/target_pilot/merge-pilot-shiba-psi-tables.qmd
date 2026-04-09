@@ -108,7 +108,7 @@ We will also replace the `NA` values with `-1` to indicate NA PSI values assigne
 sample_psi_long <- purrr::map(sample_paths, read_psi) |>
   # combine (sample info is already in the table from the
   # `_PSI` column names and the pivot_longer step in the read_psi functiont)
-  purrr::bind_rows() |>
+  purrr::list_rbind() |>
   # replace NA values with -1 to indicate NA PSI values assigned by shiba (e.g., due to low coverage)
   tidyr::replace_na(list(psi = -1))
 ```

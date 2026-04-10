@@ -354,26 +354,62 @@ which may be beyond the scope of this project.
 
 ## Compare NA values in each table
 
-I am once again doing this witha. subset of 2000 events per table until
-I get around the memory issue
+Create summary table of % NAs from shiba or from merging
 
 ``` r
-na_summary_df <- long_shared_events |>
-  # make it longer again so we can summarize by the method
-  tidyr::pivot_longer(
-    cols = c("combined", "separate"),
-    names_to = c("method")
-  ) |>
+na_summary_df <- long_all_events |>
   dplyr::summarise(
     .by = c(event_type, label, method),
     na_count = sum(is.na(dplyr::across(everything()))),
+    merge_na_count = sum(PSI == -1, na.rm = TRUE),
     total = dplyr::n(),
-    percent_na = na_count / total * 100
+    percent_na = na_count / total * 100,
+    percent_merge_na = merge_na_count / total * 100
   ) |>
   # concatenate label and event type columns into one again for easy plotting
   tidyr::unite(label_event_type, c("label", "event_type"))
 
+na_summary_df
+```
 
+| label_event_type | method | na_count | merge_na_count | total | percent_na | percent_merge_na |
+|:---|:---|---:|---:|---:|---:|---:|
+| annotated_se | combined | 6166179 | 0 | 9228736 | 66.81499 | 0.0000000 |
+| annotated_se | separate | 4251850 | 2031708 | 9228736 | 46.07186 | 22.0150192 |
+| unannotated_se | combined | 1581150 | 0 | 2896256 | 54.59290 | 0.0000000 |
+| unannotated_se | separate | 2823423 | 10936 | 2896256 | 97.48527 | 0.3775909 |
+| unannotated_afe | combined | 6076921 | 0 | 8590208 | 70.74242 | 0.0000000 |
+| unannotated_afe | separate | 8448581 | 36929 | 8590208 | 98.35130 | 0.4298965 |
+| annotated_afe | combined | 12185042 | 0 | 15895616 | 76.65662 | 0.0000000 |
+| annotated_afe | separate | 8723340 | 3419585 | 15895616 | 54.87891 | 21.5127555 |
+| annotated_ale | combined | 11709340 | 0 | 13759064 | 85.10274 | 0.0000000 |
+| annotated_ale | separate | 8026483 | 3273806 | 13759064 | 58.33597 | 23.7938133 |
+| unannotated_ale | combined | 3836807 | 0 | 5485392 | 69.94590 | 0.0000000 |
+| unannotated_ale | separate | 5399971 | 14358 | 5485392 | 98.44275 | 0.2617498 |
+| annotated_five | combined | 2114960 | 0 | 3128928 | 67.59376 | 0.0000000 |
+| annotated_five | separate | 1972669 | 442408 | 3128928 | 63.04616 | 14.1392835 |
+| unannotated_five | combined | 980836 | 0 | 1480600 | 66.24585 | 0.0000000 |
+| unannotated_five | separate | 1454411 | 5200 | 1480600 | 98.23119 | 0.3512090 |
+| annotated_three | combined | 2369673 | 0 | 3580808 | 66.17705 | 0.0000000 |
+| annotated_three | separate | 2078669 | 535957 | 3580808 | 58.05028 | 14.9674878 |
+| unannotated_three | combined | 959643 | 0 | 1514832 | 63.34980 | 0.0000000 |
+| unannotated_three | separate | 1484626 | 5380 | 1514832 | 98.00598 | 0.3551549 |
+| annotated_mse | combined | 3329604 | 0 | 5642912 | 59.00507 | 0.0000000 |
+| annotated_mse | separate | 2086776 | 1435982 | 5642912 | 36.98048 | 25.4475349 |
+| unannotated_mse | combined | 820135 | 0 | 1710192 | 47.95573 | 0.0000000 |
+| unannotated_mse | separate | 1679663 | 3397 | 1710192 | 98.21488 | 0.1986327 |
+| annotated_mxe | combined | 65729 | 0 | 84744 | 77.56183 | 0.0000000 |
+| annotated_mxe | separate | 42929 | 17861 | 84744 | 50.65727 | 21.0764184 |
+| unannotated_mxe | combined | 34108 | 0 | 42328 | 80.58023 | 0.0000000 |
+| unannotated_mxe | separate | 41661 | 106 | 42328 | 98.42421 | 0.2504253 |
+| unannotated_ri | combined | 2768640 | 0 | 4543880 | 60.93119 | 0.0000000 |
+| unannotated_ri | separate | 4076340 | 174834 | 4543880 | 89.71056 | 3.8476808 |
+| annotated_ri | combined | 841155 | 0 | 1438712 | 58.46584 | 0.0000000 |
+| annotated_ri | separate | 225301 | 580436 | 1438712 | 15.65991 | 40.3441411 |
+
+Plot % NAs from shiba
+
+``` r
 ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) +
   geom_bar(position = "dodge", stat = "identity") +
   plot_theme +
@@ -392,11 +428,38 @@ ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) 
 src="compare_merged_psi_table_files/figure-commonmark/fig-percent_na_comparison-1.png"
 id="fig-percent_na_comparison" />
 
+Figure 4
+
+</div>
+
+Similar to unannotated event types being overrepresented in the separate
+PSI table in **?@fig-unshared_splice_events** , we see the NA values
+becoming more of an issue in unannotated event types in the separate PSI
+table.
+
+Plot % NAs from merging tables
+
+``` r
+ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_merge_na)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of NA values from merging tables in separate vs. combined dfs",
+    x = "Annotation status of event",
+    y = "Percent of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
+<div id="fig-percent_merge_na_comparison">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-percent_merge_na_comparison-1.png"
+id="fig-percent_merge_na_comparison" />
+
 Figure 5
 
 </div>
 
-Similar to
-<a href="#fig-unshared_splice_events" class="quarto-xref">Figure 2</a> ,
-we see the NA values becoming more of an issue in unannotated event
-types.
+A good portion of NA values come from merging in the separate PSI tables

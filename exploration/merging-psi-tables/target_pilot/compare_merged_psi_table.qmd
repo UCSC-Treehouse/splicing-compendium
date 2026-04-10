@@ -196,22 +196,10 @@ ggplot(long_all_events_summary, aes(fill = category, x = label_event_type, y = p
 
 ```
 
-Of the events that are the same between the combined and separate PSI tables, annotated SE, AFE, and ALE events are the most abundant.
-These may the the event types we want to prioritize in a biology vignette if we decide to merge the PSI tables.
-
-Plot % breakdw
-
-## Examine splice events only found in combined or separate splice tables
-
-### Examine splice events only present in each PSI table
-
-```{r}
-# produce dataframe of elements in combined splice results reference dataframe
-combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
-
-# produce dataframe of elements in merged splice results dataframe but not in the reference df
-separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
-```
+The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.
+The capturing of unannotated event types suffers more from merging separate PSI tables.
+In particular, there are more ALE and MXE events only found in the separate PSI tables.
+For other unannotated events, there are 10-30% that are only found in the separate PSI.
 
 ### Obtain the number of splice events only found in each table
 
@@ -224,85 +212,14 @@ length(separate_only_list)
 length(combined_only_list)
 ```
 
-### Examine percentage of each splice event type in each PSI table
-
-Print the number of annotated vs. unannotated events across all event types in each table
-
-```{r}
-# filter for pos_ids unique to the combined or separate dataframes
-psi_summary <- all_events |>
-  dplyr::mutate(
-    combined_only = pos_id %in% combined_only_list,
-    separate_only = pos_id %in% separate_only_list
-  ) |>
-# print summary of how many unique events with values that are novel vs. unannotated
-  dplyr::summarise(.by = c(label, event_type),
-                   combined_only = sum(combined_only),
-                   separate_only = sum(separate_only),
-                   # dplyr::n() gives the size of the group 
-                   # (annotated events or unannotated events of a given event type)
-                   total = dplyr::n(),
-                   # for each event type/annotation combination, 
-                   # give % of events only in combined or separate tables
-                   combined_percent = combined_only / total * 100,
-                   separate_percent = separate_only / total * 100)
-
-psi_summary            
-```
-
-There are much more splice events only present in only the combined or separate PSI tables now The most abundant events present only in the separate PSI table are unannotated ALE (42%) and MXE (51%) events.
-
-### Visualize breakdown of unshared events with stacked bar plots
-
-```{r}
-#| label: fig-unshared_splice_events
-#| fig-width: 11
-#| fig-height: 8
-
-# prep summary data frame for plotting
-
-plot_psi_summary <- psi_summary |>
-  dplyr::select(label, event_type, combined_percent, separate_percent) |>
-  # concatenate label and event type columns into one
-  tidyr::unite(label_event_type, c("label", "event_type")) |>
-  # pivot longer
-  tidyr::pivot_longer(
-    cols = c(combined_percent, separate_percent),
-    names_to = "method",
-    names_pattern = "(combined|separate)*",
-    values_to = "percent"
-  )
-
-ggplot(plot_psi_summary, aes(fill = method, x = label_event_type, y = percent)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of splice events unique to combined PSI tables",
-    x = "Annotation status of event",
-    y = "Percent of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
-```
-
-Merging separate PSI tables from many samples originating from diverse cancer types appears to introduce many events that are only found in the separate PSI tables that have been merged.
-When we take the fraction of how many events are only found in the separate tables for each splice event type + annotation status combination present in both separate and combined tables, the majority of unique splice events in the separate tables are labeled unannotated, which is suspicious.
-From the exploration on IGV of unmatched unannotated events in the n = 2 case, most of the unannotated events did not look like real splice events.
-
-It is also concerning that we get around 20% of unannotated events that are only found in the combined tables.
-We probably need to merge the junctions and GTF files from each OpenStack's shiba run in our compendium pipeline.
 
 ### Check how similar PSI values of shared events are
 
-Plot correlations of PSI values
-
-pivot longer to create scatter plots
+Pivot longer to create scatter plots
 
 ```{r}
 
 long_all_events <- all_events |>
-  # randomly subset 2000 events otherwise memory becomes an issue
-  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -370,7 +287,7 @@ long_shared_annotated <- long_all_events |>
 
 ### Takeaways so far
 
--   In the worst case scenario, about 50% of some splice event types across all unique events found in both the combined and separate (merged) tables are only found in the separate tables.
+-   In the worst case scenario, about 40% of some splice event types across all unique events found in both the combined and separate (merged) tables are only found in the separate tables.
 This is concerning if we assume all events found only in the separate tables are false.
 
 -   Most of the events found only in the separate tables are unannotated events, which are the event types we are hoping to capture most in the splice compendium

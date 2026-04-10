@@ -18,7 +18,6 @@ Before doing so, we use this notebook to test that merging PSI tables from separ
 ```{r, setup, include=FALSE}
 # load libraries
 library(ggplot2)
-library(patchwork)
 
 # define global size for plots
 global_size <- 20
@@ -43,13 +42,13 @@ plot_theme = list(
 
 # color palette for splice event types
 cbPalette <- c(
-afe = "#999999", 
-ale = "#E69F00", 
-five = "#56B4E9", 
-mse = "#009E73", 
-mxe = "#F0E442", 
-ri = "#0072B2", 
-se = "#D55E00", 
+afe = "#999999",
+ale = "#E69F00",
+five = "#56B4E9",
+mse = "#009E73",
+mxe = "#F0E442",
+ri = "#0072B2",
+se = "#D55E00",
 three = "#CC79A7")
 ```
 
@@ -118,7 +117,7 @@ combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to 
 ### Obtain dimensions of each PSI table
 
 ```{r}
-# dimensions of separate PSI table 
+# dimensions of separate PSI table
 dim(separate_psi_table)
 ```
 
@@ -136,10 +135,10 @@ To help us prioritize what splice event types we may be the most confident in af
 ```{r}
 # obtain df of splice events that are shared between both combined and separate tables
 all_events <- dplyr::full_join(
-  combined_psi_table, 
+  combined_psi_table,
   separate_psi_table,
   by = c("event_type", "pos_id", "gene_id", "label"),
-  # label PSI values by table they came from 
+  # label PSI values by table they came from
   suffix = c("_combined", "_separate")) |>
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
@@ -147,7 +146,7 @@ all_events <- dplyr::full_join(
     # separate events are counted if the values for the event are not all NA or -1 (indicating NA introduced from merging)
     separate_event = ! dplyr::if_all(ends_with("_separate"), ~ sign(.) < 0 | is.na(.)),
     shared_event = combined_event & separate_event
-  ) 
+  )
 ```
 
 Print summary of percentage of each event types found in both methods, or in only one
@@ -205,10 +204,10 @@ For other unannotated events, there are 10-30% that are only found in the separa
 
 ```{r}
 # events only present in separate tables
-# Number of splice events only in separate PSI table 
+# Number of splice events only in separate PSI table
 length(separate_only_list)
 
-# Number of splice events only in combined PSI table 
+# Number of splice events only in combined PSI table
 length(combined_only_list)
 ```
 
@@ -254,7 +253,7 @@ long_shared_unannotated <- long_all_events |>
       x = "Combined run PSI values",
       y = "Separate run PSI values") +
     facet_wrap(vars(event_type)) +
-    
+
     ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
 ```
 
@@ -281,7 +280,7 @@ long_shared_annotated <- long_all_events |>
       x = "Combined run PSI values",
       y = "Separate run PSI values") +
     facet_wrap(vars(event_type)) +
-    
+
     ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
 ```
 

@@ -433,9 +433,8 @@ Figure 4
 </div>
 
 Similar to unannotated event types being overrepresented in the separate
-PSI table in **?@fig-unshared_splice_events** , we see the NA values
-becoming more of an issue in unannotated event types in the separate PSI
-table.
+PSI table, we see the NA values becoming more of an issue in unannotated
+event types in the separate PSI table.
 
 Plot % NAs from merging tables
 

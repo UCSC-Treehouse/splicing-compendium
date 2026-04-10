@@ -225,6 +225,7 @@ Pivot longer to create scatter plots
 ```{r}
 
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -310,28 +311,29 @@ Another note here is that we assume the splice events in the combined table are 
 For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.
 
 ## Compare NA values in each table
-I am once again doing this witha. subset of 2000 events per table until I get around the memory issue
 
+Create summary table of % NAs from shiba or from merging
 ```{r}
-#| label: fig-percent_na_comparison
-#| fig-width: 11
-#| fig-height: 8
-
-na_summary_df <- long_shared_events |>
-  # make it longer again so we can summarize by the method
-  tidyr::pivot_longer(
-    cols = c("combined", "separate"),
-    names_to = c("method")
-  ) |>
+na_summary_df <- long_all_events |>
   dplyr::summarise(
     .by = c(event_type, label, method),
     na_count = sum(is.na(dplyr::across(everything()))),
+    merge_na_count = sum(PSI == -1, na.rm = TRUE),
     total = dplyr::n(),
-    percent_na = na_count / total * 100
+    percent_na = na_count / total * 100,
+    percent_merge_na = merge_na_count / total * 100
   ) |>
   # concatenate label and event type columns into one again for easy plotting
   tidyr::unite(label_event_type, c("label", "event_type"))
 
+na_summary_df
+```
+
+Plot % NAs from shiba
+```{r}
+#| label: fig-percent_na_comparison
+#| fig-width: 11
+#| fig-height: 8
 
 ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) +
   geom_bar(position = "dodge", stat = "identity") +
@@ -345,4 +347,24 @@ ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) 
   plot_theme
 ```
 
-Similar to @fig-unshared_splice_events , we see the NA values becoming more of an issue in unannotated event types.
+Similar to unannotated event types being overrepresented in the separate PSI table in  @fig-unshared_splice_events , we see the NA values becoming more of an issue in unannotated event types in the separate PSI table.
+
+
+Plot % NAs from merging tables
+```{r}
+#| label: fig-percent_merge_na_comparison
+#| fig-width: 11
+#| fig-height: 8
+
+ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_merge_na)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of NA values from merging tables in separate vs. combined dfs",
+    x = "Annotation status of event",
+    y = "Percent of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+A good portion of NA values come from merging in the separate PSI tables

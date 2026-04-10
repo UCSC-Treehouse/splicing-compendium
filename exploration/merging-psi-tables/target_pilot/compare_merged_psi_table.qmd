@@ -167,7 +167,7 @@ all_events_summary
 ### Visualize breakdown of shared events with stacked bar plots
 
 ```{r}
-#| label: fig-shared_splice_events
+#| label: fig-splice_events_breakdown
 #| fig-width: 11
 #| fig-height: 8
 

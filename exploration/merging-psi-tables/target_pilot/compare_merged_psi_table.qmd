@@ -203,6 +203,12 @@ For other unannotated events, there are 10-30% that are only found in the separa
 ### Obtain the number of splice events only found in each table
 
 ```{r}
+# produce dataframe of elements in combined splice results reference dataframe
+combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
+
+# produce dataframe of elements in merged splice results dataframe but not in the reference df
+separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
+
 # events only present in separate tables
 # Number of splice events only in separate PSI table
 length(separate_only_list)

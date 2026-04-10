@@ -346,7 +346,7 @@ ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) 
   plot_theme
 ```
 
-Similar to unannotated event types being overrepresented in the separate PSI table in  @fig-unshared_splice_events , we see the NA values becoming more of an issue in unannotated event types in the separate PSI table.
+Similar to unannotated event types being overrepresented in the separate PSI table, we see the NA values becoming more of an issue in unannotated event types in the separate PSI table.
 
 
 Plot % NAs from merging tables

@@ -1,0 +1,415 @@
+---
+title: Filtering GTEX and TARGET samples from SRA
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+The goals of this notebook are to filter the following SRA tables for files to download:
+
+-   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing splicing
+
+-   GTEX SRA table and metadata matching ages to subject IDs, for samples from the youngest donors
+
+Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance.
+
+Metadata used for this analysis are:
+
+-   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
+-   `GTEX_SraRunTable.csv`, metadata file of dbGaP accession IDs containing GTEX samples.
+-   `GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt`, public annotation file consisting of GTEX sample IDs and their ages in 10-year brackets, obtained from <https://storage.googleapis.com/adult-gtex/annotations/v10/metadata-files/GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt> , which is accessible by clicking the download icon next to "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt" on the [GTEX v10 metadata page](https://gtexportal.org/home/downloads/adult-gtex/metadata). The download command for this is in `data/scripts/00-reference_download.sh`.
+
+## Setup
+
+```{r, setup, include=FALSE}
+# set seed for random subsampling of TARGET dataset
+set.seed(1)
+
+# load libraries
+library(ggplot2)
+```
+
+## Read in input and output paths
+
+Read in directory and file paths
+
+```{r}
+# find the project directory
+base_dir <- here::here()
+
+# find the root-level repo directory
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+# define metadata directory
+metadata_dir <- file.path(repo_root, "data/metadata")
+gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+
+# define paths to input files
+target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
+gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
+gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
+
+# define path to output files
+target_accession_path <- file.path(gtex_target_metadata_dir, "target_accessions.tsv")
+gtex_accession_path <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
+
+# read in files as variables
+target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
+
+gtex_sra <- readr::read_csv(gtex_sra_file, col_types = readr::cols(Bytes = "d", .default = "c")) |>
+  dplyr::rename(SUBJID = submitted_subject_id)
+
+gtex_ages <- readr::read_tsv(gtex_ages_file, col_types = readr::cols(.default = "c"))
+```
+
+# Filtering GTEX samples for download
+
+Combine GTEX age table with GTEX accessions to filter by age and check how many samples of each age bracket are represented by each tumor type
+
+```{r}
+# Merge GTEX SRA table with ages metadata to associate IDs with ages
+gtex_sra_ages <- gtex_sra |>
+  dplyr::left_join(gtex_ages, by = "SUBJID") |>
+  dplyr::filter(
+    analyte_type == "RNA:Total RNA",
+    # Exclude cell line samples
+    !grepl("Cells", body_site)
+  ) |>
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate)
+
+# Summarize number of samples per tissue type in each age bracket
+gtex_ages_summary <- gtex_sra_ages |>
+  dplyr::group_by(body_site, AGE) |>
+  dplyr::summarise(age_count = dplyr::n())
+```
+
+check distribution of accession IDs in each version number before filtering out cell lines. Only versions up to 4 are recorded, all others are NA
+
+```{r}
+gtex_sra |>
+  dplyr::group_by(version) |>
+  dplyr::summarise(version_count = dplyr::n())
+```
+
+Check distribution of GTEX create dates for accessions without version number, after filtering out cell line data. Unfortunately, no creation date is recorded for versions above 4.
+
+```{r}
+gtex_sra_ages |>
+  dplyr::filter(is.na(version)) |>
+  dplyr::group_by(create_date) |>
+  dplyr::summarise(date_count = dplyr::n())
+```
+
+Check distribution of GTEX release dates of accession IDs without version numbers. The release date for version 6p1 is 2015 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v6.p1)), so these values represent samples from later versions that are only accessible on AnVIL.
+
+```{r}
+gtex_sra_ages |>
+  dplyr::mutate(ReleaseDate = stringr::str_remove(ReleaseDate, "-.*")) |>
+  dplyr::group_by(ReleaseDate) |>
+  dplyr::summarise(date_count = dplyr::n())
+```
+
+Plot distribution of ages across tissue types in GTEX to visually check age bins in each tissue type.
+
+There appear to be samples in the youngest age bracket (20-29 years) for every tissue type, except for "Cervix - Endocervix". Additionally, the next youngest age bracket for "Cervix - Endocervix" samples is 40-49 years, instead of 30-39 years.
+
+```{r}
+#| label: fig-gtex_age_distribution
+
+ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_color_brewer(palette = "Set1") +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(size = 11),
+    axis.text = element_text(size = 6),
+    axis.text.x = element_text(
+      hjust = 1,
+      margin = margin(t = 0, r = 80, b = 0, l = 0),
+      size = 5
+    )
+  ) +
+  labs(
+    title = "Age distribution of GTEX noncancerous tissue types",
+    x = "Tissue type of GTEX sample",
+    y = "# samples in each age category"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  coord_cartesian(
+    xlim = NULL,
+    ylim = c(0, 25),
+    expand = TRUE,
+    default = FALSE,
+    clip = "on"
+  )
+```
+
+Plot distribution of ages as a percent stacked bar plot.
+
+```{r}
+#| label: fig-gtex_age_dist_stacked_bar
+
+ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
+  geom_bar(position = "fill", stat = "identity") +
+  scale_color_brewer(palette = "Set1") +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(size = 11),
+    axis.text = element_text(size = 6),
+    axis.text.x = element_text(
+      hjust = 1,
+      margin = margin(t = 0, r = 80, b = 0, l = 0),
+      size = 5
+    )
+  ) +
+  labs(
+    title = "Age distribution of GTEX noncancerous tissue types",
+    x = "Tissue type of GTEX sample",
+    y = "Fraction of samples"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45))
+```
+
+Estimate amount of space GTEX samples will take up if cell lines and version numbers above 4 are excluded
+
+```{r}
+gtex_sra_version_filtered <- gtex_sra_ages |>
+  dplyr::filter(version <= 6)
+
+# estimate amount of space files will take up
+gtex_sra_version_filtered_space <- (sum(gtex_sra_version_filtered$Bytes) / 1e12)
+paste0("About ", gtex_sra_version_filtered_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Print number of samples in all tissue types after excluding cell lines and version numbers above 4
+
+```{r n_in_each_tissue_type_after_version_filtering}
+gtex_sra_ages |>
+  dplyr::filter(version <= 6) |>
+  dplyr::group_by(body_site) |>
+  dplyr::summarize(n_after_excluding_versions = dplyr::n())
+```
+
+Estimate amount of space GTEX samples will take up if only cell lines are excluded
+
+```{r}
+# estimate amount of space files will take up
+gtex_sra_space <- (sum(gtex_sra_ages$Bytes) / 1e12)
+paste0("About ", gtex_sra_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Print number of samples in each tissue type of full GTEX dataset, excluding cell lines only
+
+```{r n-in-each-tissuetype}
+gtex_sra_ages |>
+  dplyr::group_by(body_site) |>
+  dplyr::summarize(n = dplyr::n())
+```
+
+Filter for GTEX samples in the youngest age brackets for each tissue type. Subset samples by sorting data by age and taking lowest 7 values per tissue type by minimum age.
+
+```{r}
+gtex_age_subsampled <- gtex_sra_ages |>
+  # filter for samples from GTEX version 6 or below (versions above this value are stored in AnVIL and cannot be accessed through sra-toolkit)
+  # Only versions up to 4 are recorded in this metadata, all other samples have an NA value for this column
+  dplyr::filter(version <= 6) |>
+  # take smallest age in each bracket and convert to numeric for slicing
+  dplyr::mutate(
+    age_min = as.numeric(stringr::str_split_i(AGE, "-", 1))
+  ) |>
+  # select rows with smallest age_min while ignoring ties
+  dplyr::slice_min(age_min, n = 7, with_ties = FALSE, by = body_site)
+
+# count how many rows there are
+paste0("There are ", nrow(gtex_age_subsampled), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+subsampled_gtex_space <- (sum(gtex_age_subsampled$Bytes) / 1e12)
+paste0("About ", subsampled_gtex_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Print breakdown of number of samples per tissue type after subsampling GTEX
+
+The majority of samples have 7 replicates, but one has 6 (ectocervix) and one has 5 (endocervix)
+
+```{r}
+gtex_age_subsampled |>
+  dplyr::count(body_site) |>
+  tidyr::pivot_wider(
+    names_from = n,
+    values_from = body_site
+  )
+```
+
+Summarize size of samples in GTEX subset
+
+```{r gtex_size_table}
+gtex_age_subsampled |>
+  dplyr::summarise(mean(Bytes), max(Bytes))
+```
+
+Summarize library type (paired or unpaired) to inform alignment approach
+
+```{r}
+table(gtex_age_subsampled$LibraryLayout)
+```
+
+Export filtered and subsampled GTEX accession file
+
+```{r}
+# Move run ID to first column, like in TARGET accessions file
+gtex_age_subsampled <- gtex_age_subsampled |>
+  dplyr::relocate(Run)
+
+readr::write_tsv(gtex_age_subsampled, file = file.path(gtex_accession_path))
+```
+
+# Filter TARGET dataset for download
+
+Estimate amount of space all of TARGET will take up, only excluding cell line samples
+
+```{r}
+target_no_cell_line_sra <- target_sra |>
+  # filter only for accession IDs with sequence files associated with them
+  dplyr::filter(
+    # Filter for TARGET samples
+    biospecimen_repository == "NCI_TARGET",
+    # exclude cell line RNA-seq
+    study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
+    # filter for samples with fastqs
+    grepl("fastq", `DATASTORE filetype`)
+  ) |>
+  # transform Bytes column to numeric for estimating space
+  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
+  # select for only relevant columns
+  dplyr::select(
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout
+  )
+
+# count how many rows there are
+paste0("There are ", nrow(target_no_cell_line_sra), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+file_space <- sum(target_no_cell_line_sra$Bytes) / 1e12
+paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Filter accession metadata for TARGET RNA-seq datasets
+
+```{r}
+# filter accession table for accession IDs of TARGET samples with fastqs
+target_filtered_sra <- target_sra |>
+  # filter only for accession IDs with sequence files associated with them
+  dplyr::filter(
+    # Filter for TARGET samples
+    biospecimen_repository == "NCI_TARGET",
+    # exclude osteosarcomas due to their complex transcriptome
+    study_name != "TARGET: Osteosarcoma (OS)",
+    # also exclude the pilot phase 1 ALL samples because there are far more ALL samples in pilot phase 2
+    study_name != "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1",
+    # exclude cell line RNA-seq
+    study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
+    # filter for samples with fastqs
+    grepl("fastq", `DATASTORE filetype`)
+  ) |>
+  # transform Bytes column to numeric for estimating space
+  dplyr::mutate_at(dplyr::vars(Bytes), as.numeric) |>
+  # select for only relevant columns
+  dplyr::select(
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout
+  )
+
+# count how many rows there are
+paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+file_space <- sum(target_filtered_sra$Bytes) / 1e12
+paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Summarize distribution of analyte type for TARGET samples (RNA, DNA, or both)
+
+```{r}
+target_filtered_sra |> dplyr::count(analyte_type)
+```
+
+Summarize distribution of assay type for TARGET samples
+
+```{r}
+target_filtered_sra |> dplyr::count(`Assay Type`)
+```
+
+Conclusions: All TARGET samples appear to be RNA-seq. Another dataset with matched DNA & RNA sequencing will be needed to examine SNV status of pediatric cancers.
+
+Summarize distribution of tumor types across TARGET samples:
+
+```{r}
+target_filtered_sra |> dplyr::count(study_name)
+```
+
+Conclusions: The predominant cancer type in the TARGET dataset consist of leukemias (ALL and AML).
+
+Subsample TARGET dataset to obtain a max of 20 samples per tumor type (aiming to take up \~ half the space of the huge OpenStack instance, \~1.3TB
+
+```{r}
+subsampled_target <- target_filtered_sra |>
+  dplyr::slice_sample(n = 15, by = study_name)
+
+# count how many rows there are
+paste0("There are ", nrow(subsampled_target), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+subsampled_file_space <- (sum(subsampled_target$Bytes) / 1e12)
+paste0("About ", subsampled_file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Summarize distribution of tumor types across TARGET samples, to confirm subsampling:
+
+```{r}
+subsampled_target |> dplyr::count(study_name)
+```
+
+Note: Clear Cell Sarcoma samples are the least represented in this subsampled dataset, since it has the smallest N.
+
+Check max Bytes of dataset to estimate max filesize to enable for download
+
+```{r}
+subsampled_target |>
+  dplyr::summarise(mean(Bytes), max(Bytes))
+```
+
+Print Byte info of accession ID that was filling the cache:
+
+```{r target_size_table}
+subsampled_target |>
+  dplyr::filter(Run == "SRR1559070") |>
+  dplyr::select(Run, Bytes, study_name)
+```
+
+SRR1559070 is the sample that produced the prefetch and fasterq-dump errors due to its large file size. Since it is the largest file in the subset I am downloading, set the max prefetch file size to a value well above this sample's estimated bytes (50000000 Bytes, or 50 GB).
+
+Check whether libraries are paired or unpaired for alignment
+
+```{r}
+table(subsampled_target$LibraryLayout)
+```
+
+Export filtered and subsampled TARGET accession file
+
+```{r}
+target_accessions <- subsampled_target |>
+  dplyr::select(Run, `SRA Study`, BioProject, BioSample, study_name)
+
+readr::write_tsv(target_accessions, file = file.path(target_accession_path))
+```
+
+Print session info
+
+```{r}
+sessionInfo()
+```

@@ -1,6 +1,6 @@
 # Filtering GTEX samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-03-25
+2026-04-02
 
 ## Introduction
 
@@ -261,11 +261,49 @@ gtex_sra_ages |>
 | Muscle - Skeletal |       467 |
 | Whole Blood       |       456 |
 
+## Divide GTEx accessions into groups of 1.2TB samples
+
+For partitioning data onto OpenStack instances, we need to divide the
+accessions based on how much space they will take up. So that there will
+be enough space for holding raw fastqs and alignments, we will aim to
+download a little under half the available space on the huge OpenStack
+instance (~1.2TB)
+
+``` r
+# define target sum of data
+max_tb <- 1.2
+
+gtex_select_batched <- gtex_sra_ages |>
+  dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12,
+    # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
+    batch_id = ceiling(cumulative_tb / 1.2)
+  ) 
+```
+
+Summarize number of accessions in each batch
+
+``` r
+gtex_select_batched |>
+  dplyr::summarise(
+    .by = batch_id,
+    n = dplyr::n()
+  )
+```
+
+| batch_id |   n |
+|---------:|----:|
+|        1 | 343 |
+|        2 | 289 |
+|        3 | 265 |
+|        4 |  55 |
+
 ### Export filtered GTEX accession file
 
 ``` r
 # Move run ID to first column, like in TARGET accessions file
-gtex_select <- gtex_sra_ages |>
+gtex_select <- gtex_select_batched |>
   dplyr::relocate(Run)
 
 readr::write_tsv(gtex_select, file = gtex_accession_path)
@@ -298,15 +336,15 @@ sessionInfo()
     [1] ggplot2_4.0.2
 
     loaded via a namespace (and not attached):
-     [1] bit_4.6.0          gtable_0.3.6       jsonlite_2.0.0     dplyr_1.2.0       
-     [5] compiler_4.4.3     renv_1.0.11        crayon_1.5.3       tidyselect_1.2.1  
-     [9] stringr_1.6.0      parallel_4.4.3     scales_1.4.0       yaml_2.3.12       
-    [13] fastmap_1.2.0      here_1.0.2         readr_2.2.0        R6_2.6.1          
-    [17] labeling_0.4.3     generics_0.1.4     knitr_1.51         tibble_3.3.1      
-    [21] rprojroot_2.1.1    pillar_1.11.1      RColorBrewer_1.1-3 tzdb_0.5.0        
-    [25] rlang_1.1.7        stringi_1.8.7      xfun_0.56          S7_0.2.1          
-    [29] bit64_4.6.0-1      cli_3.6.5          withr_3.0.2        magrittr_2.0.4    
-    [33] digest_0.6.39      grid_4.4.3         vroom_1.7.0        hms_1.1.4         
-    [37] lifecycle_1.0.5    vctrs_0.7.1        evaluate_1.0.5     glue_1.8.0        
-    [41] farver_2.1.2       rmarkdown_2.30     tools_4.4.3        pkgconfig_2.0.3   
-    [45] htmltools_0.5.9   
+     [1] bit_4.6.0          gtable_0.3.6       jsonlite_2.0.0     crayon_1.5.3      
+     [5] dplyr_1.2.0        compiler_4.4.3     tidyselect_1.2.1   stringr_1.6.0     
+     [9] parallel_4.4.3     scales_1.4.0       yaml_2.3.12        fastmap_1.2.0     
+    [13] here_1.0.2         readr_2.2.0        R6_2.6.1           labeling_0.4.3    
+    [17] generics_0.1.4     knitr_1.51         tibble_3.3.1       rprojroot_2.1.1   
+    [21] pillar_1.11.1      RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.1.7       
+    [25] stringi_1.8.7      xfun_0.57          S7_0.2.1           bit64_4.6.0-1     
+    [29] otel_0.2.0         cli_3.6.5          withr_3.0.2        magrittr_2.0.4    
+    [33] digest_0.6.39      grid_4.4.3         vroom_1.7.0        rstudioapi_0.18.0 
+    [37] hms_1.1.4          lifecycle_1.0.5    vctrs_0.7.2        evaluate_1.0.5    
+    [41] glue_1.8.0         farver_2.1.2       rmarkdown_2.31     tools_4.4.3       
+    [45] pkgconfig_2.0.3    htmltools_0.5.9   

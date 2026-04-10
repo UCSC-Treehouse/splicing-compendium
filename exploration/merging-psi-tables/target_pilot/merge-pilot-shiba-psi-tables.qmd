@@ -41,9 +41,10 @@ if (!dir.exists(out_dir)) {
 ```
 
 Construct paths to separate TARGET pilot shiba output files
+
 ```{r}
 # read in experiment.tsv and create list of samples from samples column
-samples <- readr::read_tsv(samples_file) |>
+samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>
   dplyr::pull(sample) |>
   as.list()
 
@@ -66,51 +67,67 @@ psi_file_list <- c(
   ri = "PSI_RI.txt.gz"
 )
 ```
-Define functions
+
+## Define functions
+
 ```{r}
-# Make function for reading event types for a single sample
-read_sample <- function(sample_id, sample_path, psi_files = psi_file_list) {
-  # construct file path for each sample
-  file_paths <- file.path(sample_path, psi_files)
+# Make function for reading all PSI tables for a sample (or set of samples run together)
+read_psi <- function(psi_path, psi_files = psi_file_list) {
+  # returns a data frame with the following columns: pos_id, gene_id, label, event_type, sample, psi
+  # construct file path for event type
+  file_paths <- file.path(psi_path, psi_files)
   # name each PSI table file path by event type
   names(file_paths) <- names(psi_files)
 
   # read in files
   purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
+    readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
       # select for columns that will be used downstream in analysis so all dataframes have uniform column names
-      dplyr::select(pos_id, gene_id, label, contains("_PSI"))
-    }) |>
-      # merge individual event type PSI tables to get one PSI table per sample
-      dplyr::bind_rows(.id = "event_type")
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      # transform so we get a long table of PSI values for each event type, with one row per position and sample
+      tidyr::pivot_longer(
+        cols = contains("_PSI"),
+        names_to = "sample",
+        values_to = "psi",
+        values_transform = as.numeric
+      )
+  }) |>
+    # merge individual event type PSI tables to get one PSI table per sample
+    dplyr::bind_rows(.id = "event_type")
 }
-
 ```
 
-Read in files
+## Read and combine PSI tables
+
+Now we can read in all of the files and create a single long table with all samples.
+We will also replace the `NA` values with `-1` to indicate NA PSI values assigned by Shiba (e.g., due to low coverage), so that we can distinguish these from `NA` values that will be introduced by the merge when a position is missing from a given sample's PSI table.
 
 ```{r read_in_files}
-
-# read in one samples' PSI table
-# take in list of samples and sample paths as input
-sample_psi_tables <- purrr::map2(samples, sample_paths, read_sample) |>
-  # name the list of data frames the sample names
-  purrr::set_names(samples)
-
+# read in all samples' PSI tables into a list of data frames, one per sample,
+# then combine them into a single large table
+sample_psi_long <- purrr::map(sample_paths, read_psi) |>
+  # combine (sample info is already in the table from the
+  # `_PSI` column names and the pivot_longer step in the read_psi functiont)
+  purrr::list_rbind() |>
+  # replace NA values with -1 to indicate NA PSI values assigned by shiba (e.g., due to low coverage)
+  tidyr::replace_na(list(psi = -1))
 ```
 
-Combine PSI dataframes for all samples into one
+To make a table with one row per event, we can now use `pivot_wider()`.
+Any events sample combinations that were not assigned a value by Shiba will now be given an `NA` value so we can distinguish `NA` values from the merge from the ones that Shiba assigned, as the Shiba-assigned values will be `-1`.
 
 ```{r}
-# combine individual event types' PSI tables into one
-merged_psi <- sample_psi_tables |>
-  purrr::reduce( \(x, y) {
-    dplyr::full_join(x, y, by = c("pos_id", "gene_id", "label", "event_type") )
-  })
-
+# Make a wide table of psi values
+merged_psi <- sample_psi_long |>
+  tidyr::pivot_wider(
+    id_cols = c(pos_id, gene_id, label, event_type),
+    names_from = sample,
+    values_from = psi
+  )
 ```
 
-Save output as a table
+Save output as a table.
+
 ```{r}
 readr::write_tsv(merged_psi, out_file)
 ```

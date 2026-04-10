@@ -167,7 +167,7 @@ all_events_summary
 ### Visualize breakdown of shared events with stacked bar plots
 
 ```{r}
-#| label: fig-shared_splice_events
+#| label: fig-splice_events_breakdown
 #| fig-width: 11
 #| fig-height: 8
 
@@ -230,8 +230,11 @@ long_all_events <- all_events |>
     names_to = c("sample", "method"),
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
-  ) |>
-  tidyr:: pivot_wider(
+  )
+
+# pivot wider for scatterplots
+
+all_events_by_method <- long_all_events |> tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
   )
@@ -244,10 +247,10 @@ Make scatter plot of unannotated events
 #| fig-width: 11
 #| fig-height: 8
 
-long_shared_unannotated <- long_all_events |>
+long_unannotated <- all_events_by_method |>
   dplyr::filter(label == "unannotated")
 
-  ggplot(long_shared_unannotated) +
+  ggplot(long_unannotated) +
     aes(
       # read in columns to use for x and y from input
       x = combined,
@@ -270,11 +273,11 @@ Make scatterplot of annotated events
 #| fig-width: 11
 #| fig-height: 8
 
-long_shared_annotated <- long_all_events |>
+long_annotated <- all_events_by_method |>
   dplyr::filter(label == "annotated")
 
 
-  ggplot(long_shared_annotated) +
+  ggplot(long_annotated) +
     aes(
       # read in columns to use for x and y from input
       x = combined,

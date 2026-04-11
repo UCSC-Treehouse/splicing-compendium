@@ -264,6 +264,11 @@ all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
   )
 ```
 
+## To do
+- turn scatter plots to tables of pearson correlation (can just have pearrson and spearmans R^2 together)
+- check that shared events are indeed equal with all.equal after removing NAs
+- examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
+
 Make scatter plot of unannotated events
 
 ```{r}

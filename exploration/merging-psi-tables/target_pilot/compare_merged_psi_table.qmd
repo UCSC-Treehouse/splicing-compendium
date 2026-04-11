@@ -107,7 +107,8 @@ combined_splice_results_paths <- shiba_psi_paths |>
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
       dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
-      dplyr::mutate(across(contains("_PSI"), as.numeric))
+      # convert PSI values to numeric and replace NA values with -1
+      dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -1))) |>
   })
 
 # combine psi values of samples run together into one dataframe to compare against separate PSI dataframe

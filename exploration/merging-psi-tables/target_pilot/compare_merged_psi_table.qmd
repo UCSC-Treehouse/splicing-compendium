@@ -191,7 +191,8 @@ long_all_events_summary <- all_events_summary |>
   tidyr::pivot_longer(
     cols = c(shared_percent, combined_only_percent, separate_only_percent),
     names_to = "category",
-    values_to = "percent"
+    values_to = "percent",
+    names_pattern = "(.+)_percent"
   )
 
 ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +

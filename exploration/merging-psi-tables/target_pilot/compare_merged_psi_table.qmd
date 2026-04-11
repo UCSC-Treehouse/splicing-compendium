@@ -192,6 +192,7 @@ long_all_events_summary <- all_events_summary |>
     cols = c(shared_percent, combined_only_percent, separate_only_percent),
     names_to = "category",
     values_to = "percent",
+    # remove percent suffix for display
     names_pattern = "(.+)_percent"
   )
 
@@ -238,8 +239,9 @@ length(combined_only_list)
 Pivot longer to create scatter plots
 
 ```{r}
-
+# Pivot all events df longer
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -247,9 +249,16 @@ long_all_events <- all_events |>
     names_pattern = "(.*)_(combined|separate)"
   )
 
+# convert negative PSI values to NA so they will be dropped in the scatterplots and correlation calculation
+long_all_events_na <- long_all_events |>
+  dplyr::mutate(
+    PSI = dplyr::na_if(PSI, -1),
+    PSI = dplyr::na_if(PSI, -2)
+      )
+
 # pivot wider for scatterplots
 
-all_events_by_method <- long_all_events |> tidyr:: pivot_wider(
+all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
   )

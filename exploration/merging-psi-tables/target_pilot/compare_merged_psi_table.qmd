@@ -158,8 +158,8 @@ all_events <- dplyr::full_join(
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
-    # separate events are counted if the values for the event are not all NA or -1 (indicating NA introduced from merging)
-    separate_event = ! dplyr::if_all(ends_with("_separate"), ~ sign(.) < 0 | is.na(.)),
+    # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
+    separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
     shared_event = combined_event & separate_event
   )
 ```

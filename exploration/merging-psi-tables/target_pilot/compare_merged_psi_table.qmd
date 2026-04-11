@@ -192,11 +192,9 @@ long_all_events_summary <- all_events_summary |>
     cols = c(shared_percent, combined_only_percent, separate_only_percent),
     names_to = "category",
     values_to = "percent"
-  ) |>
-  # concatenate event type and label so unannotated and annotated events can be plotted together
-  tidyr::unite(label_event_type, c("label", "event_type"))
+  )
 
-ggplot(long_all_events_summary, aes(fill = category, x = label_event_type, y = percent)) +
+ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +
   geom_bar(position = "dodge", stat = "identity") +
   plot_theme +
   labs(
@@ -204,6 +202,7 @@ ggplot(long_all_events_summary, aes(fill = category, x = label_event_type, y = p
     x = "Annotation status of event",
     y = "Percentage of events"
   ) +
+  facet_wrap(vars(label)) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   plot_theme
 

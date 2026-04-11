@@ -13,6 +13,19 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
 Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.
 
+Notes from code review/meeting
+- Track different NA values separately.
+
+NAs from the updated merging code (NAs in the separate table that was merged):
+- -1: NA values from Shiba for the separate tables (may be due low coverage)
+- NA: NA values from merging the separate tables (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected for that gene)
+
+NAs from the combined table
+- -1: NA values from Shiba for the separate tables (may be due low coverage)
+
+NAs from merging combined and separate tables
+- -2: NAs coming from splice events that are only found in one analysis method (combined vs. separate)
+
 ## Set up
 
 ```{r, setup, include=FALSE}
@@ -108,7 +121,7 @@ combined_splice_results_paths <- shiba_psi_paths |>
       # select for columns that will be used in downstream analysis
       dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
       # convert PSI values to numeric and replace NA values with -1
-      dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -1))) |>
+      dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -1)))
   })
 
 # combine psi values of samples run together into one dataframe to compare against separate PSI dataframe

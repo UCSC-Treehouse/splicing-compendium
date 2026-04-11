@@ -195,7 +195,7 @@ long_all_events_summary <- all_events_summary |>
   )
 
 ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +
-  geom_bar(position = "dodge", stat = "identity") +
+  geom_bar(position = "stack", stat = "identity") +
   plot_theme +
   labs(
     title = "% of splice events only in combined PSI tables",

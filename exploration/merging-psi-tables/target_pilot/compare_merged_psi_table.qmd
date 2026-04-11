@@ -18,13 +18,13 @@ Notes from code review/meeting
 
 NAs from the updated merging code (NAs in the separate table that was merged):
 - -1: NA values from Shiba for the separate tables (may be due low coverage)
-- NA: NA values from merging the separate tables (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected for that gene)
+- -2: NA values from merging the separate tables (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected for that gene)
 
 NAs from the combined table
 - -1: NA values from Shiba for the separate tables (may be due low coverage)
 
 NAs from merging combined and separate tables
-- -2: NAs coming from splice events that are only found in one analysis method (combined vs. separate)
+- NA: NAs coming from splice events that are only found in one analysis method (combined vs. separate)
 
 ## Set up
 
@@ -112,7 +112,9 @@ Read in files
 
 ```{r}
 # read merged splice table from separate runs of Shiba on the TARGET pilot samples
-separate_psi_table <- readr::read_tsv(separate_psi_file)
+separate_psi_table <- readr::read_tsv(separate_psi_file) |>
+  # replace remaining NAs from this table representing dropped genes from one sample with no detected splicing for that gene with -2
+  dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -2)))
 
 # read in combined splice results to compare against separate results
 combined_splice_results_paths <- shiba_psi_paths |>
@@ -120,14 +122,13 @@ combined_splice_results_paths <- shiba_psi_paths |>
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
       dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
-      # convert PSI values to numeric and replace NA values with -1
+      # convert PSI values to numeric and replace NA values from shiba representing low coverage with -1
       dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -1)))
   })
 
-# combine psi values of samples run together into one dataframe to compare against separate PSI dataframe
+# combine PSI values of samples run together into one dataframe to compare against separate PSI dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
-
 ### Obtain dimensions of each PSI table
 
 ```{r}
@@ -144,7 +145,7 @@ There are 71,811 more splice events in the separate PSI table than the combined 
 
 ## Examine splice events that are consistently present in both combined and separate splice tables
 
-To help us prioritize what splice event types we may be the most confident in after merging separate Shiba PSI tables, we are interested in seeing a breakdown of what event types are most represented in both PSI tables
+To help us prioritize what splice event types we may be the most confident in after merging separate Shiba PSI tables, we are interested in seeing a breakdown of what event types are most represented in PSI tables constructed from different methods
 
 ```{r}
 # obtain df of splice events that are shared between both combined and separate tables

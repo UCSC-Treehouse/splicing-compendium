@@ -249,14 +249,14 @@ long_all_events <- all_events |>
     names_pattern = "(.*)_(combined|separate)"
   )
 
-# convert negative PSI values to NA so they will be dropped in the scatterplots and correlation calculation
+# convert negative PSI values to NA so they will be dropped in the correlation calculations
 long_all_events_na <- long_all_events |>
   dplyr::mutate(
     PSI = dplyr::na_if(PSI, -1),
     PSI = dplyr::na_if(PSI, -2)
       )
 
-# pivot wider for scatterplots
+# pivot wider for correlation calculations
 
 all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
     names_from = method,
@@ -264,63 +264,31 @@ all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
   )
 ```
 
-## To do
-- turn scatter plots to tables of pearson correlation (can just have pearrson and spearmans R^2 together)
-- check that shared events are indeed equal with all.equal after removing NAs
-- examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
-
-Make scatter plot of unannotated events
-
+### Create table of correlation scores for shared event
 ```{r}
-#| label: fig-unannotated_psi_correlation
-#| fig-width: 11
-#| fig-height: 8
+correlation_df <- all_events_by_method |>
+  dplyr::summarize(
+    .by = event_type,
+    # so correlation coefficients are overestimated here because we remove incomplete observations
+    pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
+    pearson_r2 = pearson_r * pearson_r,
+    spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
+  )
+  
+# print correlation table
+correlation_df
+```
+Check whether events are equal
+```{r}
+# omit NAs 
+complete_all_events_by_method <- na.omit(all_events_by_method)
 
-long_unannotated <- all_events_by_method |>
-  dplyr::filter(label == "unannotated")
-
-  ggplot(long_unannotated) +
-    aes(
-      # read in columns to use for x and y from input
-      x = combined,
-      y = separate,
-    ) +
-    geom_point(size = 0.5, alpha = 0.5) +
-    labs(
-      title = "Spearman correlation of unannotated shared splice events",
-      x = "Combined run PSI values",
-      y = "Separate run PSI values") +
-    facet_wrap(vars(event_type)) +
-
-    ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
+all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$separate)
 ```
 
-Make scatterplot of annotated events
+### Check PSI distributions of combined events missed in the separate table
+examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
 
-```{r}
-#| label: fig-annotated_psi_correlation
-#| fig-width: 11
-#| fig-height: 8
-
-long_annotated <- all_events_by_method |>
-  dplyr::filter(label == "annotated")
-
-
-  ggplot(long_annotated) +
-    aes(
-      # read in columns to use for x and y from input
-      x = combined,
-      y = separate,
-    ) +
-    geom_point(size = 0.5, alpha = 0.5) +
-    labs(
-      title = "Spearman correlation of annotated shared splice events",
-      x = "Combined run PSI values",
-      y = "Separate run PSI values") +
-    facet_wrap(vars(event_type)) +
-
-    ggpubr::stat_cor(method = "spearman", label.x = 0.2, label.y = -0.1, color = "blue")
-```
 
 ### Takeaways so far
 

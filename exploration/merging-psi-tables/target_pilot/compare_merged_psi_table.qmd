@@ -236,7 +236,6 @@ Pivot longer to create scatter plots
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
-  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),

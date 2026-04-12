@@ -257,7 +257,6 @@ long_all_events_na <- long_all_events |>
       )
 
 # pivot wider for correlation calculations
-
 all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
@@ -286,8 +285,53 @@ complete_all_events_by_method <- na.omit(all_events_by_method)
 all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$separate)
 ```
 
-### Check PSI distributions of combined events missed in the separate table
-examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
+All shared events have identical PSI values in tables created by the two methods.
+
+## Check PSI distributions of combined events missed in the separate table
+Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
+
+### Plot PSI distributions of events only found in combined table
+
+```{r}
+#| label: fig-combined_only_psi_dist
+#| fig-width: 11
+#| fig-height: 8
+
+# make dataframe of unannotated PSI values of splice events only in the combined dataframe
+
+combined_only_df <- all_events_by_method |>
+  dplyr::filter(pos_id %in% combined_only_list) |>
+  dplyr::select(-separate) |>
+  na.omit()
+
+# check dimensions of each
+dim(combined_only_df)
+length(combined_only_list)
+
+# plot distributions of unannotated and annotated PSI values only found in the combined table
+ggplot(combined_only_df, aes(combined)) + geom_histogram() +
+  facet_wrap(vars(event_type, label))
+```
+
+### Plot PSI distributions of events only found in separate table
+```{r}
+#| label: fig-separate_only_psi_dist
+#| fig-width: 11
+#| fig-height: 8
+
+separate_only_df <- all_events_by_method |>
+  dplyr::filter(pos_id %in% separate_only_list) |>
+  dplyr::select(-combined) |>
+  na.omit()
+
+# check dimensions of each
+dim(separate_only_df)
+length(separate_only_list)
+
+# plot distributions of unannotated and annotated PSI values only found in the combined table
+ggplot(separate_only_df, aes(separate)) + geom_histogram() +
+  facet_wrap(vars(event_type, label))
+```
 
 
 ### Takeaways so far
@@ -297,11 +341,14 @@ This is concerning if we assume all events found only in the separate tables are
 
 -   Most of the events found only in the separate tables are unannotated events, which are the event types we are hoping to capture most in the splice compendium
 
--   If we only look at splice events shared between both separate and combined PSI tables, the PSI values appear identical.
-We may be able to be more confident in our splice table if we filter out everything with NA values (limit ourselves to PSI values of events found in all samples),
-but this may severely shrink down the number of splice events in the compendium.
+-   About 30% of unannotated splice events are only found in the combined tables, meaning they are missed in the separate tables method
 
-A next step for this notebook will be to compare the number of NA values in each table (I suspect there will be many more NAs in the separate tables)
+-   If we only look at splice events shared between both separate and combined PSI tables, the PSI values are identical.
+
+-   Unfortunately, PSI values of events only found in the combined or separate tables span the entire PSI distribution (0-1) so there is no easy way to set a filter to exclude values that are not found in the combined table.
+
+
+A next step for this analysis will be to compare the number of NA values in each table and examine how many of each type of NA value are present in each method
 
 Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.
 For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.

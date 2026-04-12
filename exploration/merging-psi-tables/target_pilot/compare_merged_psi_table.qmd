@@ -11,20 +11,16 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
-Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events or junction counts.
+Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events.
 
-Notes from code review/meeting
-- Track different NA values separately.
+As part of tracking differences between the two tables, we have labeled NA values introduced at various steps of the data processing pipeline with different negative values:
 
-NAs from the updated merging code (NAs in the separate table that was merged):
-- -1: NA values from Shiba for the separate tables (may be due low coverage)
-- -2: NA values from merging the separate tables (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected for that gene)
+-   -1: NA values assigned by Shiba (splice events with low coverage)
 
-NAs from the combined table
-- -1: NA values from Shiba for the separate tables (may be due low coverage)
+-   -2: NA values from merging the separate tables together (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected for that gene)
 
-NAs from merging combined and separate tables
-- NA: NAs coming from splice events that are only found in one analysis method (combined vs. separate)
+-   NA: NA values from merging the separate and combined tables.
+    These NAs represent splice events that are only found in one analysis method (combined vs. separate)
 
 ## Set up
 
@@ -129,6 +125,7 @@ combined_splice_results_paths <- shiba_psi_paths |>
 # combine PSI values of samples run together into one dataframe to compare against separate PSI dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
 ```
+
 ### Obtain dimensions of each PSI table
 
 ```{r}
@@ -208,7 +205,6 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent
   scale_x_discrete(guide = guide_axis(angle = 45)) +
   plot_theme
 
-
 ```
 
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.
@@ -232,7 +228,6 @@ length(separate_only_list)
 # Number of splice events only in combined PSI table
 length(combined_only_list)
 ```
-
 
 ### Check how similar PSI values of shared events are
 
@@ -264,11 +259,12 @@ all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
 ```
 
 ### Create table of correlation scores for shared event
+
 ```{r}
 correlation_df <- all_events_by_method |>
   dplyr::summarize(
     .by = event_type,
-    # so correlation coefficients are overestimated here because we remove incomplete observations
+    # correlation coefficients are overestimated here because we remove incomplete observations
     pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
     pearson_r2 = pearson_r * pearson_r,
     spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
@@ -277,17 +273,21 @@ correlation_df <- all_events_by_method |>
 # print correlation table
 correlation_df
 ```
+
 Check whether events are equal
+
 ```{r}
 # omit NAs 
 complete_all_events_by_method <- na.omit(all_events_by_method)
 
+# check if shared events are equal
 all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$separate)
 ```
 
 All shared events have identical PSI values in tables created by the two methods.
 
 ## Check PSI distributions of combined events missed in the separate table
+
 Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
 
 ### Plot PSI distributions of events only found in combined table
@@ -314,6 +314,7 @@ ggplot(combined_only_df, aes(combined)) + geom_histogram() +
 ```
 
 ### Plot PSI distributions of events only found in separate table
+
 ```{r}
 #| label: fig-separate_only_psi_dist
 #| fig-width: 11
@@ -333,11 +334,10 @@ ggplot(separate_only_df, aes(separate)) + geom_histogram() +
   facet_wrap(vars(event_type, label))
 ```
 
-
 ### Takeaways so far
 
 -   In the worst case scenario, about 40% of some splice event types across all unique events found in both the combined and separate (merged) tables are only found in the separate tables.
-This is concerning if we assume all events found only in the separate tables are false.
+    This is concerning if we assume all events found only in the separate tables are false.
 
 -   Most of the events found only in the separate tables are unannotated events, which are the event types we are hoping to capture most in the splice compendium
 
@@ -346,7 +346,6 @@ This is concerning if we assume all events found only in the separate tables are
 -   If we only look at splice events shared between both separate and combined PSI tables, the PSI values are identical.
 
 -   Unfortunately, PSI values of events only found in the combined or separate tables span the entire PSI distribution (0-1) so there is no easy way to set a filter to exclude values that are not found in the combined table.
-
 
 A next step for this analysis will be to compare the number of NA values in each table and examine how many of each type of NA value are present in each method
 

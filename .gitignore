@@ -17,3 +17,8 @@ results/*
 *.ngc
 ._.DS_Store
 data
+
+exploration/merging-psi-tables/shiba_results/combined_run/target_pilot/*
+!exploration/merging-psi-tables/shiba_results/combined_run/target_pilot/README.md
+!exploration/merging-psi-tables/shiba_results/combined_run/target_pilot/report.json
+exploration/merging-psi-tables/target_pilot/merged_results/

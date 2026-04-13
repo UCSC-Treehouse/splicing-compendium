@@ -51,14 +51,15 @@ plot_theme = list(
 
 # color palette for splice event types
 cbPalette <- c(
-afe = "#999999",
-ale = "#E69F00",
-five = "#56B4E9",
-mse = "#009E73",
-mxe = "#F0E442",
-ri = "#0072B2",
-se = "#D55E00",
-three = "#CC79A7")
+  afe = "#999999",
+  ale = "#E69F00",
+  five = "#56B4E9",
+  mse = "#009E73",
+  mxe = "#F0E442",
+  ri = "#0072B2",
+  se = "#D55E00",
+  three = "#CC79A7"
+)
 ```
 
 ## Directories and files
@@ -108,12 +109,12 @@ Read in files
 
 ```{r}
 # read merged splice table from separate runs of Shiba on the TARGET pilot samples
-separate_psi_table <- readr::read_tsv(separate_psi_file) |>
+separate_psi_table <- readr::read_tsv(separate_psi_file, col_types=readr::cols(.default = "c"))) |>
   # replace remaining NAs from this table representing dropped genes from one sample with no detected splicing for that gene with -2
   dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -2)))
 
 # read in combined splice results to compare against separate results
-combined_splice_results_paths <- shiba_psi_paths |>
+combined_splice_results <- shiba_psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
@@ -123,7 +124,7 @@ combined_splice_results_paths <- shiba_psi_paths |>
   })
 
 # combine PSI values of samples run together into one dataframe to compare against separate PSI dataframe
-combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
+combined_psi_table <- purrr::list_rbind(combined_splice_results, names_to = "event_type")
 ```
 
 ### Obtain dimensions of each PSI table
@@ -167,10 +168,13 @@ Print summary of percentage of each event types found in both methods, or in onl
 all_events_summary <- all_events |> dplyr::summarise(
     .by = c(event_type, label),
     # count number of events in each event type and annotation category
-    count = dplyr::n(),
-    shared_percent = sum(shared_event) / count * 100,
-    combined_only_percent = ( sum(combined_event) - sum(shared_event) ) / count * 100,
-    separate_only_percent = ( sum(separate_event) - sum(shared_event) ) / count * 100,
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count =  sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = shared_only_count / total * 100,
 )
 
 all_events_summary

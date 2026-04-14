@@ -324,11 +324,10 @@ note/to do: Plot shared, combined_only, and separate_only PSI values together, f
 #| fig-width: 11
 #| fig-height: 8
 
-# make dataframe of unannotated PSI values of splice events only in the combined dataframe
-
 # create list of pos_ids only in combined df
 combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
 
+# make dataframe of unannotated PSI values of splice events only in the combined dataframe
 combined_only_df <- all_events_by_method |>
   dplyr::filter(pos_id %in% combined_only_list) |>
   dplyr::select(-separate) |>
@@ -350,14 +349,11 @@ ggplot(combined_only_df, aes(combined)) +
 # make list of pos_ids only in separate df
 separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
 
+# make df of splice events only in separate dataframes that have been merged
 separate_only_df <- all_events_by_method |>
   dplyr::filter(pos_id %in% separate_only_list) |>
   dplyr::select(-combined) |>
   na.omit()
-
-# check dimensions of each
-dim(separate_only_df)
-length(separate_only_list)
 
 # plot distributions of unannotated and annotated PSI values only found in the combined table
 ggplot(separate_only_df, aes(separate)) + geom_histogram() +

@@ -164,6 +164,20 @@ all_events <- dplyr::full_join(
 
 Print summary of percentage of each event types found in both methods, or in only one
 
+Print summary of counts across each method, across all event types
+
+```{r}
+all_methods_summary <- all_events |> dplyr::summarise(
+    # count number of events in each event type and annotation category
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count
+)
+
+all_methods_summary
+```
+Print summary of counts and percentages across each method, broken down by event type
+
 ```{r}
 all_events_summary <- all_events |> dplyr::summarise(
     .by = c(event_type, label),
@@ -240,23 +254,6 @@ The majority of annotated event types are shared between both tables, although t
 The capturing of unannotated event types suffers more from merging separate PSI tables.
 In particular, there are more ALE and MXE events only found in the separate PSI tables.
 For other unannotated events, there are 10-30% that are only found in the separate PSI.
-
-### Obtain the number of splice events only found in each table
-
-```{r}
-# produce dataframe of elements in combined splice results reference dataframe
-combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
-
-# produce dataframe of elements in merged splice results dataframe but not in the reference df
-separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
-
-# events only present in separate tables
-# Number of splice events only in separate PSI table
-length(separate_only_list)
-
-# Number of splice events only in combined PSI table
-length(combined_only_list)
-```
 
 ### Check how similar PSI values of shared events are
 

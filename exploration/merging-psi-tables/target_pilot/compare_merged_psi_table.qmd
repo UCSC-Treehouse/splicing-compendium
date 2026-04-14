@@ -203,7 +203,6 @@ all_events_summary
 
 # pivot summary plot longer so we can make grouped bar plots of the percentages
 long_all_events_summary <- all_events_summary |>
-  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = c(
       shared_count,
@@ -257,11 +256,12 @@ For other unannotated events, there are 10-30% that are only found in the separa
 
 ### Check how similar PSI values of shared events are
 
-Pivot longer to create scatter plots
+Pivot longer for correlation calculations
 
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -315,6 +315,8 @@ All shared events have identical PSI values in tables created by the two methods
 
 Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
 
+note/to do: Plot shared, combined_only, and separate_only PSI values together, faceted by event types.
+
 ### Plot PSI distributions of events only found in combined table
 
 ```{r}
@@ -324,14 +326,13 @@ Examine PSI distributions in combined table of events missed by the separate tab
 
 # make dataframe of unannotated PSI values of splice events only in the combined dataframe
 
+# create list of pos_ids only in combined df
+combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
+
 combined_only_df <- all_events_by_method |>
   dplyr::filter(pos_id %in% combined_only_list) |>
   dplyr::select(-separate) |>
   na.omit()
-
-# check dimensions of each
-dim(combined_only_df)
-length(combined_only_list)
 
 # plot distributions of unannotated and annotated PSI values only found in the combined table
 ggplot(combined_only_df, aes(combined)) + 
@@ -346,6 +347,9 @@ ggplot(combined_only_df, aes(combined)) +
 #| fig-width: 11
 #| fig-height: 8
 
+# make list of pos_ids only in separate df
+separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
+
 separate_only_df <- all_events_by_method |>
   dplyr::filter(pos_id %in% separate_only_list) |>
   dplyr::select(-combined) |>
@@ -357,7 +361,7 @@ length(separate_only_list)
 
 # plot distributions of unannotated and annotated PSI values only found in the combined table
 ggplot(separate_only_df, aes(separate)) + geom_histogram() +
-  facet_wrap(vars(event_type, label))
+  facet_wrap(vars(event_type, label), scales = "free_y")
 ```
 
 ### Takeaways so far

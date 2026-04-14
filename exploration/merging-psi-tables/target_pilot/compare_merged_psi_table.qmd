@@ -162,8 +162,6 @@ all_events <- dplyr::full_join(
   )
 ```
 
-Print summary of percentage of each event types found in both methods, or in only one
-
 Print summary of counts across each method, across all event types
 
 ```{r}
@@ -176,6 +174,7 @@ all_methods_summary <- all_events |> dplyr::summarise(
 
 all_methods_summary
 ```
+
 Print summary of counts and percentages across each method, broken down by event type
 
 ```{r}
@@ -229,6 +228,7 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent
   plot_theme
 
 ```
+
 Plot raw counts of number of events captured by each method
 ```{r}
 #| label: fig-splice_events_breakdown_counts
@@ -248,7 +248,6 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count))
   plot_theme
 ```
 
-
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.
 The capturing of unannotated event types suffers more from merging separate PSI tables.
 In particular, there are more ALE and MXE events only found in the separate PSI tables.
@@ -261,7 +260,6 @@ Pivot longer for correlation calculations
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
-  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),

@@ -291,7 +291,7 @@ correlation_df <- all_events_by_method |>
     .by = event_type,
     # correlation coefficients are overestimated here because we remove incomplete observations
     pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
-    pearson_r2 = pearson_r * pearson_r,
+    pearson_r2 = pearson_r ** 2,
     spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
   )
   

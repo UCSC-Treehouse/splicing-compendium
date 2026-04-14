@@ -334,8 +334,9 @@ dim(combined_only_df)
 length(combined_only_list)
 
 # plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(combined_only_df, aes(combined)) + geom_histogram() +
-  facet_wrap(vars(event_type, label))
+ggplot(combined_only_df, aes(combined)) + 
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label), scales = "free_y")
 ```
 
 ### Plot PSI distributions of events only found in separate table

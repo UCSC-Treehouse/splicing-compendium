@@ -267,17 +267,13 @@ long_all_events <- all_events |>
     names_to = c("sample", "method"),
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
-  )
-
-# convert negative PSI values to NA so they will be dropped in the correlation calculations
-long_all_events_na <- long_all_events |>
-  dplyr::mutate(
-    PSI = dplyr::na_if(PSI, -1),
-    PSI = dplyr::na_if(PSI, -2)
-      )
+  ) |>
+  # drop NA values
+  dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
+all_events_by_method <- long_all_events |> 
+  tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
   )
@@ -338,7 +334,6 @@ ggplot(combined_only_df, aes(combined)) +
   geom_histogram(bins = 20) +
   facet_wrap(vars(event_type, label), scales = "free_y")
 ```
-
 ### Plot PSI distributions of events only found in separate table
 
 ```{r}

@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-04-12
+2026-04-14
 
 As part of our pipeline, we plan to merge Shiba tables created for
 individual samples to obtain a final PSI table of all samples. Before
@@ -70,23 +70,12 @@ Read in files
 
 ``` r
 # read merged splice table from separate runs of Shiba on the TARGET pilot samples
-separate_psi_table <- readr::read_tsv(separate_psi_file) |>
+separate_psi_table <- readr::read_tsv(separate_psi_file, col_types=readr::cols(.default = "c")) |>
   # replace remaining NAs from this table representing dropped genes from one sample with no detected splicing for that gene with -2
   dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -2)))
-```
 
-    Rows: 818412 Columns: 92
-    ── Column specification ────────────────────────────────────────────────────────
-    Delimiter: "\t"
-    chr  (4): pos_id, gene_id, label, event_type
-    dbl (88): SRR1559043_PSI, SRR1559044_PSI, SRR1559052_PSI, SRR1559054_PSI, SR...
-
-    ℹ Use `spec()` to retrieve the full column specification for this data.
-    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
-``` r
 # read in combined splice results to compare against separate results
-combined_splice_results_paths <- shiba_psi_paths |>
+combined_splice_results <- shiba_psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
       # select for columns that will be used in downstream analysis
@@ -96,7 +85,7 @@ combined_splice_results_paths <- shiba_psi_paths |>
   })
 
 # combine PSI values of samples run together into one dataframe to compare against separate PSI dataframe
-combined_psi_table <- purrr::list_rbind(combined_splice_results_paths, names_to = "event_type")
+combined_psi_table <- purrr::list_rbind(combined_splice_results, names_to = "event_type")
 ```
 
 ### Obtain dimensions of each PSI table
@@ -142,40 +131,60 @@ all_events <- dplyr::full_join(
   )
 ```
 
-Print summary of percentage of each event types found in both methods,
-or in only one
+Print summary of counts across each method, across all event types
+
+``` r
+all_methods_summary <- all_events |> dplyr::summarise(
+    # count number of events in each event type and annotation category
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count
+)
+
+all_methods_summary
+```
+
+| shared_count | combined_only_count | separate_only_count |
+|-------------:|--------------------:|--------------------:|
+|       667022 |               79579 |              151390 |
+
+Print summary of counts and percentages across each method, broken down
+by event type
 
 ``` r
 all_events_summary <- all_events |> dplyr::summarise(
     .by = c(event_type, label),
     # count number of events in each event type and annotation category
-    count = dplyr::n(),
-    shared_percent = sum(shared_event) / count * 100,
-    combined_only_percent = ( sum(combined_event) - sum(shared_event) ) / count * 100,
-    separate_only_percent = ( sum(separate_event) - sum(shared_event) ) / count * 100,
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
 )
 
 all_events_summary
 ```
 
-| event_type | label | count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|
-| se | annotated | 104872 | 97.13556 | 1.0050347 | 1.859410 |
-| se | unannotated | 32912 | 65.35914 | 20.4697375 | 14.171123 |
-| afe | unannotated | 97616 | 42.63133 | 22.9767661 | 34.391903 |
-| afe | annotated | 180632 | 85.74339 | 2.0887772 | 12.167833 |
-| ale | annotated | 156353 | 81.48740 | 1.7306991 | 16.781897 |
-| ale | unannotated | 62334 | 35.55042 | 21.6382712 | 42.811307 |
-| five | annotated | 35556 | 85.59737 | 5.3268084 | 9.075824 |
-| five | unannotated | 16825 | 50.06835 | 30.0980684 | 19.833581 |
-| three | annotated | 40691 | 89.44730 | 3.5929321 | 6.959770 |
-| three | unannotated | 17214 | 53.20669 | 28.6220518 | 18.171256 |
-| mse | annotated | 64124 | 96.40540 | 1.0183395 | 2.576258 |
-| mse | unannotated | 19434 | 58.05804 | 26.1397551 | 15.802202 |
-| mxe | annotated | 963 | 82.24299 | 0.7268951 | 17.030114 |
-| mxe | unannotated | 481 | 22.86902 | 24.1164241 | 53.014553 |
-| ri | unannotated | 51635 | 50.57229 | 19.4267454 | 30.000968 |
-| ri | annotated | 16349 | 79.80916 | 0.9664200 | 19.224417 |
+| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
+|:---|:---|---:|---:|---:|---:|---:|---:|---:|
+| se | annotated | 104872 | 101868 | 1054 | 1950 | 97.13556 | 1.0050347 | 1.859410 |
+| se | unannotated | 32912 | 21511 | 6737 | 4664 | 65.35914 | 20.4697375 | 14.171123 |
+| afe | unannotated | 97616 | 41615 | 22429 | 33572 | 42.63133 | 22.9767661 | 34.391903 |
+| afe | annotated | 180632 | 154880 | 3773 | 21979 | 85.74339 | 2.0887772 | 12.167833 |
+| ale | annotated | 156353 | 127408 | 2706 | 26239 | 81.48740 | 1.7306991 | 16.781897 |
+| ale | unannotated | 62334 | 22160 | 13488 | 26686 | 35.55042 | 21.6382712 | 42.811307 |
+| five | annotated | 35556 | 30435 | 1894 | 3227 | 85.59737 | 5.3268084 | 9.075824 |
+| five | unannotated | 16825 | 8424 | 5064 | 3337 | 50.06835 | 30.0980684 | 19.833581 |
+| three | annotated | 40691 | 36397 | 1462 | 2832 | 89.44730 | 3.5929321 | 6.959770 |
+| three | unannotated | 17214 | 9159 | 4927 | 3128 | 53.20669 | 28.6220518 | 18.171256 |
+| mse | annotated | 64124 | 61819 | 653 | 1652 | 96.40540 | 1.0183395 | 2.576258 |
+| mse | unannotated | 19434 | 11283 | 5080 | 3071 | 58.05804 | 26.1397551 | 15.802202 |
+| mxe | annotated | 963 | 792 | 7 | 164 | 82.24299 | 0.7268951 | 17.030114 |
+| mxe | unannotated | 481 | 110 | 116 | 255 | 22.86902 | 24.1164241 | 53.014553 |
+| ri | unannotated | 51635 | 26113 | 10031 | 15491 | 50.57229 | 19.4267454 | 30.000968 |
+| ri | annotated | 16349 | 13048 | 158 | 3143 | 79.80916 | 0.9664200 | 19.224417 |
 
 ### Visualize breakdown of shared events with stacked bar plots
 
@@ -183,11 +192,16 @@ all_events_summary
 # pivot summary plot longer so we can make grouped bar plots of the percentages
 long_all_events_summary <- all_events_summary |>
   tidyr::pivot_longer(
-    cols = c(shared_percent, combined_only_percent, separate_only_percent),
-    names_to = "category",
-    values_to = "percent",
-    # remove percent suffix for display
-    names_pattern = "(.+)_percent"
+    cols = c(
+      shared_count,
+      shared_percent,
+      combined_only_count, 
+      combined_only_percent,
+      separate_only_count,
+      separate_only_percent),
+    # extract percents and counts as separate columns
+    names_to = c("category", ".value"),
+    names_pattern = "(.+)_(percent|count)"
   )
 
 ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +
@@ -213,6 +227,32 @@ Figure 1
 
 </div>
 
+Plot raw counts of number of events captured by each method
+
+``` r
+ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of splice events only in combined PSI tables",
+    x = "Annotation status of event",
+    y = "Percentage of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
+<div id="fig-splice_events_breakdown_counts">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_counts-1.png"
+id="fig-splice_events_breakdown_counts" />
+
+Figure 2
+
+</div>
+
 The majority of annotated event types are shared between both tables,
 although there are more splice events unique to the separate table than
 combined table. The capturing of unannotated event types suffers more
@@ -220,32 +260,9 @@ from merging separate PSI tables. In particular, there are more ALE and
 MXE events only found in the separate PSI tables. For other unannotated
 events, there are 10-30% that are only found in the separate PSI.
 
-### Obtain the number of splice events only found in each table
-
-``` r
-# produce dataframe of elements in combined splice results reference dataframe
-combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
-
-# produce dataframe of elements in merged splice results dataframe but not in the reference df
-separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
-
-# events only present in separate tables
-# Number of splice events only in separate PSI table
-length(separate_only_list)
-```
-
-    [1] 139412
-
-``` r
-# Number of splice events only in combined PSI table
-length(combined_only_list)
-```
-
-    [1] 72021
-
 ### Check how similar PSI values of shared events are
 
-Pivot longer to create scatter plots
+Pivot longer for correlation calculations
 
 ``` r
 # Pivot all events df longer
@@ -255,17 +272,13 @@ long_all_events <- all_events |>
     names_to = c("sample", "method"),
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
-  )
-
-# convert negative PSI values to NA so they will be dropped in the correlation calculations
-long_all_events_na <- long_all_events |>
-  dplyr::mutate(
-    PSI = dplyr::na_if(PSI, -1),
-    PSI = dplyr::na_if(PSI, -2)
-      )
+  ) |>
+  # drop NA values
+  dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events_na |> tidyr:: pivot_wider(
+all_events_by_method <- long_all_events |> 
+  tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
   )
@@ -279,7 +292,7 @@ correlation_df <- all_events_by_method |>
     .by = event_type,
     # correlation coefficients are overestimated here because we remove incomplete observations
     pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
-    pearson_r2 = pearson_r * pearson_r,
+    pearson_r2 = pearson_r ** 2,
     spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
   )
   
@@ -319,35 +332,26 @@ Examine PSI distributions in combined table of events missed by the
 separate table, and then the reverse (is there a threshold of PSI where
 events become shared?)
 
+note/to do: Plot shared, combined_only, and separate_only PSI values
+together, faceted by event types.
+
 ### Plot PSI distributions of events only found in combined table
 
 ``` r
-# make dataframe of unannotated PSI values of splice events only in the combined dataframe
+# create list of pos_ids only in combined df
+combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
 
+# make dataframe of unannotated PSI values of splice events only in the combined dataframe
 combined_only_df <- all_events_by_method |>
   dplyr::filter(pos_id %in% combined_only_list) |>
   dplyr::select(-separate) |>
   na.omit()
 
-# check dimensions of each
-dim(combined_only_df)
-```
-
-    [1] 2898101       9
-
-``` r
-length(combined_only_list)
-```
-
-    [1] 72021
-
-``` r
 # plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(combined_only_df, aes(combined)) + geom_histogram() +
-  facet_wrap(vars(event_type, label))
+ggplot(combined_only_df, aes(combined)) + 
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label), scales = "free_y")
 ```
-
-    `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
 
 <div id="fig-combined_only_psi_dist">
 
@@ -355,34 +359,25 @@ ggplot(combined_only_df, aes(combined)) + geom_histogram() +
 src="compare_merged_psi_table_files/figure-commonmark/fig-combined_only_psi_dist-1.png"
 id="fig-combined_only_psi_dist" />
 
-Figure 2
+Figure 3
 
 </div>
 
 ### Plot PSI distributions of events only found in separate table
 
 ``` r
+# make list of pos_ids only in separate df
+separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
+
+# make df of splice events only in separate dataframes that have been merged
 separate_only_df <- all_events_by_method |>
   dplyr::filter(pos_id %in% separate_only_list) |>
   dplyr::select(-combined) |>
   na.omit()
 
-# check dimensions of each
-dim(separate_only_df)
-```
-
-    [1] 1357565       9
-
-``` r
-length(separate_only_list)
-```
-
-    [1] 139412
-
-``` r
 # plot distributions of unannotated and annotated PSI values only found in the combined table
 ggplot(separate_only_df, aes(separate)) + geom_histogram() +
-  facet_wrap(vars(event_type, label))
+  facet_wrap(vars(event_type, label), scales = "free_y")
 ```
 
     `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
@@ -393,7 +388,7 @@ ggplot(separate_only_df, aes(separate)) + geom_histogram() +
 src="compare_merged_psi_table_files/figure-commonmark/fig-separate_only_psi_dist-1.png"
 id="fig-separate_only_psi_dist" />
 
-Figure 3
+Figure 4
 
 </div>
 

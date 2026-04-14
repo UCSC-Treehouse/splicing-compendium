@@ -109,7 +109,7 @@ Read in files
 
 ```{r}
 # read merged splice table from separate runs of Shiba on the TARGET pilot samples
-separate_psi_table <- readr::read_tsv(separate_psi_file, col_types=readr::cols(.default = "c"))) |>
+separate_psi_table <- readr::read_tsv(separate_psi_file, col_types=readr::cols(.default = "c")) |>
   # replace remaining NAs from this table representing dropped genes from one sample with no detected splicing for that gene with -2
   dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -2)))
 
@@ -170,11 +170,11 @@ all_events_summary <- all_events |> dplyr::summarise(
     # count number of events in each event type and annotation category
     total = dplyr::n(),
     shared_count = sum(shared_event),
-    combined_only_count =  sum(combined_event) - shared_count,
-    separate_only_count = sum(separate_event) - shared_count
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
     shared_percent = shared_count / total * 100,
     combined_only_percent = combined_only_count / total * 100,
-    separate_only_percent = shared_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
 )
 
 all_events_summary
@@ -189,12 +189,18 @@ all_events_summary
 
 # pivot summary plot longer so we can make grouped bar plots of the percentages
 long_all_events_summary <- all_events_summary |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
-    cols = c(shared_percent, combined_only_percent, separate_only_percent),
-    names_to = "category",
-    values_to = "percent",
-    # remove percent suffix for display
-    names_pattern = "(.+)_percent"
+    cols = c(
+      shared_count,
+      shared_percent,
+      combined_only_count, 
+      combined_only_percent,
+      separate_only_count,
+      separate_only_percent),
+    # extract percents and counts as separate columns
+    names_to = c("category", ".value"),
+    names_pattern = "(.+)_(percent|count)"
   )
 
 ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +
@@ -210,6 +216,25 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent
   plot_theme
 
 ```
+Plot raw counts of number of events captured by each method
+```{r}
+#| label: fig-splice_events_breakdown_counts
+#| fig-width: 11
+#| fig-height: 8
+
+ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of splice events only in combined PSI tables",
+    x = "Annotation status of event",
+    y = "Percentage of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
 
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.
 The capturing of unannotated event types suffers more from merging separate PSI tables.

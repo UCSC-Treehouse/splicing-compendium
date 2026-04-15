@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-04-14
+2026-04-15
 
 As part of our pipeline, we plan to merge Shiba tables created for
 individual samples to obtain a final PSI table of all samples. Before
@@ -208,7 +208,7 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent
   geom_bar(position = "stack", stat = "identity") +
   plot_theme +
   labs(
-    title = "% of splice events only in combined PSI tables",
+    title = "% of splice events in combined, separate, or shared groups",
     x = "Annotation status of event",
     y = "Percentage of events"
   ) +
@@ -234,9 +234,9 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count))
   geom_bar(position = "dodge", stat = "identity") +
   plot_theme +
   labs(
-    title = "% of splice events only in combined PSI tables",
+    title = "Number of splice events only in combined, separate, or shared groups",
     x = "Annotation status of event",
-    y = "Percentage of events"
+    y = "Number of events"
   ) +
   facet_wrap(vars(label)) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
@@ -273,7 +273,7 @@ long_all_events <- all_events |>
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
   ) |>
-  # drop NA values
+  # drop NA values, including those coded as negative PSI
   dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
@@ -311,7 +311,7 @@ correlation_df
 | mxe        |         1 |          1 |            1 |
 | ri         |         1 |          1 |            1 |
 
-Check whether events are equal
+Check whether shared events have the same PSI values
 
 ``` r
 # omit NAs 

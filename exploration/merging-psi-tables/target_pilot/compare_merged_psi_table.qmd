@@ -266,7 +266,7 @@ long_all_events <- all_events |>
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
   ) |>
-  # drop NA values
+  # drop NA values, including those coded as negative PSI
   dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations

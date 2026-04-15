@@ -219,7 +219,7 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent
   geom_bar(position = "stack", stat = "identity") +
   plot_theme +
   labs(
-    title = "% of splice events only in combined PSI tables",
+    title = "% of splice events in combined, separate, or shared groups",
     x = "Annotation status of event",
     y = "Percentage of events"
   ) +
@@ -239,9 +239,9 @@ ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count))
   geom_bar(position = "dodge", stat = "identity") +
   plot_theme +
   labs(
-    title = "% of splice events only in combined PSI tables",
+    title = "Number of splice events only in combined, separate, or shared groups",
     x = "Annotation status of event",
-    y = "Percentage of events"
+    y = "Number of events"
   ) +
   facet_wrap(vars(label)) +
   scale_x_discrete(guide = guide_axis(angle = 45)) +
@@ -293,7 +293,7 @@ correlation_df <- all_events_by_method |>
 correlation_df
 ```
 
-Check whether events are equal
+Check whether shared events have the same PSI values
 
 ```{r}
 # omit NAs 

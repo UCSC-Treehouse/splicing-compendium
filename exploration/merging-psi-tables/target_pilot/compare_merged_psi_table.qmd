@@ -155,6 +155,7 @@ all_events <- dplyr::full_join(
   suffix = c("_combined", "_separate")) |>
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
+    # combined events are counted if the values are not all NA 
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
     # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
@@ -260,6 +261,7 @@ Pivot longer for correlation calculations
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -314,23 +316,38 @@ note/to do: Plot shared, combined_only, and separate_only PSI values together, f
 ### Plot PSI distributions of events only found in combined table
 
 ```{r}
-#| label: fig-combined_only_psi_dist
+#| label: fig-psi_dist_afe
 #| fig-width: 11
 #| fig-height: 8
 
 # create list of pos_ids only in combined df
 combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
 
-# make dataframe of unannotated PSI values of splice events only in the combined dataframe
-combined_only_df <- all_events_by_method |>
-  dplyr::filter(pos_id %in% combined_only_list) |>
-  dplyr::select(-separate) |>
-  na.omit()
+# make list of pos_ids only in separate df
+separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
 
-# plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(combined_only_df, aes(combined)) + 
+# make dataframe of PSI values of splice events only in the combined or separate dataframes
+compare_psi_dist_df <- long_all_events |>
+  # label splice events by whether they are only in the combined or separate tables
+  dplyr::mutate(
+    event_status = dplyr::case_when(
+      combined_event == TRUE & separate_event == FALSE ~ "combined_only",
+      combined_event == FALSE & separate_event == TRUE ~ "separate_only",
+      combined_event == TRUE & separate_event == TRUE ~ "shared"
+    )
+  ) |>
+  # exclude NAs as their PSI values cannot be binned
+  na.omit() 
+
+# filter for only AFE events to plot
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "afe") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
   geom_histogram(bins = 20) +
-  facet_wrap(vars(event_type, label), scales = "free_y")
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  theme(strip.text.x = element_text(size = global_size))
 ```
 ### Plot PSI distributions of events only found in separate table
 

@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-04-15
+2026-04-16
 
 As part of our pipeline, we plan to merge Shiba tables created for
 individual samples to obtain a final PSI table of all samples. Before
@@ -124,6 +124,7 @@ all_events <- dplyr::full_join(
   suffix = c("_combined", "_separate")) |>
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
+    # combined events are counted if the values are not all NA 
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
     # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
@@ -326,6 +327,133 @@ all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$
 All shared events have identical PSI values in tables created by the two
 methods.
 
+## Look at splice events present in min number of samples
+
+Filter splice events for those with complete PSI values in \>=
+min_samples samples per method I initially tried to filter for n \>=
+min_samples for both separate AND combined methods, but the resulting
+table was of 100% shared events. This happened even when I filtered for
+min_samples = 1 for both separate and combined methods
+
+``` r
+# set min number of samples to filter splice events with completem values by (arbitrary)
+min_samples <- 10
+
+# input is long_all_events which already have NA values dropped, including those coded as negative PSI
+all_events_n_filtered <- long_all_events |>
+  dplyr::group_by(pos_id) |>
+  # count how many events in each shared status 
+  dplyr::mutate(
+    combined_count = sum(method == "combined"),
+    separate_count = sum(method == "separate")
+  ) |>
+  # filter for events with complete PSI values form minimum number of samples
+  dplyr::filter(
+    combined_count >= min_samples,
+    separate_count >= min_samples
+  ) |>
+  dplyr::ungroup() |>
+  dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
+ 
+all_events_n_filtered
+```
+
+| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
+|:---|:---|---:|---:|---:|---:|---:|---:|---:|
+| se | annotated | 5761350 | 5685747 | 32815 | 42788 | 98.68776 | 0.5695714 | 0.7426732 |
+| se | unannotated | 102096 | 96319 | 4476 | 1301 | 94.34160 | 4.3841091 | 1.2742909 |
+| afe | annotated | 6303074 | 6284715 | 8710 | 9649 | 99.70873 | 0.1381865 | 0.1530840 |
+| afe | unannotated | 55489 | 54160 | 1043 | 286 | 97.60493 | 1.8796518 | 0.5154175 |
+| ale | annotated | 3343715 | 3339798 | 1826 | 2091 | 99.88285 | 0.0546099 | 0.0625352 |
+| ale | unannotated | 28570 | 28537 | 0 | 33 | 99.88449 | 0.0000000 | 0.1155058 |
+| five | annotated | 1381111 | 1362572 | 8290 | 10249 | 98.65767 | 0.6002414 | 0.7420837 |
+| five | unannotated | 24357 | 23139 | 896 | 322 | 94.99938 | 3.6786140 | 1.3220019 |
+| three | annotated | 1881068 | 1852341 | 12286 | 16441 | 98.47284 | 0.6531396 | 0.8740248 |
+| three | unannotated | 36321 | 33297 | 2177 | 847 | 91.67424 | 5.9937777 | 2.3319843 |
+| mse | annotated | 4162181 | 4144759 | 8018 | 9404 | 99.58142 | 0.1926394 | 0.2259392 |
+| mse | unannotated | 30095 | 28743 | 1139 | 213 | 95.50756 | 3.7846818 | 0.7077588 |
+| mxe | annotated | 34857 | 34857 | 0 | 0 | 100.00000 | 0.0000000 | 0.0000000 |
+| mxe | unannotated | 417 | 321 | 86 | 10 | 76.97842 | 20.6235012 | 2.3980815 |
+| ri | unannotated | 581215 | 547592 | 22137 | 11486 | 94.21505 | 3.8087455 | 1.9762050 |
+| ri | annotated | 1181222 | 1104553 | 4366 | 72303 | 93.50935 | 0.3696172 | 6.1210340 |
+
+Pivot summary df longer for plotting
+
+``` r
+# pivot summary plot longer so we can make grouped bar plots of the percentages
+long_all_events_n_filtered <- all_events_n_filtered |>
+  tidyr::pivot_longer(
+    cols = c(
+      shared_count,
+      shared_percent,
+      combined_only_count, 
+      combined_only_percent,
+      separate_only_count,
+      separate_only_percent),
+    # extract percents and counts as separate columns
+    names_to = c("category", ".value"),
+    names_pattern = "(.+)_(percent|count)"
+  )
+
+ggplot(long_all_events_n_filtered, aes(fill = category, x = event_type, y = percent)) +
+  geom_bar(position = "stack", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of splice events in combined, separate, or shared groups",
+    x = "Annotation status of event",
+    y = "Percentage of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
+<div id="fig-n_filtered_splice_events_percent">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-n_filtered_splice_events_percent-1.png"
+id="fig-n_filtered_splice_events_percent" />
+
+Figure 3
+
+</div>
+
+Create raw number bar plots of
+
+``` r
+ggplot(long_all_events_n_filtered, aes(fill = category, x = event_type, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "Number of splice events only in combined, separate, or shared groups",
+    x = "Annotation status of event",
+    y = "Number of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme
+```
+
+<div id="fig-n_filtered_splice_events_counts">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-n_filtered_splice_events_counts-1.png"
+id="fig-n_filtered_splice_events_counts" />
+
+Figure 4
+
+</div>
+
 ## Check PSI distributions of combined events missed in the separate table
 
 Examine PSI distributions in combined table of events missed by the
@@ -335,60 +463,238 @@ events become shared?)
 note/to do: Plot shared, combined_only, and separate_only PSI values
 together, faceted by event types.
 
-### Plot PSI distributions of events only found in combined table
+### Plot PSI distributions of ALE events
 
 ``` r
 # create list of pos_ids only in combined df
 combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
 
-# make dataframe of unannotated PSI values of splice events only in the combined dataframe
-combined_only_df <- all_events_by_method |>
-  dplyr::filter(pos_id %in% combined_only_list) |>
-  dplyr::select(-separate) |>
-  na.omit()
-
-# plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(combined_only_df, aes(combined)) + 
-  geom_histogram(bins = 20) +
-  facet_wrap(vars(event_type, label), scales = "free_y")
-```
-
-<div id="fig-combined_only_psi_dist">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-combined_only_psi_dist-1.png"
-id="fig-combined_only_psi_dist" />
-
-Figure 3
-
-</div>
-
-### Plot PSI distributions of events only found in separate table
-
-``` r
 # make list of pos_ids only in separate df
 separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
 
-# make df of splice events only in separate dataframes that have been merged
-separate_only_df <- all_events_by_method |>
-  dplyr::filter(pos_id %in% separate_only_list) |>
-  dplyr::select(-combined) |>
-  na.omit()
+# make dataframe of PSI values of splice events only in the combined or separate dataframes
+compare_psi_dist_df <- long_all_events |>
+  # label splice events by whether they are only in the combined or separate tables
+  dplyr::mutate(
+    event_status = dplyr::case_when(
+      combined_event == TRUE & separate_event == FALSE ~ "combined_only",
+      combined_event == FALSE & separate_event == TRUE ~ "separate_only",
+      combined_event == TRUE & separate_event == TRUE ~ "shared"
+    )
+  ) |>
+  # exclude NAs as their PSI values cannot be binned
+  na.omit() 
 
-# plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(separate_only_df, aes(separate)) + geom_histogram() +
-  facet_wrap(vars(event_type, label), scales = "free_y")
+# filter for only AFE events to plot
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "afe") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
 ```
 
-    `stat_bin()` using `bins = 30`. Pick better value `binwidth`.
-
-<div id="fig-separate_only_psi_dist">
+<div id="fig-psi_dist_afe">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-separate_only_psi_dist-1.png"
-id="fig-separate_only_psi_dist" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_afe-1.png"
+id="fig-psi_dist_afe" />
 
-Figure 4
+Figure 5
+
+</div>
+
+### Plot PSI distributions of ALE events
+
+``` r
+# filter df for ALE events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "ale") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_ale">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_ale-1.png"
+id="fig-psi_dist_ale" />
+
+Figure 6
+
+</div>
+
+### Plot PSI distributions of SE events
+
+``` r
+# filter df for SE events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "se") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_se">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_se-1.png"
+id="fig-psi_dist_se" />
+
+Figure 7
+
+</div>
+
+### Plot PSI distributions of alternative 5’ splice site events
+
+``` r
+# filter df for a5'ss events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "five") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_five">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_five-1.png"
+id="fig-psi_dist_five" />
+
+Figure 8
+
+</div>
+
+### Plot PSI distributions of alternative 3’ splice site events
+
+``` r
+# filter df for a3'ss events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "three") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_three">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_three-1.png"
+id="fig-psi_dist_three" />
+
+Figure 9
+
+</div>
+
+### Plot PSI distributions of MSE events
+
+``` r
+# filter df for mse events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "mse") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_mse">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_mse-1.png"
+id="fig-psi_dist_mse" />
+
+Figure 10
+
+</div>
+
+### Plot PSI distributions of MXE events
+
+``` r
+# filter df for mxe events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "mxe") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_mxe">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_mxe-1.png"
+id="fig-psi_dist_mxe" />
+
+Figure 11
+
+</div>
+
+### Plot PSI distributions of RI events
+
+``` r
+# filter df for ri events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "ri") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+<div id="fig-psi_dist_ri">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_ri-1.png"
+id="fig-psi_dist_ri" />
+
+Figure 12
 
 </div>
 
@@ -448,38 +754,38 @@ na_summary_df
 
 | label_event_type | method | na_count | merge_na_count | total | percent_na | percent_merge_na |
 |:---|:---|---:|---:|---:|---:|---:|
-| annotated_se | combined | 6166179 | 0 | 9228736 | 66.81499 | 0.0000000 |
-| annotated_se | separate | 4251850 | 2031708 | 9228736 | 46.07186 | 22.0150192 |
-| unannotated_se | combined | 1581150 | 0 | 2896256 | 54.59290 | 0.0000000 |
-| unannotated_se | separate | 2823423 | 10936 | 2896256 | 97.48527 | 0.3775909 |
-| unannotated_afe | combined | 6076921 | 0 | 8590208 | 70.74242 | 0.0000000 |
-| unannotated_afe | separate | 8448581 | 36929 | 8590208 | 98.35130 | 0.4298965 |
-| annotated_afe | combined | 12185042 | 0 | 15895616 | 76.65662 | 0.0000000 |
-| annotated_afe | separate | 8723340 | 3419585 | 15895616 | 54.87891 | 21.5127555 |
-| annotated_ale | combined | 11709340 | 0 | 13759064 | 85.10274 | 0.0000000 |
-| annotated_ale | separate | 8026483 | 3273806 | 13759064 | 58.33597 | 23.7938133 |
-| unannotated_ale | combined | 3836807 | 0 | 5485392 | 69.94590 | 0.0000000 |
-| unannotated_ale | separate | 5399971 | 14358 | 5485392 | 98.44275 | 0.2617498 |
-| annotated_five | combined | 2114960 | 0 | 3128928 | 67.59376 | 0.0000000 |
-| annotated_five | separate | 1972669 | 442408 | 3128928 | 63.04616 | 14.1392835 |
-| unannotated_five | combined | 980836 | 0 | 1480600 | 66.24585 | 0.0000000 |
-| unannotated_five | separate | 1454411 | 5200 | 1480600 | 98.23119 | 0.3512090 |
-| annotated_three | combined | 2369673 | 0 | 3580808 | 66.17705 | 0.0000000 |
-| annotated_three | separate | 2078669 | 535957 | 3580808 | 58.05028 | 14.9674878 |
-| unannotated_three | combined | 959643 | 0 | 1514832 | 63.34980 | 0.0000000 |
-| unannotated_three | separate | 1484626 | 5380 | 1514832 | 98.00598 | 0.3551549 |
-| annotated_mse | combined | 3329604 | 0 | 5642912 | 59.00507 | 0.0000000 |
-| annotated_mse | separate | 2086776 | 1435982 | 5642912 | 36.98048 | 25.4475349 |
-| unannotated_mse | combined | 820135 | 0 | 1710192 | 47.95573 | 0.0000000 |
-| unannotated_mse | separate | 1679663 | 3397 | 1710192 | 98.21488 | 0.1986327 |
-| annotated_mxe | combined | 65729 | 0 | 84744 | 77.56183 | 0.0000000 |
-| annotated_mxe | separate | 42929 | 17861 | 84744 | 50.65727 | 21.0764184 |
-| unannotated_mxe | combined | 34108 | 0 | 42328 | 80.58023 | 0.0000000 |
-| unannotated_mxe | separate | 41661 | 106 | 42328 | 98.42421 | 0.2504253 |
-| unannotated_ri | combined | 2768640 | 0 | 4543880 | 60.93119 | 0.0000000 |
-| unannotated_ri | separate | 4076340 | 174834 | 4543880 | 89.71056 | 3.8476808 |
-| annotated_ri | combined | 841155 | 0 | 1438712 | 58.46584 | 0.0000000 |
-| annotated_ri | separate | 225301 | 580436 | 1438712 | 15.65991 | 40.3441411 |
+| annotated_se | combined | 0 | 0 | 3062557 | 0 | 0 |
+| annotated_se | separate | 0 | 0 | 2945178 | 0 | 0 |
+| unannotated_se | combined | 0 | 0 | 1315106 | 0 | 0 |
+| unannotated_se | separate | 0 | 0 | 61897 | 0 | 0 |
+| unannotated_afe | combined | 0 | 0 | 2513287 | 0 | 0 |
+| annotated_afe | combined | 0 | 0 | 3710574 | 0 | 0 |
+| annotated_afe | separate | 0 | 0 | 3752691 | 0 | 0 |
+| unannotated_afe | separate | 0 | 0 | 104698 | 0 | 0 |
+| annotated_ale | combined | 0 | 0 | 2049724 | 0 | 0 |
+| annotated_ale | separate | 0 | 0 | 2458775 | 0 | 0 |
+| unannotated_ale | combined | 0 | 0 | 1648585 | 0 | 0 |
+| unannotated_ale | separate | 0 | 0 | 71063 | 0 | 0 |
+| annotated_five | combined | 0 | 0 | 1013968 | 0 | 0 |
+| annotated_five | separate | 0 | 0 | 713851 | 0 | 0 |
+| unannotated_five | combined | 0 | 0 | 499764 | 0 | 0 |
+| unannotated_five | separate | 0 | 0 | 20989 | 0 | 0 |
+| annotated_three | combined | 0 | 0 | 1211135 | 0 | 0 |
+| annotated_three | separate | 0 | 0 | 966182 | 0 | 0 |
+| unannotated_three | combined | 0 | 0 | 555189 | 0 | 0 |
+| unannotated_three | separate | 0 | 0 | 24826 | 0 | 0 |
+| annotated_mse | combined | 0 | 0 | 2313308 | 0 | 0 |
+| annotated_mse | separate | 0 | 0 | 2120154 | 0 | 0 |
+| unannotated_mse | combined | 0 | 0 | 890057 | 0 | 0 |
+| unannotated_mse | separate | 0 | 0 | 27132 | 0 | 0 |
+| annotated_mxe | combined | 0 | 0 | 19015 | 0 | 0 |
+| annotated_mxe | separate | 0 | 0 | 23954 | 0 | 0 |
+| unannotated_mxe | combined | 0 | 0 | 8220 | 0 | 0 |
+| unannotated_mxe | separate | 0 | 0 | 561 | 0 | 0 |
+| unannotated_ri | combined | 0 | 0 | 1775240 | 0 | 0 |
+| annotated_ri | combined | 0 | 0 | 597557 | 0 | 0 |
+| annotated_ri | separate | 0 | 0 | 632975 | 0 | 0 |
+| unannotated_ri | separate | 0 | 0 | 292706 | 0 | 0 |
 
 Plot % NAs from shiba
 
@@ -502,7 +808,7 @@ ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) 
 src="compare_merged_psi_table_files/figure-commonmark/fig-percent_na_comparison-1.png"
 id="fig-percent_na_comparison" />
 
-Figure 4
+Figure 13
 
 </div>
 
@@ -531,7 +837,7 @@ ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_merge
 src="compare_merged_psi_table_files/figure-commonmark/fig-percent_merge_na_comparison-1.png"
 id="fig-percent_merge_na_comparison" />
 
-Figure 5
+Figure 14
 
 </div>
 

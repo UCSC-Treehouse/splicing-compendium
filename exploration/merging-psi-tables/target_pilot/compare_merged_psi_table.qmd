@@ -68,21 +68,20 @@ cbPalette <- c(
 
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-exploration_dir <- file.path(repo_root, "exploration")
-merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 
 # define the data directories
-# shiba results dir
-shiba_dir <- file.path(merge_exploration_dir, "shiba_results")
+exploration_dir <- file.path(repo_root, "exploration")
+merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
+target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
 
 # directory of shiba results produced from the same shiba run
-combined_dir <- file.path(shiba_dir, "combined_run", "target_pilot", "results")
+combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
 
 # psi table directory
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
 
 # Directory of PSI table, merged from separate shiba runs
-separate_psi_table_dir <- file.path(merge_exploration_dir, "target_pilot", "merged_results")
+separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
 
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")

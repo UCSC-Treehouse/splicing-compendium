@@ -30,21 +30,20 @@ with different negative values:
 ``` r
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-exploration_dir <- file.path(repo_root, "exploration")
-merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 
 # define the data directories
-# shiba results dir
-shiba_dir <- file.path(merge_exploration_dir, "shiba_results")
+exploration_dir <- file.path(repo_root, "exploration")
+merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
+target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
 
 # directory of shiba results produced from the same shiba run
-combined_dir <- file.path(shiba_dir, "combined_run", "target_pilot", "results")
+combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
 
 # psi table directory
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
 
 # Directory of PSI table, merged from separate shiba runs
-separate_psi_table_dir <- file.path(merge_exploration_dir, "target_pilot", "merged_results")
+separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
 
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")
@@ -124,7 +123,7 @@ all_events <- dplyr::full_join(
   suffix = c("_combined", "_separate")) |>
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
-    # combined events are counted if the values are not all NA 
+    # combined events are counted if the values are not all NA
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
     # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
@@ -196,7 +195,7 @@ long_all_events_summary <- all_events_summary |>
     cols = c(
       shared_count,
       shared_percent,
-      combined_only_count, 
+      combined_only_count,
       combined_only_percent,
       separate_only_count,
       separate_only_percent),
@@ -278,7 +277,7 @@ long_all_events <- all_events |>
   dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events |> 
+all_events_by_method <- long_all_events |>
   tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
@@ -296,7 +295,7 @@ correlation_df <- all_events_by_method |>
     pearson_r2 = pearson_r ** 2,
     spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
   )
-  
+
 # print correlation table
 correlation_df
 ```
@@ -315,7 +314,7 @@ correlation_df
 Check whether shared events have the same PSI values
 
 ``` r
-# omit NAs 
+# omit NAs
 complete_all_events_by_method <- na.omit(all_events_by_method)
 
 # check if shared events are equal
@@ -342,7 +341,7 @@ min_samples <- 10
 # input is long_all_events which already have NA values dropped, including those coded as negative PSI
 all_events_n_filtered <- long_all_events |>
   dplyr::group_by(pos_id) |>
-  # count how many events in each shared status 
+  # count how many events in each shared status
   dplyr::mutate(
     combined_count = sum(method == "combined"),
     separate_count = sum(method == "separate")
@@ -364,7 +363,7 @@ all_events_n_filtered <- long_all_events |>
     combined_only_percent = combined_only_count / total * 100,
     separate_only_percent = separate_only_count / total * 100,
 )
- 
+
 all_events_n_filtered
 ```
 
@@ -396,7 +395,7 @@ long_all_events_n_filtered <- all_events_n_filtered |>
     cols = c(
       shared_count,
       shared_percent,
-      combined_only_count, 
+      combined_only_count,
       combined_only_percent,
       separate_only_count,
       separate_only_percent),
@@ -483,7 +482,7 @@ compare_psi_dist_df <- long_all_events |>
     )
   ) |>
   # exclude NAs as their PSI values cannot be binned
-  na.omit() 
+  na.omit()
 
 # filter for only AFE events to plot
 compare_psi_dist_df |>
@@ -730,115 +729,4 @@ table are the ground truth, but a separate kind of evaluation would be
 needed to truly ask how many “real” splice events are in each of the
 tables. For instance, we maybe would need to do this experiment on
 simulated reads where we know going in what all the transcripts are,
-which may be beyond the scope of this project.
-
-## Compare NA values in each table
-
-Create summary table of % NAs from shiba or from merging
-
-``` r
-na_summary_df <- long_all_events |>
-  dplyr::summarise(
-    .by = c(event_type, label, method),
-    na_count = sum(is.na(dplyr::across(everything()))),
-    merge_na_count = sum(PSI == -1, na.rm = TRUE),
-    total = dplyr::n(),
-    percent_na = na_count / total * 100,
-    percent_merge_na = merge_na_count / total * 100
-  ) |>
-  # concatenate label and event type columns into one again for easy plotting
-  tidyr::unite(label_event_type, c("label", "event_type"))
-
-na_summary_df
-```
-
-| label_event_type | method | na_count | merge_na_count | total | percent_na | percent_merge_na |
-|:---|:---|---:|---:|---:|---:|---:|
-| annotated_se | combined | 0 | 0 | 3062557 | 0 | 0 |
-| annotated_se | separate | 0 | 0 | 2945178 | 0 | 0 |
-| unannotated_se | combined | 0 | 0 | 1315106 | 0 | 0 |
-| unannotated_se | separate | 0 | 0 | 61897 | 0 | 0 |
-| unannotated_afe | combined | 0 | 0 | 2513287 | 0 | 0 |
-| annotated_afe | combined | 0 | 0 | 3710574 | 0 | 0 |
-| annotated_afe | separate | 0 | 0 | 3752691 | 0 | 0 |
-| unannotated_afe | separate | 0 | 0 | 104698 | 0 | 0 |
-| annotated_ale | combined | 0 | 0 | 2049724 | 0 | 0 |
-| annotated_ale | separate | 0 | 0 | 2458775 | 0 | 0 |
-| unannotated_ale | combined | 0 | 0 | 1648585 | 0 | 0 |
-| unannotated_ale | separate | 0 | 0 | 71063 | 0 | 0 |
-| annotated_five | combined | 0 | 0 | 1013968 | 0 | 0 |
-| annotated_five | separate | 0 | 0 | 713851 | 0 | 0 |
-| unannotated_five | combined | 0 | 0 | 499764 | 0 | 0 |
-| unannotated_five | separate | 0 | 0 | 20989 | 0 | 0 |
-| annotated_three | combined | 0 | 0 | 1211135 | 0 | 0 |
-| annotated_three | separate | 0 | 0 | 966182 | 0 | 0 |
-| unannotated_three | combined | 0 | 0 | 555189 | 0 | 0 |
-| unannotated_three | separate | 0 | 0 | 24826 | 0 | 0 |
-| annotated_mse | combined | 0 | 0 | 2313308 | 0 | 0 |
-| annotated_mse | separate | 0 | 0 | 2120154 | 0 | 0 |
-| unannotated_mse | combined | 0 | 0 | 890057 | 0 | 0 |
-| unannotated_mse | separate | 0 | 0 | 27132 | 0 | 0 |
-| annotated_mxe | combined | 0 | 0 | 19015 | 0 | 0 |
-| annotated_mxe | separate | 0 | 0 | 23954 | 0 | 0 |
-| unannotated_mxe | combined | 0 | 0 | 8220 | 0 | 0 |
-| unannotated_mxe | separate | 0 | 0 | 561 | 0 | 0 |
-| unannotated_ri | combined | 0 | 0 | 1775240 | 0 | 0 |
-| annotated_ri | combined | 0 | 0 | 597557 | 0 | 0 |
-| annotated_ri | separate | 0 | 0 | 632975 | 0 | 0 |
-| unannotated_ri | separate | 0 | 0 | 292706 | 0 | 0 |
-
-Plot % NAs from shiba
-
-``` r
-ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of NA values in separate vs. combined dfs",
-    x = "Annotation status of event",
-    y = "Percent of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
-```
-
-<div id="fig-percent_na_comparison">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-percent_na_comparison-1.png"
-id="fig-percent_na_comparison" />
-
-Figure 13
-
-</div>
-
-Similar to unannotated event types being overrepresented in the separate
-PSI table, we see the NA values becoming more of an issue in unannotated
-event types in the separate PSI table.
-
-Plot % NAs from merging tables
-
-``` r
-ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_merge_na)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of NA values from merging tables in separate vs. combined dfs",
-    x = "Annotation status of event",
-    y = "Percent of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
-```
-
-<div id="fig-percent_merge_na_comparison">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-percent_merge_na_comparison-1.png"
-id="fig-percent_merge_na_comparison" />
-
-Figure 14
-
-</div>
-
-A good portion of NA values come from merging in the separate PSI tables
+which may be beyond the scope of this project.git bran

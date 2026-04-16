@@ -155,7 +155,7 @@ all_events <- dplyr::full_join(
   suffix = c("_combined", "_separate")) |>
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
-    # combined events are counted if the values are not all NA 
+    # combined events are counted if the values are not all NA
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
     # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
@@ -207,7 +207,7 @@ long_all_events_summary <- all_events_summary |>
     cols = c(
       shared_count,
       shared_percent,
-      combined_only_count, 
+      combined_only_count,
       combined_only_percent,
       separate_only_count,
       separate_only_percent),
@@ -271,7 +271,7 @@ long_all_events <- all_events |>
   dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events |> 
+all_events_by_method <- long_all_events |>
   tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
@@ -289,7 +289,7 @@ correlation_df <- all_events_by_method |>
     pearson_r2 = pearson_r ** 2,
     spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
   )
-  
+
 # print correlation table
 correlation_df
 ```
@@ -297,7 +297,7 @@ correlation_df
 Check whether shared events have the same PSI values
 
 ```{r}
-# omit NAs 
+# omit NAs
 complete_all_events_by_method <- na.omit(all_events_by_method)
 
 # check if shared events are equal
@@ -309,7 +309,7 @@ All shared events have identical PSI values in tables created by the two methods
 ## Look at splice events present in min number of samples
 
 Filter splice events for those with complete PSI values in >= min_samples samples per method
-I initially tried to filter for n >= min_samples for both separate AND combined methods, 
+I initially tried to filter for n >= min_samples for both separate AND combined methods,
 but the resulting table was of 100% shared events.
 This happened even when I filtered for min_samples = 1 for both separate and combined methods
 ```{r}
@@ -319,7 +319,7 @@ min_samples <- 10
 # input is long_all_events which already have NA values dropped, including those coded as negative PSI
 all_events_n_filtered <- long_all_events |>
   dplyr::group_by(pos_id) |>
-  # count how many events in each shared status 
+  # count how many events in each shared status
   dplyr::mutate(
     combined_count = sum(method == "combined"),
     separate_count = sum(method == "separate")
@@ -341,7 +341,7 @@ all_events_n_filtered <- long_all_events |>
     combined_only_percent = combined_only_count / total * 100,
     separate_only_percent = separate_only_count / total * 100,
 )
- 
+
 all_events_n_filtered
 ```
 
@@ -357,7 +357,7 @@ long_all_events_n_filtered <- all_events_n_filtered |>
     cols = c(
       shared_count,
       shared_percent,
-      combined_only_count, 
+      combined_only_count,
       combined_only_percent,
       separate_only_count,
       separate_only_percent),
@@ -428,7 +428,7 @@ compare_psi_dist_df <- long_all_events |>
     )
   ) |>
   # exclude NAs as their PSI values cannot be binned
-  na.omit() 
+  na.omit()
 
 # filter for only AFE events to plot
 compare_psi_dist_df |>
@@ -608,62 +608,3 @@ A next step for this analysis will be to compare the number of NA values in each
 
 Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.
 For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.
-
-## Compare NA values in each table
-
-Create summary table of % NAs from shiba or from merging
-```{r}
-na_summary_df <- long_all_events |>
-  dplyr::summarise(
-    .by = c(event_type, label, method),
-    na_count = sum(is.na(dplyr::across(everything()))),
-    merge_na_count = sum(PSI == -1, na.rm = TRUE),
-    total = dplyr::n(),
-    percent_na = na_count / total * 100,
-    percent_merge_na = merge_na_count / total * 100
-  ) |>
-  # concatenate label and event type columns into one again for easy plotting
-  tidyr::unite(label_event_type, c("label", "event_type"))
-
-na_summary_df
-```
-
-Plot % NAs from shiba
-```{r}
-#| label: fig-percent_na_comparison
-#| fig-width: 11
-#| fig-height: 8
-
-ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_na)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of NA values in separate vs. combined dfs",
-    x = "Annotation status of event",
-    y = "Percent of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
-```
-
-Similar to unannotated event types being overrepresented in the separate PSI table, we see the NA values becoming more of an issue in unannotated event types in the separate PSI table.
-
-
-Plot % NAs from merging tables
-```{r}
-#| label: fig-percent_merge_na_comparison
-#| fig-width: 11
-#| fig-height: 8
-
-ggplot(na_summary_df, aes(fill = method, x = label_event_type, y = percent_merge_na)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of NA values from merging tables in separate vs. combined dfs",
-    x = "Annotation status of event",
-    y = "Percent of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
-```
-A good portion of NA values come from merging in the separate PSI tables

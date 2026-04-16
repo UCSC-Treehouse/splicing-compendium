@@ -606,4 +606,4 @@ compare_psi_dist_df |>
 A next step for this analysis will be to compare the number of NA values in each table and examine how many of each type of NA value are present in each method
 
 Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.
-For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.git bran
+For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.

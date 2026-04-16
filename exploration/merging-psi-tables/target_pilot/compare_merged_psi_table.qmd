@@ -313,7 +313,7 @@ Examine PSI distributions in combined table of events missed by the separate tab
 
 note/to do: Plot shared, combined_only, and separate_only PSI values together, faceted by event types.
 
-### Plot PSI distributions of events only found in combined table
+### Plot PSI distributions of ALE events
 
 ```{r}
 #| label: fig-psi_dist_afe
@@ -347,28 +347,158 @@ compare_psi_dist_df |>
   geom_histogram(bins = 20) +
   facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
   plot_theme +
-  theme(strip.text.x = element_text(size = global_size))
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+
 ```
-### Plot PSI distributions of events only found in separate table
+### Plot PSI distributions of ALE events
 
 ```{r}
-#| label: fig-separate_only_psi_dist
+#| label: fig-psi_dist_ale
 #| fig-width: 11
 #| fig-height: 8
 
-# make list of pos_ids only in separate df
-separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
-
-# make df of splice events only in separate dataframes that have been merged
-separate_only_df <- all_events_by_method |>
-  dplyr::filter(pos_id %in% separate_only_list) |>
-  dplyr::select(-combined) |>
-  na.omit()
-
-# plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(separate_only_df, aes(separate)) + geom_histogram() +
-  facet_wrap(vars(event_type, label), scales = "free_y")
+# filter df for ALE events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "ale") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
 ```
+
+### Plot PSI distributions of SE events
+
+```{r}
+#| label: fig-psi_dist_se
+#| fig-width: 11
+#| fig-height: 8
+
+# filter df for SE events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "se") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+### Plot PSI distributions of alternative 5' splice site events
+
+```{r}
+#| label: fig-psi_dist_five
+#| fig-width: 11
+#| fig-height: 8
+
+# filter df for a5'ss events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "five") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+### Plot PSI distributions of alternative 3' splice site events
+
+```{r}
+#| label: fig-psi_dist_three
+#| fig-width: 11
+#| fig-height: 8
+
+# filter df for a3'ss events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "three") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+### Plot PSI distributions of MSE events
+
+```{r}
+#| label: fig-psi_dist_mse
+#| fig-width: 11
+#| fig-height: 8
+
+# filter df for mse events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "mse") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+### Plot PSI distributions of MXE events
+
+```{r}
+#| label: fig-psi_dist_mxe
+#| fig-width: 11
+#| fig-height: 8
+
+# filter df for mxe events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "mxe") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
+### Plot PSI distributions of RI events
+```{r}
+#| label: fig-psi_dist_ri
+#| fig-width: 11
+#| fig-height: 8
+
+# filter df for ri events
+compare_psi_dist_df |>
+  dplyr::filter(event_type == "ri") |>
+  # plot distributions of unannotated and annotated PSI values only found in the combined table
+  ggplot(aes(PSI, fill = event_status)) +
+  geom_histogram(bins = 20) +
+  facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size),
+        # rotate x axis labels so they don't overlap
+        axis.text.x = element_text(angle =45))
+```
+
 
 ### Takeaways so far
 

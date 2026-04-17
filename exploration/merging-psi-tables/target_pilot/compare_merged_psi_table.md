@@ -365,9 +365,9 @@ from merging separate PSI tables. In particular, there are more ALE and
 MXE events only found in the separate PSI tables. For other unannotated
 events, there are 10-30% that are only found in the separate PSI.
 
-### Check how similar PSI values of shared events are
+## Examine how many samples have a complete PSI value per splice event
 
-Pivot longer for correlation calculations
+Pivot longer for plotting
 
 ``` r
 # Pivot all events df longer
@@ -377,12 +377,178 @@ long_all_events <- all_events |>
     names_to = c("sample", "method"),
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
-  ) |>
+  )
+
+# drop NAs for later (not now)
+long_no_na_all_events <- long_all_events |>
   # drop NA values, including those coded as negative PSI
   dplyr::filter(PSI >= 0)
 
+psi_sample_summary <- long_all_events |>
+  tidyr::drop_na() |>
+  dplyr::summarise(
+    .by = c(event_type, label, sample),
+    total = dplyr::n(),
+    shiba_na_count = sum(PSI == -1),
+    shiba_na_percent = shiba_na_count / total * 100,
+    merge_na_count = sum(PSI == -2),
+    merge_na_percent = merge_na_count / total * 100,
+    complete_psi_count = sum(PSI >= 0),
+    complete_psi_percent = complete_psi_count / total * 100
+  ) |>
+  # pivot counts longer for plotting
+  tidyr::pivot_longer(
+    cols = c(
+      shiba_na_count,
+      shiba_na_percent,
+      merge_na_count,
+      merge_na_percent,
+      complete_psi_count,
+      complete_psi_percent),
+    # extract percents and counts as separate columns
+    names_to = c("category", ".value"),
+    names_pattern = "(.+)_(percent|count)"
+  )
+
+# print head to spot check so we don't get 88 rows
+head(psi_sample_summary)
+```
+
+| event_type | label     | sample         |  total | category     | count |  percent |
+|:-----------|:----------|:---------------|-------:|:-------------|------:|---------:|
+| se         | annotated | SRR1559043_PSI | 206740 | shiba_na     | 81289 | 39.31943 |
+| se         | annotated | SRR1559043_PSI | 206740 | merge_na     | 54000 | 26.11976 |
+| se         | annotated | SRR1559043_PSI | 206740 | complete_psi | 71451 | 34.56080 |
+| se         | annotated | SRR1559044_PSI | 206740 | shiba_na     | 96878 | 46.85982 |
+| se         | annotated | SRR1559044_PSI | 206740 | merge_na     | 53369 | 25.81455 |
+| se         | annotated | SRR1559044_PSI | 206740 | complete_psi | 56493 | 27.32563 |
+
+Plot number of samples for each event type category with complete PSI
+events
+
+``` r
+psi_sample_summary |>
+  dplyr::filter(category == "complete_psi") |>
+
+# facet bar plots of summary of splicing event types detected for each tool
+ggplot(aes(fill = event_type, x = sample, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    name = "Alternative splicing event",
+    values = cbPalette
+  ) +
+  labs(
+    title = "Distribution of complete PSI values across all samples",
+    x = "Sample",
+    y = "Number of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  facet_wrap(vars(event_type, label), scales = "free_y") +
+  theme_bw() +
+  plot_theme +
+    theme(axis.text.x=element_blank()) +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+```
+
+<div id="fig-sample_complete_psi_breakdown">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-sample_complete_psi_breakdown-1.png"
+id="fig-sample_complete_psi_breakdown" />
+
+Figure 3
+
+</div>
+
+Plot number of samples for each event type category with shiba NA PSI
+events
+
+``` r
+psi_sample_summary |>
+  dplyr::filter(category == "shiba_na") |>
+
+# facet bar plots of summary of splicing event types detected for each tool
+ggplot(aes(fill = event_type, x = sample, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    name = "Alternative splicing event",
+    values = cbPalette
+  ) +
+  labs(
+    title = "Distribution of Shiba NA PSI values across all samples",
+    x = "Sample",
+    y = "Number of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  facet_wrap(vars(event_type, label), scales = "free_y") +
+  theme_bw() +
+  plot_theme +
+    theme(axis.text.x=element_blank()) +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+```
+
+<div id="fig-sample_shiba_na_psi_breakdown">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-sample_shiba_na_psi_breakdown-1.png"
+id="fig-sample_shiba_na_psi_breakdown" />
+
+Figure 4
+
+</div>
+
+Plot number of samples for each event type category with merge NA PSI
+events
+
+``` r
+psi_sample_summary |>
+  dplyr::filter(category == "merge_na") |>
+
+# facet bar plots of summary of splicing event types detected for each tool
+ggplot(aes(fill = event_type, x = sample, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    name = "Alternative splicing event",
+    values = cbPalette
+  ) +
+  labs(
+    title = "Distribution of merge NA PSI values across all samples",
+    x = "Sample",
+    y = "Number of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  facet_wrap(vars(event_type, label), scales = "free_y") +
+  theme_bw() +
+  plot_theme +
+    theme(axis.text.x=element_blank()) +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+```
+
+<div id="fig-sample_merge_na_psi_breakdown">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-sample_merge_na_psi_breakdown-1.png"
+id="fig-sample_merge_na_psi_breakdown" />
+
+Figure 5
+
+</div>
+
+From <a href="#fig-sample_complete_psi_breakdown"
+class="quarto-xref">Figure 3</a>, there are some samples in the pilot
+with much fewer complete PSI values than other samples But the number of
+splice events with NA values in each sample appears more stable
+
+## Check how similar PSI values of shared events are
+
+Pivot wider for correlation analysis
+
+``` r
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events |>
+all_events_by_method <- long_no_na_all_events |>
   tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
@@ -431,6 +597,135 @@ all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$
 All shared events have identical PSI values in tables created by the two
 methods.
 
+## Examine NA values
+
+### Examine frequency of Shiba NA values in each method
+
+label shiba NAs for analysis
+
+``` r
+na_long_all_events <- long_all_events |>
+  # we have to drop NA PSI values (events only in combined or separate tables) otherwise they wil propagate into counting the -1 NA values
+  tidyr::drop_na() |>
+  # label events by if they are shiba NAs (-1)
+  dplyr::mutate(
+    combined_shiba_na = combined_event & PSI == -1,
+    separate_shiba_na = separate_event & PSI == -1,
+    shared_shiba_na = shared_event & PSI == -1
+  )
+ 
+# summarize counts and percentage of each NA value type
+na_summary <- na_long_all_events |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_shiba_na_count = sum(shared_shiba_na),
+    combined_shiba_na_count = sum(combined_shiba_na) - shared_shiba_na_count,
+    separate_shiba_na_count = sum(separate_shiba_na) - shared_shiba_na_count,
+    shared_shiba_na_percent = shared_shiba_na_count / total * 100,
+    combined_shiba_na_percent = combined_shiba_na_count / total * 100,
+    separate_shiba_na_percent = separate_shiba_na_count / total * 100
+    )
+
+na_summary
+```
+
+| event_type | label | total | shared_shiba_na_count | combined_shiba_na_count | separate_shiba_na_count | shared_shiba_na_percent | combined_shiba_na_percent | separate_shiba_na_percent |
+|:---|:---|---:|---:|---:|---:|---:|---:|---:|
+| se | annotated | 18193120 | 7968814 | 42764 | 14709 | 43.80125 | 0.2350559 | 0.0808492 |
+| se | unannotated | 4789224 | 858214 | 321933 | 1507 | 17.91969 | 6.7220285 | 0.0314665 |
+| afe | unannotated | 12252328 | 2115661 | 1028671 | 15182 | 17.26742 | 8.3957188 | 0.1239111 |
+| afe | annotated | 29525056 | 13163788 | 226830 | 279857 | 44.58514 | 0.7682627 | 0.9478627 |
+| ale | annotated | 24970968 | 12076812 | 186415 | 410887 | 48.36341 | 0.7465269 | 1.6454588 |
+| ale | unannotated | 7435472 | 1018506 | 477767 | 6524 | 13.69793 | 6.4255100 | 0.0877416 |
+| five | annotated | 5807208 | 2157938 | 110044 | 5410 | 37.15965 | 1.8949554 | 0.0931601 |
+| five | unannotated | 2221912 | 386602 | 304428 | 1350 | 17.39952 | 13.7011727 | 0.0607585 |
+| three | annotated | 6783744 | 2565879 | 81961 | 8574 | 37.82394 | 1.2081971 | 0.1263904 |
+| three | unannotated | 2320824 | 397678 | 291003 | 1078 | 17.13521 | 12.5387793 | 0.0464490 |
+| mse | annotated | 11082984 | 4598336 | 18508 | 3366 | 41.49005 | 0.1669947 | 0.0303709 |
+| mse | unannotated | 2703096 | 389217 | 163546 | 521 | 14.39893 | 6.0503216 | 0.0192742 |
+| mxe | annotated | 154440 | 66004 | 370 | 2784 | 42.73763 | 0.2395752 | 1.8026418 |
+| mxe | unannotated | 52008 | 6182 | 5530 | 62 | 11.88663 | 10.6329795 | 0.1192124 |
+| ri | unannotated | 6841824 | 1142757 | 429948 | 7561 | 16.70252 | 6.2841137 | 0.1105115 |
+| ri | annotated | 2586936 | 1065713 | 5813 | 73481 | 41.19596 | 0.2247060 | 2.8404645 |
+
+Plot shiba NA frequency in each method
+
+``` r
+# pivot summary df longer for plotting
+long_na_summary_df <- na_summary |>
+  tidyr::pivot_longer(
+      cols = c(
+        shared_shiba_na_count,
+        shared_shiba_na_percent,
+        combined_shiba_na_count,
+        combined_shiba_na_percent,
+        separate_shiba_na_count,
+        separate_shiba_na_percent
+      ),
+      # extract percents and counts into separate columns
+      names_to = c("category", ".value"),
+      names_pattern = "(.+)_(percent|count)"
+    ) 
+  
+# create percent stacked barplots
+percent_plot <- 
+  ggplot(long_na_summary_df, aes(fill = category, x = event_type, y = percent)) +
+  geom_bar(position = "stack", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of Shiba NA values in combined, separate, or shared groups",
+    x = "Annotation status of event",
+    y = "Percentage of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+  
+# create raw counts grouped barplot
+counts_plot <-
+  ggplot(long_na_summary_df, aes(fill = category, x = event_type, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "Number of Shiba NA values in combined, separate, or shared groups",
+    x = "Annotation status of event",,
+    y = "Number of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+  
+# arrange plots for printing
+percent_plot / 
+counts_plot + plot_layout(guides = "collect")
+```
+
+<div id="fig-shiba_na_breakdown">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-shiba_na_breakdown-1.png"
+id="fig-shiba_na_breakdown" />
+
+Figure 6
+
+</div>
+
+I think we get more Shiba NA values in the combined tables because there
+are more splice events dropped in the separate tables due to splicing
+detected in the GTF for a given gene. I suspect there may be an overlap
+of position IDs that have a Shiba (-1) NA value in the combined table
+and position IDs that have a dropped gene (-2) NA in the separate
+tables.
+
+### Examine frequency of only one transcript NA values (-2) in separate tables
+
+To do…
+
 ## Look at splice events present in min number of samples
 
 Filter splice events for those with complete PSI values in \>=
@@ -439,7 +734,7 @@ min_samples samples per method
 min_samples = 0
 
 ``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 0)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 0)
 sample_filtered_event_summary
 ```
 
@@ -472,94 +767,14 @@ plot_event_summary(sample_filtered_event_summary)
 src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_0-1.png"
 id="fig-splice_events_breakdown_0" />
 
-Figure 3
-
-</div>
-
-min_samples = 2
-
-``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 2)
-sample_filtered_event_summary
-```
-
-| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|
-| se | annotated | 5918275 | 5840820 | 34424 | 43031 | 98.69126 | 0.5816560 | 0.7270869 |
-| se | unannotated | 537624 | 504068 | 30639 | 2917 | 93.75846 | 5.6989643 | 0.5425725 |
-| afe | annotated | 6642014 | 6622315 | 9887 | 9812 | 99.70342 | 0.1488555 | 0.1477263 |
-| afe | unannotated | 425273 | 415914 | 8519 | 840 | 97.79930 | 2.0031838 | 0.1975202 |
-| ale | annotated | 3606801 | 3602347 | 2289 | 2165 | 99.87651 | 0.0634634 | 0.0600255 |
-| ale | unannotated | 252476 | 250695 | 1639 | 142 | 99.29459 | 0.6491706 | 0.0562430 |
-| five | annotated | 1539201 | 1514038 | 14484 | 10679 | 98.36519 | 0.9410077 | 0.6938015 |
-| five | unannotated | 160653 | 148298 | 11316 | 1039 | 92.30951 | 7.0437527 | 0.6467355 |
-| three | annotated | 2023809 | 1990059 | 16936 | 16814 | 98.33235 | 0.8368379 | 0.8308096 |
-| three | unannotated | 180472 | 166796 | 12198 | 1478 | 92.42209 | 6.7589432 | 0.8189636 |
-| mse | annotated | 4298007 | 4277781 | 10652 | 9574 | 99.52941 | 0.2478358 | 0.2227544 |
-| mse | unannotated | 235009 | 225559 | 8806 | 644 | 95.97888 | 3.7470905 | 0.2740321 |
-| mxe | annotated | 36158 | 36158 | 0 | 0 | 100.00000 | 0.0000000 | 0.0000000 |
-| mxe | unannotated | 1464 | 1278 | 174 | 12 | 87.29508 | 11.8852459 | 0.8196721 |
-| ri | unannotated | 1084979 | 1011589 | 59602 | 13788 | 93.23581 | 5.4933782 | 1.2708080 |
-| ri | annotated | 1211256 | 1133060 | 4737 | 73459 | 93.54422 | 0.3910817 | 6.0646965 |
-
-``` r
-plot_event_summary(sample_filtered_event_summary)
-```
-
-<div id="fig-splice_events_breakdown_2">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_2-1.png"
-id="fig-splice_events_breakdown_2" />
-
-Figure 4
-
-</div>
-
-min_samples = 5
-
-``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 5)
-sample_filtered_event_summary
-```
-
-| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|
-| se | annotated | 5844334 | 5768116 | 33274 | 42944 | 98.69587 | 0.5693378 | 0.7347972 |
-| se | unannotated | 228943 | 215037 | 11820 | 2086 | 93.92600 | 5.1628571 | 0.9111438 |
-| afe | annotated | 6461796 | 6443238 | 8809 | 9749 | 99.71280 | 0.1363243 | 0.1508714 |
-| afe | unannotated | 138061 | 134383 | 3119 | 559 | 97.33596 | 2.2591463 | 0.4048935 |
-| ale | annotated | 3486044 | 3481761 | 2129 | 2154 | 99.87714 | 0.0610721 | 0.0617892 |
-| ale | unannotated | 80112 | 79819 | 230 | 63 | 99.63426 | 0.2870981 | 0.0786399 |
-| five | annotated | 1434721 | 1414192 | 10058 | 10471 | 98.56913 | 0.7010422 | 0.7298283 |
-| five | unannotated | 59519 | 55230 | 3615 | 674 | 92.79390 | 6.0736908 | 1.1324115 |
-| three | annotated | 1935179 | 1905618 | 12958 | 16603 | 98.47244 | 0.6696021 | 0.8579568 |
-| three | unannotated | 73963 | 68880 | 3970 | 1113 | 93.12764 | 5.3675486 | 1.5048065 |
-| mse | annotated | 4223652 | 4205478 | 8668 | 9506 | 99.56971 | 0.2052252 | 0.2250659 |
-| mse | unannotated | 86070 | 82800 | 2867 | 403 | 96.20077 | 3.3310096 | 0.4682235 |
-| mxe | annotated | 35461 | 35461 | 0 | 0 | 100.00000 | 0.0000000 | 0.0000000 |
-| mxe | unannotated | 751 | 655 | 86 | 10 | 87.21704 | 11.4513981 | 1.3315579 |
-| ri | annotated | 1196773 | 1119240 | 4461 | 73072 | 93.52149 | 0.3727524 | 6.1057527 |
-| ri | unannotated | 721191 | 676115 | 32519 | 12557 | 93.74978 | 4.5090690 | 1.7411476 |
-
-``` r
-plot_event_summary(sample_filtered_event_summary)
-```
-
-<div id="fig-splice_events_breakdown_5">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_5-1.png"
-id="fig-splice_events_breakdown_5" />
-
-Figure 5
+Figure 7
 
 </div>
 
 min_samples = 10
 
 ``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 10)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 10)
 sample_filtered_event_summary
 ```
 
@@ -592,7 +807,7 @@ plot_event_summary(sample_filtered_event_summary)
 src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_10-1.png"
 id="fig-splice_events_breakdown_10" />
 
-Figure 6
+Figure 8
 
 </div>
 
@@ -604,7 +819,7 @@ events become shared?)
 
 ``` r
 # make dataframe of PSI values of splice events only in the combined or separate dataframes
-compare_psi_dist_df <- long_all_events |>
+compare_psi_dist_df <- long_no_na_all_events |>
   # label splice events by whether they are only in the combined or separate tables
   dplyr::mutate(
     event_status = dplyr::case_when(
@@ -626,7 +841,7 @@ psi_distributions(compare_psi_dist_df, "afe")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_afe-1.png"
 id="fig-psi_dist_afe" />
 
-Figure 7
+Figure 9
 
 </div>
 
@@ -643,7 +858,7 @@ psi_distributions(compare_psi_dist_df, "ale")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_ale-1.png"
 id="fig-psi_dist_ale" />
 
-Figure 8
+Figure 10
 
 </div>
 
@@ -659,7 +874,7 @@ psi_distributions(compare_psi_dist_df, "se")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_se-1.png"
 id="fig-psi_dist_se" />
 
-Figure 9
+Figure 11
 
 </div>
 
@@ -675,7 +890,7 @@ psi_distributions(compare_psi_dist_df, "five")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_five-1.png"
 id="fig-psi_dist_five" />
 
-Figure 10
+Figure 12
 
 </div>
 
@@ -691,7 +906,7 @@ psi_distributions(compare_psi_dist_df, "three")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_three-1.png"
 id="fig-psi_dist_three" />
 
-Figure 11
+Figure 13
 
 </div>
 
@@ -707,7 +922,7 @@ psi_distributions(compare_psi_dist_df, "mse")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_mse-1.png"
 id="fig-psi_dist_mse" />
 
-Figure 12
+Figure 14
 
 </div>
 
@@ -723,7 +938,7 @@ psi_distributions(compare_psi_dist_df, "mxe")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_mxe-1.png"
 id="fig-psi_dist_mxe" />
 
-Figure 13
+Figure 15
 
 </div>
 
@@ -739,7 +954,7 @@ psi_distributions(compare_psi_dist_df, "ri")
 src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_ri-1.png"
 id="fig-psi_dist_ri" />
 
-Figure 14
+Figure 16
 
 </div>
 

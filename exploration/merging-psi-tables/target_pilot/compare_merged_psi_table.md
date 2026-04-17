@@ -73,10 +73,10 @@ event_summary <- function(
       shared_percent = shared_count / total * 100,
       combined_only_percent = combined_only_count / total * 100,
       separate_only_percent = separate_only_count / total * 100
-    ) 
+    )
 }
 
-# plot event summary frequencies as percent and raw counts bar plots 
+# plot event summary frequencies as percent and raw counts bar plots
 plot_event_summary <- function(
     summary_df) {
   # pivot summary df longer for plotting
@@ -93,10 +93,10 @@ plot_event_summary <- function(
       # extract percents and counts into separate columns
       names_to = c("category", ".value"),
       names_pattern = "(.+)_(percent|count)"
-    ) 
-  
+    )
+
   # create percent stacked barplots
-  percent_plot <- 
+  percent_plot <-
     ggplot(long_summary_df, aes(fill = category, x = event_type, y = percent)) +
     geom_bar(position = "stack", stat = "identity") +
     plot_theme +
@@ -108,7 +108,7 @@ plot_event_summary <- function(
     facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
-  
+
   # create raw counts grouped barplot
   counts_plot <-
     ggplot(long_summary_df, aes(fill = category, x = event_type, y = count)) +
@@ -122,11 +122,11 @@ plot_event_summary <- function(
     facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
-  
+
   # arrange plots for printing
-  percent_plot / 
+  percent_plot /
     counts_plot
-  
+
 }
 ```
 
@@ -440,7 +440,7 @@ min_samples = 0
 
 ``` r
 sample_filtered_event_summary <- event_summary(long_all_events, 0)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 ```
 
 | event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
@@ -480,7 +480,7 @@ min_samples = 2
 
 ``` r
 sample_filtered_event_summary <- event_summary(long_all_events, 2)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 ```
 
 | event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
@@ -520,7 +520,7 @@ min_samples = 5
 
 ``` r
 sample_filtered_event_summary <- event_summary(long_all_events, 5)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 ```
 
 | event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
@@ -560,7 +560,7 @@ min_samples = 10
 
 ``` r
 sample_filtered_event_summary <- event_summary(long_all_events, 10)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 ```
 
 | event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |

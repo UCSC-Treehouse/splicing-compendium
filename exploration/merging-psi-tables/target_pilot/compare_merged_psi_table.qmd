@@ -112,10 +112,10 @@ event_summary <- function(
       shared_percent = shared_count / total * 100,
       combined_only_percent = combined_only_count / total * 100,
       separate_only_percent = separate_only_count / total * 100
-    ) 
+    )
 }
 
-# plot event summary frequencies as percent and raw counts bar plots 
+# plot event summary frequencies as percent and raw counts bar plots
 plot_event_summary <- function(
     summary_df) {
   # pivot summary df longer for plotting
@@ -132,10 +132,10 @@ plot_event_summary <- function(
       # extract percents and counts into separate columns
       names_to = c("category", ".value"),
       names_pattern = "(.+)_(percent|count)"
-    ) 
-  
+    )
+
   # create percent stacked barplots
-  percent_plot <- 
+  percent_plot <-
     ggplot(long_summary_df, aes(fill = category, x = event_type, y = percent)) +
     geom_bar(position = "stack", stat = "identity") +
     plot_theme +
@@ -147,7 +147,7 @@ plot_event_summary <- function(
     facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
-  
+
   # create raw counts grouped barplot
   counts_plot <-
     ggplot(long_summary_df, aes(fill = category, x = event_type, y = count)) +
@@ -161,11 +161,11 @@ plot_event_summary <- function(
     facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
-  
+
   # arrange plots for printing
-  percent_plot / 
+  percent_plot /
     counts_plot
-  
+
 }
 
 ```
@@ -420,7 +420,7 @@ Filter splice events for those with complete PSI values in >= min_samples sample
 min_samples = 0
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 0)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 
 ```
 
@@ -434,7 +434,7 @@ plot_event_summary(sample_filtered_event_summary)
 min_samples = 2
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 2)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 
 ```
 
@@ -449,7 +449,7 @@ plot_event_summary(sample_filtered_event_summary)
 min_samples = 5
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 5)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 ```
 
 ```{r}
@@ -463,7 +463,7 @@ plot_event_summary(sample_filtered_event_summary)
 min_samples = 10
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 10)
-sample_filtered_event_summary 
+sample_filtered_event_summary
 ```
 
 ```{r}
@@ -481,7 +481,7 @@ Examine PSI distributions in combined table of events missed by the separate tab
 
 ```{r}
 #| label: fig-psi_dist_afe
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 # make dataframe of PSI values of splice events only in the combined or separate dataframes
@@ -505,7 +505,7 @@ psi_distributions(compare_psi_dist_df, "afe")
 
 ```{r}
 #| label: fig-psi_dist_ale
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 # filter df for ALE events
@@ -516,7 +516,7 @@ psi_distributions(compare_psi_dist_df, "ale")
 
 ```{r}
 #| label: fig-psi_dist_se
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 psi_distributions(compare_psi_dist_df, "se")
@@ -526,7 +526,7 @@ psi_distributions(compare_psi_dist_df, "se")
 
 ```{r}
 #| label: fig-psi_dist_five
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 psi_distributions(compare_psi_dist_df, "five")
@@ -536,7 +536,7 @@ psi_distributions(compare_psi_dist_df, "five")
 
 ```{r}
 #| label: fig-psi_dist_three
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 psi_distributions(compare_psi_dist_df, "three")
@@ -546,7 +546,7 @@ psi_distributions(compare_psi_dist_df, "three")
 
 ```{r}
 #| label: fig-psi_dist_mse
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 psi_distributions(compare_psi_dist_df, "mse")
@@ -556,7 +556,7 @@ psi_distributions(compare_psi_dist_df, "mse")
 
 ```{r}
 #| label: fig-psi_dist_mxe
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 psi_distributions(compare_psi_dist_df, "mxe")
@@ -565,7 +565,7 @@ psi_distributions(compare_psi_dist_df, "mxe")
 ### Plot PSI distributions of RI events
 ```{r}
 #| label: fig-psi_dist_ri
-#| fig-width: 11
+#| fig-width: 13
 #| fig-height: 8
 
 psi_distributions(compare_psi_dist_df, "ri")

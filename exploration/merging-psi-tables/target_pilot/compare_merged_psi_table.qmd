@@ -434,35 +434,7 @@ sample_filtered_event_summary
 
 plot_event_summary(sample_filtered_event_summary)
 ```
-min_samples = 2
-```{r}
-sample_filtered_event_summary <- event_summary(long_no_na_all_events, 2)
-sample_filtered_event_summary
 
-```
-
-```{r}
-#| label: fig-splice_events_breakdown_2
-#| fig-width: 11
-#| fig-height: 8
-
-plot_event_summary(sample_filtered_event_summary)
-
-```
-min_samples = 5
-```{r}
-sample_filtered_event_summary <- event_summary(long_no_na_all_events, 5)
-sample_filtered_event_summary
-```
-
-```{r}
-#| label: fig-splice_events_breakdown_5
-#| fig-width: 11
-#| fig-height: 8
-
-plot_event_summary(sample_filtered_event_summary)
-
-```
 min_samples = 10
 ```{r}
 sample_filtered_event_summary <- event_summary(long_no_na_all_events, 10)

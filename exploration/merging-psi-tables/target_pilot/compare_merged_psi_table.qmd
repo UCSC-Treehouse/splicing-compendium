@@ -366,6 +366,17 @@ For other unannotated events, there are 10-30% that are only found in the separa
 Pivot longer for correlation calculations
 
 ```{r}
+# Pivot all events df longer
+long_all_events <- all_events |>
+  tidyr::pivot_longer(
+    cols = matches("_combined|_separate"),
+    names_to = c("sample", "method"),
+    values_to = "PSI",
+    names_pattern = "(.*)_(combined|separate)"
+  ) |>
+  # drop NA values, including those coded as negative PSI
+  dplyr::filter(PSI >= 0)
+
 # pivot wider for correlation calculations
 all_events_by_method <- long_all_events |>
   tidyr:: pivot_wider(

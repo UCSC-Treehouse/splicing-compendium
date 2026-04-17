@@ -368,17 +368,20 @@ Pivot longer for correlation calculations
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
-  ) |>
+  )
+
+long_no_na_all_events <- long_all_events |>
   # drop NA values, including those coded as negative PSI
   dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events |>
+all_events_by_method <- long_no_na_all_events |>
   tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
@@ -419,7 +422,7 @@ Filter splice events for those with complete PSI values in >= min_samples sample
 
 min_samples = 0
 ```{r}
-sample_filtered_event_summary <- event_summary(long_all_events, 0)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 0)
 sample_filtered_event_summary
 
 ```
@@ -433,7 +436,7 @@ plot_event_summary(sample_filtered_event_summary)
 ```
 min_samples = 2
 ```{r}
-sample_filtered_event_summary <- event_summary(long_all_events, 2)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 2)
 sample_filtered_event_summary
 
 ```
@@ -448,7 +451,7 @@ plot_event_summary(sample_filtered_event_summary)
 ```
 min_samples = 5
 ```{r}
-sample_filtered_event_summary <- event_summary(long_all_events, 5)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 5)
 sample_filtered_event_summary
 ```
 
@@ -462,7 +465,7 @@ plot_event_summary(sample_filtered_event_summary)
 ```
 min_samples = 10
 ```{r}
-sample_filtered_event_summary <- event_summary(long_all_events, 10)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 10)
 sample_filtered_event_summary
 ```
 
@@ -485,7 +488,7 @@ Examine PSI distributions in combined table of events missed by the separate tab
 #| fig-height: 8
 
 # make dataframe of PSI values of splice events only in the combined or separate dataframes
-compare_psi_dist_df <- long_all_events |>
+compare_psi_dist_df <- long_no_na_all_events |>
   # label splice events by whether they are only in the combined or separate tables
   dplyr::mutate(
     event_status = dplyr::case_when(

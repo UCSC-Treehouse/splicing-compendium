@@ -119,7 +119,56 @@ event_summary <- function(
 
 # plot event summary frequencies as percent and raw counts bar plots 
 plot_event_summary <- function(
-    summary_df) {}
+    summary_df) {
+  # pivot summary df longer for plotting
+  long_summary_df <- summary_df |>
+    tidyr::pivot_longer(
+      cols = c(
+        shared_count,
+        shared_percent,
+        combined_only_count,
+        combined_only_percent,
+        separate_only_count,
+        separate_only_percent
+      ),
+      # extract percents and counts into separate columns
+      names_to = c("category", ".value"),
+      names_pattern = "(.+)_(percent|count)"
+    ) 
+  
+  # create percent stacked barplots
+  percent_plot <- 
+    ggplot(long_summary_df, aes(fill = category, x = event_type, y = percent)) +
+    geom_bar(position = "stack", stat = "identity") +
+    plot_theme +
+    labs(
+      title = "% of splice events in combined, separate, or shared groups",
+      x = "Annotation status of event",
+      y = "Percentage of events"
+    ) +
+    facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    plot_theme
+  
+  # create raw counts grouped barplot
+  counts_plot <-
+    ggplot(long_summary_df, aws(fill = category, x = event_type, y = count)) +
+    geom_bar(position = "dodge", stat = "identity") +
+    plot_theme +
+    labs(
+      title = "Number of splice events only in combined, separate, or shared groups",
+      x = "Annotation status of event",,
+      y = "Number of events"
+    ) +
+    facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    plot_theme
+  
+  # arrange plots for printing
+  percent_plot / 
+    counts_plot
+  
+}
 
 ```
 

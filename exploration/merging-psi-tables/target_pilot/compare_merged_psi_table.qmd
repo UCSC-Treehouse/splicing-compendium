@@ -27,6 +27,7 @@ As part of tracking differences between the two tables, we have labeled NA value
 ```{r, setup, include=FALSE}
 # load libraries
 library(ggplot2)
+library(patchwork)
 
 # define global size for plots
 global_size <- 20
@@ -81,6 +82,44 @@ psi_distributions <- function(
           # rotate x axis labels so they don't overlap
           axis.text.x = element_text(angle =45))
 }
+
+# event summary plots of frequency of events in each category
+event_summary <- function(
+    long_df,
+    min_sample_value) {
+  # filter samples by complete PSI value in min number of samples
+  all_events_n_filtered <- long_df |>
+    dplyr::group_by(pos_id) |>
+    # count number of events are present in each shared status
+    dplyr::mutate(
+      combined_count = sum(method == "combined"),
+      separate_count = sum(method == "separate")
+    ) |>
+    # filter for events with complete PSI values for minimum number of samples
+    dplyr::filter(
+      combined_count >= min_sample_value,
+      separate_count >= min_sample_value
+    ) |>
+    dplyr::ungroup() |>
+    # create summary table for plotting
+    dplyr::summarise(
+      .by = c(event_type, label),
+      # count number of events in each event type and annotation category
+      total = dplyr::n(),
+      shared_count = sum(shared_event),
+      combined_only_count = sum(combined_event) - shared_count,
+      separate_only_count = sum(separate_event) - shared_count,
+      shared_percent = shared_count / total * 100,
+      combined_only_percent = combined_only_count / total * 100,
+      separate_only_percent = separate_onl_count / total * 100
+    ) 
+  # print it
+  all_events_n_filtered
+}
+
+# plot event summary frequencies as percent and raw counts bar plots 
+plot_event_summary <- function(
+    summary_df) {}
 
 ```
 

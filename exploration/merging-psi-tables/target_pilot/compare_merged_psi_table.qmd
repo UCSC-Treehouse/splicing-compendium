@@ -361,12 +361,9 @@ The capturing of unannotated event types suffers more from merging separate PSI 
 In particular, there are more ALE and MXE events only found in the separate PSI tables.
 For other unannotated events, there are 10-30% that are only found in the separate PSI.
 
-## Examine NA values
-
-### Examine frequency of Shiba NA values in each method
+## Examine how many samples have a complete PSI value per splice event
 
 Pivot longer for plotting
-
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
@@ -377,6 +374,121 @@ long_all_events <- all_events |>
     values_to = "PSI",
     names_pattern = "(.*)_(combined|separate)"
   )
+
+# drop NAs for later (not now)
+long_no_na_all_events <- long_all_events |>
+  # drop NA values, including those coded as negative PSI
+  dplyr::filter(PSI >= 0)
+
+psi_sample_summary <- long_all_events |>
+  tidyr::drop_na() |>
+  dplyr::summarise(
+    .by = c(event_type, label, sample),
+    total = dplyr::n(),
+    shiba_na_count = sum(PSI == -1),
+    shiba_na_percent = shiba_na_count / total * 100,
+    merge_na_count = sum(PSI == -2),
+    merge_na_percent = merge_na_count / total * 100,
+    complete_psi_count = sum(PSI >= 0),
+    complete_psi_percent = complete_psi_count / total * 100
+  ) |>
+  # pivot counts longer for plotting
+  tidyr::pivot_longer(
+    cols = c(
+      shiba_na_count,
+      shiba_na_percent,
+      merge_na_count,
+      merge_na_percent,
+      complete_psi_count,
+      complete_psi_percent),
+    # extract percents and counts as separate columns
+    names_to = c("category", ".value"),
+    names_pattern = "(.+)_(percent|count)"
+  )
+
+# print head to spot check so we don't get 88 rows
+head(psi_sample_summary)
+```
+
+Plot number of samples for eache vent type category with complete PSI events
+```{r}
+#| label: fig-sample_complete_psi_breakdown
+#| fig-width: 13
+#| fig-height: 8
+
+psi_sample_summary |>
+  dplyr::filter(category == "complete_psi") |>
+
+# facet bar plots of summary of splicing event types detected for each tool
+ggplot(aes(fill = event_type, x = sample, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    name = "Alternative splicing event",
+    values = cbPalette
+  ) +
+  labs(
+    title = "Distribution of complete PSI values across all samples",
+    x = "Sample",
+    y = "Number of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  facet_wrap(vars(event_type, label), scales = "free_y") +
+  theme_bw() +
+  plot_theme +
+    theme(axis.text.x=element_blank()) +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+```
+
+
+## Check how similar PSI values of shared events are
+
+Pivot wider for correlation analysis
+
+```{r}
+# pivot wider for correlation calculations
+all_events_by_method <- long_no_na_all_events |>
+  tidyr:: pivot_wider(
+    names_from = method,
+    values_from = PSI
+  )
+```
+
+### Create table of correlation scores for shared event
+
+```{r}
+correlation_df <- all_events_by_method |>
+  dplyr::summarize(
+    .by = event_type,
+    # correlation coefficients are overestimated here because we remove incomplete observations
+    pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
+    pearson_r2 = pearson_r ** 2,
+    spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
+  )
+
+# print correlation table
+correlation_df
+```
+
+Check whether shared events have the same PSI values
+
+```{r}
+# omit NAs
+complete_all_events_by_method <- na.omit(all_events_by_method)
+
+# check if shared events are equal
+all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$separate)
+```
+
+All shared events have identical PSI values in tables created by the two methods.
+
+## Examine NA values
+
+### Examine frequency of Shiba NA values in each method
+
+label shiba NAs for analysis
+
+```{r}
 
 na_long_all_events <- long_all_events |>
   # we have to drop NA PSI values (events only in combined or separate tables) otherwise they wil propagate into counting the -1 NA values
@@ -466,50 +578,8 @@ counts_plot + plot_layout(guides = "collect")
 I think we get more Shiba NA values in the combined tables because there are more splice events dropped in the separate tables due to splicing detected in the GTF for a given gene.
 I suspect there may be an overlap of position IDs that have a Shiba (-1) NA value in the combined table and position IDs that have a dropped gene (-2) NA in the separate tables.
 
-## Check how similar PSI values of shared events are
+### Examine frequency of only one transcript NA values (-2) in separate tables
 
-Drop NAs and pivot wider for correlation analysis
-
-```{r}
-long_no_na_all_events <- long_all_events |>
-  # drop NA values, including those coded as negative PSI
-  dplyr::filter(PSI >= 0)
-
-# pivot wider for correlation calculations
-all_events_by_method <- long_no_na_all_events |>
-  tidyr:: pivot_wider(
-    names_from = method,
-    values_from = PSI
-  )
-```
-
-### Create table of correlation scores for shared event
-
-```{r}
-correlation_df <- all_events_by_method |>
-  dplyr::summarize(
-    .by = event_type,
-    # correlation coefficients are overestimated here because we remove incomplete observations
-    pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
-    pearson_r2 = pearson_r ** 2,
-    spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
-  )
-
-# print correlation table
-correlation_df
-```
-
-Check whether shared events have the same PSI values
-
-```{r}
-# omit NAs
-complete_all_events_by_method <- na.omit(all_events_by_method)
-
-# check if shared events are equal
-all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$separate)
-```
-
-All shared events have identical PSI values in tables created by the two methods.
 
 ## Look at splice events present in min number of samples
 

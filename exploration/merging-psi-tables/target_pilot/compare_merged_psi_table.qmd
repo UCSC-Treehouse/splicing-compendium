@@ -111,10 +111,8 @@ event_summary <- function(
       separate_only_count = sum(separate_event) - shared_count,
       shared_percent = shared_count / total * 100,
       combined_only_percent = combined_only_count / total * 100,
-      separate_only_percent = separate_onl_count / total * 100
+      separate_only_percent = separate_only_count / total * 100
     ) 
-  # print it
-  all_events_n_filtered
 }
 
 # plot event summary frequencies as percent and raw counts bar plots 
@@ -152,7 +150,7 @@ plot_event_summary <- function(
   
   # create raw counts grouped barplot
   counts_plot <-
-    ggplot(long_summary_df, aws(fill = category, x = event_type, y = count)) +
+    ggplot(long_summary_df, aes(fill = category, x = event_type, y = count)) +
     geom_bar(position = "dodge", stat = "identity") +
     plot_theme +
     labs(
@@ -368,18 +366,6 @@ For other unannotated events, there are 10-30% that are only found in the separa
 Pivot longer for correlation calculations
 
 ```{r}
-# Pivot all events df longer
-long_all_events <- all_events |>
-  dplyr::slice_sample(n = 2000) |>
-  tidyr::pivot_longer(
-    cols = matches("_combined|_separate"),
-    names_to = c("sample", "method"),
-    values_to = "PSI",
-    names_pattern = "(.*)_(combined|separate)"
-  ) |>
-  # drop NA values, including those coded as negative PSI
-  dplyr::filter(PSI >= 0)
-
 # pivot wider for correlation calculations
 all_events_by_method <- long_all_events |>
   tidyr:: pivot_wider(
@@ -419,93 +405,63 @@ All shared events have identical PSI values in tables created by the two methods
 ## Look at splice events present in min number of samples
 
 Filter splice events for those with complete PSI values in >= min_samples samples per method
-I initially tried to filter for n >= min_samples for both separate AND combined methods,
-but the resulting table was of 100% shared events.
-This happened even when I filtered for min_samples = 1 for both separate and combined methods
+
+min_samples = 0
 ```{r}
-# set min number of samples to filter splice events with completem values by (arbitrary)
-min_samples <- 5
+sample_filtered_event_summary <- event_summary(long_all_events, 0)
+sample_filtered_event_summary 
 
-# input is long_all_events which already have NA values dropped, including those coded as negative PSI
-all_events_n_filtered <- long_all_events |>
-  dplyr::group_by(pos_id) |>
-  # count how many events in each shared status
-  dplyr::mutate(
-    combined_count = sum(method == "combined"),
-    separate_count = sum(method == "separate")
-  ) |>
-  # filter for events with complete PSI values form minimum number of samples
-  dplyr::filter(
-    combined_count >= min_samples,
-    separate_count >= min_samples
-  ) |>
-  dplyr::ungroup() |>
-  dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    combined_only_count = sum(combined_event) - shared_count,
-    separate_only_count = sum(separate_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    combined_only_percent = combined_only_count / total * 100,
-    separate_only_percent = separate_only_count / total * 100,
-)
-
-all_events_n_filtered
 ```
 
-Pivot summary df longer for plotting
 ```{r}
-#| label: fig-n_filtered_splice_events_percent
+#| label: fig-splice_events_breakdown_0
 #| fig-width: 11
 #| fig-height: 8
 
-# pivot summary plot longer so we can make grouped bar plots of the percentages
-long_all_events_n_filtered <- all_events_n_filtered |>
-  tidyr::pivot_longer(
-    cols = c(
-      shared_count,
-      shared_percent,
-      combined_only_count,
-      combined_only_percent,
-      separate_only_count,
-      separate_only_percent),
-    # extract percents and counts as separate columns
-    names_to = c("category", ".value"),
-    names_pattern = "(.+)_(percent|count)"
-  )
+plot_event_summary(sample_filtered_event_summary)
+```
+min_samples = 2
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 2)
+sample_filtered_event_summary 
 
-ggplot(long_all_events_n_filtered, aes(fill = category, x = event_type, y = percent)) +
-  geom_bar(position = "stack", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of splice events in combined, separate, or shared groups",
-    x = "Annotation status of event",
-    y = "Percentage of events"
-  ) +
-  facet_wrap(vars(label)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
 ```
 
-Create raw number bar plots of events filtered by min sample
 ```{r}
-#| label: fig-n_filtered_splice_events_counts
+#| label: fig-splice_events_breakdown_2
 #| fig-width: 11
 #| fig-height: 8
 
-ggplot(long_all_events_n_filtered, aes(fill = category, x = event_type, y = count)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "Number of splice events only in combined, separate, or shared groups",
-    x = "Annotation status of event",
-    y = "Number of events"
-  ) +
-  facet_wrap(vars(label)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
+plot_event_summary(sample_filtered_event_summary)
+
+```
+min_samples = 5
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 5)
+sample_filtered_event_summary 
+```
+
+```{r}
+#| label: fig-splice_events_breakdown_5
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_filtered_event_summary)
+
+```
+min_samples = 10
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 10)
+sample_filtered_event_summary 
+```
+
+```{r}
+#| label: fig-splice_events_breakdown_10
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_filtered_event_summary)
+
 ```
 
 Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)

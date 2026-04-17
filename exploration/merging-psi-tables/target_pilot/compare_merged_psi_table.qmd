@@ -361,9 +361,11 @@ The capturing of unannotated event types suffers more from merging separate PSI 
 In particular, there are more ALE and MXE events only found in the separate PSI tables.
 For other unannotated events, there are 10-30% that are only found in the separate PSI.
 
-### Check how similar PSI values of shared events are
+## Examine NA values
 
-Pivot longer for correlation calculations
+### Examine frequency of Shiba NA values in each method
+
+Pivot longer for plotting
 
 ```{r}
 # Pivot all events df longer
@@ -376,6 +378,99 @@ long_all_events <- all_events |>
     names_pattern = "(.*)_(combined|separate)"
   )
 
+na_long_all_events <- long_all_events |>
+  # we have to drop NA PSI values (events only in combined or separate tables) otherwise they wil propagate into counting the -1 NA values
+  tidyr::drop_na() |>
+  # label events by if they are shiba NAs (-1)
+  dplyr::mutate(
+    combined_shiba_na = combined_event & PSI == -1,
+    separate_shiba_na = separate_event & PSI == -1,
+    shared_shiba_na = shared_event & PSI == -1
+  )
+ 
+# summarize counts and percentage of each NA value type
+na_summary <- na_long_all_events |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_shiba_na_count = sum(shared_shiba_na),
+    combined_shiba_na_count = sum(combined_shiba_na) - shared_shiba_na_count,
+    separate_shiba_na_count = sum(separate_shiba_na) - shared_shiba_na_count,
+    shared_shiba_na_percent = shared_shiba_na_count / total * 100,
+    combined_shiba_na_percent = combined_shiba_na_count / total * 100,
+    separate_shiba_na_percent = separate_shiba_na_count / total * 100
+    )
+
+na_summary
+```
+
+Plot shiba NA frequency in each method
+```{r}
+#| label: fig-shiba_na_breakdown
+#| fig-width: 11
+#| fig-height: 8
+
+# pivot summary df longer for plotting
+long_na_summary_df <- na_summary |>
+  tidyr::pivot_longer(
+      cols = c(
+        shared_shiba_na_count,
+        shared_shiba_na_percent,
+        combined_shiba_na_count,
+        combined_shiba_na_percent,
+        separate_shiba_na_count,
+        separate_shiba_na_percent
+      ),
+      # extract percents and counts into separate columns
+      names_to = c("category", ".value"),
+      names_pattern = "(.+)_(percent|count)"
+    ) 
+  
+# create percent stacked barplots
+percent_plot <- 
+  ggplot(long_na_summary_df, aes(fill = category, x = event_type, y = percent)) +
+  geom_bar(position = "stack", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "% of Shiba NA values in combined, separate, or shared groups",
+    x = "Annotation status of event",
+    y = "Percentage of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+  
+# create raw counts grouped barplot
+counts_plot <-
+  ggplot(long_na_summary_df, aes(fill = category, x = event_type, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  plot_theme +
+  labs(
+    title = "Number of Shiba NA values in combined, separate, or shared groups",
+    x = "Annotation status of event",,
+    y = "Number of events"
+  ) +
+  facet_wrap(vars(label)) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  plot_theme +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+  
+# arrange plots for printing
+percent_plot / 
+counts_plot + plot_layout(guides = "collect")
+  
+```
+I think we get more Shiba NA values in the combined tables because there are more splice events dropped in the separate tables due to splicing detected in the GTF for a given gene.
+I suspect there may be an overlap of position IDs that have a Shiba (-1) NA value in the combined table and position IDs that have a dropped gene (-2) NA in the separate tables.
+
+## Check how similar PSI values of shared events are
+
+Drop NAs and pivot wider for correlation analysis
+
+```{r}
 long_no_na_all_events <- long_all_events |>
   # drop NA values, including those coded as negative PSI
   dplyr::filter(PSI >= 0)

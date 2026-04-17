@@ -410,11 +410,11 @@ psi_sample_summary <- long_all_events |>
 head(psi_sample_summary)
 ```
 
-Plot number of samples for eache vent type category with complete PSI events
+Plot number of samples for each event type category with complete PSI events
 ```{r}
 #| label: fig-sample_complete_psi_breakdown
-#| fig-width: 13
-#| fig-height: 8
+#| fig-width: 15
+#| fig-height: 15
 
 psi_sample_summary |>
   dplyr::filter(category == "complete_psi") |>
@@ -439,7 +439,66 @@ ggplot(aes(fill = event_type, x = sample, y = count)) +
   # make facet labels bigger
   theme(strip.text.x = element_text(size = global_size))
 ```
+Plot number of samples for each event type category with shiba NA PSI events
+```{r}
+#| label: fig-sample_shiba_na_psi_breakdown
+#| fig-width: 15
+#| fig-height: 15
 
+psi_sample_summary |>
+  dplyr::filter(category == "shiba_na") |>
+
+# facet bar plots of summary of splicing event types detected for each tool
+ggplot(aes(fill = event_type, x = sample, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    name = "Alternative splicing event",
+    values = cbPalette
+  ) +
+  labs(
+    title = "Distribution of Shiba NA PSI values across all samples",
+    x = "Sample",
+    y = "Number of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  facet_wrap(vars(event_type, label), scales = "free_y") +
+  theme_bw() +
+  plot_theme +
+    theme(axis.text.x=element_blank()) +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+```
+Plot number of samples for each event type category with merge NA PSI events
+```{r}
+#| label: fig-sample_merge_na_psi_breakdown
+#| fig-width: 15
+#| fig-height: 15
+
+psi_sample_summary |>
+  dplyr::filter(category == "merge_na") |>
+
+# facet bar plots of summary of splicing event types detected for each tool
+ggplot(aes(fill = event_type, x = sample, y = count)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  scale_fill_manual(
+    name = "Alternative splicing event",
+    values = cbPalette
+  ) +
+  labs(
+    title = "Distribution of merge NA PSI values across all samples",
+    x = "Sample",
+    y = "Number of events"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45)) +
+  facet_wrap(vars(event_type, label), scales = "free_y") +
+  theme_bw() +
+  plot_theme +
+    theme(axis.text.x=element_blank()) +
+  # make facet labels bigger
+  theme(strip.text.x = element_text(size = global_size))
+```
+From @fig-sample_complete_psi_breakdown, there are some samples in the pilot with much fewer complete PSI values than other samples
+But the number of splice events with NA values in each sample appears more stable
 
 ## Check how similar PSI values of shared events are
 
@@ -580,6 +639,7 @@ I suspect there may be an overlap of position IDs that have a Shiba (-1) NA valu
 
 ### Examine frequency of only one transcript NA values (-2) in separate tables
 
+To do...
 
 ## Look at splice events present in min number of samples
 

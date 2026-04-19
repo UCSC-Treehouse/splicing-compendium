@@ -168,6 +168,30 @@ plot_event_summary <- function(
 
 }
 
+# created bar plots of splice events by valye category (NA, numeric)
+event_value_boxplots <- function (psi_df, category_value) {
+  psi_df |>
+  dplyr::filter(category == category_value) |>
+    # facet bar plots of summary of splicing event types detected for each tool
+    ggplot(aes(fill = event_type, x = sample, y = count)) +
+    geom_boxplot() +
+    scale_fill_manual(
+      name = "Alternative splicing event",
+      values = cbPalette
+    ) +
+    labs(
+      x = "Sample",
+      y = "Number of events"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    facet_wrap(vars(event_type, label), scales = "free_y") +
+    theme_bw() +
+    plot_theme +
+      theme(axis.text.x=element_blank()) +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size))
+    }
+
 ```
 
 ## Directories and files
@@ -422,28 +446,8 @@ We also want this done on the event-level, more so for the merge NAs
 #| fig-width: 15
 #| fig-height: 15
 
-psi_sample_summary |>
-  dplyr::filter(category == "complete_psi") |>
+event_value_boxplots(psi_sample_summary, "complete_psi")
 
-# facet bar plots of summary of splicing event types detected for each tool
-ggplot(aes(fill = event_type, x = sample, y = count)) +
-  geom_boxplot() +
-  scale_fill_manual(
-    name = "Alternative splicing event",
-    values = cbPalette
-  ) +
-  labs(
-    title = "Distribution of numeric PSI values across all samples",
-    x = "Sample",
-    y = "Number of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  facet_wrap(vars(event_type, label), scales = "free_y") +
-  theme_bw() +
-  plot_theme +
-    theme(axis.text.x=element_blank()) +
-  # make facet labels bigger
-  theme(strip.text.x = element_text(size = global_size))
 ```
 
 Plot number of samples for each event type category with shiba NA PSI events
@@ -452,58 +456,8 @@ Plot number of samples for each event type category with shiba NA PSI events
 #| fig-width: 15
 #| fig-height: 15
 
-psi_sample_summary |>
-  dplyr::filter(category == "shiba_na") |>
+event_value_boxplots(psi_sample_summary, "shiba_na")
 
-# facet bar plots of summary of splicing event types detected for each tool
-ggplot(aes(fill = event_type, x = sample, y = count)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  scale_fill_manual(
-    name = "Alternative splicing event",
-    values = cbPalette
-  ) +
-  labs(
-    title = "Distribution of Shiba NA PSI values across all samples",
-    x = "Sample",
-    y = "Number of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  facet_wrap(vars(event_type, label), scales = "free_y") +
-  theme_bw() +
-  plot_theme +
-    theme(axis.text.x=element_blank()) +
-  # make facet labels bigger
-  theme(strip.text.x = element_text(size = global_size))
-```
-
-Plot number of samples for each event type category with merge NA PSI events
-```{r}
-#| label: fig-sample_merge_na_psi_breakdown
-#| fig-width: 15
-#| fig-height: 15
-
-psi_sample_summary |>
-  dplyr::filter(category == "merge_na") |>
-
-# facet bar plots of summary of splicing event types detected for each tool
-ggplot(aes(fill = event_type, x = sample, y = count)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  scale_fill_manual(
-    name = "Alternative splicing event",
-    values = cbPalette
-  ) +
-  labs(
-    title = "Distribution of merge NA PSI values across all samples",
-    x = "Sample",
-    y = "Number of events"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  facet_wrap(vars(event_type, label), scales = "free_y") +
-  theme_bw() +
-  plot_theme +
-    theme(axis.text.x=element_blank()) +
-  # make facet labels bigger
-  theme(strip.text.x = element_text(size = global_size))
 ```
 From @fig-sample_complete_psi_breakdown, there are some samples in the pilot with much fewer complete PSI values than other samples
 But the number of splice events with NA values in each sample appears more stable

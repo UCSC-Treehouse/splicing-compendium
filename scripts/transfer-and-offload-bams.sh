@@ -1,8 +1,11 @@
 #!/bin/bash
 
 # To clear space on OpenStack for the continued processing of data, we need to offload processed data and results to /private/spinning/treehouse
-# this directory has a 100TB quota but cannot perform with more than 5 threads
+# this directory has a 100TB quota but cannot perform with more than 3 threads
 # this script transfers bam files and their indices to /private/spinning/treehouse
+
+# Usage example
+# bash scripts/transfer-and-offload-bams.sh target transfer
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -14,9 +17,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # Set paths as variables
-# repo paths
-data_dir="../data"
-log_dir="../logs"
+git_path=$(git rev-parse --git-dir)
+# we need the root dir so that repo dirs can be accessed within data/ like from within star-output/
+root_dir=$(dirname "$git_path")
+data_dir="${root_dir}/data"
+log_dir="${root_dir}/logs"
 # storage paths outside of repo
 group_dir="${data_dir}/$1"
 # in each star_output sample dir, there is the bam, bam.bai, logs, ReadsPerGene.out.tab, and SJ.out.tab
@@ -28,7 +33,7 @@ destination_dir="/private/spinning/treehouse"
 mkdir -p $log_dir
 
 # define output files
-md5sums="${group_dir}/target_md5sum.txt"
+md5sums="${log_dir}/${current_datetime}_${1}_md5sum.txt"
 
 # validate user input
 if [ $2 == "transfer" ]; then
@@ -54,15 +59,16 @@ exec > >(tee $log_file) 2>&1
 
 ### file transfer (assumes you are in openstack instance with all the files to be transferred) ###
 if [ $2 == "transfer" ]; then
-    # generate md5 checksum file of star output files to be transferred 
+    # generate md5 checksum file of star output files to be transferred
     if [ ! -f "${md5sums}" ]; then
         cd $bam_dir
-        # bam files are in subdirectories labeled by sample type so recursively make md5sums of everthing in subdirectories
-        find -type f \( -not -name "${md5sums}" \) -exec md5sum '{}' \; > "${md5sums}"
+        # bam files are in subdirectories labeled by sample type
+        # recursively make md5sums of everthing in subdirectories
+        find -type f -exec md5sum '{}' \; > "${md5sums}"
     fi
 
     # transfer sequence files to Ceph storage
-    rsync -avP ${bam_dir} prism@mustard:${destination_dir}
+    rsync -avP ${bam_dir} celiang@mustard:${destination_dir}
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###
@@ -79,7 +85,7 @@ if [ $2 == "offload" ]; then
 
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'
-    # print first and second columns of each line in checksum log and only remove lines with ":OK" substring
+    # print first and second columns of each line in checksum log and only remove files corresponding to lines with ":OK" substring
     for file in $(awk -F': ' '$2 == "OK" {print $1}' $2); do
         rm $file
     done

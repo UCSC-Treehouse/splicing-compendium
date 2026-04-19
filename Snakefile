@@ -63,6 +63,7 @@ rule align_reads:
     output:
         bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         sj = "<data>/star-output/{sample}/SJ.out.tab"
+    priority: 1
     log:
         "<logs>/star/{sample}-star.log"
     threads: 7

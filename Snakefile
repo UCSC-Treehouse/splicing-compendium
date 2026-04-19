@@ -119,7 +119,7 @@ rule run_shiba:
         config_template = "templates/shiba_config_template.yaml"
     output:
         shiba_out = directory("<results>/shiba/{sample}")
-    priority: 2
+    priority: 1
     log:
         "<logs>/shiba/{sample}-shiba.log"
     params:

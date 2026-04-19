@@ -303,6 +303,9 @@ all_events_summary
 
 ### Visualize breakdown of shared events with stacked bar plots
 
+Notes of to-dos:
+- The plot below is event-level (summary is from a wide df, so we get one row per unique splice event). We want the same plot for both event-level and sample-level (long format so each row is a sample)
+
 ```{r}
 #| label: fig-splice_events_breakdown
 #| fig-width: 11
@@ -363,10 +366,11 @@ For other unannotated events, there are 10-30% that are only found in the separa
 
 ## Examine how many samples have a complete PSI value per splice event
 
-Pivot longer for plotting
+Pivot longer for plotting - these are the sample level plots
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -410,6 +414,9 @@ head(psi_sample_summary)
 ```
 
 Plot number of samples for each event type category with complete PSI events
+
+We also want this done on the event-level, more so for the merge NAs
+
 ```{r}
 #| label: fig-sample_complete_psi_breakdown
 #| fig-width: 15
@@ -420,13 +427,13 @@ psi_sample_summary |>
 
 # facet bar plots of summary of splicing event types detected for each tool
 ggplot(aes(fill = event_type, x = sample, y = count)) +
-  geom_bar(position = "dodge", stat = "identity") +
+  geom_boxplot() +
   scale_fill_manual(
     name = "Alternative splicing event",
     values = cbPalette
   ) +
   labs(
-    title = "Distribution of complete PSI values across all samples",
+    title = "Distribution of numeric PSI values across all samples",
     x = "Sample",
     y = "Number of events"
   ) +
@@ -438,6 +445,7 @@ ggplot(aes(fill = event_type, x = sample, y = count)) +
   # make facet labels bigger
   theme(strip.text.x = element_text(size = global_size))
 ```
+
 Plot number of samples for each event type category with shiba NA PSI events
 ```{r}
 #| label: fig-sample_shiba_na_psi_breakdown
@@ -467,6 +475,7 @@ ggplot(aes(fill = event_type, x = sample, y = count)) +
   # make facet labels bigger
   theme(strip.text.x = element_text(size = global_size))
 ```
+
 Plot number of samples for each event type category with merge NA PSI events
 ```{r}
 #| label: fig-sample_merge_na_psi_breakdown

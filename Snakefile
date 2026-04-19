@@ -106,7 +106,6 @@ rule index_bams:
         "{file}.bam"
     output:
         "{file}.bam.bai"
-    priority: 1
     threads: 4
     shell:
         "samtools index -@ {threads} {input}"

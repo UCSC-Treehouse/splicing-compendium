@@ -106,6 +106,7 @@ rule index_bams:
         "{file}.bam"
     output:
         "{file}.bam.bai"
+    priority: 1
     threads: 4
     shell:
         "samtools index -@ {threads} {input}"
@@ -119,6 +120,7 @@ rule run_shiba:
         config_template = "templates/shiba_config_template.yaml"
     output:
         shiba_out = directory("<results>/shiba/{sample}")
+    priority: 2
     log:
         "<logs>/shiba/{sample}-shiba.log"
     params:

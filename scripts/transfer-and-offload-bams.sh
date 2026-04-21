@@ -16,6 +16,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # Set time and date as variables
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
+# set floating IP of openstack with data as variable
+ip="openstack"
+
 # Set paths as variables
 git_path=$(git rev-parse --git-dir)
 # we need the root dir so that repo dirs can be accessed within data/ like from within star-output/
@@ -33,7 +36,7 @@ destination_dir="/private/spinning/treehouse"
 mkdir -p $log_dir
 
 # define output files
-md5sums="${log_dir}/${current_datetime}_${1}_md5sum.txt"
+md5sums="${log_dir}/${ip}_${1}_md5sum.txt"
 
 # validate user input
 if [ $2 == "transfer" ]; then
@@ -68,7 +71,7 @@ if [ $2 == "transfer" ]; then
     fi
 
     # transfer sequence files to Ceph storage
-    rsync -avP ${bam_dir} celiang@mustard:${destination_dir}
+    rsync -avP ${bam_dir} celiang@mustard.prism:${destination_dir}
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###

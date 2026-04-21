@@ -8,7 +8,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # Set paths as variables
 fastq_dir="/mnt/data/gtex-muscle-fastq/"
-out_dir="../metadata"
+out_dir="../metadata/filter_target_gtex"
 output="${out_dir}/downloaded_gtex_muscle_ids.txt"
 
 # List files, extract IDs (everything before first underscore), sort and keep unique IDs

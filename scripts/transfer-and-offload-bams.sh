@@ -68,7 +68,7 @@ if [ $2 == "transfer" ]; then
     fi
 
     # transfer sequence files to Ceph storage
-    rsync -avP ${bam_dir} celiang@mustard:${destination_dir}
+    rsync -avP ${bam_dir} celiang@mustard.prism:${destination_dir}
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###

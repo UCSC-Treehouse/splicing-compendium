@@ -40,7 +40,7 @@ destination_dir="/private/spinning/treehouse"
 mkdir -p $log_dir
 
 # define output files
-md5sums="${log_dir}/${ip}_${1}_${3}_md5sum.txt"
+md5sums=""${log_dir}"/"${ip}"_"${1}"_"${3}"_md5sum.txt"
 
 # validate user input for data group
 if [ $1 == "gtex" ]; then

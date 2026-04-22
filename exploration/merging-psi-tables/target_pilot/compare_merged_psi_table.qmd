@@ -335,52 +335,7 @@ Notes of to-dos:
 #| fig-width: 11
 #| fig-height: 8
 
-# pivot summary plot longer so we can make grouped bar plots of the percentages
-long_all_events_summary <- all_events_summary |>
-  tidyr::pivot_longer(
-    cols = c(
-      shared_count,
-      shared_percent,
-      combined_only_count,
-      combined_only_percent,
-      separate_only_count,
-      separate_only_percent),
-    # extract percents and counts as separate columns
-    names_to = c("category", ".value"),
-    names_pattern = "(.+)_(percent|count)"
-  )
-
-ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +
-  geom_bar(position = "stack", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of splice events in combined, separate, or shared groups",
-    x = "Annotation status of event",
-    y = "Percentage of events"
-  ) +
-  facet_wrap(vars(label)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
-
-```
-
-Plot raw counts of number of events captured by each method
-```{r}
-#| label: fig-splice_events_breakdown_counts
-#| fig-width: 11
-#| fig-height: 8
-
-ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "Number of splice events only in combined, separate, or shared groups",
-    x = "Annotation status of event",
-    y = "Number of events"
-  ) +
-  facet_wrap(vars(label)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
+plot_event_summary(all_events_summary)
 ```
 
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.

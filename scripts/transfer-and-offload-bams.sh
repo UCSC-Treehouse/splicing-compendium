@@ -5,7 +5,7 @@
 # this script transfers bam files and their indices to /private/spinning/treehouse
 
 # Usage example
-# bash scripts/transfer-and-offload-bams.sh target transfer
+# bash scripts/transfer-and-offload-bams.sh target transfer shiba
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -68,6 +68,19 @@ elif [ $2 == "offload" ]; then
     echo "offload files"
 else
     echo "please use valid option for what action to perform"
+    # cause script to fail due to error
+    exit 1
+fi
+
+# validate user input for what files to action on
+if [ $3 == "star" ]; then
+    file_dir=$bam_dir
+    echo "star-output files"
+elif [ $3 == "shiba" ]; then
+    file_dir=$shiba_dir
+    echo "shiba results files"
+else
+    echo "please use valid option for what files to act on"
     # cause script to fail due to error
     exit 1
 fi

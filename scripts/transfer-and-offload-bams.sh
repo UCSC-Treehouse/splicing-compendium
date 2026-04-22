@@ -17,7 +17,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set floating IP of openstack with data as variable
-ip="openstack"
+ip="10.50.100.120"
 
 # Set paths as variables
 git_path=$(git rev-parse --git-dir)
@@ -29,6 +29,10 @@ log_dir="${root_dir}/logs"
 group_dir="${data_dir}/$1"
 # in each star_output sample dir, there is the bam, bam.bai, logs, ReadsPerGene.out.tab, and SJ.out.tab
 bam_dir="${group_dir}/star-output"
+# splice results dir
+results_dir="${root_dir}/results"
+# shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
+shiba_dir="${results_dir}/$1/shiba"
 # destination directory
 destination_dir="/private/spinning/treehouse"
 
@@ -38,21 +42,32 @@ mkdir -p $log_dir
 # define output files
 md5sums="${log_dir}/${ip}_${1}_md5sum.txt"
 
-# validate user input
+# validate user input for data group
+if [ $1 == "gtex" ]; then
+    echo "gtex sample group"
+elif [ $1 == "target" ]; then
+    echo "target sample group"
+else
+    echo "please use valid option for sample group"
+    # cause script to fail due to error
+    exit 1
+fi
+
+# validate user input for script action
 if [ $2 == "transfer" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_file-transfer.txt"
+    log_file=""${log_dir}"/"${current_datetime}"_"${ip}"_"${1}"_file-transfer.txt"
     echo "transferring files"
 elif [ $2 == "checksums" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_transfer_checksum.txt"
+    log_file=""${log_dir}"/"${current_datetime}"_"${ip}"_"${1}"_transfer_checksum.txt"
     echo "perform md5 checksum of files"
 elif [ $2 == "offload" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_offload_files.txt"
+    log_file=""${log_dir}"/"${current_datetime}"_"${ip}"_"${1}"_offload_files.txt"
     echo "offload files"
 else
-    echo "please use valid option"
+    echo "please use valid option for what action to perform"
     # cause script to fail due to error
     exit 1
 fi

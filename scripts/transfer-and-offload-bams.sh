@@ -92,19 +92,19 @@ exec > >(tee $log_file) 2>&1
 if [ $2 == "transfer" ]; then
     # generate md5 checksum file of star output files to be transferred
     if [ ! -f "${md5sums}" ]; then
-        cd $bam_dir
+        cd $file_dir
         # bam files are in subdirectories labeled by sample type
         # recursively make md5sums of everthing in subdirectories
         find -type f -exec md5sum '{}' \; > "${md5sums}"
     fi
 
     # transfer sequence files to Ceph storage
-    rsync -avP ${bam_dir} celiang@mustard.prism:${destination_dir}
+    rsync -avP ${file_dir} celiang@mustard.prism:${destination_dir}
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###
 if [ $2 == "checksums" ]; then
-    cd $bam_dir
+    cd $file_dir
     md5sum -c $md5sums
 fi
 
@@ -112,7 +112,7 @@ fi
 if [ $2 == "offload" ]; then
 
     # be in fastq directory to use relative paths
-    cd $bam_dir
+    cd $file_dir
 
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'

@@ -33,8 +33,12 @@ bam_dir="${group_dir}/star-output"
 results_dir="${root_dir}/results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
 shiba_dir="${results_dir}/$1/shiba"
-# destination directory
-destination_dir="/private/spinning/treehouse"
+# root destination directory
+destination_root_dir="/private/spinning/treehouse"
+# bam results destination dir
+bam_dest_dir="${destination_root_dir}/data/$1"
+# shiba results destination dir
+shiba_dest_dir="${destination_root_dir}/results/$1"
 
 # create directories if they do not already exist
 mkdir -p $log_dir
@@ -75,9 +79,11 @@ fi
 # validate user input for what files to action on
 if [ $3 == "star" ]; then
     file_dir=$bam_dir
+    destination_dir=$bam_dest_dir
     echo "star-output files"
 elif [ $3 == "shiba" ]; then
     file_dir=$shiba_dir
+    destination_dir=$shiba_dest_dir
     echo "shiba results files"
 else
     echo "please use valid option for what files to act on"

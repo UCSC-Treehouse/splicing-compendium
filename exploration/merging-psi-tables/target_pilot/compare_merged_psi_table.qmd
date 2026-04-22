@@ -357,12 +357,15 @@ long_all_events <- all_events |>
     names_pattern = "(.*)_(combined|separate)"
   )
 
-# drop NAs for later (not now)
+# drop NAs of unshared events between combined vs separate tables for analyzing NAs and PSI values shared between at least some combined and separate methods
+long_events_shared <- long_all_events |> tidyr::drop_na()
+
+# drop all NA types for correlation analysis
 long_no_na_all_events <- long_all_events |>
   # drop NA values, including those coded as negative PSI
   dplyr::filter(PSI >= 0)
 
-psi_sample_summary <- long_all_events |>
+psi_sample_summary <- long_events_shared |>
   tidyr::drop_na() |>
   dplyr::summarise(
     .by = c(event_type, label, sample),
@@ -466,9 +469,7 @@ label shiba NAs for analysis
 
 ```{r}
 
-na_long_all_events <- long_all_events |>
-  # we have to drop NA PSI values (events only in combined or separate tables) otherwise they wil propagate into counting the -1 NA values
-  tidyr::drop_na() |>
+na_long_all_events <- long_events_shared |>
   # label events by if they are shiba NAs (-1)
   dplyr::mutate(
     combined_shiba_na = combined_event & PSI == -1,
@@ -497,7 +498,7 @@ Plot shiba NA frequency in each method
 #| label: fig-shiba_na_breakdown
 #| fig-width: 11
 #| fig-height: 8
-
+11
 # pivot summary df longer for plotting
 long_na_summary_df <- na_summary |>
   tidyr::pivot_longer(

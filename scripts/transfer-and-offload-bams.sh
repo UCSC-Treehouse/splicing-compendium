@@ -77,7 +77,7 @@ else
 fi
 
 # validate user input for what files to action on
-if [ $3 == "star" ]; then
+if [ $3 == "bam" ]; then
     file_dir=$bam_dir
     destination_dir=$bam_dest_dir
     echo "star-output files"

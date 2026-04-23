@@ -169,10 +169,10 @@ plot_event_summary <- function(
 }
 
 # created bar plots of splice events by valye category (NA, numeric)
-event_value_boxplots <- function (psi_df, category_value) {
+event_value_boxplots <- function (psi_df, category_value, event_value) {
   psi_df |>
-  dplyr::filter(category == category_value) |>
-    # facet bar plots of summary of splicing event types detected for each tool
+  dplyr::filter(category == category_value,
+                event_type == event_value) |>
     ggplot(aes(fill = method, x = sample, y = count)) +
     geom_boxplot() +
     labs(
@@ -180,7 +180,7 @@ event_value_boxplots <- function (psi_df, category_value) {
       y = "Number of events"
     ) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
-    facet_wrap(vars(event_type, label), scales = "free_y") +
+    facet_wrap(vars(event_type), scales = "free_y") +
     theme_bw() +
     plot_theme +
       theme(axis.text.x=element_blank()) +
@@ -344,7 +344,7 @@ Pivot longer for plotting - these are the sample level plots
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
-  dplyr::slice_sample(n = 2000) |>
+  dplyr::slice_sample(n = 2000, by = event_type) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -454,9 +454,9 @@ We also want this done on the event-level, more so for the merge NAs
 ```{r}
 #| label: fig-sample_numeric_psi_breakdown
 #| fig-width: 15
-#| fig-height: 15
+#| fig-height: 8
 
-event_value_boxplots(psi_sample_summary, "complete_psi")
+event_value_boxplots(psi_sample_summary, "complete_psi", "se")
 
 ```
 

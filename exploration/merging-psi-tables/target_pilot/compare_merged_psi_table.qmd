@@ -158,7 +158,7 @@ plot_event_summary <- function(
       x = "Annotation status of event",,
       y = "Number of events"
     ) +
-    facet_wrap(vars(label)) +
+    facet_wrap(vars(label), scales = "free_y") +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
 
@@ -323,8 +323,7 @@ all_events_summary
 
 ### Visualize breakdown of shared events with stacked bar plots
 
-Notes of to-dos:
-- The plot below is event-level (summary is from a wide df, so we get one row per unique splice event). We want the same plot for both event-level and sample-level (long format so each row is a sample)
+Plot event-level (one count per unique event) summary of event frequency across methods and event types
 
 ```{r}
 #| label: fig-splice_events_breakdown
@@ -355,6 +354,18 @@ long_all_events <- all_events |>
 
 # drop NAs of unshared events between combined vs separate tables for analyzing NAs and PSI values shared between at least some combined and separate methods
 long_events_shared <- long_all_events |> tidyr::drop_na()
+
+sample_level_all_events_summary <- long_events_shared |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
 
 # drop all NA types for correlation analysis
 long_no_na_all_events <- long_all_events |>
@@ -391,12 +402,22 @@ psi_sample_summary <- long_events_shared |>
 head(psi_sample_summary)
 ```
 
-Plot number of samples for each event type category with complete PSI events
+Plot sample-level (one count per event in each sample) summary of event frequency across methods and event types
+```{r}
+#| label: fig-sample_level_splice_events_breakdown
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_level_all_events_summary)
+```
+
+
+Plot number of samples for each event type category with numeric PSI events
 
 We also want this done on the event-level, more so for the merge NAs
 
 ```{r}
-#| label: fig-sample_complete_psi_breakdown
+#| label: fig-sample_numeric_psi_breakdown
 #| fig-width: 15
 #| fig-height: 15
 

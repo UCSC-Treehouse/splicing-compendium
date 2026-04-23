@@ -173,12 +173,8 @@ event_value_boxplots <- function (psi_df, category_value) {
   psi_df |>
   dplyr::filter(category == category_value) |>
     # facet bar plots of summary of splicing event types detected for each tool
-    ggplot(aes(fill = event_type, x = sample, y = count)) +
+    ggplot(aes(fill = method, x = sample, y = count)) +
     geom_boxplot() +
-    scale_fill_manual(
-      name = "Alternative splicing event",
-      values = cbPalette
-    ) +
     labs(
       x = "Sample",
       y = "Number of events"
@@ -368,7 +364,7 @@ long_no_na_all_events <- long_all_events |>
 psi_sample_summary <- long_events_shared |>
   tidyr::drop_na() |>
   dplyr::summarise(
-    .by = c(event_type, label, sample),
+    .by = c(event_type, label, sample, method),
     total = dplyr::n(),
     shiba_na_count = sum(PSI == -1),
     shiba_na_percent = shiba_na_count / total * 100,

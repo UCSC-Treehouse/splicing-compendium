@@ -27,6 +27,7 @@ As part of tracking differences between the two tables, we have labeled NA value
 ```{r, setup, include=FALSE}
 # load libraries
 library(ggplot2)
+library(patchwork)
 
 # define global size for plots
 global_size <- 20
@@ -62,27 +63,133 @@ cbPalette <- c(
 )
 ```
 
+### Define functions
+
+```{r functions}
+
+# PSI distribution plots of events in each method
+psi_distributions <- function(
+    df,
+    event_type_value) {
+  df |>
+    dplyr::filter(event_type == event_type_value) |>
+    ggplot(aes(PSI, fill = event_status)) +
+    geom_histogram(bins = 20) +
+    facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45))
+}
+
+# event summary plots of frequency of events in each category
+event_summary <- function(
+    long_df,
+    min_sample_value) {
+  # filter samples by complete PSI value in min number of samples
+  all_events_n_filtered <- long_df |>
+    dplyr::group_by(pos_id) |>
+    # count number of events are present in each shared status
+    dplyr::mutate(
+      combined_count = sum(method == "combined"),
+      separate_count = sum(method == "separate")
+    ) |>
+    # filter for events with complete PSI values for minimum number of samples
+    dplyr::filter(
+      combined_count >= min_sample_value,
+      separate_count >= min_sample_value
+    ) |>
+    dplyr::ungroup() |>
+    # create summary table for plotting
+    dplyr::summarise(
+      .by = c(event_type, label),
+      # count number of events in each event type and annotation category
+      total = dplyr::n(),
+      shared_count = sum(shared_event),
+      combined_only_count = sum(combined_event) - shared_count,
+      separate_only_count = sum(separate_event) - shared_count,
+      shared_percent = shared_count / total * 100,
+      combined_only_percent = combined_only_count / total * 100,
+      separate_only_percent = separate_only_count / total * 100
+    )
+}
+
+# plot event summary frequencies as percent and raw counts bar plots
+plot_event_summary <- function(
+    summary_df) {
+  # pivot summary df longer for plotting
+  long_summary_df <- summary_df |>
+    tidyr::pivot_longer(
+      cols = c(
+        shared_count,
+        shared_percent,
+        combined_only_count,
+        combined_only_percent,
+        separate_only_count,
+        separate_only_percent
+      ),
+      # extract percents and counts into separate columns
+      names_to = c("category", ".value"),
+      names_pattern = "(.+)_(percent|count)"
+    )
+
+  # create percent stacked barplots
+  percent_plot <-
+    ggplot(long_summary_df, aes(fill = category, x = event_type, y = percent)) +
+    geom_bar(position = "stack", stat = "identity") +
+    plot_theme +
+    labs(
+      title = "% of splice events in combined, separate, or shared groups",
+      x = "Annotation status of event",
+      y = "Percentage of events"
+    ) +
+    facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    plot_theme
+
+  # create raw counts grouped barplot
+  counts_plot <-
+    ggplot(long_summary_df, aes(fill = category, x = event_type, y = count)) +
+    geom_bar(position = "dodge", stat = "identity") +
+    plot_theme +
+    labs(
+      title = "Number of splice events only in combined, separate, or shared groups",
+      x = "Annotation status of event",,
+      y = "Number of events"
+    ) +
+    facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    plot_theme
+
+  # arrange plots for printing
+  percent_plot /
+    counts_plot
+
+}
+
+```
+
 ## Directories and files
 
 ```{r}
 
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-exploration_dir <- file.path(repo_root, "exploration")
-merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 
 # define the data directories
-# shiba results dir
-shiba_dir <- file.path(merge_exploration_dir, "shiba_results")
+exploration_dir <- file.path(repo_root, "exploration")
+merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
+target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
 
 # directory of shiba results produced from the same shiba run
-combined_dir <- file.path(shiba_dir, "combined_run", "target_pilot", "results")
+combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
 
 # psi table directory
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
 
 # Directory of PSI table, merged from separate shiba runs
-separate_psi_table_dir <- file.path(merge_exploration_dir, "target_pilot", "merged_results")
+separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
 
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")
@@ -155,6 +262,7 @@ all_events <- dplyr::full_join(
   suffix = c("_combined", "_separate")) |>
   # categorize events by whether they are in the combined or separate tables
   dplyr::mutate(
+    # combined events are counted if the values are not all NA
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
     # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
@@ -206,7 +314,7 @@ long_all_events_summary <- all_events_summary |>
     cols = c(
       shared_count,
       shared_percent,
-      combined_only_count, 
+      combined_only_count,
       combined_only_percent,
       separate_only_count,
       separate_only_percent),
@@ -270,7 +378,7 @@ long_all_events <- all_events |>
   dplyr::filter(PSI >= 0)
 
 # pivot wider for correlation calculations
-all_events_by_method <- long_all_events |> 
+all_events_by_method <- long_all_events |>
   tidyr:: pivot_wider(
     names_from = method,
     values_from = PSI
@@ -288,7 +396,7 @@ correlation_df <- all_events_by_method |>
     pearson_r2 = pearson_r ** 2,
     spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
   )
-  
+
 # print correlation table
 correlation_df
 ```
@@ -296,7 +404,7 @@ correlation_df
 Check whether shared events have the same PSI values
 
 ```{r}
-# omit NAs 
+# omit NAs
 complete_all_events_by_method <- na.omit(all_events_by_method)
 
 # check if shared events are equal
@@ -305,53 +413,176 @@ all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$
 
 All shared events have identical PSI values in tables created by the two methods.
 
-## Check PSI distributions of combined events missed in the separate table
+## Look at splice events present in min number of samples
+
+Filter splice events for those with complete PSI values in >= min_samples samples per method
+
+We are interested in seeing how the splice event breakdown changes if we filter for events present in at least a fraction of our samples.
+For instance, do the number of events onkly found in the separate tables go down?
+
+### min_samples = 0
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 0)
+sample_filtered_event_summary
+
+```
+
+```{r}
+#| label: fig-splice_events_breakdown_0
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_filtered_event_summary)
+```
+
+### min_samples = 2
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 2)
+sample_filtered_event_summary
+
+```
+
+```{r}
+#| label: fig-splice_events_breakdown_2
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_filtered_event_summary)
+
+```
+
+### min_samples = 5
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 5)
+sample_filtered_event_summary
+```
+
+```{r}
+#| label: fig-splice_events_breakdown_5
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_filtered_event_summary)
+
+```
+
+### min_samples = 10
+```{r}
+sample_filtered_event_summary <- event_summary(long_all_events, 10)
+sample_filtered_event_summary
+```
+
+```{r}
+#| label: fig-splice_events_breakdown_10
+#| fig-width: 11
+#| fig-height: 8
+
+plot_event_summary(sample_filtered_event_summary)
+
+```
+
+## Plot PSI distributions of combined-only events
 
 Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
 
-note/to do: Plot shared, combined_only, and separate_only PSI values together, faceted by event types.
-
-### Plot PSI distributions of events only found in combined table
+#### AFE
 
 ```{r}
-#| label: fig-combined_only_psi_dist
-#| fig-width: 11
-#| fig-height: 8
-
-# create list of pos_ids only in combined df
-combined_only_list <- setdiff(combined_psi_table$pos_id, separate_psi_table$pos_id)
-
-# make dataframe of unannotated PSI values of splice events only in the combined dataframe
-combined_only_df <- all_events_by_method |>
-  dplyr::filter(pos_id %in% combined_only_list) |>
-  dplyr::select(-separate) |>
+# make dataframe of PSI values of splice events only in the combined or separate dataframes
+compare_psi_dist_df <- long_all_events |>
+  # label splice events by whether they are only in the combined or separate tables
+  dplyr::mutate(
+    event_status = dplyr::case_when(
+      combined_event == TRUE & separate_event == FALSE ~ "combined_only",
+      combined_event == FALSE & separate_event == TRUE ~ "separate_only",
+      combined_event == TRUE & separate_event == TRUE ~ "shared"
+    )
+  ) |>
+  # exclude NAs as their PSI values cannot be binned
   na.omit()
-
-# plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(combined_only_df, aes(combined)) + 
-  geom_histogram(bins = 20) +
-  facet_wrap(vars(event_type, label), scales = "free_y")
 ```
-### Plot PSI distributions of events only found in separate table
+
+### Plot PSI distributions of AFE events
 
 ```{r}
-#| label: fig-separate_only_psi_dist
-#| fig-width: 11
+#| label: fig-psi_dist_afe
+#| fig-width: 13
 #| fig-height: 8
 
-# make list of pos_ids only in separate df
-separate_only_list <- setdiff(separate_psi_table$pos_id, combined_psi_table$pos_id)
+# plot AFE event distributions
+psi_distributions(compare_psi_dist_df, "afe")
 
-# make df of splice events only in separate dataframes that have been merged
-separate_only_df <- all_events_by_method |>
-  dplyr::filter(pos_id %in% separate_only_list) |>
-  dplyr::select(-combined) |>
-  na.omit()
-
-# plot distributions of unannotated and annotated PSI values only found in the combined table
-ggplot(separate_only_df, aes(separate)) + geom_histogram() +
-  facet_wrap(vars(event_type, label), scales = "free_y")
 ```
+### Plot PSI distributions of ALE events
+
+```{r}
+#| label: fig-psi_dist_ale
+#| fig-width: 13
+#| fig-height: 8
+
+# filter df for ALE events
+psi_distributions(compare_psi_dist_df, "ale")
+```
+
+### Plot PSI distributions of SE events
+
+```{r}
+#| label: fig-psi_dist_se
+#| fig-width: 13
+#| fig-height: 8
+
+psi_distributions(compare_psi_dist_df, "se")
+```
+
+### Plot PSI distributions of alternative 5' splice site events
+
+```{r}
+#| label: fig-psi_dist_five
+#| fig-width: 13
+#| fig-height: 8
+
+psi_distributions(compare_psi_dist_df, "five")
+```
+
+### Plot PSI distributions of alternative 3' splice site events
+
+```{r}
+#| label: fig-psi_dist_three
+#| fig-width: 13
+#| fig-height: 8
+
+psi_distributions(compare_psi_dist_df, "three")
+```
+
+### Plot PSI distributions of MSE events
+
+```{r}
+#| label: fig-psi_dist_mse
+#| fig-width: 13
+#| fig-height: 8
+
+psi_distributions(compare_psi_dist_df, "mse")
+```
+
+### Plot PSI distributions of MXE events
+
+```{r}
+#| label: fig-psi_dist_mxe
+#| fig-width: 13
+#| fig-height: 8
+
+psi_distributions(compare_psi_dist_df, "mxe")
+```
+
+### Plot PSI distributions of RI events
+```{r}
+#| label: fig-psi_dist_ri
+#| fig-width: 13
+#| fig-height: 8
+
+psi_distributions(compare_psi_dist_df, "ri")
+```
+
 
 ### Takeaways so far
 

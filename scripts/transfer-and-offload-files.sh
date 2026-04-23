@@ -135,6 +135,8 @@ if [ $2 == "offload" ]; then
     # check if any files failed mf5sum check and list which files remain
     if [ -z "$(find $file_dir -type f -print -quit 2>/dev/null)" ]; then
         echo "$file_dir is empty, all files removed"
+        # delete the directory (otherwise empty subdirectories will hang around and make it confusing to keep track of progress in new batches)
+        rm -R $file_dir
     else
         echo "Directory is not empty. Files found:"
         find "$file_dir" -type f

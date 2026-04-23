@@ -344,7 +344,6 @@ Pivot longer for plotting - these are the sample level plots
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
-  dplyr::slice_sample(n = 2000, by = event_type) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -469,7 +468,7 @@ Plot number of samples for each event type category with shiba NA PSI events
 #| fig-width: 15
 #| fig-height: 15
 
-event_value_boxplots(psi_sample_summary, "shiba_na")
+event_value_boxplots(psi_sample_summary, "shiba_na", "se")
 
 ```
 From @fig-sample_complete_psi_breakdown, there are some samples in the pilot with much fewer complete PSI values than other samples
@@ -531,7 +530,7 @@ na_long_all_events <- long_events_shared |>
     separate_shiba_na = separate_event & PSI == -1,
     shared_shiba_na = shared_event & PSI == -1
   )
- 
+
 # summarize counts and percentage of each NA value type
 na_summary <- na_long_all_events |> dplyr::summarise(
     .by = c(event_type, label),
@@ -568,10 +567,10 @@ long_na_summary_df <- na_summary |>
       # extract percents and counts into separate columns
       names_to = c("category", ".value"),
       names_pattern = "(.+)_(percent|count)"
-    ) 
-  
+    )
+
 # create percent stacked barplots
-percent_plot <- 
+percent_plot <-
   ggplot(long_na_summary_df, aes(fill = category, x = event_type, y = percent)) +
   geom_bar(position = "stack", stat = "identity") +
   plot_theme +
@@ -585,7 +584,7 @@ percent_plot <-
   plot_theme +
   # make facet labels bigger
   theme(strip.text.x = element_text(size = global_size))
-  
+
 # create raw counts grouped barplot
 counts_plot <-
   ggplot(long_na_summary_df, aes(fill = category, x = event_type, y = count)) +
@@ -601,11 +600,11 @@ counts_plot <-
   plot_theme +
   # make facet labels bigger
   theme(strip.text.x = element_text(size = global_size))
-  
+
 # arrange plots for printing
-percent_plot / 
+percent_plot /
 counts_plot + plot_layout(guides = "collect")
-  
+
 ```
 I think we get more Shiba NA values in the combined tables because there are more splice events dropped in the separate tables due to splicing detected in the GTF for a given gene.
 I suspect there may be an overlap of position IDs that have a Shiba (-1) NA value in the combined table and position IDs that have a dropped gene (-2) NA in the separate tables.

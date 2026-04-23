@@ -481,15 +481,11 @@ plot_event_summary(sample_filtered_event_summary)
 
 ```
 
-Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
+## PSI distribution plots
 
-### Plot PSI distributions of AFE events
+Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared? e.g. do more events become shared when splice events are all > 0.2 PSI?)
 
 ```{r}
-#| label: fig-psi_dist_afe
-#| fig-width: 13
-#| fig-height: 8
-
 # make dataframe of PSI values of splice events only in the combined or separate dataframes
 compare_psi_dist_df <- long_all_events |>
   # label splice events by whether they are only in the combined or separate tables
@@ -502,6 +498,14 @@ compare_psi_dist_df <- long_all_events |>
   ) |>
   # exclude NAs as their PSI values cannot be binned
   na.omit()
+```
+
+### Plot PSI distributions of AFE events
+
+```{r}
+#| label: fig-psi_dist_afe
+#| fig-width: 13
+#| fig-height: 8
 
 # plot AFE event distributions
 psi_distributions(compare_psi_dist_df, "afe")

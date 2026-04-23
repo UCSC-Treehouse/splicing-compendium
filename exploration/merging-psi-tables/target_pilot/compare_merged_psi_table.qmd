@@ -321,7 +321,7 @@ all_events_summary <- all_events |> dplyr::summarise(
 all_events_summary
 ```
 
-### Visualize breakdown of shared events with stacked bar plots
+## Visualize breakdown of shared events with stacked bar plots
 
 Plot event-level (one count per unique event) summary of event frequency across methods and event types
 
@@ -402,7 +402,7 @@ psi_sample_summary <- long_events_shared |>
 head(psi_sample_summary)
 ```
 
-Plot sample-level (one count per event in each sample) summary of event frequency across methods and event types
+## Plot sample-level (one count per event in each sample) summary of event frequency across methods and event types
 ```{r}
 #| label: fig-sample_level_splice_events_breakdown
 #| fig-width: 11
@@ -411,11 +411,14 @@ Plot sample-level (one count per event in each sample) summary of event frequenc
 plot_event_summary(sample_level_all_events_summary)
 ```
 
-### Look at splice events present in min number of samples
+## Look at splice events present in min number of samples
+
+We are interested in seeing how the splice event breakdown changes if we filter for events present in at least a fraction of our samples.
+For instance, do the number of events onkly found in the separate tables go down?
 
 Filter splice events for those with complete PSI values in >= min_samples samples per method
 
-min_samples = 0
+### min_samples = 0
 ```{r}
 sample_filtered_event_summary <- event_summary(long_no_na_all_events, 0)
 sample_filtered_event_summary
@@ -432,7 +435,7 @@ Note: this below plot and the abiove plot look different because the below plots
 plot_event_summary(sample_filtered_event_summary)
 ```
 
-min_samples = 10
+### min_samples = 10
 ```{r}
 sample_filtered_event_summary <- event_summary(long_no_na_all_events, 10)
 sample_filtered_event_summary
@@ -613,13 +616,9 @@ To do...
 
 Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
 
-### Plot PSI distributions of AFE events
+#### AFE
 
 ```{r}
-#| label: fig-psi_dist_afe
-#| fig-width: 13
-#| fig-height: 8
-
 # make dataframe of PSI values of splice events only in the combined or separate dataframes
 compare_psi_dist_df <- long_no_na_all_events |>
   # label splice events by whether they are only in the combined or separate tables
@@ -632,6 +631,14 @@ compare_psi_dist_df <- long_no_na_all_events |>
   ) |>
   # exclude NAs as their PSI values cannot be binned
   na.omit()
+```
+
+### Plot PSI distributions of AFE events
+
+```{r}
+#| label: fig-psi_dist_afe
+#| fig-width: 13
+#| fig-height: 8
 
 # plot AFE event distributions
 psi_distributions(compare_psi_dist_df, "afe")

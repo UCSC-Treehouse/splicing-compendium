@@ -18,7 +18,7 @@ results/*
 ._.DS_Store
 data
 
+exploration/merging-psi-tables/target_pilot/merged_results/
 exploration/merging-psi-tables/target_pilot/shiba_combined/*
 !exploration/merging-psi-tables/target_pilot/shiba_combined/README.md
 !exploration/merging-psi-tables/target_pilot/shiba_combined/report.json
-exploration/merging-psi-tables/target_pilot/merged_results/

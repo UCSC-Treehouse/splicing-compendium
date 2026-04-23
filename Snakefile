@@ -63,6 +63,7 @@ rule align_reads:
     output:
         bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         sj = "<data>/star-output/{sample}/SJ.out.tab"
+    priority: 10
     log:
         "<logs>/star/{sample}-star.log"
     threads: 7
@@ -118,6 +119,7 @@ rule run_shiba:
         config_template = "templates/shiba_config_template.yaml"
     output:
         shiba_out = directory("<results>/shiba/{sample}")
+    priority: 1
     log:
         "<logs>/shiba/{sample}-shiba.log"
     params:

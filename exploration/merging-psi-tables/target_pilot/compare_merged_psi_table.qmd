@@ -417,7 +417,9 @@ All shared events have identical PSI values in tables created by the two methods
 
 Filter splice events for those with complete PSI values in >= min_samples samples per method
 
-min_samples = 0
+We are interested in seeing how the splice event breakdown changes if we filter for events present in at least a fraction of our samples.
+
+### min_samples = 0
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 0)
 sample_filtered_event_summary
@@ -431,7 +433,8 @@ sample_filtered_event_summary
 
 plot_event_summary(sample_filtered_event_summary)
 ```
-min_samples = 2
+
+### min_samples = 2
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 2)
 sample_filtered_event_summary
@@ -446,7 +449,8 @@ sample_filtered_event_summary
 plot_event_summary(sample_filtered_event_summary)
 
 ```
-min_samples = 5
+
+### min_samples = 5
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 5)
 sample_filtered_event_summary
@@ -460,7 +464,8 @@ sample_filtered_event_summary
 plot_event_summary(sample_filtered_event_summary)
 
 ```
-min_samples = 10
+
+### min_samples = 10
 ```{r}
 sample_filtered_event_summary <- event_summary(long_all_events, 10)
 sample_filtered_event_summary

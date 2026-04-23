@@ -418,6 +418,7 @@ All shared events have identical PSI values in tables created by the two methods
 Filter splice events for those with complete PSI values in >= min_samples samples per method
 
 We are interested in seeing how the splice event breakdown changes if we filter for events present in at least a fraction of our samples.
+For instance, do the number of events onkly found in the separate tables go down?
 
 ### min_samples = 0
 ```{r}

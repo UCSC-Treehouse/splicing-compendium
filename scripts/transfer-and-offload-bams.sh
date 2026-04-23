@@ -5,7 +5,7 @@
 # this script transfers bam files and their indices to /private/spinning/treehouse
 
 # Usage example
-# bash scripts/transfer-and-offload-bams.sh target transfer
+# bash scripts/transfer-and-offload-bams.sh target transfer shiba
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -17,7 +17,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set floating IP of openstack with data as variable
-ip="openstack"
+ip="10.50.100.120"
 
 # Set paths as variables
 git_path=$(git rev-parse --git-dir)
@@ -29,30 +29,64 @@ log_dir="${root_dir}/logs"
 group_dir="${data_dir}/$1"
 # in each star_output sample dir, there is the bam, bam.bai, logs, ReadsPerGene.out.tab, and SJ.out.tab
 bam_dir="${group_dir}/star-output"
-# destination directory
-destination_dir="/private/spinning/treehouse"
+# splice results dir
+results_dir="${root_dir}/results"
+# shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
+shiba_dir="${results_dir}/$1/shiba"
+# root destination directory
+destination_root_dir="/private/spinning/treehouse"
+# bam results destination dir
+bam_dest_dir="${destination_root_dir}/data/$1"
+# shiba results destination dir
+shiba_dest_dir="${destination_root_dir}/results/$1"
 
 # create directories if they do not already exist
 mkdir -p $log_dir
 
 # define output files
-md5sums="${log_dir}/${ip}_${1}_md5sum.txt"
+md5sums=""${log_dir}"/"${ip}"_"${1}"_"${3}"_md5sum.txt"
 
-# validate user input
+# validate user input for data group
+if [ $1 == "gtex" ]; then
+    echo "gtex sample group"
+elif [ $1 == "target" ]; then
+    echo "target sample group"
+else
+    echo "please use valid option for sample group"
+    # cause script to fail due to error
+    exit 1
+fi
+
+# validate user input for script action
 if [ $2 == "transfer" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_file-transfer.txt"
+    log_file="${log_dir}/${current_datetime}_${ip}_${1}_file-transfer.txt"
     echo "transferring files"
 elif [ $2 == "checksums" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_transfer_checksum.txt"
+    log_file="${log_dir}/${current_datetime}_${ip}_${1}_transfer_checksum.txt"
     echo "perform md5 checksum of files"
 elif [ $2 == "offload" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_offload_files.txt"
+    log_file="${log_dir}/${current_datetime}_${ip}_${1}_offload_files.txt"
     echo "offload files"
 else
-    echo "please use valid option"
+    echo "please use valid option for what action to perform"
+    # cause script to fail due to error
+    exit 1
+fi
+
+# validate user input for what files to action on
+if [ $3 == "bam" ]; then
+    file_dir=$bam_dir
+    destination_dir=$bam_dest_dir
+    echo "star-output files"
+elif [ $3 == "shiba" ]; then
+    file_dir=$shiba_dir
+    destination_dir=$shiba_dest_dir
+    echo "shiba results files"
+else
+    echo "please use valid option for what files to act on"
     # cause script to fail due to error
     exit 1
 fi
@@ -64,19 +98,19 @@ exec > >(tee $log_file) 2>&1
 if [ $2 == "transfer" ]; then
     # generate md5 checksum file of star output files to be transferred
     if [ ! -f "${md5sums}" ]; then
-        cd $bam_dir
+        cd $file_dir
         # bam files are in subdirectories labeled by sample type
         # recursively make md5sums of everthing in subdirectories
         find -type f -exec md5sum '{}' \; > "${md5sums}"
     fi
 
     # transfer sequence files to Ceph storage
-    rsync -avP ${bam_dir} celiang@mustard.prism:${destination_dir}
+    rsync -avP ${file_dir} celiang@mustard.prism:${destination_dir}
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###
 if [ $2 == "checksums" ]; then
-    cd $bam_dir
+    cd $file_dir
     md5sum -c $md5sums
 fi
 
@@ -84,7 +118,7 @@ fi
 if [ $2 == "offload" ]; then
 
     # be in fastq directory to use relative paths
-    cd $bam_dir
+    cd $file_dir
 
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'

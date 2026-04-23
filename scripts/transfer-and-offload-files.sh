@@ -128,6 +128,16 @@ if [ $2 == "offload" ]; then
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'
     # print first and second columns of each line in checksum log and only remove files corresponding to lines with ":OK" substring
     for file in $(awk -F': ' '$2 == "OK" {print $1}' $md5sum_checks); do
+        echo "deleting $file"
         rm $file
     done
+
+    # check if any files failed mf5sum check and list which files remain
+    if [ -z "$(find $file_dir -type f -print -quit 2>/dev/null)" ]; then
+        echo "$file_dir is empty, all files removed"
+    else
+        echo "Directory is not empty. Files found:"
+        find "$file_dir" -type f
+    fi
+
 fi

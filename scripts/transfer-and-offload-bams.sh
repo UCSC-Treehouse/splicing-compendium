@@ -16,8 +16,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # Set time and date as variables
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
-# set floating IP of openstack with data as variable
-ip="10.50.100.120"
+# set floating IP of openstack that is the file source as variable
+ip="10.50.100.19"
 
 # Set paths as variables
 git_path=$(git rev-parse --git-dir)
@@ -39,6 +39,8 @@ destination_root_dir="/private/spinning/treehouse"
 bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
 shiba_dest_dir="${destination_root_dir}/results/$1"
+# path to md5sum check results file
+md5sum_checks="${log_dir}"/$4
 
 # create directories if they do not already exist
 mkdir -p $log_dir
@@ -115,6 +117,8 @@ if [ $2 == "checksums" ]; then
 fi
 
 ### offload successfully transferred files ###
+# make sure this is done on the OpenStack instance, not mustard
+
 if [ $2 == "offload" ]; then
 
     # be in fastq directory to use relative paths
@@ -123,7 +127,7 @@ if [ $2 == "offload" ]; then
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'
     # print first and second columns of each line in checksum log and only remove files corresponding to lines with ":OK" substring
-    for file in $(awk -F': ' '$2 == "OK" {print $1}' $2); do
+    for file in $(awk -F': ' '$2 == "OK" {print $1}' $md5sum_checks); do
         rm $file
     done
 fi

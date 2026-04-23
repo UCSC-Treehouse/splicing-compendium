@@ -481,9 +481,11 @@ plot_event_summary(sample_filtered_event_summary)
 
 ```
 
+## Plot PSI distributions of combined-only events
+
 Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
 
-### Plot PSI distributions of AFE events
+#### AFE
 
 ```{r}
 #| label: fig-psi_dist_afe

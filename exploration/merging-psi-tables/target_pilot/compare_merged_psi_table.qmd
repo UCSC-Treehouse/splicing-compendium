@@ -180,7 +180,7 @@ event_value_boxplots <- function (psi_df, category_value, event_value) {
       y = "Number of events"
     ) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
-    facet_wrap(vars(event_type), scales = "free_y") +
+    facet_wrap(vars(label), scales = "free_y", ncol = 1) +
     theme_bw() +
     plot_theme +
       theme(axis.text.x=element_blank()) +
@@ -454,12 +454,25 @@ plot_event_summary(sample_filtered_event_summary)
 
 We also want this done on the event-level, more so for the merge NAs
 
+### SE
+
 ```{r}
-#| label: fig-sample_numeric_psi_breakdown
-#| fig-width: 15
-#| fig-height: 8
+#| label: fig-sample_numeric_psi_se
+#| fig-width: 10
+#| fig-height: 10
 
 event_value_boxplots(psi_sample_summary, "complete_psi", "se")
+
+```
+
+### AFE
+
+```{r}
+#| label: fig-sample_numeric_psi_afe
+#| fig-width: 10
+#| fig-height: 10
+
+event_value_boxplots(psi_sample_summary, "complete_psi", "afe")
 
 ```
 
@@ -472,8 +485,7 @@ Plot number of samples for each event type category with shiba NA PSI events
 event_value_boxplots(psi_sample_summary, "shiba_na")
 
 ```
-From @fig-sample_complete_psi_breakdown, there are some samples in the pilot with much fewer complete PSI values than other samples
-But the number of splice events with NA values in each sample appears more stable
+
 
 ## Check how similar PSI values of shared events are
 

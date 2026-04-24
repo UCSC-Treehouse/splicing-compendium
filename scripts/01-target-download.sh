@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Download script for TARGET bulk RNA-seq for pediatric cancer splicing analysis
-# this script downloads TARGET cancer datasets obtained from filter_target_sra.qmd, which includes all TARGET paired-end RNA-seq samples, excluding ssRNA-seq samples, cell lines and xenografts, and samples known to be ribo-deplete
-# usage: scripts/01-target-download.sh [gtex|target] [batch number]
+# Download script of RNA-seq for pediatric cancer splicing analysis
+# usage: scripts/01-target-download.sh [dataset] [batch number]
 # example for downloading the first 1.2TB batch of target: scripts/01-target-download.sh target 1
 
 # cause nonzero exit status and undefined variables to stop the script
@@ -30,12 +29,14 @@ gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
-if [ $1 == "target" ]; then
+if [ "$1" == "target" ]; then
     dbgap_key=$target_key
     filtering=$target_filtering
-if [ $1 == "gtex" ]; then
+
+elif [ "$1" == "gtex" ]; then
     dbgap_key=$gtex_key
     filtering=$gtex_filtering
+
 else
     echo "please use valid sample group"
     # cause script to fail due to error

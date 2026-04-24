@@ -58,6 +58,7 @@ Read in directory and file paths
 # find the project directory (splicing-compendium)
 # working directory is in scripts
 base_dir <- here::here()
+
 # define metadata directory
 metadata_dir <- file.path(base_dir, "metadata")
 pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
@@ -69,8 +70,7 @@ gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
 # pilot gtex accessions to exclude
 pilot_gtex_file <- file.path(pilot_dir, "gtex_accessions.tsv")
-# list of muscle gtex accessions that have already been downloaded to exclude
-gtex_muscle_accessions <- file.path(gtex_target_metadata_dir, "downloaded_gtex_muscle_ids.txt") 
+
 # define path to output files
 gtex_accession_path <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
 
@@ -79,7 +79,6 @@ gtex_sra <- readr::read_csv(gtex_sra_file, col_types = readr::cols(Bytes = "d", 
   dplyr::rename(SUBJID = submitted_subject_id)
 gtex_ages <- readr::read_tsv(gtex_ages_file, col_types = readr::cols(.default = "c"))
 gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default = "c"))
-gtex_muscle_to_exclude <- readr::read_tsv(gtex_muscle_accessions, col_names = FALSE)
 ```
 
 ## Filtering GTEx samples for download
@@ -110,9 +109,7 @@ gtex_sra_ages <- gtex_sra |>
     # filter for accessions with fastqs
     stringr::str_detect(`DATASTORE filetype`, "sra"),
     # exclude accessions already processed from pilot
-    !Run %in% gtex_pilot$Run,
-    # exclude accessions of muscle samples that are already downloaded
-    !Run %in% gtex_muscle_to_exclude
+    !Run %in% gtex_pilot$Run
   ) |>
   dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
 
@@ -141,7 +138,8 @@ gtex_sra_ages |>
 
 Only versions up to 3 are recorded in these samples.
 
-The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
+The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. 
+We should filter out samples with release dates greater than or equal to 2018.
 
 ```{r}
 gtex_sra_ages |>
@@ -213,7 +211,8 @@ gtex_sra_ages |>
 
 ## Divide GTEx accessions into groups of 1.2TB samples
 
-For partitioning data onto OpenStack instances, we need to divide the accessions based on how much space they will take up. So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
+For partitioning data onto OpenStack instances, we need to divide the accessions based on how much space they will take up. 
+So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
 
 ```{r}
 # define target sum of data
@@ -230,7 +229,7 @@ gtex_select_batched <- gtex_sra_ages |>
 
 Summarize number of accessions in each batch
 
-```{r}
+``` {r}
 gtex_select_batched |>
   dplyr::summarise(
     .by = batch_id,

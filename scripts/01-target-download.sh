@@ -13,6 +13,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # dbGaP key files
 target_key="/home/ubuntu/prj_11732_D43588.ngc"
+gtex_key="/home/ubuntu/prj_9508_D43588.ngc"
 
 # Set time and date as variables
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
@@ -23,14 +24,18 @@ group_dir="${data_dir}/${1}"
 fastq_dir="${group_dir}/fastq"
 log_dir="../logs/${1}_download"
 metadata_dir="../metadata/filter_target_gtex"
-target_accessions="${metadata_dir}/target_accessions.tsv"
 notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
+gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
 if [ $1 == "target" ]; then
     dbgap_key=$target_key
+    filtering=$target_filtering
+if [ $1 == "gtex" ]; then
+    dbgap_key=$gtex_key
+    filtering=$gtex_filtering
 else
     echo "please use valid sample group"
     # cause script to fail due to error
@@ -51,7 +56,7 @@ error_log_file="${log_dir}/${current_datetime}_${1}_download_errors.txt"
 exec > >(tee $log_file) 2>&1
 
 # Run filtering script to obtain accession IDs to download
-quarto render ${target_filtering}
+quarto render ${filtering}
 
 # Select 1.2TB batch of accessions to download based on user input
 # pass batch ID from user input (2nd input) into awk and look for values matching batch in last column

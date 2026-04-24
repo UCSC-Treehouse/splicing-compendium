@@ -1,6 +1,6 @@
 # Filtering GTEX samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-04-21
+2026-04-02
 
 ## Introduction
 
@@ -41,6 +41,7 @@ Read in directory and file paths
 # find the project directory (splicing-compendium)
 # working directory is in scripts
 base_dir <- here::here()
+
 # define metadata directory
 metadata_dir <- file.path(base_dir, "metadata")
 pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
@@ -52,8 +53,7 @@ gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
 # pilot gtex accessions to exclude
 pilot_gtex_file <- file.path(pilot_dir, "gtex_accessions.tsv")
-# list of muscle gtex accessions that have already been downloaded to exclude
-gtex_muscle_accessions <- file.path(gtex_target_metadata_dir, "downloaded_gtex_muscle_ids.txt") 
+
 # define path to output files
 gtex_accession_path <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
 
@@ -62,16 +62,7 @@ gtex_sra <- readr::read_csv(gtex_sra_file, col_types = readr::cols(Bytes = "d", 
   dplyr::rename(SUBJID = submitted_subject_id)
 gtex_ages <- readr::read_tsv(gtex_ages_file, col_types = readr::cols(.default = "c"))
 gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default = "c"))
-gtex_muscle_to_exclude <- readr::read_tsv(gtex_muscle_accessions, col_names = FALSE)
 ```
-
-    Rows: 46 Columns: 1
-    ── Column specification ────────────────────────────────────────────────────────
-    Delimiter: "\t"
-    chr (1): X1
-
-    ℹ Use `spec()` to retrieve the full column specification for this data.
-    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 
 ## Filtering GTEx samples for download
 
@@ -103,9 +94,7 @@ gtex_sra_ages <- gtex_sra |>
     # filter for accessions with fastqs
     stringr::str_detect(`DATASTORE filetype`, "sra"),
     # exclude accessions already processed from pilot
-    !Run %in% gtex_pilot$Run,
-    # exclude accessions of muscle samples that are already downloaded
-    !Run %in% gtex_muscle_to_exclude
+    !Run %in% gtex_pilot$Run
   ) |>
   dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
 
@@ -328,7 +317,7 @@ sessionInfo()
 
     R version 4.4.3 (2025-02-28)
     Platform: aarch64-apple-darwin20
-    Running under: macOS 26.4.1
+    Running under: macOS 26.3.1
 
     Matrix products: default
     BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 

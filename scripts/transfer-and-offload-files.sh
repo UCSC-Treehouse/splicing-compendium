@@ -7,8 +7,11 @@
 # Usage example for data transfer
 # bash scripts/transfer-and-offload-bams.sh target transfer shiba
 
+# Usage example for checksumming transferred files (must scp md5sum files to mustard first)
+# bash scripts/transfer-and-offload-files.sh target checksums shiba
+
 # Usage example for offloading files after transfer
-# bash scripts/transfer-and-offload-bams.sh target checksums shiba
+# bash scripts/transfer-and-offload-bams.sh target checksums shiba 2026-04-24T18:33:08_openstack_target_transfer_checksum.txt
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -43,7 +46,7 @@ bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
 shiba_dest_dir="${destination_root_dir}/results/$1"
 # path to md5sum check results file
-md5sum_checks="${log_dir}"/$4
+md5sum_checks="${log_dir}"/${4:-"onlyForOffloading"}
 
 # create directories if they do not already exist
 mkdir -p $log_dir
@@ -111,12 +114,13 @@ if [ $2 == "transfer" ]; then
 
     # transfer sequence files to Ceph storage
     rsync -avP ${file_dir} celiang@mustard.prism:${destination_dir}
+
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###
 if [ $2 == "checksums" ]; then
     cd $file_dir
-    ssh ubuntu@$ip md5sum -c $md5sums
+    md5sum -c $md5sums
 fi
 
 ### offload successfully transferred files ###

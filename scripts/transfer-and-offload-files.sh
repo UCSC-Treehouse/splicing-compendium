@@ -5,7 +5,7 @@
 # this script transfers bam files and their indices to /private/spinning/treehouse
 
 # Usage example for data transfer
-# bash scripts/transfer-and-offload-bams.sh target transfer shiba
+# bash scripts/transfer-and-offload-files.sh target transfer shiba
 
 # Usage example for checksumming transferred files (must scp md5sum files to mustard first)
 # bash scripts/transfer-and-offload-files.sh target checksums shiba
@@ -134,7 +134,7 @@ if [ $2 == "offload" ]; then
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'
     # print first and second columns of each line in checksum log and only remove files corresponding to lines with ":OK" substring
-    for file in $("awk -F': ' '$2 == "OK" {print $1}' $md5sum_checks"); do
+    for file in $(awk -F': ' '$2 == "OK" {print $1}' $md5sum_checks); do
         echo "deleting $file"
         rm $file
     done

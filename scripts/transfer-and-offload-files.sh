@@ -134,7 +134,7 @@ if [ $2 == "offload" ]; then
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'
     # print first and second columns of each line in checksum log and only remove files corresponding to lines with ":OK" substring
-    for file in $(ssh celiang@mustard.prism "awk -F': ' '$2 == "OK" {print $1}' $md5sum_checks"); do
+    for file in $("awk -F': ' '$2 == "OK" {print $1}' $md5sum_checks"); do
         echo "deleting $file"
         rm $file
     done

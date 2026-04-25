@@ -4,8 +4,11 @@
 # this directory has a 100TB quota but cannot perform with more than 3 threads
 # this script transfers bam files and their indices to /private/spinning/treehouse
 
-# Usage example
+# Usage example for data transfer
 # bash scripts/transfer-and-offload-bams.sh target transfer shiba
+
+# Usage example for offloading files after transfer
+# bash scripts/transfer-and-offload-bams.sh target checksums shiba
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -17,7 +20,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set floating IP of openstack that is the file source as variable
-ip="10.50.100.19"
+ip="openstack"
 
 # Set paths as variables
 git_path=$(git rev-parse --git-dir)

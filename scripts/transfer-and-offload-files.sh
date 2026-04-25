@@ -2,7 +2,7 @@
 
 # To clear space on OpenStack for the continued processing of data, we need to offload processed data and results to /private/spinning/treehouse
 # this directory has a 100TB quota but cannot perform with more than 3 threads
-# this script transfers bam files and their indices to /private/spinning/treehouse
+# this script transfers files to /private/spinning/treehouse
 
 # Usage example for data transfer
 # bash scripts/transfer-and-offload-files.sh target transfer shiba
@@ -68,15 +68,15 @@ fi
 # validate user input for script action
 if [ $2 == "transfer" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_${ip}_${1}_file-transfer.txt"
+    log_file="${log_dir}/${current_datetime}_${ip}_${1}_${3}_file-transfer.txt"
     echo "transferring files"
 elif [ $2 == "checksums" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_${ip}_${1}_transfer_checksum.txt"
+    log_file="${log_dir}/${current_datetime}_${ip}_${1}_${3}_transfer_checksum.txt"
     echo "perform md5 checksum of files"
 elif [ $2 == "offload" ]; then
     # define log file
-    log_file="${log_dir}/${current_datetime}_${ip}_${1}_offload_files.txt"
+    log_file="${log_dir}/${current_datetime}_${ip}_${1}_${3}_offload_files.txt"
     echo "offload files"
 else
     echo "please use valid option for what action to perform"

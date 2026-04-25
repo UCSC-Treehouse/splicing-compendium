@@ -11,7 +11,7 @@
 # bash scripts/transfer-and-offload-files.sh target checksums shiba
 
 # Usage example for offloading files after transfer
-# bash scripts/transfer-and-offload-files.sh target checksums shiba [timestamped checksum filename.txt]
+# bash scripts/transfer-and-offload-files.sh target offload shiba [timestamped checksum filename.txt]
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail

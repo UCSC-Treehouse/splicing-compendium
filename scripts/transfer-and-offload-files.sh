@@ -36,8 +36,12 @@ bam_dir="${group_dir}/star-output"
 results_dir="../results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
 shiba_dir="${results_dir}/$1/shiba"
-# root destination directory
-destination_root_dir="/scratch/celiang"
+# remote destination directory to rsync to
+destination_root_dir="/private/spinning/treehouse"
+# destination repo dir
+destination_repo_dir="/private/groups/treehouse/working-projects/celiang/splicing-compendium"
+# remote scripts directory to ssh into
+destination_scripts_dir="${destination_repo_dir}/scripts"
 # bam results destination dir
 bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
@@ -117,14 +121,14 @@ fi
 # Run this on OpenStack (machine with the md5sum file)
 
 if [ $2 == "checksums" ]; then
-# send OpenStack checksum contents to mustard
-# cd into scripts directory in mustard repo
-# read the md5sum contents from stdout within mustard and check files on mustard
-    ssh celiang@mustard.prism "cd /scratch/celiang/test && md5sum -c -" < "${md5sums}"
+    # send OpenStack checksum contents to mustard
+    # cd into scripts directory in mustard repo
+    # read the md5sum contents from stdout within mustard and check files on mustard
+    # the md5sum check results will be saved in a log file in OpenStack that will be passed onto the offload portion of script as $md5sum_checks
+    ssh celiang@mustard.prism "cd $destination_scripts_dir && md5sum -c -" < "${md5sums}"
 fi
 
-### offload successfully transferred files ###
-# make sure this is done on the OpenStack instance, not mustard
+### offload successfully transferred files on OpenStack ###
 
 if [ $2 == "offload" ]; then
 

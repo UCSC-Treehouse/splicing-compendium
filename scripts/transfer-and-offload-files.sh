@@ -114,8 +114,13 @@ if [ $2 == "transfer" ]; then
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###
+# Run this on OpenStack (machine with the md5sum file)
+
 if [ $2 == "checksums" ]; then
-    md5sum -c $md5sums
+# send OpenStack checksum contents to mustard
+# cd into scripts directory in mustard repo
+# read the md5sum contents from stdout within mustard and check files on mustard
+    ssh celiang@mustard.prism "cd /scratch/celiang/test && md5sum -c -" < "${md5sums}"
 fi
 
 ### offload successfully transferred files ###

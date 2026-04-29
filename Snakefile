@@ -4,7 +4,7 @@
 
 import os
 
-configfile: "config.yaml"
+configfile: "config/config.yaml"
 
 
 GENOME_ID = config["genome_id"]

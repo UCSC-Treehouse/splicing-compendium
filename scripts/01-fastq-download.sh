@@ -23,10 +23,11 @@ group_dir="${data_dir}/${1}"
 fastq_dir="${group_dir}/fastq"
 log_dir="../logs/${1}_download"
 metadata_dir="../metadata/filter_target_gtex"
+config_dir="../config"
 notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
-sample_sheet="${metadata_dir}/${1}_batch_${2}_samples.tsv"
+sample_sheet="${config_dir}/${1}_batch_${2}_samples.tsv"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded

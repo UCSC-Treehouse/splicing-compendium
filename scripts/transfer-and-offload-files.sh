@@ -23,24 +23,25 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set floating IP of openstack that is the file source as variable
-ip="openstack"
+ip="10.50.100.149"
 
-# Set paths as variables
-git_path=$(git rev-parse --git-dir)
 # we need the root dir so that repo dirs can be accessed within data/ like from within star-output/
-root_dir=$(dirname "$git_path")
-data_dir="${root_dir}/data"
-log_dir="${root_dir}/logs"
+data_dir="../data"
+log_dir="../logs"
 # storage paths outside of repo
 group_dir="${data_dir}/$1"
 # in each star_output sample dir, there is the bam, bam.bai, logs, ReadsPerGene.out.tab, and SJ.out.tab
 bam_dir="${group_dir}/star-output"
 # splice results dir
-results_dir="${root_dir}/results"
+results_dir="../results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
 shiba_dir="${results_dir}/$1/shiba"
-# root destination directory
+# remote destination directory to rsync to
 destination_root_dir="/private/spinning/treehouse"
+# destination repo dir
+destination_repo_dir="/private/groups/treehouse/working-projects/celiang/splicing-compendium"
+# remote scripts directory to ssh into
+destination_scripts_dir="${destination_repo_dir}/scripts"
 # bam results destination dir
 bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
@@ -106,10 +107,9 @@ exec > >(tee $log_file) 2>&1
 if [ $2 == "transfer" ]; then
     # generate md5 checksum file of star output files to be transferred
     if [ ! -f "${md5sums}" ]; then
-        cd $file_dir
         # bam files are in subdirectories labeled by sample type
         # recursively make md5sums of everthing in subdirectories
-        find -type f -exec md5sum '{}' \; > "${md5sums}"
+        find $file_dir -type f -exec md5sum '{}' \; > "${md5sums}"
     fi
 
     # transfer sequence files to Ceph storage
@@ -118,13 +118,17 @@ if [ $2 == "transfer" ]; then
 fi
 
 ### md5sum check files that have been transferred (assumes you are in mustard directory with transferred files) ###
+# Run this on OpenStack (machine with the md5sum file)
+
 if [ $2 == "checksums" ]; then
-    cd $file_dir
-    md5sum -c $md5sums
+    # send OpenStack checksum contents to mustard
+    # cd into scripts directory in mustard repo
+    # read the md5sum contents from stdout within mustard and check files on mustard
+    # the md5sum check results will be saved in a log file in OpenStack that will be passed onto the offload portion of script as $md5sum_checks
+    ssh celiang@mustard.prism "cd $destination_scripts_dir && md5sum -c -" < "${md5sums}"
 fi
 
-### offload successfully transferred files ###
-# make sure this is done on the OpenStack instance, not mustard
+### offload successfully transferred files on OpenStack ###
 
 if [ $2 == "offload" ]; then
 

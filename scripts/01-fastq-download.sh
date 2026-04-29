@@ -50,6 +50,7 @@ mkdir -p $log_dir
 mkdir -p $data_dir
 mkdir -p $group_dir
 mkdir -p $fastq_dir
+mkdir -p $config_dir
 
 # Define log files
 log_file="${log_dir}/${current_datetime}_${1}_download.txt"

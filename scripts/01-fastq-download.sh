@@ -26,7 +26,7 @@ metadata_dir="../metadata/filter_target_gtex"
 notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
-sample_sheet="${metadata_dir}/${1}_batch_${2}_samples.txt"
+sample_sheet="${metadata_dir}/${1}_batch_${2}_samples.tsv"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded

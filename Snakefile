@@ -1,5 +1,7 @@
 # snakefile for compendium shiba run
 # Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 15
+# A sample sheet generated from 01-fastq-download.sh is given to the config file to identify files to run the workflow on
+# Otherwise, this workflow will operate on all samples in the fastq directoru
 # Usage: snakemake --cores 15
 
 import os

@@ -109,6 +109,9 @@ time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}
 
 done
 
+# create sample sheet file with "samples" column header
+echo "samples" > $sample_sheet
+
 # write files in fastq dir into sample sheet for snakemake
 find $fastq_dir -type f -name "*.fastq.gz" \
 # strip path from each file so we just get the filename
@@ -116,4 +119,4 @@ find $fastq_dir -type f -name "*.fastq.gz" \
     # remove file suffix (everything after first underscore) to obtain sample ID
     | sed -E 's/_[12].fastq\.gz//' \
     # only keep unique accessions
-    | sort -u > $sample_sheet
+    | sort -u >> $sample_sheet

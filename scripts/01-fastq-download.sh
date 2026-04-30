@@ -23,9 +23,11 @@ group_dir="${data_dir}/${1}"
 fastq_dir="${group_dir}/fastq"
 log_dir="../logs/${1}_download"
 metadata_dir="../metadata/filter_target_gtex"
+config_dir="../config"
 notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
+sample_sheet="${config_dir}/${1}_batch_${2}_samples.tsv"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
@@ -48,6 +50,7 @@ mkdir -p $log_dir
 mkdir -p $data_dir
 mkdir -p $group_dir
 mkdir -p $fastq_dir
+mkdir -p $config_dir
 
 # Define log files
 log_file="${log_dir}/${current_datetime}_${1}_download.txt"
@@ -105,3 +108,15 @@ time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}
     fi
 
 done
+
+# create sample sheet file with "samples" column header
+echo "samples" > $sample_sheet
+
+# write files in fastq dir into sample sheet for snakemake
+find $fastq_dir -type f -name "*.fastq.gz" \
+# strip path from each file so we just get the filename
+    | xargs -n1 basename \
+    # remove file suffix (everything after first underscore) to obtain sample ID
+    | sed -E 's/_[12].fastq\.gz//' \
+    # only keep unique accessions
+    | sort -u >> $sample_sheet

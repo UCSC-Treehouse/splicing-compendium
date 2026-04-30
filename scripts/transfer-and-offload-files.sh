@@ -132,9 +132,6 @@ fi
 
 if [ $2 == "offload" ]; then
 
-    # be in fastq directory to use relative paths
-    cd $file_dir
-
     # check what files have matching md5sums
     # md5sum logfile has lines like this if checksum succeeds: '/mnt/bulk/target/fastq/SRR2083188_2.fastq.gz: OK'
     # print first and second columns of each line in checksum log and only remove files corresponding to lines with ":OK" substring

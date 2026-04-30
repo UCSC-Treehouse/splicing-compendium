@@ -3,14 +3,14 @@
 # Usage: snakemake --cores 15
 
 import os
+import pandas as pd
 
 configfile: "config/config.yaml"
-
 
 GENOME_ID = config["genome_id"]
 SAMPLE_GROUP = config["sample_group"]
 if config.get("samples"):
-    SAMPLES = config["samples"]
+    SAMPLES = pd.read_table(config["samples"])
 else:
     SAMPLES, = glob_wildcards(os.path.join("data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
 

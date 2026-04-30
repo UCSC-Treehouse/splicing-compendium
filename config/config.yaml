@@ -1,8 +1,8 @@
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
-sample_group: target
+sample_group: gtex
 
 # path to sample sheet (tsv format, column: sample)
-samples: config/samples.tsv
+samples: config/test.tsv
 
 genome_id: gencode.v47.primary_assembly
 genome_assembly: GRCh38.primary_assembly.genome

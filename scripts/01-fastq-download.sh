@@ -113,10 +113,10 @@ done
 echo "samples" > $sample_sheet
 
 # write files in fastq dir into sample sheet for snakemake
-find $fastq_dir -type f -name "*.fastq.gz" \
 # strip path from each file so we just get the filename
+# remove file suffix (everything after first underscore) to obtain sample ID
+# only keep unique accessions
+find $fastq_dir -type f -name "*.fastq.gz" \
     | xargs -n1 basename \
-    # remove file suffix (everything after first underscore) to obtain sample ID
     | sed -E 's/_[12].fastq\.gz//' \
-    # only keep unique accessions
     | sort -u >> $sample_sheet

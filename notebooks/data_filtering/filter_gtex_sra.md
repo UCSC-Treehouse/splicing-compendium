@@ -1,6 +1,6 @@
 # Filtering GTEX samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-04-24
+2026-05-01
 
 ## Introduction
 
@@ -71,7 +71,7 @@ many samples of each age bracket are represented by each tumor type
 after filtering
 
 ``` r
-# Define tissue types of interest
+# Define non cell-line tissue types of interest
 # kidney, muscle, and blood samples
 tissue_types <- c(
   "Kidney - Cortex",
@@ -80,33 +80,107 @@ tissue_types <- c(
 )
 
 # Merge GTEx SRA table with ages metadata to associate IDs with ages
-# then filter tables for our criteria (RNA, paired-end, select tissue types)
+# then filter tables for our criteria (RNA, paired-end)
 gtex_sra_ages <- gtex_sra |>
   dplyr::left_join(gtex_ages, by = "SUBJID") |>
   dplyr::filter(
     analyte_type == "RNA:Total RNA",
-    # Exclude cell line samples
-    !grepl("Cells", body_site),
     # filter for paired-end samples
     LibraryLayout == "PAIRED",
-    # filter for tissue types in select list
-    body_site %in% tissue_types,
     # filter for accessions with fastqs
     stringr::str_detect(`DATASTORE filetype`, "sra"),
     # exclude accessions already processed from pilot
-    !Run %in% gtex_pilot$Run
+    !Run %in% gtex_pilot$Run)
+    
+# filter for gtex samples within select tissue types
+gtex_tissues <- gtex_sra_ages |>
+  dplyr::filter(
+    # Exclude cell line samples
+    !grepl("Cells", body_site),
+    # filter for tissue types in select list
+    body_site %in% tissue_types
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`)
+    dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12
+  ) |>
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
 
-dim(gtex_sra_ages)
+# check how many samples (rows) in select tissue types
+dim(gtex_tissues)
 ```
 
-    [1] 952  15
+    [1] 952  16
+
+### Divide GTEx accessions into 10 groups of samples
+
+For partitioning data onto OpenStack instances, we need to divide the
+accessions based on how much space they will take up. We have 10
+OpenStack instances available for compute. To reduce processing time of
+each batch, divide GTEx into 10 batches
+
+``` r
+# define target sum of data
+max_tb <- (sum(gtex_tissues$Bytes) / 1e12) / 10
+
+gtex_tissue_batched <- gtex_tissues |>
+  dplyr::mutate(
+    # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
+    batch_id = ceiling(cumulative_tb / max_tb)
+  ) 
+```
+
+### Filter for EBV-transformed lymphocyte cell lines
+
+EBV-transformed lymphocytes may be a better comparator for ALL samples
+than GTEx whole blood, so we will download these as well.
+
+``` r
+gtex_lymphocyte_ages <- gtex_sra_ages |>
+  dplyr::filter(
+    # filter for EBV-transformed lymphocytes
+    body_site == "Cells - EBV-transformed lymphocytes"
+  ) |>
+  dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12
+  ) |>
+  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
+
+# check how many EBV lymphocyte samples (rows) pass the filters
+dim(gtex_lymphocyte_ages)
+```
+
+    [1] 146  16
+
+The EBV-transformed lymphocytes will fit in one huge OpenStack instance.
+
+Concatenate tissue and EBV sample accessions into one dataframe
+
+``` r
+# Move run ID to first column, like in TARGET accessions file
+gtex_lymphocyte <- gtex_lymphocyte_ages |>
+  # add batch id 
+  dplyr::mutate(batch_id = 11)
+
+# concatenate gtex lymphocyte and gtex tissue type accession dataframes
+gtex_select <- gtex_tissue_batched |>
+  rbind(gtex_lymphocyte) |>
+  # move Run column to the front for download script to use
+  dplyr::relocate(Run)
+
+# check how many samples are in this final set
+dim(gtex_select)
+```
+
+    [1] 1098   17
+
+## Summarize samples in filtered GTEx set
 
 Check library selection method of GTEx samples that are paired:
 
 ``` r
-unique(gtex_sra_ages$LibrarySelection)
+unique(gtex_select$LibrarySelection)
 ```
 
     [1] "cDNA"
@@ -115,62 +189,6 @@ The metadata says cDNA, but the [GTEx
 methods](https://www.gtexportal.org/home/methods) site says all their
 versions are polyA selected.
 
-### Check GTEx versions in filtered samples
-
-GTEx v8 and above are also [only accessible on
-anvil](https://www.gtexportal.org/home/protectedDataAccess). We must
-filter out samples that come from GTEx v8 and above.
-
-Check number of samples in each GTEx version after filtering.
-
-``` r
-gtex_sra_ages |>
-  dplyr::group_by(version) |>
-  dplyr::summarise(version_count = dplyr::n())
-```
-
-| version | version_count |
-|:--------|--------------:|
-| 1       |            15 |
-| 2       |           906 |
-| 3       |            31 |
-
-Only versions up to 3 are recorded in these samples.
-
-The release date for version 8p2 is 2019-07-18
-([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)),
-so these values represent samples from later versions that are only
-accessible on AnVIL. We should filter out samples with release dates
-greater than or equal to 2018.
-
-``` r
-gtex_sra_ages |>
-  dplyr::mutate(ReleaseDate = stringr::str_remove(ReleaseDate, "-.*")) |>
-  dplyr::group_by(ReleaseDate) |>
-  dplyr::summarise(date_count = dplyr::n())
-```
-
-| ReleaseDate | date_count |
-|:------------|-----------:|
-| 2012        |        117 |
-| 2013        |        202 |
-| 2014        |        610 |
-| 2015        |         11 |
-| 2016        |         12 |
-
-All 973 filtered GTEx samples should be downloadable outside of AnVIL
-because their release dates are below 2018.
-
-Estimate amount of space filtered GTEx samples will take up
-
-``` r
-# estimate amount of space files will take up
-gtex_sra_ages_space <- (sum(gtex_sra_ages$Bytes) / 1e12)
-paste0("About ", gtex_sra_ages_space, " terabytes of space will be taken up by file downloads.")
-```
-
-    [1] "About 3.936128535992 terabytes of space will be taken up by file downloads."
-
 ### Plot sample composition of filtered GTEx accessions
 
 Plot distribution of ages in the filtered GTEx samples as a percent
@@ -178,7 +196,7 @@ stacked bar plot.
 
 ``` r
 # Summarize number of samples per tissue type in each age bracket
-gtex_ages_summary <- gtex_sra_ages |>
+gtex_ages_summary <- gtex_select |>
   dplyr::group_by(body_site, AGE) |>
   dplyr::summarise(age_count = dplyr::n())
 ```
@@ -222,7 +240,7 @@ from
 
 ``` r
 # summarize number of samples in each tissue type come from what sequencing center
-gtex_sra_ages |>
+gtex_select |>
   dplyr::group_by(body_site, `Center Name`) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -236,13 +254,15 @@ gtex_sra_ages |>
     ℹ Use `summarise(.by = c(body_site, Center Name))` for per-operation grouping
       (`?dplyr::dplyr_by`) instead.
 
-| body_site         | Center Name     |   n |
-|:------------------|:----------------|----:|
-| Kidney - Cortex   | BI              |  29 |
-| Muscle - Skeletal | BI              | 465 |
-| Muscle - Skeletal | Broad Institute |   2 |
-| Whole Blood       | BI              | 446 |
-| Whole Blood       | Broad Institute |  10 |
+| body_site                           | Center Name     |   n |
+|:------------------------------------|:----------------|----:|
+| Cells - EBV-transformed lymphocytes | BI              | 138 |
+| Cells - EBV-transformed lymphocytes | Broad Institute |   8 |
+| Kidney - Cortex                     | BI              |  29 |
+| Muscle - Skeletal                   | BI              | 465 |
+| Muscle - Skeletal                   | Broad Institute |   2 |
+| Whole Blood                         | BI              | 446 |
+| Whole Blood                         | Broad Institute |  10 |
 
 All samples appear to come from the Broad Institute.
 
@@ -250,41 +270,22 @@ Print table of the number of samples in all tissue types in the filtered
 GTEx set
 
 ``` r
-gtex_sra_ages |>
+gtex_select |>
   dplyr::group_by(body_site) |>
   dplyr::summarize(n_samples = dplyr::n())
 ```
 
-| body_site         | n_samples |
-|:------------------|----------:|
-| Kidney - Cortex   |        29 |
-| Muscle - Skeletal |       467 |
-| Whole Blood       |       456 |
-
-## Divide GTEx accessions into 10 groups of samples
-
-For partitioning data onto OpenStack instances, we need to divide the
-accessions based on how much space they will take up. We have 10
-OpenStack instances available for compute. To reduce processing time of
-each batch, divide GTEx into 10 batches
-
-``` r
-# define target sum of data
-max_tb <- (sum(gtex_sra_ages$Bytes) / 1e12) / 10
-
-gtex_select_batched <- gtex_sra_ages |>
-  dplyr::mutate(
-    # calculate cumulative sum of Bytes column
-    cumulative_tb = cumsum(Bytes) / 1e12,
-    # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
-    batch_id = ceiling(cumulative_tb / max_tb)
-  ) 
-```
+| body_site                           | n_samples |
+|:------------------------------------|----------:|
+| Cells - EBV-transformed lymphocytes |       146 |
+| Kidney - Cortex                     |        29 |
+| Muscle - Skeletal                   |       467 |
+| Whole Blood                         |       456 |
 
 Summarize number of accessions in each batch
 
 ``` r
-gtex_select_batched |>
+gtex_select |>
   dplyr::summarise(
     .by = batch_id,
     n = dplyr::n()
@@ -303,14 +304,67 @@ gtex_select_batched |>
 |        8 |  93 |
 |        9 |  86 |
 |       10 |  67 |
+|       11 | 146 |
 
-### Export filtered GTEX accession file
+### Check GTEx versions in filtered samples
+
+GTEx v8 and above are also [only accessible on
+anvil](https://www.gtexportal.org/home/protectedDataAccess). We must
+filter out samples that come from GTEx v8 and above.
+
+Check number of samples in each GTEx version after filtering.
 
 ``` r
-# Move run ID to first column, like in TARGET accessions file
-gtex_select <- gtex_select_batched |>
-  dplyr::relocate(Run)
+gtex_select |>
+  dplyr::group_by(version) |>
+  dplyr::summarise(version_count = dplyr::n())
+```
 
+| version | version_count |
+|:--------|--------------:|
+| 1       |            25 |
+| 2       |          1037 |
+| 3       |            36 |
+
+Only versions up to 3 are recorded in these samples.
+
+The release date for version 8p2 is 2019-07-18
+([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)),
+so these values represent samples from later versions that are only
+accessible on AnVIL. We should filter out samples with release dates
+greater than or equal to 2018.
+
+``` r
+gtex_select |>
+  dplyr::mutate(ReleaseDate = stringr::str_remove(ReleaseDate, "-.*")) |>
+  dplyr::group_by(ReleaseDate) |>
+  dplyr::summarise(date_count = dplyr::n())
+```
+
+| ReleaseDate | date_count |
+|:------------|-----------:|
+| 2012        |        117 |
+| 2013        |        240 |
+| 2014        |        703 |
+| 2015        |         18 |
+| 2016        |         20 |
+
+All 1098 filtered GTEx samples should be downloadable outside of AnVIL
+because their release dates are below 2018.
+
+Estimate amount of space filtered GTEx samples will take up
+
+``` r
+# estimate amount of space files will take up
+gtex_select_space <- (sum(gtex_select$Bytes) / 1e12)
+paste0("About ", gtex_select_space, " terabytes of space will be taken up by file downloads.")
+```
+
+    [1] "About 4.628235473471 terabytes of space will be taken up by file downloads."
+
+## Export GTEx filtered accessions to file
+
+``` r
 readr::write_tsv(gtex_select, file = gtex_accession_path)
 ```
 

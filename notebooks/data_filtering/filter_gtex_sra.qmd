@@ -105,11 +105,7 @@ gtex_sra_ages <- gtex_sra |>
     # filter for accessions with fastqs
     stringr::str_detect(`DATASTORE filetype`, "sra"),
     # exclude accessions already processed from pilot
-    !Run %in% gtex_pilot$Run) |>
-  dplyr::mutate(
-    # calculate cumulative sum of Bytes column
-    cumulative_tb = cumsum(Bytes) / 1e12
-  )
+    !Run %in% gtex_pilot$Run)
     
 # filter for gtex samples within select tissue types
 gtex_tissues <- gtex_sra_ages |>
@@ -118,6 +114,10 @@ gtex_tissues <- gtex_sra_ages |>
     !grepl("Cells", body_site),
     # filter for tissue types in select list
     body_site %in% tissue_types
+  ) |>
+    dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12
   ) |>
   dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
 
@@ -150,6 +150,10 @@ gtex_lymphocyte_ages <- gtex_sra_ages |>
     # filter for EBV-transformed lymphocytes
     body_site == "Cells - EBV-transformed lymphocytes"
   ) |>
+  dplyr::mutate(
+    # calculate cumulative sum of Bytes column
+    cumulative_tb = cumsum(Bytes) / 1e12
+  ) |>
   dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
 
 # check how many EBV lymphocyte samples (rows) pass the filters
@@ -165,7 +169,7 @@ gtex_lymphocyte <- gtex_lymphocyte_ages |>
   dplyr::mutate(batch_id = 11)
 
 # concatenate gtex lymphocyte and gtex tissue type accession dataframes
-gtex_select <- gtex_select_batched |>
+gtex_select <- gtex_tissue_batched |>
   rbind(gtex_lymphocyte) |>
   # move Run column to the front for download script to use
   dplyr::relocate(Run)

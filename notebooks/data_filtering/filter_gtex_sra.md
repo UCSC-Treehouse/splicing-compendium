@@ -1,6 +1,6 @@
 # Filtering GTEX samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-04-02
+2026-04-24
 
 ## Introduction
 
@@ -261,24 +261,23 @@ gtex_sra_ages |>
 | Muscle - Skeletal |       467 |
 | Whole Blood       |       456 |
 
-## Divide GTEx accessions into groups of 1.2TB samples
+## Divide GTEx accessions into 10 groups of samples
 
 For partitioning data onto OpenStack instances, we need to divide the
-accessions based on how much space they will take up. So that there will
-be enough space for holding raw fastqs and alignments, we will aim to
-download a little under half the available space on the huge OpenStack
-instance (~1.2TB)
+accessions based on how much space they will take up. We have 10
+OpenStack instances available for compute. To reduce processing time of
+each batch, divide GTEx into 10 batches
 
 ``` r
 # define target sum of data
-max_tb <- 1.2
+max_tb <- (sum(gtex_sra_ages$Bytes) / 1e12) / 10
 
 gtex_select_batched <- gtex_sra_ages |>
   dplyr::mutate(
     # calculate cumulative sum of Bytes column
     cumulative_tb = cumsum(Bytes) / 1e12,
     # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
-    batch_id = ceiling(cumulative_tb / 1.2)
+    batch_id = ceiling(cumulative_tb / max_tb)
   ) 
 ```
 
@@ -294,10 +293,16 @@ gtex_select_batched |>
 
 | batch_id |   n |
 |---------:|----:|
-|        1 | 343 |
-|        2 | 289 |
-|        3 | 265 |
-|        4 |  55 |
+|        1 | 106 |
+|        2 | 116 |
+|        3 | 116 |
+|        4 | 113 |
+|        5 | 120 |
+|        6 |  53 |
+|        7 |  82 |
+|        8 |  93 |
+|        9 |  86 |
+|       10 |  67 |
 
 ### Export filtered GTEX accession file
 
@@ -317,7 +322,7 @@ sessionInfo()
 
     R version 4.4.3 (2025-02-28)
     Platform: aarch64-apple-darwin20
-    Running under: macOS 26.3.1
+    Running under: macOS 26.4.1
 
     Matrix products: default
     BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 

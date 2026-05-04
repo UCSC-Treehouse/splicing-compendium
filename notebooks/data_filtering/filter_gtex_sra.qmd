@@ -138,8 +138,7 @@ gtex_sra_ages |>
 
 Only versions up to 3 are recorded in these samples.
 
-The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. 
-We should filter out samples with release dates greater than or equal to 2018.
+The release date for version 8p2 is 2019-07-18 ([source](https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs000424.v8.p2)), so these values represent samples from later versions that are only accessible on AnVIL. We should filter out samples with release dates greater than or equal to 2018.
 
 ```{r}
 gtex_sra_ages |>
@@ -209,27 +208,28 @@ gtex_sra_ages |>
   dplyr::summarize(n_samples = dplyr::n())
 ```
 
-## Divide GTEx accessions into groups of 1.2TB samples
+## Divide GTEx accessions into 10 groups of samples
 
-For partitioning data onto OpenStack instances, we need to divide the accessions based on how much space they will take up. 
-So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
+For partitioning data onto OpenStack instances, we need to divide the accessions based on how much space they will take up.
+We have 10 OpenStack instances available for compute.
+To reduce processing time of each batch, divide GTEx into 10 batches
 
 ```{r}
 # define target sum of data
-max_tb <- 1.2
+max_tb <- (sum(gtex_sra_ages$Bytes) / 1e12) / 10
 
 gtex_select_batched <- gtex_sra_ages |>
   dplyr::mutate(
     # calculate cumulative sum of Bytes column
     cumulative_tb = cumsum(Bytes) / 1e12,
     # assign batch number of data by dividing cumulative tb by max tb of interest and round to nearest integer
-    batch_id = ceiling(cumulative_tb / 1.2)
+    batch_id = ceiling(cumulative_tb / max_tb)
   ) 
 ```
 
 Summarize number of accessions in each batch
 
-``` {r}
+```{r}
 gtex_select_batched |>
   dplyr::summarise(
     .by = batch_id,

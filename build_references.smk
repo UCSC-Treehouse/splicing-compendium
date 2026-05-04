@@ -1,7 +1,7 @@
 # Snakemake workflow for downloading reference files and building genome indexes.
 # Run from project root: snakemake --snakefile build_references.smk -j 16
 
-configfile: "config.yaml"
+configfile: "config/config.yaml"
 
 pathvars:
     references = "references",

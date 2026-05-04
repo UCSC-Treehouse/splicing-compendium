@@ -11,7 +11,7 @@ configfile: "config/config.yaml"
 
 GENOME_ID = config["genome_id"]
 SAMPLE_GROUP = config["sample_group"]
-if config.get("samples"):
+if config.get("sample_sheet"):
     SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 else:
     SAMPLES, = glob_wildcards(os.path.join("data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))

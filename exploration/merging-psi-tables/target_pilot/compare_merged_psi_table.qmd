@@ -288,7 +288,7 @@ all_events <- dplyr::full_join(
   dplyr::mutate(
     # combined events are counted if the values are not all NA
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
-    # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
+    # separate events are counted if the values for the event are not all NA (indicating the specific position ID is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
     shared_event = combined_event & separate_event
   )
@@ -297,6 +297,9 @@ all_events <- dplyr::full_join(
 Print summary of counts across each method, across all event types
 
 ```{r}
+# number of total events shared or present only in the combined and separate tables 
+# this table counts events with -1 and -2 
+
 all_methods_summary <- all_events |> dplyr::summarise(
     # count number of events in each event type and annotation category
     shared_count = sum(shared_event),
@@ -310,6 +313,7 @@ all_methods_summary
 Print summary of counts and percentages across each method, broken down by event type
 
 ```{r}
+# event-level summary of the number of each splice event type in each splice table
 all_events_summary <- all_events |> dplyr::summarise(
     .by = c(event_type, label),
     # count number of events in each event type and annotation category
@@ -329,6 +333,7 @@ all_events_summary
 
 Plot event-level (one count per unique event) summary of event frequency across methods and event types
 
+
 ```{r}
 #| label: fig-splice_events_breakdown
 #| fig-width: 11
@@ -342,7 +347,39 @@ The capturing of unannotated event types suffers more from merging separate PSI 
 In particular, there are more ALE and MXE events only found in the separate PSI tables.
 For other unannotated events, there are 10-30% that are only found in the separate PSI.
 
-## Examine how many samples have a complete PSI value per splice event
+## Examine how many events across tables have events composed completely of numeric PSI values
+This is an event-level summary of how many events in each splice table method have complete events across all samples.
+```{r}
+#| label: fig-numeric_splice_events_breakdown
+#| fig-width: 11
+#| fig-height: 8
+
+# event-level summary of the number of each splice event type in each splice table
+all_numeric_events_summary <- all_events |> 
+  # filter for events where there are numeric PSI values in all samples
+  dplyr::filter(dplyr::if_all(dplyr::starts_with("SRR"), ~ . >= 0)) |>
+  dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
+
+plot_event_summary(all_numeric_events_summary )
+```
+I'm not surprised that splice events that have numeric PSI values across all samples are mostly annotated.
+These likely correspond to annotated transcripts that are shared across all samples across the cancer types in the pilot that have multiple isoforms that may or may not be used differently across samples.
+It's surprising that there are a handful of unannotated retained intron events shared across all samples,
+but my takeaway is that we need to unify the tables somehow (whether by converting all shiba NAs in the separate tables to 0, or some other method) because almost all unannotated events are only found in one sample or tumor type.
+
+## Examine sample-level splice events
+
+### Examine how many samples have a numeric PSI value per splice event
 
 Pivot longer for plotting - these are the sample level plots
 ```{r}

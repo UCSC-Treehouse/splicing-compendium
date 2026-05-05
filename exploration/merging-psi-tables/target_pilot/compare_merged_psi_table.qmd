@@ -168,13 +168,13 @@ plot_event_summary <- function(
 
 }
 
-# created bar plots of splice events by valye category (NA, numeric)
-event_value_boxplots <- function (psi_df, category_value, event_value) {
+# created bar plots of splice events by value category (NA, numeric)
+event_value_hist <- function (psi_df, category_value, event_value) {
   psi_df |>
   dplyr::filter(category == category_value,
                 event_type == event_value) |>
     ggplot(aes(fill = method, x = sample, y = count)) +
-    geom_boxplot() +
+    geom_histogram() +
     labs(
       x = "Sample",
       y = "Number of events"
@@ -274,6 +274,10 @@ To help us prioritize what splice event types we may be the most confident in af
 
 ```{r}
 # obtain df of splice events that are shared between both combined and separate tables
+# event-level dataframe
+# each row is a unique splice event (position ID)
+# columns are each samples' PSI value (with -1/-2/NA values indicating different NA categories)
+# combined_event, seaprate_event, and shared_event columns label what tables the event is present in
 all_events <- dplyr::full_join(
   combined_psi_table,
   separate_psi_table,
@@ -344,6 +348,7 @@ Pivot longer for plotting - these are the sample level plots
 ```{r}
 # Pivot all events df longer
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),

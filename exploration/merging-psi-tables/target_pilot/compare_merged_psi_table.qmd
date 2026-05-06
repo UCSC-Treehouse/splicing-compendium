@@ -24,11 +24,25 @@ As part of tracking differences between the two tables, we have labeled NA value
 -   NA: NA values from merging the separate and combined tables.
     These NAs represent splice events that are only found in one analysis method (combined vs. separate)
 
+We are particularly interested in the impact merging separate tables has on unannotated event detection, since this is one novelty of using Shiba.
+
 **Targeted questions this notebook is trying to answer:**
 
 -   How many NA values of different NA types are there in each type of splice table? How are they distributed across events? I am more concerned with the merge NAs (-2), as there is no good way to replace them (they could either be 0 or 1). Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those.
+-   How many unannotated event types remain if we try to drop all NAs in the splice table?
+Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables.
+How bad does it look?
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples? Can the number of NA values be reduced in the separate tables method if we filter for events with a minimum number of samples?
 -   How well correlated are the PSI values and NAs in each splice table type? Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA? Merge NAs (-2) should arise from events dropped by Shiba due to lack of alternative transcripts for a gene, so we expect these NAs to be 0 or 1.
+-   How well correlated are the number of NA values in each event type for each PSI table type?
+-   How well correlated are the PSI values of events that are shared?
+
+**Exploratory items in notebook:**
+
+This section doesn't need code review because they don't answer the main questions, I'm just trying to learn more about the data
+
+-   How many unannotated event types remain if we only filter for one gene before trying to drop all NAs in the splice table?
+* How many unannotated event types remain if we only filter for two cancer types before trying to drop all NAs in the splice table?
 
 ## Set up
 
@@ -852,9 +866,8 @@ psi_distributions(compare_psi_dist_df, "ri")
 
 A next step for this analysis will be to compare the number of NA values in each table and examine how many of each type of NA value are present in each method
 
-## Supplemental
+## Exploration
 
-Just messing with things.
 This code does not need to be reviewed because I don't think they help us answer the main question
 
 ### Event level exploration
@@ -862,7 +875,7 @@ This code does not need to be reviewed because I don't think they help us answer
 Can we "rescue" the detection of unannotated splice events if we ask for the events of only one gene?
 
 ```{r}
-#| label: fig-gene_numeric_splice_events_breakdown
+#| label: fig-exploratory_gene_numeric_splice_events_breakdown
 #| fig-width: 11
 #| fig-height: 8
 
@@ -885,6 +898,7 @@ gene_numeric_events_summary <- all_events |>
 
 plot_event_summary(gene_numeric_events_summary)
 ```
+Not really.
 
 What if we only ask for samples from a specific tumor type?
 Like one query and one ref group?

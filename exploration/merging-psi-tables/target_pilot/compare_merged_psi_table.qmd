@@ -73,6 +73,9 @@ cbPalette <- c(
   se = "#D55E00",
   three = "#CC79A7"
 )
+
+# define minimum number of samples to filter splice table by
+min_samples <- 5
 ```
 
 ### Define functions
@@ -267,9 +270,8 @@ To help us prioritize what splice event types we may be the most confident in af
 ```{r}
 # create df of splice events that are shared between both combined and separate tables
 # This is an event-level dataframe
-# each row is a unique splice event (position ID)
 # columns are each samples' PSI value (with -1/-2/NA values indicating different NA categories)
-# combined_event, seaprate_event, and shared_event columns label what tables the event is present in
+# combined_event, separate_event, and shared_event columns label what tables the event is present in
 all_events <- dplyr::full_join(
   combined_psi_table,
   separate_psi_table,
@@ -392,47 +394,7 @@ I think of these as "percent of each event category missed".
 In the worst cases, 30% of unannotated events might be only in the combined table (FIVE events).
 Losing 30% of unannotated real events seems rough.
 
-### Examine how many events across tables have events composed completely of numeric PSI values
-
--   How many unannotated event types remain if we try to drop all NAs in the splice table?
-Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables.
-How bad does it look?
-
-This is an event-level summary of how many events in each splice table method have complete (no NAs) PSi values across all samples.
-I don't actually think the percent plots here are informative the way we currently have them since they say all events are 100% shared.
-
-```{r}
-#| label: fig-complete_splice_events_breakdown
-#| fig-width: 11
-#| fig-height: 8
-
-# event-level summary of the number of each splice event type in each splice table
-all_numeric_events_summary <- all_events |>
-  # filter for events where there are numeric PSI values in all samples
-  dplyr::filter(dplyr::if_all(dplyr::starts_with("SRR"), ~ . >= 0)) |>
-  dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    combined_only_count = sum(combined_event) - shared_count,
-    separate_only_count = sum(separate_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    combined_only_percent = combined_only_count / total * 100,
-    separate_only_percent = separate_only_count / total * 100,
-)
-
-plot_event_summary(all_numeric_events_summary )
-```
-Print table of event summary
-```{r}
-all_numeric_events_summary |>
-  dplyr::select(event_type, label, shared_count)
-```
-
-I'm not surprised that splice events that have numeric PSI values across all samples are mostly annotated.
-These are likely annotated transcripts that are shared across all samples across the cancer types in the pilot that have multiple isoforms.
-It's surprising that there are a handful of unannotated retained intron events shared across all samples, but my takeaway is that we need to unify the tables somehow (whether by converting all Shiba NAs in the separate tables to 0, or some other method), Or we need to not drop
+### How many events remain if we filter for events with PSI values in a minim number of samples?
 
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
 
@@ -447,7 +409,7 @@ Filter for minimum of 5 samples with numeric PSI values
 all_numeric_events_summary_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
   # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
-  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= 5) |>
+  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples) |>
   dplyr::summarise(
     .by = c(event_type, label),
     # count number of events in each event type and annotation category
@@ -462,7 +424,8 @@ all_numeric_events_summary_min_samples <- all_events |>
 
 plot_event_summary(all_numeric_events_summary_min_samples)
 ```
-Print table
+
+Print table of splice event counts
 ```{r}
 all_numeric_events_summary_min_samples |>
   dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)

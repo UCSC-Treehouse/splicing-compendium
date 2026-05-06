@@ -10,11 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
-**Question:**\* Does merging separate splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
-
--   How many NA values of different NA types are there in each type of splice table? How are they distributed across events?
-* Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples? Can the number of NA values be reduced in the separate tables method if we filter for events with a minimum number of samples?
-* 
+**Question:** Does merging separate splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
 
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
 Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events.
@@ -27,6 +23,12 @@ As part of tracking differences between the two tables, we have labeled NA value
 
 -   NA: NA values from merging the separate and combined tables.
     These NAs represent splice events that are only found in one analysis method (combined vs. separate)
+
+**Targeted questions this notebook is trying to answer:**
+
+-   How many NA values of different NA types are there in each type of splice table? How are they distributed across events? I am more concerned with the merge NAs (-2), as there is no good way to replace them (they could either be 0 or 1). Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those.
+-   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples? Can the number of NA values be reduced in the separate tables method if we filter for events with a minimum number of samples?
+-   How well correlated are the PSI values and NAs in each splice table type? Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA? Merge NAs (-2) should arise from events dropped by Shiba due to lack of alternative transcripts for a gene, so we expect these NAs to be 0 or 1.
 
 ## Set up
 

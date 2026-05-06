@@ -686,15 +686,15 @@ Filter splice events for those with complete PSI values in \>= min_samples sampl
 
 Note: these plots are of events without ANY NA values (no shiba nor mege NAs) so we are only looking at distributions of complete splice events with a minimum samples N
 
-### min_samples = 10
+### min_samples = 5
 
 ```{r}
-sample_filtered_event_summary <- event_summary(long_no_na_all_events, 10)
+sample_filtered_event_summary <- event_summary(long_no_na_all_events, 5)
 sample_filtered_event_summary
 ```
 
 ```{r}
-#| label: fig-splice_events_breakdown_10
+#| label: fig-splice_events_breakdown_5
 #| fig-width: 11
 #| fig-height: 8
 
@@ -714,17 +714,6 @@ We also want this done on the event-level, more so for the merge NAs
 #| fig-height: 10
 
 event_value_boxplots(psi_sample_summary, "complete_psi", "se")
-
-```
-
-### AFE
-
-```{r}
-#| label: fig-sample_numeric_psi_afe
-#| fig-width: 10
-#| fig-height: 10
-
-event_value_boxplots(psi_sample_summary, "complete_psi", "afe")
 
 ```
 
@@ -876,11 +865,7 @@ counts_plot + plot_layout(guides = "collect")
 I think we get more Shiba NA values in the combined tables because there are more splice events dropped in the separate tables due to splicing detected in the GTF for a given gene.
 I suspect there may be an overlap of position IDs that have a Shiba (-1) NA value in the combined table and position IDs that have a dropped gene (-2) NA in the separate tables.
 
-### Examine frequency of only one transcript NA values (-2) in separate tables
-
-To do...
-
-Examine PSI distributions in combined table of events missed by the separate table, and then the reverse (is there a threshold of PSI where events become shared?)
+### Plot sample-level PSI distributions in each method
 
 #### AFE
 
@@ -1035,21 +1020,7 @@ What if we only ask for samples from a specific tumor type?
 Like one query and one ref group?
 
 ```{r}
-#| label: fig-exploratory_two_cancer_types_numeric_splice_events_breakdown
-#| fig-width: 11
-#| fig-height: 8
-
-# We only care about body site and run fields in target metadata
-filtered_target_metadata <- target_metadata |>
-  dplyr::select(study_name, Run) |>
-  dplyr::filter(grepl("TARGET", study_name))
-
-cancers_list <- filtered_target_metadata |>
-  dplyr::filter(study_name %in% c("TARGET: Kidney\\, Clear Cell Sarcoma of the Kidney (CCSK)", 
-                                  "TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2")) |>
-  dplyr::select(Run) |>
-  as.vector()
-
+# to do?
 ```
 
 Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.

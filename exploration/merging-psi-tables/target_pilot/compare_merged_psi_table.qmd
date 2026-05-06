@@ -10,6 +10,12 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
+**Question:**\* Does merging separate splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
+
+-   How many NA values of different NA types are there in each type of splice table? How are they distributed across events?
+* Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples? Can the number of NA values be reduced in the separate tables method if we filter for events with a minimum number of samples?
+* 
+
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
 Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events.
 
@@ -341,15 +347,17 @@ Plot event-level (one count per unique event) summary of event frequency across 
 
 plot_event_summary(all_events_summary)
 ```
+
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.
 The inflated events in the separate table is likely due to the presence of events with NA values in the table.
-Inflated values in the separate tables may be due to 
-The capturing of unannotated event types suffers more from merging separate PSI tables.
+Inflated values in the separate tables may be due to The capturing of unannotated event types suffers more from merging separate PSI tables.
 In particular, there are more ALE and MXE events only found in the separate PSI tables.
 For other unannotated events, there are 10-30% that are only found in the separate PSI.
 
 ### Examine how many events across tables have events composed completely of numeric PSI values
+
 This is an event-level summary of how many events in each splice table method have complete events across all samples.
+
 ```{r}
 #| label: fig-numeric_splice_events_breakdown
 #| fig-width: 11
@@ -373,13 +381,14 @@ all_numeric_events_summary <- all_events |>
 
 plot_event_summary(all_numeric_events_summary )
 ```
+
 I'm not surprised that splice events that have numeric PSI values across all samples are mostly annotated.
-These likely correspond to annotated transcripts that are shared across all samples across the cancer types in the pilot that have multiple isoforms that may or may not be used differently across samples.
-It's surprising that there are a handful of unannotated retained intron events shared across all samples,
-but my takeaway is that we need to unify the tables somehow (whether by converting all shiba NAs in the separate tables to 0, or some other method) because almost all unannotated events are only found in one sample or tumor type.
+These are likely annotated transcripts that are shared across all samples across the cancer types in the pilot that have multiple isoforms.
+It's surprising that there are a handful of unannotated retained intron events shared across all samples, but my takeaway is that we need to unify the tables somehow (whether by converting all shiba NAs in the separate tables to 0, or some other method) because almost all unannotated events are only found in one sample or tumor type.
 
 ### Examine event-level NA values
-We are specifically interested in asking if these samples 
+
+We are specifically interested in asking if these samples
 
 ```{r}
 #| label: fig-shiba_na_splice_events_breakdown
@@ -407,7 +416,8 @@ shiba_na_events_summary <- all_events |>
 plot_event_summary(shiba_na_events_summary)
 ```
 
-I don't know if this is interesting. It seems that 
+I don't know if this is interesting.
+It seems that
 
 ```{r}
 #| label: fig-merge_na_splice_events_breakdown
@@ -433,10 +443,10 @@ merge_na_events_summary <- all_events |>
 plot_event_summary(merge_na_events_summary)
 ```
 
-
 ## Examine sample-level splice events
 
 Pivot longer for plotting sample-level splice event info
+
 ```{r}
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
@@ -453,11 +463,10 @@ long_all_events <- all_events |>
 colnames(long_all_events)
 ```
 
-
-
 ### Examine how many samples have a numeric PSI value per splice event
 
 Drop NAs and make sample-level summary
+
 ```{r}
 # drop NAs of unshared events between combined vs separate tables for analyzing NAs and PSI values shared between at least some combined and separate methods
 long_events_shared <- long_all_events |> tidyr::drop_na()
@@ -526,11 +535,12 @@ plot_event_summary(sample_level_all_events_summary)
 We are interested in seeing how the splice event breakdown changes if we filter for events present in at least a fraction of our samples.
 For instance, do the number of events onkly found in the separate tables go down?
 
-Filter splice events for those with complete PSI values in >= min_samples samples per method
+Filter splice events for those with complete PSI values in \>= min_samples samples per method
 
 Note: these plots are of events without ANY NA values (no shiba nor mege NAs) so we are only looking at distributions of complete splice events with a minimum samples N
 
 ### min_samples = 10
+
 ```{r}
 sample_filtered_event_summary <- event_summary(long_no_na_all_events, 10)
 sample_filtered_event_summary
@@ -572,6 +582,7 @@ event_value_boxplots(psi_sample_summary, "complete_psi", "afe")
 ```
 
 Plot number of samples for each event type category with shiba NA PSI events
+
 ```{r}
 #| label: fig-sample_shiba_na_psi_breakdown
 #| fig-width: 15
@@ -580,7 +591,6 @@ Plot number of samples for each event type category with shiba NA PSI events
 event_value_boxplots(psi_sample_summary, "shiba_na", "se")
 
 ```
-
 
 ## Check how similar PSI values of shared events are
 
@@ -656,6 +666,7 @@ na_summary
 ```
 
 Plot sample-level shiba NA frequency in each method
+
 ```{r}
 #| label: fig-shiba_na_breakdown
 #| fig-width: 11
@@ -714,6 +725,7 @@ percent_plot /
 counts_plot + plot_layout(guides = "collect")
 
 ```
+
 I think we get more Shiba NA values in the combined tables because there are more splice events dropped in the separate tables due to splicing detected in the GTF for a given gene.
 I suspect there may be an overlap of position IDs that have a Shiba (-1) NA value in the combined table and position IDs that have a dropped gene (-2) NA in the separate tables.
 
@@ -751,6 +763,7 @@ compare_psi_dist_df <- long_no_na_all_events |>
 psi_distributions(compare_psi_dist_df, "afe")
 
 ```
+
 ### Plot PSI distributions of ALE events
 
 ```{r}
@@ -813,6 +826,7 @@ psi_distributions(compare_psi_dist_df, "mxe")
 ```
 
 ### Plot PSI distributions of RI events
+
 ```{r}
 #| label: fig-psi_dist_ri
 #| fig-width: 13
@@ -820,7 +834,6 @@ psi_distributions(compare_psi_dist_df, "mxe")
 
 psi_distributions(compare_psi_dist_df, "ri")
 ```
-
 
 ### Takeaways so far
 
@@ -836,6 +849,49 @@ psi_distributions(compare_psi_dist_df, "ri")
 -   Unfortunately, PSI values of events only found in the combined or separate tables span the entire PSI distribution (0-1) so there is no easy way to set a filter to exclude values that are not found in the combined table.
 
 A next step for this analysis will be to compare the number of NA values in each table and examine how many of each type of NA value are present in each method
+
+## Supplemental
+
+Just messing with things.
+This code does not need to be reviewed because I don't think they help us answer the main question
+
+### Event level exploration
+
+Can we "rescue" the detection of unannotated splice events if we ask for the events of only one gene?
+
+```{r}
+#| label: fig-gene_numeric_splice_events_breakdown
+#| fig-width: 11
+#| fig-height: 8
+
+# event-level summary of the number of each splice event type in each splice table
+gene_numeric_events_summary <- all_events |> 
+  # filter for events where there are numeric PSI values in all samples
+  dplyr::filter(gene_id == "ENSG00000000419.14",
+                dplyr::if_all(dplyr::starts_with("SRR"), ~ . >= 0)) |>
+  dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
+
+plot_event_summary(gene_numeric_events_summary)
+```
+
+What if we only ask for samples from a specific tumor type?
+Like one query and one ref group?
+
+```{r}
+# this requires more messing with the code (reading in sample sheet and adding cancer type to splice table) so I will run the idea by folks tomorrow and implement later. Or implement if I get through the rest of today
+
+# we probably want the sample metadata 
+```
 
 Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.
 For instance, we maybe would need to do this experiment on simulated reads where we know going in what all the transcripts are, which may be beyond the scope of this project.

@@ -582,7 +582,6 @@ Pivot longer for plotting sample-level splice event info
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
 long_all_events <- all_events |>
-  dplyr::slice_sample(n = 2000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),

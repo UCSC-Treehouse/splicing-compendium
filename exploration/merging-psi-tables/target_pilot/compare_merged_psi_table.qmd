@@ -582,6 +582,7 @@ Pivot longer for plotting sample-level splice event info
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
 long_all_events <- all_events |>
+  dplyr::slice_sample(n = 5000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -609,6 +610,7 @@ From eyeballing the table in R, I saw a couple values that had -2 PSI values in 
 
 na_comparison_samples <- long_all_events |>
   dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
+    tidyr::drop_na() |>
   tidyr::pivot_wider(
     names_from = method,
     values_from = PSI

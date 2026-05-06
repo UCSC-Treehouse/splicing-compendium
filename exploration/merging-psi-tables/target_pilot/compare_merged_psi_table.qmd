@@ -29,17 +29,17 @@ We are particularly interested in the impact merging separate tables has on unan
 **Targeted questions this notebook is trying to answer:**
 
 -   What splice event types do we miss out on with the separate tables method?
--   How many unannotated event types remain if we try to drop all NAs in the splice table? 
-Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables. 
+-   How many unannotated event types remain if we try to drop all NAs in the splice table?
+Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables.
 How bad does it look?
--   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples? 
--   How many NA values of different NA types are there in each type of splice table? 
-How are they distributed across events? 
-I am more concerned with the merge NAs (-2), as there is no good way to replace them (they could either be 0 or 1). 
+-   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
+-   How many NA values of different NA types are there in each type of splice table?
+How are they distributed across events?
+I am more concerned with the merge NAs (-2), as there is no good way to replace them (they could either be 0 or 1).
 Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those.
 Can the number of NA values be reduced in the separate tables method if we filter for events with a minimum number of samples?
--   How well correlated are the PSI values and NAs in each splice table type? 
-Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA? 
+-   How well correlated are the PSI values and NAs in each splice table type?
+Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA?
 Merge NAs (-2) should arise from events dropped by Shiba due to lack of alternative transcripts for a gene, so we expect these NAs to be 0 or 1.
 -   How well correlated are the number of NA values in each event type for each PSI table type? (not done yet)
 -   How well correlated are the PSI values of events that are shared?
@@ -334,8 +334,8 @@ all_events <- dplyr::full_join(
 Print summary of counts across each method, across all event types
 
 ```{r}
-# number of total events shared or present only in the combined and separate tables 
-# this table counts events with -1 and -2 
+# number of total events shared or present only in the combined and separate tables
+# this table counts events with -1 and -2
 
 all_methods_summary <- all_events |> dplyr::summarise(
     # count number of events in each event type and annotation category
@@ -444,8 +444,8 @@ Losing 30% of unannotated real events seems rough.
 
 ### Examine how many events across tables have events composed completely of numeric PSI values
 
--   How many unannotated event types remain if we try to drop all NAs in the splice table? 
-Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables. 
+-   How many unannotated event types remain if we try to drop all NAs in the splice table?
+Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables.
 How bad does it look?
 
 This is an event-level summary of how many events in each splice table method have complete (no NAs) PSi values across all samples.
@@ -456,7 +456,7 @@ This is an event-level summary of how many events in each splice table method ha
 #| fig-height: 8
 
 # event-level summary of the number of each splice event type in each splice table
-all_numeric_events_summary <- all_events |> 
+all_numeric_events_summary <- all_events |>
   # filter for events where there are numeric PSI values in all samples
   dplyr::filter(dplyr::if_all(dplyr::starts_with("SRR"), ~ . >= 0)) |>
   dplyr::summarise(
@@ -477,17 +477,17 @@ I'm not surprised that splice events that have numeric PSI values across all sam
 These are likely annotated transcripts that are shared across all samples across the cancer types in the pilot that have multiple isoforms.
 It's surprising that there are a handful of unannotated retained intron events shared across all samples, but my takeaway is that we need to unify the tables somehow (whether by converting all Shiba NAs in the separate tables to 0, or some other method), Or we need to not drop
 
--   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples? 
+-   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
 
 Filter for minimum of 5 samples with numeric PSI values
 
 ```{r}
-#| label: fig-complete_splice_events_breakdown
+#| label: fig-complete_splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
 
 # event-level summary of the number of each splice event type in each splice table
-all_numeric_events_summary <- all_events |> 
+all_numeric_events_summary <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
   # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
   dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= 5) |>
@@ -512,7 +512,7 @@ I do see a small number of MXE events in the separate_only category but this eve
 
 ### Examine event-level NA values
 
-How many NA values of different NA types are there in each type of splice table? 
+How many NA values of different NA types are there in each type of splice table?
 How are they distributed across events?
 
 Examine the number of each type of NA value (-1 and -2) are present in each table
@@ -525,7 +525,7 @@ What kinds of and how many events have shiba NAs across all samples?
 #| fig-height: 8
 
 # event-level summary of the number of each splice event type in each splice table
-shiba_na_events_summary <- all_events |> 
+shiba_na_events_summary <- all_events |>
   # filter for events where there is a shiba NA
   dplyr::filter(
     dplyr::if_all(dplyr::starts_with("SRR"), ~ . == -1)
@@ -555,7 +555,7 @@ What kinds of and how many events have merge NAs across all samples?
 #| fig-height: 8
 
 # event-level summary of the number of each splice event type in each splice table
-merge_na_events_summary <- all_events |> 
+merge_na_events_summary <- all_events |>
   # filter for events where there are numeric PSI values in all samples
   dplyr::filter(dplyr::if_any(dplyr::starts_with("SRR"), ~ . == -2)) |>
   dplyr::summarise(
@@ -595,8 +595,8 @@ colnames(long_all_events)
 
 ### Examine relationships between of PSI and NA values of combined and separate tables
 
--   How well correlated are the PSI values and NAs in each splice table type? 
-Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA? 
+-   How well correlated are the PSI values and NAs in each splice table type?
+Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA?
 Merge NAs (-2) should arise from events dropped by Shiba due to lack of alternative transcripts for a gene, so we expect these NAs to be 0 or 1.
 
 I decided to go with a plot instead of a table for this because the table is 170,000 rows long.
@@ -612,9 +612,9 @@ na_comparison_samples <- long_all_events |>
   tidyr::pivot_wider(
     names_from = method,
     values_from = PSI
-  ) 
+  )
 
-# plot basic scatterplot to see 
+# plot basic scatterplot to see
 ggplot(na_comparison_samples, aes(x = combined, y = separate)) +
   geom_point()
 
@@ -652,7 +652,7 @@ na_comparison_summary <- na_comparison_samples |>
   )
 
 na_comparison_summary
-  
+
 ```
 
 So there are only 12% of all samples(?) that have events with a "ground truth" numeric PSI value which gets dropped in Shiba
@@ -1050,7 +1050,7 @@ Can we "rescue" the detection of unannotated splice events if we ask for the eve
 #| fig-height: 8
 
 # event-level summary of the number of each splice event type in each splice table
-gene_numeric_events_summary <- all_events |> 
+gene_numeric_events_summary <- all_events |>
   # filter for events where there are numeric PSI values in all samples
   dplyr::filter(gene_id == "ENSG00000000419.14",
                 dplyr::if_all(dplyr::starts_with("SRR"), ~ . >= 0)) |>

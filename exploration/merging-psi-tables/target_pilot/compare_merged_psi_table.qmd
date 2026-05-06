@@ -465,7 +465,7 @@ It's surprising that there are a handful of unannotated retained intron events s
 but my takeaway is that we need to unify the tables somehow (whether by converting all Shiba NAs in the separate tables to 0, or some other method),
 Or we need to not drop 
 
-Filter for minmum of 5 samples with numeric PSI values
+Filter for minimum of 5 samples with numeric PSI values
 ```{r}
 #| label: fig-complete_splice_events_breakdown
 #| fig-width: 11
@@ -490,7 +490,7 @@ all_numeric_events_summary <- all_events |>
 
 plot_event_summary(all_numeric_events_summary )
 ```
-This actually looks all right to me
+This actually looks all right to me, with the caveat that we lose all the combined_only events.
 The number of shared AFE events in @fig-splice_events_breakdown is ~40,000 so we seem to get most of those AFE events if we ask for splice events that are shared in 5 or more samples.
 The reduction in SE events is small too - we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here.
 I do see a small number of MXE events in the separate_only category but this event type has been the lowest, so I would be all right dropping it in our later analyses.
@@ -499,6 +499,8 @@ I do see a small number of MXE events in the separate_only category but this eve
 
 Examine the number of each type of NA value (-1 and -2) are present in each table
 
+What kinds of and how many events have shiba NAs across all samples?
+
 ```{r}
 #| label: fig-shiba_na_splice_events_breakdown
 #| fig-width: 11
@@ -506,9 +508,9 @@ Examine the number of each type of NA value (-1 and -2) are present in each tabl
 
 # event-level summary of the number of each splice event type in each splice table
 shiba_na_events_summary <- all_events |> 
-  # filter for events where there are numeric PSI values in all samples
+  # filter for events where there is a shiba NA
   dplyr::filter(
-    rowSums(dplyr::across(dplyr::starts_with("SRR"), \(x) x == -1)) >= 5
+    dplyr::if_all(dplyr::starts_with("SRR"), ~ . == -1)
     ) |>
   dplyr::summarise(
     .by = c(event_type, label),
@@ -524,9 +526,10 @@ shiba_na_events_summary <- all_events |>
 
 plot_event_summary(shiba_na_events_summary)
 ```
+This plot is less useful to me.
+I think the sample-level breakdown of Shiba NAs will likely be more informative.
 
-I don't know if this is interesting.
-It seems that
+What kinds of and how many events have merge NAs across all samples?
 
 ```{r}
 #| label: fig-merge_na_splice_events_breakdown
@@ -551,6 +554,7 @@ merge_na_events_summary <- all_events |>
 
 plot_event_summary(merge_na_events_summary)
 ```
+I still don't think event-level plots of NA values are as useful as the sample-level plots will be.
 
 ## Examine sample-level splice events
 

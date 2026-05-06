@@ -492,11 +492,12 @@ plot_event_summary(all_numeric_events_summary )
 ```
 This actually looks all right to me
 The number of shared AFE events in @fig-splice_events_breakdown is ~40,000 so we seem to get most of those AFE events if we ask for splice events that are shared in 5 or more samples.
-The reduction in SE events is small too -m we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here
+The reduction in SE events is small too - we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here.
+I do see a small number of MXE events in the separate_only category but this event type has been the lowest, so I would be all right dropping it in our later analyses.
 
 ### Examine event-level NA values
 
-We are specifically interested in asking if these samples
+Examine the number of each type of NA value (-1 and -2) are present in each table
 
 ```{r}
 #| label: fig-shiba_na_splice_events_breakdown
@@ -570,6 +571,44 @@ long_all_events <- all_events |>
 # print column names
 colnames(long_all_events)
 ```
+
+### Examine relationships between of PSI and NA values of combined and separate tables
+
+I decided to go with a plot instead of a table for this because the table is 170,000 rows long.
+From eyeballing the table in R, I saw a couple values that had -2 PSI values in the separate table and -1 in the combined table
+But it was hard to get a sense of all the possible separate - combined PSI value and NA combinations
+
+```{r}
+#| label: fig-na_corresponding_to_numeric_values
+#| fig-width: 11
+#| fig-height: 8
+
+na_comparison_samples <- long_all_events |>
+  dplyr::select(pos_id, sample, method, PSI) |>
+  tidyr::pivot_wider(
+    names_from = method,
+    values_from = PSI
+  ) 
+
+# plot basic scatterplot to see 
+ggplot(na_comparison_samples, aes(x = combined, y = separate)) +
+  geom_point()
+
+```
+From this plot, I see four different categories of splice event matches between the separate and combined tables:
+
+* Upper dot: We have some splice events that are dropped by Shiba due to no alternative splicing in the separate tables (Y = -2) but are also dropped in the combined tables because there were too few reads anyway (X = -1).
+* Lower dot: We have some splice events that had too few reads for a numeric PSI in both tables (x = -1, y = -1)
+* Diagonal line: We also see events whose PSI values are numeric and have a linear relationship in both combined and separate methods (these are likley the events that were identical and found in both)
+* The most concerning case is the horizontal line at Y=-2, 
+corresponding to splice events dropped in the separate tables due to lack of transcripts for a gene but was captured in the combined splice table.
+In this section, we can see that the PSI values calculated in the combined table span the full PSI value range from 0-1, so there is no easy way to replace the -2 NA values in the separate table.
+
+Plot how many of each of these match categories are present in the pilot tables
+```{r}
+na_comparison_samples
+```
+
 
 ### Examine how many samples have a numeric PSI value per splice event
 

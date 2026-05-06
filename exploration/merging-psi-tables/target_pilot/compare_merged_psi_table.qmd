@@ -636,7 +636,11 @@ na_comparison_summary
 ```
 So there are only 12% of all samples(?) that have events with a "ground truth" numeric PSI value which gets dropped in Shiba
 
-### Plot 
+### Plot PSI distribution of numeric PSI dropped in separate table
+```{r}
+
+```
+
 
 ### Examine how many samples have a numeric PSI value per splice event
 
@@ -727,32 +731,6 @@ sample_filtered_event_summary
 #| fig-height: 8
 
 plot_event_summary(sample_filtered_event_summary)
-
-```
-
-## Plot number of samples for each event type category with numeric PSI events
-
-We also want this done on the event-level, more so for the merge NAs
-
-### SE
-
-```{r}
-#| label: fig-sample_numeric_psi_se
-#| fig-width: 10
-#| fig-height: 10
-
-event_value_boxplots(psi_sample_summary, "complete_psi", "se")
-
-```
-
-Plot number of samples for each event type category with shiba NA PSI events
-
-```{r}
-#| label: fig-sample_shiba_na_psi_breakdown
-#| fig-width: 15
-#| fig-height: 15
-
-event_value_boxplots(psi_sample_summary, "shiba_na", "se")
 
 ```
 

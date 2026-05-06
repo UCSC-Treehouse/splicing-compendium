@@ -265,7 +265,7 @@ There are 71,811 more splice events in the separate PSI table than the combined 
 To help us prioritize what splice event types we may be the most confident in after merging separate Shiba PSI tables, we are interested in seeing a breakdown of what event types are most represented in PSI tables constructed from different methods
 
 ```{r}
-# obtain df of splice events that are shared between both combined and separate tables
+# create df of splice events that are shared between both combined and separate tables
 # This is an event-level dataframe
 # each row is a unique splice event (position ID)
 # columns are each samples' PSI value (with -1/-2/NA values indicating different NA categories)
@@ -332,7 +332,7 @@ Plot event-level (one count per unique event) summary of event frequency across 
 plot_event_summary(all_events_summary)
 ```
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table (green) than the combined table (red).
-Inflated values in the separate tables may be due to -2 NAs which arise from when genes without multiple transcripts are dropped in samples analyzed separately.
+Inflated values in the separate tables may be due to -2 NAs which arise in the Shiba processing of separate samples when when genes without multiple transcripts are dropped.
 
 What specific event types are impacted (missed) by the separate tables method?
 These following plots answer the question for me better than the above summary plots.
@@ -357,17 +357,16 @@ long_summary_df <- combined_only_summary |>
     )
 
 # create raw counts grouped barplot
-counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = category, y = count)) +
-    geom_bar(position = "dodge", stat = "identity") +
+counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = count)) +
+    geom_bar(stat = "identity") +
       scale_fill_manual(values = cbPalette) +
     plot_theme +
     labs(
       title = "# annotated and unannotated splice events only in combined table",
-      x = "Annotation status of event",,
+      x = "Event Type",
       y = "Number of events"
     ) +
     facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
     theme(strip.text = element_text(size = 15))
 
 # create percents grouped barplot

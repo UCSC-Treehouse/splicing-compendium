@@ -434,10 +434,10 @@ Losing 30% of unannotated real events seems rough.
 
 ### Examine how many events across tables have events composed completely of numeric PSI values
 
-This is an event-level summary of how many events in each splice table method have complete events across all samples.
+This is an event-level summary of how many events in each splice table method have complete (no NAs) PSi values across all samples.
 
 ```{r}
-#| label: fig-numeric_splice_events_breakdown
+#| label: fig-complete_splice_events_breakdown
 #| fig-width: 11
 #| fig-height: 8
 
@@ -459,10 +459,40 @@ all_numeric_events_summary <- all_events |>
 
 plot_event_summary(all_numeric_events_summary )
 ```
-
 I'm not surprised that splice events that have numeric PSI values across all samples are mostly annotated.
 These are likely annotated transcripts that are shared across all samples across the cancer types in the pilot that have multiple isoforms.
-It's surprising that there are a handful of unannotated retained intron events shared across all samples, but my takeaway is that we need to unify the tables somehow (whether by converting all shiba NAs in the separate tables to 0, or some other method) because almost all unannotated events are only found in one sample or tumor type.
+It's surprising that there are a handful of unannotated retained intron events shared across all samples,
+but my takeaway is that we need to unify the tables somehow (whether by converting all Shiba NAs in the separate tables to 0, or some other method),
+Or we need to not drop 
+
+Filter for minmum of 5 samples with numeric PSI values
+```{r}
+#| label: fig-complete_splice_events_breakdown
+#| fig-width: 11
+#| fig-height: 8
+
+# event-level summary of the number of each splice event type in each splice table
+all_numeric_events_summary <- all_events |> 
+  # filter for events where there are numeric PSI values in at least 5 samples
+  # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
+  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= 5) |>
+  dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
+
+plot_event_summary(all_numeric_events_summary )
+```
+This actually looks all right to me
+The number of shared AFE events in @fig-splice_events_breakdown is ~40,000 so we seem to get most of those AFE events if we ask for splice events that are shared in 5 or more samples.
+The reduction in SE events is small too -m we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here
 
 ### Examine event-level NA values
 

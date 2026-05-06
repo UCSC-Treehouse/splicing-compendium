@@ -224,6 +224,7 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
+metadata_dir <- file.path(repo_root, "metadata", "pilot_shiba_run")
 
 # directory of shiba results produced from the same shiba run
 combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
@@ -233,6 +234,9 @@ combined_splice_results_dir <- file.path(combined_dir, "splicing")
 
 # Directory of PSI table, merged from separate shiba runs
 separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
+
+# target subset metadata
+target_metadata_file <- file.path(metadata_dir, "target_accessions.tsv")
 
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")
@@ -258,6 +262,9 @@ names(shiba_psi_paths) <- names(psi_files)
 Read in files
 
 ```{r}
+# read in TARGET sample metadata
+target_metadata <- readr::read_tsv(target_metadata_file, col_types = c(.default = "c"))
+
 # read merged splice table from separate runs of Shiba on the TARGET pilot samples
 separate_psi_table <- readr::read_tsv(separate_psi_file, col_types=readr::cols(.default = "c")) |>
   # replace remaining NAs from this table representing dropped genes from one sample with no detected splicing for that gene with -2
@@ -373,23 +380,20 @@ What specific event types are impacted more by one method or the other?
 #| fig-height: 8
 
 test <- all_events_summary |>
-  dplyr::select(event_type, label, combined_only_count, separate_only_count, total, combined_only_percent, separate_only_percent) |>
-  dplyr::filter(label == "unannotated")
+  dplyr::select(event_type, label, combined_only_count, total, combined_only_percent)
 
 long_summary_df <- test |>
     tidyr::pivot_longer(
       cols = c(
         combined_only_count,
-        combined_only_percent,
-        separate_only_count,
-        separate_only_percent
+        combined_only_percent
       ),
       # extract percents and counts into separate columns
       names_to = c("category", ".value"),
       names_pattern = "(.+)_(percent|count)"
     )
 
-  # create raw counts grouped barplot
+# create raw counts grouped barplot
 ggplot(long_summary_df, aes(fill = event_type, x = category, y = count)) +
     geom_bar(position = "dodge", stat = "identity") +
       scale_fill_manual(values = cbPalette) +
@@ -399,19 +403,18 @@ ggplot(long_summary_df, aes(fill = event_type, x = category, y = count)) +
       x = "Annotation status of event",,
       y = "Number of events"
     ) +
-    facet_wrap(vars(label, event_type), scales = "free_y") +
+    facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     theme(strip.text = element_text(size = 15))
 
 ```
-
 percentage plots of the event totals (events shared by both methods + events only in one method)
 ```{r}
 #| label: fig-splice_events_percents_unannotated
 #| fig-width: 11
 #| fig-height: 8
 
-  # create percents grouped barplot
+# create percents grouped barplot
 ggplot(long_summary_df, aes(fill = event_type, x = category, y = percent)) +
     geom_bar(position = "dodge", stat = "identity") +
       scale_fill_manual(values = cbPalette) +
@@ -419,16 +422,15 @@ ggplot(long_summary_df, aes(fill = event_type, x = category, y = percent)) +
     labs(
       title = "% annotated and unannotated splice events only in combined or separate tables",
       x = "Annotation status of event",,
-      y = "% of total events"
+      y = "Percent of all events"
     ) +
-    facet_wrap(vars(label, event_type)) +
+    facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     theme(strip.text = element_text(size = 15))
 ```
-
 I think of these as "percent of each event category missed" 
-In the worst cases, 40% of unannotated events may be only in the separate only table (ALE events) and 30% of unannotated events might be only in the combined table (FIVE events)
-Losing 30% of unannotated real events seems rough 
+In the worst cases, 30% of unannotated events might be only in the combined table (FIVE events)
+Losing 30% of unannotated real events seems rough. 
 
 ### Examine how many events across tables have events composed completely of numeric PSI values
 
@@ -964,9 +966,21 @@ What if we only ask for samples from a specific tumor type?
 Like one query and one ref group?
 
 ```{r}
-# this requires more messing with the code (reading in sample sheet and adding cancer type to splice table) so I will run the idea by folks tomorrow and implement later. Or implement if I get through the rest of today
+#| label: fig-exploratory_two_cancer_types_numeric_splice_events_breakdown
+#| fig-width: 11
+#| fig-height: 8
 
-# we probably want the sample metadata 
+# We only care about body site and run fields in target metadata
+filtered_target_metadata <- target_metadata |>
+  dplyr::select(study_name, Run) |>
+  dplyr::filter(grepl("TARGET", study_name))
+
+cancers_list <- filtered_target_metadata |>
+  dplyr::filter(study_name %in% c("TARGET: Kidney\\, Clear Cell Sarcoma of the Kidney (CCSK)", 
+                                  "TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2")) |>
+  dplyr::select(Run) |>
+  as.vector()
+
 ```
 
 Another note here is that we assume the splice events in the combined table are the ground truth, but a separate kind of evaluation would be needed to truly ask how many "real" splice events are in each of the tables.

@@ -588,7 +588,7 @@ But it was hard to get a sense of all the possible separate - combined PSI value
 #| fig-height: 8
 
 na_comparison_samples <- long_all_events |>
-  dplyr::select(pos_id, sample, method, PSI, event_type) |>
+  dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
   tidyr::pivot_wider(
     names_from = method,
     values_from = PSI
@@ -638,9 +638,35 @@ So there are only 12% of all samples(?) that have events with a "ground truth" n
 
 ### Plot PSI distribution of numeric PSI dropped in separate table
 ```{r}
+#| label: fig-psi_dist_numeric_dropped_annotated
+#| fig-width: 13
+#| fig-height: 8
 
+na_comparison_samples |>
+  # drop NAs from putting together the separate and combined tables
+  tidyr::drop_na() |>
+  dplyr::mutate(
+    match_category =
+      dplyr::case_when(
+        separate == -1 & combined == -1 ~ "both Shiba NAs",
+        separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+        separate >= 0 & combined >= 0 ~ "both numeric PSIs",
+        separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+      )
+  ) |>
+  dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
+    ggplot(aes(combined, fill = event_type)) +
+    geom_histogram(bins = 20) +
+    facet_wrap(vars(event_type, label), scales = "free_y") +
+  scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45))
 ```
 
+Again we see here that the PSI values of -2 events dropped in the separate tables span the full PSI range
 
 ### Examine how many samples have a numeric PSI value per splice event
 

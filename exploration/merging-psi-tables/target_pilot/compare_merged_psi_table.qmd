@@ -28,7 +28,8 @@ We are particularly interested in the impact merging separate tables has on unan
 
 **Targeted questions this notebook is trying to answer:**
 
--   How many NA values of different NA types are there in each type of splice table? How are they distributed across events? I am more concerned with the merge NAs (-2), as there is no good way to replace them (they could either be 0 or 1). Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those.
+* What splice event types do we miss out on with the separate tables method?  
+* How many NA values of different NA types are there in each type of splice table? How are they distributed across events? I am more concerned with the merge NAs (-2), as there is no good way to replace them (they could either be 0 or 1). Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those.
 -   How many unannotated event types remain if we try to drop all NAs in the splice table?
 Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables.
 How bad does it look?
@@ -42,7 +43,7 @@ How bad does it look?
 This section doesn't need code review because they don't answer the main questions, I'm just trying to learn more about the data
 
 -   How many unannotated event types remain if we only filter for one gene before trying to drop all NAs in the splice table?
-* How many unannotated event types remain if we only filter for two cancer types before trying to drop all NAs in the splice table?
+* How many unannotated event types remain if we only filter for two cancer types before trying to drop all NAs in the splice table? (to do)
 
 ## Set up
 
@@ -290,7 +291,7 @@ dim(combined_psi_table)
 
 There are 71,811 more splice events in the separate PSI table than the combined table.
 
-## Examine splice events that are consistently present in both combined and separate splice tables
+## What splice event types do we miss out on with the separate tables method? 
 
 To help us prioritize what splice event types we may be the most confident in after merging separate Shiba PSI tables, we are interested in seeing a breakdown of what event types are most represented in PSI tables constructed from different methods
 
@@ -352,8 +353,6 @@ all_events_summary <- all_events |> dplyr::summarise(
 all_events_summary
 ```
 
-## Examine splice event-level trends in each method
-
 Plot event-level (one count per unique event) summary of event frequency across methods and event types
 
 ```{r}
@@ -364,11 +363,72 @@ Plot event-level (one count per unique event) summary of event frequency across 
 plot_event_summary(all_events_summary)
 ```
 
-The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table than combined table.
-The inflated events in the separate table is likely due to the presence of events with NA values in the table.
-Inflated values in the separate tables may be due to The capturing of unannotated event types suffers more from merging separate PSI tables.
-In particular, there are more ALE and MXE events only found in the separate PSI tables.
-For other unannotated events, there are 10-30% that are only found in the separate PSI.
+The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table (green) than the combined table (red).
+Inflated values in the separate tables may be due to -2 NAs which arise from when genes without multiple transcripts are dropped in samples analyzed separately.
+
+What specific event types are impacted more by one method or the other?
+```{r}
+#| label: fig-splice_events_breakdown_unannotated
+#| fig-width: 11
+#| fig-height: 8
+
+test <- all_events_summary |>
+  dplyr::select(event_type, label, combined_only_count, separate_only_count, total, combined_only_percent, separate_only_percent) |>
+  dplyr::filter(label == "unannotated")
+
+long_summary_df <- test |>
+    tidyr::pivot_longer(
+      cols = c(
+        combined_only_count,
+        combined_only_percent,
+        separate_only_count,
+        separate_only_percent
+      ),
+      # extract percents and counts into separate columns
+      names_to = c("category", ".value"),
+      names_pattern = "(.+)_(percent|count)"
+    )
+
+  # create raw counts grouped barplot
+ggplot(long_summary_df, aes(fill = event_type, x = category, y = count)) +
+    geom_bar(position = "dodge", stat = "identity") +
+      scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    labs(
+      title = "# annotated and unannotated splice events only in combined or separate tables",
+      x = "Annotation status of event",,
+      y = "Number of events"
+    ) +
+    facet_wrap(vars(label, event_type), scales = "free_y") +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    theme(strip.text = element_text(size = 15))
+
+```
+
+percentage plots of the event totals (events shared by both methods + events only in one method)
+```{r}
+#| label: fig-splice_events_percents_unannotated
+#| fig-width: 11
+#| fig-height: 8
+
+  # create percents grouped barplot
+ggplot(long_summary_df, aes(fill = event_type, x = category, y = percent)) +
+    geom_bar(position = "dodge", stat = "identity") +
+      scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    labs(
+      title = "% annotated and unannotated splice events only in combined or separate tables",
+      x = "Annotation status of event",,
+      y = "% of total events"
+    ) +
+    facet_wrap(vars(label, event_type)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    theme(strip.text = element_text(size = 15))
+```
+
+I think of these as "percent of each event category missed" 
+In the worst cases, 40% of unannotated events may be only in the separate only table (ALE events) and 30% of unannotated events might be only in the combined table (FIVE events)
+Losing 30% of unannotated real events seems rough 
 
 ### Examine how many events across tables have events composed completely of numeric PSI values
 

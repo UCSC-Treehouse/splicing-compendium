@@ -377,7 +377,8 @@ counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y 
       y = "Number of events"
     ) +
     facet_wrap(vars(label)) +
-    theme(strip.text = element_text(size = 15))
+    theme(strip.text = element_text(size = 15)) +
+  scale_x_discrete(guide = guide_axis(angle = 45))
 
 # create percents grouped barplot
 percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = category, y = percent)) +
@@ -413,11 +414,13 @@ Filter for minimum of 5 samples with numeric PSI values
 #| fig-width: 11
 #| fig-height: 8
 
-# event-level summary of the number of each splice event type in each splice table
-all_events_summary_min_samples <- all_events |>
-  # filter for events where there are numeric PSI values in at least 5 samples
+# make dataframe filtered for events where there are numeric PSI values in at least 5 samples
+min_samples_events <- all_events |>
   # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
-  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples) |>
+  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples)
+
+# event-level summary of the number of each splice event type in each splice table
+all_events_summary_min_samples <- min_samples_events |>
   # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
   dplyr::summarise(
     .by = c(event_type, label),
@@ -441,8 +444,8 @@ all_events_summary_min_samples |>
 ```
 
 This looks better to me, with the caveat that we lose all the combined_only events in @fig-splice_events_breakdown.
-The number of shared AFE events in @fig-splice_events_breakdown is \~40,000 so we seem to get most of those AFE events if we ask for splice events that are shared in 5 or more samples.
-The reduction in SE events is small too - we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here.
+The number of shared unannotated AFE events in @fig-splice_events_breakdown is \~40,000 so we seem to get most of those AFE events if we ask for splice events that are shared in 5 or more samples.
+The reduction in unannotated SE events is small too - we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here.
 
 ## Examine sample-level splice events
 
@@ -452,7 +455,7 @@ Pivot longer for plotting sample-level splice event info
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
 long_all_events <- all_events |>
-  dplyr::slice_sample(n = 5000) |>
+  dplyr::slice_sample(n = 10000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),
@@ -477,13 +480,25 @@ But it was hard to get a sense of all the possible separate - combined PSI value
 #| fig-width: 11
 #| fig-height: 8
 
-na_comparison_samples <- long_all_events |>
-  dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
+sample_level_psi_comparison <- function(
+    long_df,
+    min_sample_value
+    ) {
+  long_df |>
+  # Select for relevant columns in long sample-level table for matchup analysis
+    dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
+    # select for samples with numeric PSI values in a minimum number of samples
+    dplyr::filter(
+      
+    ) |>
+    # we are not interested in comparing events only found in one table (there will be no match to compare it to)
     tidyr::drop_na() |>
-  tidyr::pivot_wider(
-    names_from = method,
-    values_from = PSI
+    # pivot PSI values from each method wider so XY scatterplots can be plotted
+    tidyr::pivot_wider(
+      names_from = method,
+      values_from = PSI
   )
+  }
 
 # plot basic scatterplot to see the different PSI value / NA matchup categories in the data
 ggplot(na_comparison_samples, aes(x = combined, y = separate)) +

@@ -163,6 +163,7 @@ plot_event_summary <- function(
 # pivot event-level df long
 pivot_long <- function (wide_event_df) {
   wide_event_df |>
+    dplyr::slice_sample(n = 15000) |>
     dplyr::select(starts_with("SRR"), event_type, pos_id, label) |>
     tidyr::pivot_longer(
       cols = matches("_PSI_(combined|separate)$"),

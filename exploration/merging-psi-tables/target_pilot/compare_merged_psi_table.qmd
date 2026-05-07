@@ -160,6 +160,18 @@ plot_event_summary <- function(
 
 ## Sample-level functions
 
+# pivot event-level df long
+pivot_long <- function (wide_event_df) {
+  wide_event_df |>
+  dplyr::slice_sample(n = 10000) |>
+  tidyr::pivot_longer(
+    cols = matches("_combined|_separate"),
+    names_to = c("sample", "method"),
+    values_to = "PSI",
+    names_pattern = "(.*)_(combined|separate)"
+  )}
+
+
 # event summary plots of frequency of events in each category
 event_summary <- function(
     long_df,
@@ -195,7 +207,8 @@ event_summary <- function(
 # pivoting PSI values in long df wider for XY plots
 sample_level_psi_comparison <- function(long_df) {
   long_df |>
-    tidyr::drop_na() |>
+    # I'd think this line would eliminate the combined/separate unmatched values NAs (NA NAs) but it does not
+     tidyr::drop_na() |>
     # Select for relevant columns in long sample-level table for matchup analysis
     dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
     # pivot PSI values from each method wider so XY scatterplots can be plotted
@@ -208,7 +221,8 @@ sample_level_psi_comparison <- function(long_df) {
 # Create summary table of number and percentage of events in each PSI-NA matchup category
 na_comparison_summary <- function(sample_wide_df) {
   sample_wide_df |>
-  
+    # try to get rid of the NA NAs here
+    tidyr::drop_na() |>
     dplyr::mutate(
       match_category =
         dplyr::case_when(
@@ -490,14 +504,7 @@ Pivot longer for plotting sample-level splice event info
 ```{r}
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
-long_all_events <- all_events |>
-  dplyr::slice_sample(n = 10000) |>
-  tidyr::pivot_longer(
-    cols = matches("_combined|_separate"),
-    names_to = c("sample", "method"),
-    values_to = "PSI",
-    names_pattern = "(.*)_(combined|separate)"
-  )
+long_all_events <- pivot_long(all_events)
 
 # print column names
 colnames(long_all_events)
@@ -538,8 +545,22 @@ In this section, we can see that the PSI values calculated in the combined table
 
 Summarize how many of each of these match categories are present in the pilot tables
 ```{r}
-na_comparison_summary(na_comparison_samples)
+na_comparison_summary(na_comparison_samsples)
 ```
 So ~12% of all unique samples/event combinations that have events with a “ground truth” numeric PSI value which gets dropped in Shiba
+
+Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
+```{r}
+# pivot min_sample filtered event-level df longer
+long_min_sample_all_events <- pivot_long(min_samples_events)
+
+# pivot long df wider 
+na_comparison_min_samples <- sample_level_psi_comparison(long_min_sample_all_events)
+
+# create summary table of match categories
+na_comparison_summary(na_comparison_min_samples)
+```
+In both tables, the majority of NAs are from low counts.
+There is a higher percentage of numeric PSIs that we lose out on in the separate table, even with the min_samples filter.
 
 #### Plot PSI distribution of numeric PSI dropped in separate table

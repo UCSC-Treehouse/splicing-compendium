@@ -29,9 +29,6 @@ We are particularly interested in the impact merging separate tables has on unan
 **Targeted questions this notebook is trying to answer:**
 
 -   What splice event types do we miss out on with the separate tables method?
--   How many unannotated event types remain if we try to drop all NAs in the splice table?
-Dropping all NAs is the easiest option to dealing with manually merging the separate splice tables.
-How bad does it look?
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
 
 ## Set up
@@ -98,38 +95,6 @@ psi_distributions <- function(
           axis.text.x = element_text(angle =45))
 }
 
-# event summary plots of frequency of events in each category
-event_summary <- function(
-    long_df,
-    min_sample_value) {
-  # filter samples by complete PSI value in min number of samples
-  all_events_n_filtered <- long_df |>
-    dplyr::group_by(pos_id) |>
-    # count number of events are present in each shared status
-    dplyr::mutate(
-      combined_count = sum(method == "combined"),
-      separate_count = sum(method == "separate")
-    ) |>
-    # filter for events with complete PSI values for minimum number of samples
-    dplyr::filter(
-      combined_count >= min_sample_value,
-      separate_count >= min_sample_value
-    ) |>
-    dplyr::ungroup() |>
-    # create summary table for plotting
-    dplyr::summarise(
-      .by = c(event_type, label),
-      # count number of events in each event type and annotation category
-      total = dplyr::n(),
-      shared_count = sum(shared_event),
-      combined_only_count = sum(combined_event) - shared_count,
-      separate_only_count = sum(separate_event) - shared_count,
-      shared_percent = shared_count / total * 100,
-      combined_only_percent = combined_only_count / total * 100,
-      separate_only_percent = separate_only_count / total * 100
-    )
-}
-
 # plot event summary frequencies as percent and raw counts bar plots
 plot_event_summary <- function(
     summary_df) {
@@ -188,7 +153,6 @@ plot_event_summary <- function(
 ## Directories and files
 
 ```{r}
-
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
@@ -269,7 +233,7 @@ To help us prioritize what splice event types we may be the most confident in af
 
 ```{r}
 # create df of splice events that are shared between both combined and separate tables
-# This is an event-level dataframe
+# This is an event-level dataframe (each row is one unique pos_id/event_id)
 # columns are each samples' PSI value (with -1/-2/NA values indicating different NA categories)
 # combined_event, separate_event, and shared_event columns label what tables the event is present in
 all_events <- dplyr::full_join(
@@ -336,11 +300,11 @@ plot_event_summary(all_events_summary)
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table (green) than the combined table (red).
 Inflated values in the separate tables may be due to -2 NAs which arise in the Shiba processing of separate samples when when genes without multiple transcripts are dropped.
 
-What specific event types are impacted (missed) by the separate tables method?
+### What specific event types are impacted (missed) by the separate tables method?
 These following plots answer the question for me better than the above summary plots.
 
 ```{r}
-#| label: fig-combined_only_splice_events_counts
+#| label: fig-combined_only_splice_events
 #| fig-width: 11
 #| fig-height: 8
 
@@ -390,26 +354,27 @@ percents_plot /
   counts_plot + plot_layout(guides = "collect")
 ```
 
-I think of these as "percent of each event category missed".
+I think of these as "percent of each event category missed in the separate tables".
 In the worst cases, 30% of unannotated events might be only in the combined table (FIVE events).
 Losing 30% of unannotated real events seems rough.
 
-### How many events remain if we filter for events with PSI values in a minim number of samples?
+### How many events remain if we filter for events with PSI values in a minimum number of samples?
 
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
 
 Filter for minimum of 5 samples with numeric PSI values
 
 ```{r}
-#| label: fig-complete_splice_events_breakdown_5_samples
+#| label: fig-splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
 
 # event-level summary of the number of each splice event type in each splice table
-all_numeric_events_summary_min_samples <- all_events |>
+all_events_summary_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
   # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
   dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples) |>
+  # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
   dplyr::summarise(
     .by = c(event_type, label),
     # count number of events in each event type and annotation category
@@ -422,12 +387,12 @@ all_numeric_events_summary_min_samples <- all_events |>
     separate_only_percent = separate_only_count / total * 100,
 )
 
-plot_event_summary(all_numeric_events_summary_min_samples)
+plot_event_summary(all_events_summary_min_samples)
 ```
 
 Print table of splice event counts
 ```{r}
-all_numeric_events_summary_min_samples |>
+all_events_summary_min_samples |>
   dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)
 ```
 

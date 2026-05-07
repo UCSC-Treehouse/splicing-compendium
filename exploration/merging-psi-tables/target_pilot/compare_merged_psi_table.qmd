@@ -30,13 +30,13 @@ We are particularly interested in the impact merging separate tables has on unan
 
 -   What splice event types do we miss out on with the separate tables method?
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
-* How many NA values of different NA types are there in each type of splice table? 
-How are they distributed across events? 
-I am more concerned with the merge NAs (-2), as there is no good way to replace them in the separate tables (they could either be 0 or 1). 
-Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those. 
+* How many NA values of different NA types are there in each type of splice table?
+How are they distributed across events?
+I am more concerned with the merge NAs (-2), as there is no good way to replace them in the separate tables (they could either be 0 or 1).
+Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those.
 * Can the number of NA values be reduced in the separate tables method if we filter for events with numeric PSI values in a minimum number of samples?
-* What is the relationship between PSI values and NAs in each splice table type? 
-* What is the relationship between PSI values and NAs in each splice table type after filtering for events with numeric PSI values in a minimum number of samples? 
+* What is the relationship between PSI values and NAs in each splice table type?
+* What is the relationship between PSI values and NAs in each splice table type after filtering for events with numeric PSI values in a minimum number of samples?
 Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA? Merge NAs (-2) should arise from events dropped by Shiba due to lack of alternative transcripts for a gene, so we expect these NAs to be 0 or 1.
 * How well correlated are the number of NA values in each event type for each PSI table type?
 * How well correlated are the PSI values of events that are shared?
@@ -214,7 +214,7 @@ sample_level_psi_comparison <- function(long_df) {
     tidyr::pivot_wider(
       names_from = method,
       values_from = PSI
-  ) 
+  )
 }
 
 # Create summary table of number and percentage of events in each PSI-NA matchup category
@@ -538,10 +538,10 @@ colnames(long_all_events)
 
 ### Examine relationships between of PSI and NA values of combined and separate tables
 
-#### How well correlated are the PSI values and NAs in each splice table type? 
+#### How well correlated are the PSI values and NAs in each splice table type?
 
-I decided to go with a plot instead of a table for this because the table is 170,000 rows long. 
-From eyeballing the table in R, I saw a couple values that had -2 PSI values in the separate table and -1 in the combined table. 
+I decided to go with a plot instead of a table for this because the table is 170,000 rows long.
+From eyeballing the table in R, I saw a couple values that had -2 PSI values in the separate table and -1 in the combined table.
 But it was hard to get a sense of all the possible separate - combined PSI value and NA combinations
 
 Pivot long df wider to make XY scatterplots of values
@@ -549,7 +549,7 @@ Pivot long df wider to make XY scatterplots of values
 na_comparison_samples <- sample_level_psi_comparison(long_all_events)
 head(na_comparison_samples)
 ```
-Even though my function should drop NAs, I still get NAs in the separate PSI column. 
+Even though my function should drop NAs, I still get NAs in the separate PSI column.
 If I try to drop NAs at the end, I get en error that the datframe contains list-cols (Warning: Values from `PSI` are not uniquely identified; output will contain list-cols.)
 
 ```{r}
@@ -566,7 +566,7 @@ From this plot, I see four different categories of splice event matches between 
 * Upper dot: We have some splice events that are dropped by Shiba due to no alternative splicing in the separate tables (Y = -2) but are also dropped in the combined tables because there were too few reads anyway (X = -1).
 * Lower dot: We have some splice events that had too few reads for a numeric PSI in both tables (x = -1, y = -1)
 * Diagonal line: We also see events whose PSI values are numeric and have a linear relationship in both combined and separate methods (these are likley the events that were identical and found in both)
-* The most concerning case is the horizontal line at Y=-2, corresponding to splice events dropped in the separate tables due to lack of transcripts for a gene but was captured in the combined splice table. 
+* The most concerning case is the horizontal line at Y=-2, corresponding to splice events dropped in the separate tables due to lack of transcripts for a gene but was captured in the combined splice table.
 In this section, we can see that the PSI values calculated in the combined table span the full PSI value range from 0-1, so there is no easy way to replace the -2 NA values in the separate table.
 
 Summarize how many of each of these match categories are present in the pilot tables
@@ -580,7 +580,7 @@ Summarize how many of each of these match categories are present in the pilot ta
 # pivot min_sample filtered event-level df longer
 long_min_sample_all_events <- pivot_long(min_samples_events)
 
-# pivot long df wider 
+# pivot long df wider
 na_comparison_min_samples <- sample_level_psi_comparison(long_min_sample_all_events)
 
 # create summary table of match categories
@@ -592,21 +592,20 @@ There is a higher percentage of numeric PSIs that we lose out on in the separate
 #### Plot PSI distribution of numeric PSI dropped in separate table
 
 ```{r}
-#| label: psi_na_matchup_categories
+#| label: psi_dist_of_combined_only_events
 #| fig-width: 11
 #| fig-height: 8
 
-# plot PSI distributions of events in combined dataframe 
+# plot PSI distributions of events in combined dataframe
 psi_values_lost_in_separate(na_comparison_samples)
 ```
 
 
 ```{r}
-#| label: psi_na_matchup_categories_min_samples
+#| label: psi_dist_of_combined_only_events_min_samples
 #| fig-width: 11
 #| fig-height: 8
 
-# plot PSI distributions of events in combined dataframe 
+# plot PSI distributions of events in combined dataframe
 psi_values_lost_in_separate(na_comparison_min_samples)
 ```
-

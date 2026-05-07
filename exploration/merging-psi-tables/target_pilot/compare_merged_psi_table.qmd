@@ -192,6 +192,42 @@ event_summary <- function(
     )
 }
 
+# pivoting PSI values in long df wider for XY plots
+sample_level_psi_comparison <- function(long_df) {
+  long_df |>
+    tidyr::drop_na() |>
+    # Select for relevant columns in long sample-level table for matchup analysis
+    dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
+    # pivot PSI values from each method wider so XY scatterplots can be plotted
+    tidyr::pivot_wider(
+      names_from = method,
+      values_from = PSI
+  ) 
+}
+
+# Create summary table of number and percentage of events in each PSI-NA matchup category
+na_comparison_summary <- function(sample_wide_df) {
+  sample_wide_df |>
+  
+    dplyr::mutate(
+      match_category =
+        dplyr::case_when(
+          separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
+          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+        )
+    ) |>
+    dplyr::summarise(
+      .by = c(match_category),
+      count = dplyr::n()
+    ) |>
+    dplyr::mutate(
+      total = sum(count),
+      percent = count / total * 100
+    )
+}
+
 ```
 
 ## Directories and files
@@ -475,30 +511,18 @@ I decided to go with a plot instead of a table for this because the table is 170
 From eyeballing the table in R, I saw a couple values that had -2 PSI values in the separate table and -1 in the combined table. 
 But it was hard to get a sense of all the possible separate - combined PSI value and NA combinations
 
+Pivot long df wider to make XY scatterplots of values
+```{r}
+na_comparison_samples <- sample_level_psi_comparison(long_all_events)
+head(na_comparison_samples)
+```
+Even though my function should drop NAs, I still get NAs in the separate PSI column. 
+If I try to drop NAs at the end, I get en error that the datframe contains list-cols (Warning: Values from `PSI` are not uniquely identified; output will contain list-cols.)
+
 ```{r}
 #| label: psi_na_matchup_categories
 #| fig-width: 11
 #| fig-height: 8
-
-sample_level_psi_comparison <- function(
-    long_df,
-    min_sample_value
-    ) {
-  long_df |>
-  # Select for relevant columns in long sample-level table for matchup analysis
-    dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
-    # select for samples with numeric PSI values in a minimum number of samples
-    dplyr::filter(
-      
-    ) |>
-    # we are not interested in comparing events only found in one table (there will be no match to compare it to)
-    tidyr::drop_na() |>
-    # pivot PSI values from each method wider so XY scatterplots can be plotted
-    tidyr::pivot_wider(
-      names_from = method,
-      values_from = PSI
-  )
-  }
 
 # plot basic scatterplot to see the different PSI value / NA matchup categories in the data
 ggplot(na_comparison_samples, aes(x = combined, y = separate)) +
@@ -514,28 +538,7 @@ In this section, we can see that the PSI values calculated in the combined table
 
 Summarize how many of each of these match categories are present in the pilot tables
 ```{r}
-na_comparison_summary <- na_comparison_samples |>
-  # drop NAs from putting together the separate and combined tables
-  tidyr::drop_na() |>
-  dplyr::mutate(
-    match_category =
-      dplyr::case_when(
-        separate == -1 & combined == -1 ~ "both Shiba NAs",
-        separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-        separate >= 0 & combined >= 0 ~ "both numeric PSIs",
-        separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
-      )
-  ) |>
-  dplyr::summarise(
-    .by = c(match_category),
-    count = dplyr::n()
-  ) |>
-  dplyr::mutate(
-    total = sum(count),
-    percent = count / total * 100
-  )
-
-na_comparison_summary
+na_comparison_summary(na_comparison_samples)
 ```
 So ~12% of all unique samples/event combinations that have events with a “ground truth” numeric PSI value which gets dropped in Shiba
 

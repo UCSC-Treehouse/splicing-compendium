@@ -163,13 +163,12 @@ plot_event_summary <- function(
 # pivot event-level df long
 pivot_long <- function (wide_event_df) {
   wide_event_df |>
-    dplyr::slice_sample(n = 10000) |>
+    dplyr::slice_sample(n = 20000) |>
     dplyr::select(starts_with("SRR"), event_type, pos_id, label) |>
-  tidyr::pivot_longer(
-    cols = matches("_combined|_separate"),
-    names_to = c("sample", "method"),
-    values_to = "PSI",
-    names_pattern = "(.*)_(combined|separate)"
+    tidyr::pivot_longer(
+      cols = matches("_PSI_(combined|separate)$"),
+      names_to = c("sample", ".value"),
+      names_pattern = "(.*)_PSI_(combined|separate)"
   )}
 
 # event summary plots of frequency of events in each category
@@ -204,23 +203,9 @@ event_summary <- function(
     )
 }
 
-# pivoting PSI values in long df wider for XY plots
-sample_level_psi_comparison <- function(long_df) {
-  long_df |>
-    # I'd think this line would eliminate the combined/separate unmatched values NAs (NA NAs) but it does not
-     tidyr::drop_na() |>
-    # Select for relevant columns in long sample-level table for matchup analysis
-    dplyr::select(pos_id, sample, method, PSI, event_type, label) |>
-    # pivot PSI values from each method wider so XY scatterplots can be plotted
-    tidyr::pivot_wider(
-      names_from = method,
-      values_from = PSI
-  )
-}
-
 # Create summary table of number and percentage of events in each PSI-NA matchup category
-na_comparison_summary <- function(sample_wide_df) {
-  sample_wide_df |>
+na_comparison_summary <- function(long_df) {
+  long_df |>
     # try to get rid of the NA NAs here
     tidyr::drop_na() |>
     dplyr::mutate(
@@ -535,6 +520,9 @@ long_all_events <- pivot_long(all_events)
 
 # print column names
 colnames(long_all_events)
+
+# check some smaples
+head(long_all_events)
 ```
 
 ### Examine relationships between of PSI and NA values of combined and separate tables
@@ -545,11 +533,6 @@ I decided to go with a plot instead of a table for this because the table is 170
 From eyeballing the table in R, I saw a couple values that had -2 PSI values in the separate table and -1 in the combined table.
 But it was hard to get a sense of all the possible separate - combined PSI value and NA combinations
 
-Pivot long df wider to make XY scatterplots of values
-```{r}
-na_comparison_samples <- sample_level_psi_comparison(long_all_events)
-head(na_comparison_samples)
-```
 Even though my function should drop NAs, I still get NAs in the separate PSI column.
 If I try to drop NAs at the end, I get en error that the datframe contains list-cols (Warning: Values from `PSI` are not uniquely identified; output will contain list-cols.)
 

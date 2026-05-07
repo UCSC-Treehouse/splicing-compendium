@@ -163,7 +163,6 @@ plot_event_summary <- function(
 # pivot event-level df long
 pivot_long <- function (wide_event_df) {
   wide_event_df |>
-  dplyr::slice_sample(n = 10000) |>
   tidyr::pivot_longer(
     cols = matches("_combined|_separate"),
     names_to = c("sample", "method"),

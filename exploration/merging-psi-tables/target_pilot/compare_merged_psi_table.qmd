@@ -242,6 +242,33 @@ na_comparison_summary <- function(sample_wide_df) {
     )
 }
 
+# plot PSI distributions of events with numeric PSI values in combined tables but are dropped in separate tables
+psi_values_lost_in_separate <- function(na_comparison_df) {
+  na_comparison_df |>
+    # drop NAs from putting together the separate and combined tables
+    tidyr::drop_na() |>
+    # assign match categories
+    dplyr::mutate(
+      match_category =
+        dplyr::case_when(
+          separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
+          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+        )
+    ) |>
+    # plot only events in combined table with numeric PSIs that are dropped in the separate table
+    dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
+      ggplot(aes(combined, fill = event_type)) +
+      geom_histogram(bins = 20) +
+      facet_wrap(vars(event_type, label), scales = "free_y") +
+    scale_fill_manual(values = cbPalette) +
+      plot_theme +
+      # make facet labels bigger
+      theme(strip.text.x = element_text(size = global_size),
+            # rotate x axis labels so they don't overlap
+            axis.text.x = element_text(angle =45))
+}
 ```
 
 ## Directories and files
@@ -545,7 +572,7 @@ In this section, we can see that the PSI values calculated in the combined table
 
 Summarize how many of each of these match categories are present in the pilot tables
 ```{r}
-na_comparison_summary(na_comparison_samsples)
+na_comparison_summary(na_comparison_samples)
 ```
 So ~12% of all unique samples/event combinations that have events with a “ground truth” numeric PSI value which gets dropped in Shiba
 
@@ -564,3 +591,23 @@ In both tables, the majority of NAs are from low counts.
 There is a higher percentage of numeric PSIs that we lose out on in the separate table, even with the min_samples filter.
 
 #### Plot PSI distribution of numeric PSI dropped in separate table
+
+```{r}
+#| label: psi_na_matchup_categories
+#| fig-width: 11
+#| fig-height: 8
+
+# plot PSI distributions of events in combined dataframe 
+psi_values_lost_in_separate(na_comparison_samples)
+```
+
+
+```{r}
+#| label: psi_na_matchup_categories_min_samples
+#| fig-width: 11
+#| fig-height: 8
+
+# plot PSI distributions of events in combined dataframe 
+psi_values_lost_in_separate(na_comparison_min_samples)
+```
+

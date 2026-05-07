@@ -30,6 +30,16 @@ We are particularly interested in the impact merging separate tables has on unan
 
 -   What splice event types do we miss out on with the separate tables method?
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
+* How many NA values of different NA types are there in each type of splice table? 
+How are they distributed across events? 
+I am more concerned with the merge NAs (-2), as there is no good way to replace them in the separate tables (they could either be 0 or 1). 
+Another concern is events that are only found in the combined table, or only found in the separate table, as there is no easy way to correct for those. 
+* Can the number of NA values be reduced in the separate tables method if we filter for events with numeric PSI values in a minimum number of samples?
+* What is the relationship between PSI values and NAs in each splice table type? 
+* What is the relationship between PSI values and NAs in each splice table type after filtering for events with numeric PSI values in a minimum number of samples? 
+Assuming the Shiba NAs (-1) are from low read support, do the separate and combined tables always call the same events as a Shiba NA? Merge NAs (-2) should arise from events dropped by Shiba due to lack of alternative transcripts for a gene, so we expect these NAs to be 0 or 1.
+* How well correlated are the number of NA values in each event type for each PSI table type?
+* How well correlated are the PSI values of events that are shared?
 
 ## Set up
 

@@ -363,12 +363,33 @@ Losing 30% of unannotated real events seems rough.
 
 -   Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
 
+Add summary columns to dataframe
+```{r}
+all_events <- all_events |>
+  dplyr::mutate(
+    # count the number of PSI values that are not one of our NA types
+    n_quantified = rowSums(
+      # select columns corresponding to sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::matches("(_PSI_combined|_PSI_separate)$")) >= 0, 
+      # ignore NA values (events only in separate or combined tables)
+      na.rm = TRUE)
+  )
+
+# check what summary looks like
+all_events |>
+  dplyr::select(pos_id, n_quantified, combined_event, separate_event, shared_event) |>
+  head()
+```
+
+
 Filter for minimum of 5 samples with numeric PSI values
 
 ```{r}
 #| label: fig-splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
+
+
 
 # event-level summary of the number of each splice event type in each splice table
 all_events_summary_min_samples <- all_events |>

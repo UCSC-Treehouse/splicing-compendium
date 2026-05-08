@@ -333,16 +333,17 @@ counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y 
       y = "Number of events"
     ) +
     facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
     theme(strip.text = element_text(size = 15))
 
 # create percents grouped barplot
-percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = category, y = percent)) +
+percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = percent)) +
     geom_bar(position = "dodge", stat = "identity") +
       scale_fill_manual(values = cbPalette) +
     plot_theme +
     labs(
       title = "% annotated and unannotated splice events only in combined table",
-      x = "Annotation status of event",,
+      x = "Annotation status of event",
       y = "Percent of all events"
     ) +
     facet_wrap(vars(label)) +

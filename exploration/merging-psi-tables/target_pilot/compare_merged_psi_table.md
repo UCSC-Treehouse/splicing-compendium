@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-07
+2026-05-08
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -140,7 +140,6 @@ plot_event_summary <- function(
 # pivot event-level df long
 pivot_long <- function (wide_event_df) {
   wide_event_df |>
-    dplyr::slice_sample(n = 15000) |>
     dplyr::select(starts_with("SRR"), event_type, pos_id, label) |>
     tidyr::pivot_longer(
       cols = matches("_PSI_(combined|separate)$"),
@@ -595,12 +594,12 @@ head(long_all_events)
 
 | event_type | pos_id | label | sample | combined | separate |
 |:---|:---|:---|:---|---:|---:|
-| ale | ALE@chr2@70889588-70889821;70888348-70889476@70888348-70888635 | annotated | SRR1559043 | -1 | -2 |
-| ale | ALE@chr2@70889588-70889821;70888348-70889476@70888348-70888635 | annotated | SRR1559044 | -1 | -2 |
-| ale | ALE@chr2@70889588-70889821;70888348-70889476@70888348-70888635 | annotated | SRR1559052 | -1 | -2 |
-| ale | ALE@chr2@70889588-70889821;70888348-70889476@70888348-70888635 | annotated | SRR1559054 | -1 | -2 |
-| ale | ALE@chr2@70889588-70889821;70888348-70889476@70888348-70888635 | annotated | SRR1559075 | -1 | -1 |
-| ale | ALE@chr2@70889588-70889821;70888348-70889476@70888348-70888635 | annotated | SRR1559100 | -1 | -2 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559043 | -1.0000 | -2.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559044 | -1.0000 | -2.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559052 | -1.0000 | -1.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559054 | -1.0000 | -1.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559075 | -1.0000 | -1.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559100 | 0.6875 | 0.6875 |
 
 ### Examine relationships between of PSI and NA values of combined and separate tables
 
@@ -623,8 +622,8 @@ ggplot(long_all_events, aes(x = combined, y = separate)) +
   geom_point()
 ```
 
-    Warning: Removed 335016 rows containing missing values or values outside the scale range
-    (`geom_point()`).
+    Warning: Removed 20325272 rows containing missing values or values outside the scale
+    range (`geom_point()`).
 
 ![](compare_merged_psi_table_files/figure-commonmark/psi_na_matchup_categories-1.png)
 
@@ -654,12 +653,12 @@ pilot tables
 na_comparison_summary(long_all_events)
 ```
 
-| match_category                        |  count |  total |  percent |
-|:--------------------------------------|-------:|-------:|---------:|
-| separate dropped, combined shiba NA   | 467278 | 984984 | 47.44016 |
-| both Shiba NAs                        | 189407 | 984984 | 19.22945 |
-| numeric PSI dropped in separate table | 118035 | 984984 | 11.98344 |
-| both numeric PSIs                     | 210264 | 984984 | 21.34695 |
+| match_category                        |    count |    total |  percent |
+|:--------------------------------------|---------:|---------:|---------:|
+| separate dropped, combined shiba NA   | 27666041 | 58697936 | 47.13290 |
+| both Shiba NAs                        | 11156030 | 58697936 | 19.00583 |
+| both numeric PSIs                     | 12670697 | 58697936 | 21.58627 |
+| numeric PSI dropped in separate table |  7205168 | 58697936 | 12.27499 |
 
 So ~12% of all unique samples/event combinations that have events with a
 “ground truth” numeric PSI value which gets dropped in Shiba
@@ -675,12 +674,12 @@ long_min_sample_all_events <- pivot_long(min_samples_events)
 na_comparison_summary(long_min_sample_all_events)
 ```
 
-| match_category                        |  count |   total |  percent |
-|:--------------------------------------|-------:|--------:|---------:|
-| both numeric PSIs                     | 458607 | 1320000 | 34.74295 |
-| both Shiba NAs                        | 262894 | 1320000 | 19.91621 |
-| separate dropped, combined shiba NA   | 338292 | 1320000 | 25.62818 |
-| numeric PSI dropped in separate table | 260207 | 1320000 | 19.71265 |
+| match_category                        |    count |    total |  percent |
+|:--------------------------------------|---------:|---------:|---------:|
+| both numeric PSIs                     | 12593448 | 35991384 | 34.99017 |
+| separate dropped, combined shiba NA   |  9142074 | 35991384 | 25.40073 |
+| both Shiba NAs                        |  7070503 | 35991384 | 19.64499 |
+| numeric PSI dropped in separate table |  7185359 | 35991384 | 19.96411 |
 
 In both tables, the majority of NAs are from low counts. There is a
 higher percentage of numeric PSIs that we lose out on in the separate

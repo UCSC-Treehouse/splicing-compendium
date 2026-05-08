@@ -369,33 +369,52 @@ all_events <- all_events |>
   dplyr::mutate(
     # count the number of PSI values that are not one of our NA types
     n_quantified = rowSums(
-      # select columns corresponding to sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_combined|_PSI_separate)$")) >= 0, 
+      # select sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) >= 0, 
       # ignore NA values (events only in separate or combined tables)
-      na.rm = TRUE)
+      na.rm = TRUE),
+    # count the number of PSI values dropped due to insufficient reads
+    n_shiba_na = rowSums(
+      # select sample PSI values that have -1 NA type
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -1,
+      na.rm = TRUE),
+    # count number of PSI values dropped due to lack of transcript diversity in single samples
+    n_separate_dropped = rowSums(
+      # elect sample PSI values that have -2 NA type
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -2
+    )
   )
 
 # check what summary looks like
 all_events |>
-  dplyr::select(pos_id, n_quantified, combined_event, separate_event, shared_event) |>
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped) |>
+  dplyr::arrange(desc(n_quantified)) |>
   head()
 ```
 
+Filter for minimum of 5 samples with numeric PSI values and check n_quantified
+```{r}
+# event-level summary of the number of each splice event type in each splice table
+all_events_min_samples <- all_events |>
+  # filter for events where there are numeric PSI values in at least 5 samples
+  dplyr::filter(n_quantified >= min_samples)
 
-Filter for minimum of 5 samples with numeric PSI values
+# check what summary columns look like
+all_events_min_samples  |>
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped) |>
+  dplyr::arrange((n_quantified)) |>
+  head()
+```
 
 ```{r}
 #| label: fig-splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
 
-
+# filter 
 
 # event-level summary of the number of each splice event type in each splice table
-all_events_summary_min_samples <- all_events |>
-  # filter for events where there are numeric PSI values in at least 5 samples
-  # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
-  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples) |>
+all_events_summary_min_samples <- all_events_min_samples |>
   # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
   dplyr::summarise(
     .by = c(event_type, label),
@@ -411,7 +430,6 @@ all_events_summary_min_samples <- all_events |>
 
 plot_event_summary(all_events_summary_min_samples)
 ```
-
 Print table of splice event counts
 ```{r}
 all_events_summary_min_samples |>

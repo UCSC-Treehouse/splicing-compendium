@@ -367,6 +367,7 @@ Add summary columns to dataframe
 ```{r}
 all_events <- all_events |>
   dplyr::mutate(
+    ## count PSI value types in separate table ##
     # count the number of PSI values that are not one of our NA types
     n_quantified = rowSums(
       # select sample PSI values that are not one of our NA types
@@ -382,17 +383,34 @@ all_events <- all_events |>
     n_separate_dropped = rowSums(
       # elect sample PSI values that have -2 NA type
       dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -2
+    ),
+    ## count PSI value types in combined table ##    
+    # count the number of PSI values that are not one of our NA types
+    n_quantified_combined = rowSums(
+      # select sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) >= 0, 
+      # ignore NA values (events only in separate or combined tables)
+      na.rm = TRUE),
+    # count the number of PSI values dropped due to insufficient reads
+    n_shiba_na_combined = rowSums(
+      # select sample PSI values that have -1 NA type
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -1,
+      na.rm = TRUE),
+    # count number of PSI values dropped due to lack of transcript diversity in single samples
+    n_separate_dropped_combined = rowSums(
+      # elect sample PSI values that have -2 NA type
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -2
     )
   )
 
 # check what summary looks like
 all_events |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped) |>
-  dplyr::arrange(desc(n_quantified)) |>
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped, 
+                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
   head()
 ```
 
-Filter for minimum of 5 samples with numeric PSI values and check n_quantified
+Filter for minimum samples with numeric PSI values in the separate table and check n_quantified
 ```{r}
 # event-level summary of the number of each splice event type in each splice table
 all_events_min_samples <- all_events |>
@@ -401,17 +419,18 @@ all_events_min_samples <- all_events |>
 
 # check what summary columns look like
 all_events_min_samples  |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped) |>
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped,
+                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
   dplyr::arrange((n_quantified)) |>
   head()
 ```
+
+Plot event distributions of the filtered table
 
 ```{r}
 #| label: fig-splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
-
-# filter 
 
 # event-level summary of the number of each splice event type in each splice table
 all_events_summary_min_samples <- all_events_min_samples |>
@@ -430,13 +449,100 @@ all_events_summary_min_samples <- all_events_min_samples |>
 
 plot_event_summary(all_events_summary_min_samples)
 ```
-Print table of splice event counts
+Observations:
+* Although most events are shared after applying this filter and we still have unannotated events, 
+we also still have events only found in the separate table.
+These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
+
+Print table of splice event counts of filtered table
 ```{r}
 all_events_summary_min_samples |>
   dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)
 ```
 
-This looks better to me, with the caveat that we lose all the combined_only events in @fig-splice_events_breakdown.
-The number of shared AFE events in @fig-splice_events_breakdown is \~40,000 so we seem to get most of those AFE events if we ask for splice events that are shared in 5 or more samples.
-The reduction in SE events is small too - we go from around 20,000 in @fig-splice_events_breakdown, to slightly under 20,000 here.
+## How many of each splice event types are quantified?
 
+### PSI value counts for unfiltered events
+
+Histogram of quantified events
+
+```{r}
+#| label: fig-num_quantified_psi
+#| fig-width: 11
+#| fig-height: 8
+
+# PSI distribution plots of events in each method
+number_events_dist <- function(
+    df,
+    psi_type, title) {
+    # construct histogram
+    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
+    geom_histogram(bins = 20) +
+    facet_wrap(vars(event_type, label), scales = "free_y") +
+    scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45)) +
+    ggtitle(title)
+}
+
+number_events_dist(all_events, "n_quantified",   "Number of quantified PSI values in separate table")
+```
+Histogram of events dropped by Shiba due to insufficient read counts
+
+```{r}
+#| label: fig-num_low_read_na
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
+```
+Histogram of events dropped by separate table due to insufficient transcript representation
+
+```{r}
+#| label: fig-num_low_transcript_na
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
+```
+### PSI value counts for events filtered for quantified PSI values in a minimum amount of samples
+
+Histogram of quantified events
+
+```{r}
+#| label: fig-num_quantified_psi_minfiltered
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events_min_samples, "n_quantified",   "Number of quantified PSI values in separate table")
+```
+
+Histogram of events dropped by Shiba due to insufficient read counts
+
+```{r}
+#| label: fig-num_low_read_na_minfiltered
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events_min_samples, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
+```
+
+Histogram of events dropped by separate table due to insufficient transcript representation
+
+```{r}
+#| label: fig-num_low_transcript_na_minfiltered
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events_min_samples, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
+```
+
+The way I am plotting these histograms makes it difficult to compare the number of PSI values in each category between the unfilterd and filtered data frames.
+I additionally want to compare these numbers between the separate and complete tables but am not sure if that is useful information.
+These are a lot of facets that would be confusing to look at all at once.
+One idea I have is to just plot the skipped exon histograms, colored by the type of PSI value (n_quantified, n_shiba_dropped, n_separate_dropped),
+Faceted by label (annotated/unannotated), and whether the quantification is from the separate or combined table.
+I would make one of these plots for the full dataframe and a second for the filtered one.

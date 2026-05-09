@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-06
+2026-05-08
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -337,16 +337,17 @@ counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y 
       y = "Number of events"
     ) +
     facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
     theme(strip.text = element_text(size = 15))
 
 # create percents grouped barplot
-percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = category, y = percent)) +
+percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = percent)) +
     geom_bar(position = "dodge", stat = "identity") +
       scale_fill_manual(values = cbPalette) +
     plot_theme +
     labs(
       title = "% annotated and unannotated splice events only in combined table",
-      x = "Annotation status of event",,
+      x = "Annotation status of event",
       y = "Percent of all events"
     ) +
     facet_wrap(vars(label)) +
@@ -379,14 +380,94 @@ events seems rough.
   events only have a numeric PSI value in one (or a very low amount of)
   samples?
 
-Filter for minimum of 5 samples with numeric PSI values
+Add summary columns to dataframe
+
+``` r
+all_events <- all_events |>
+  dplyr::mutate(
+    ## count PSI value types in separate table ##
+    # count the number of PSI values that are not one of our NA types
+    n_quantified = rowSums(
+      # select sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) >= 0, 
+      # ignore NA values (events only in separate or combined tables)
+      na.rm = TRUE),
+    # count the number of PSI values dropped due to insufficient reads
+    n_shiba_na = rowSums(
+      # select sample PSI values that have -1 NA type
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -1,
+      na.rm = TRUE),
+    # count number of PSI values dropped due to lack of transcript diversity in single samples
+    n_separate_dropped = rowSums(
+      # elect sample PSI values that have -2 NA type
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -2
+    ),
+    ## count PSI value types in combined table ##    
+    # count the number of PSI values that are not one of our NA types
+    n_quantified_combined = rowSums(
+      # select sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) >= 0, 
+      # ignore NA values (events only in separate or combined tables)
+      na.rm = TRUE),
+    # count the number of PSI values dropped due to insufficient reads
+    n_shiba_na_combined = rowSums(
+      # select sample PSI values that have -1 NA type
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -1,
+      na.rm = TRUE),
+    # count number of PSI values dropped due to lack of transcript diversity in single samples
+    n_separate_dropped_combined = rowSums(
+      # elect sample PSI values that have -2 NA type
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -2
+    )
+  )
+
+# check what summary looks like
+all_events |>
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped, 
+                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
+  head()
+```
+
+| pos_id | n_quantified | n_shiba_na | n_separate_dropped | n_quantified_combined | n_shiba_na_combined | n_separate_dropped_combined |
+|:---|---:|---:|---:|---:|---:|---:|
+| SE@GL000008.2@129985-130583@85625-155430 | 2 | 24 | 62 | 2 | 86 | 0 |
+| SE@GL000008.2@135134-135173@85625-155430 | 1 | 19 | 68 | 1 | 87 | 0 |
+| SE@GL000008.2@154869-154964@154715-156667 | 2 | 30 | 56 | 2 | 86 | 0 |
+| SE@GL000008.2@155430-155531@135173-156721 | 3 | 24 | 61 | 3 | 85 | 0 |
+| SE@GL000008.2@156667-156758@154715-157528 | 1 | 25 | 62 | 1 | 87 | 0 |
+| SE@GL000008.2@156667-156761@154715-157528 | 1 | 28 | 59 | 1 | 87 | 0 |
+
+Filter for minimum samples with numeric PSI values in the separate table
+and check n_quantified
 
 ``` r
 # event-level summary of the number of each splice event type in each splice table
-all_events_summary_min_samples <- all_events |>
+all_events_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
-  # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
-  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples) |>
+  dplyr::filter(n_quantified >= min_samples)
+
+# check what summary columns look like
+all_events_min_samples  |>
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped,
+                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
+  dplyr::arrange((n_quantified)) |>
+  head()
+```
+
+| pos_id | n_quantified | n_shiba_na | n_separate_dropped | n_quantified_combined | n_shiba_na_combined | n_separate_dropped_combined |
+|:---|---:|---:|---:|---:|---:|---:|
+| SE@GL000008.2@197587-197618@194536-198476 | 5 | 23 | 60 | 5 | 83 | 0 |
+| SE@GL000008.2@88636-88695@85625-129985 | 5 | 23 | 60 | 5 | 83 | 0 |
+| SE@GL000195.1@143414-143629@142240-172694 | 5 | 46 | 37 | 5 | 83 | 0 |
+| SE@GL000195.1@143515-143629@142240-172694 | 5 | 45 | 38 | 5 | 83 | 0 |
+| SE@GL000195.1@149032-149164@142240-172694 | 5 | 45 | 38 | 5 | 83 | 0 |
+| SE@GL000195.1@151955-152034@142240-172694 | 5 | 53 | 30 | 5 | 83 | 0 |
+
+Plot event distributions of the filtered table
+
+``` r
+# event-level summary of the number of each splice event type in each splice table
+all_events_summary_min_samples <- all_events_min_samples |>
   # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
   dplyr::summarise(
     .by = c(event_type, label),
@@ -413,7 +494,13 @@ Figure 3
 
 </div>
 
-Print table of splice event counts
+Observations: - Although most events are shared after applying this
+filter and we still have unannotated events, we also still have events
+only found in the separate table. These events are harder to deal with
+because they may be real events mislabeled by Shiba, or they may be
+unreal events (we cannot easily tell)
+
+Print table of splice event counts of filtered table
 
 ``` r
 all_events_summary_min_samples |>
@@ -422,30 +509,158 @@ all_events_summary_min_samples |>
 
 | event_type | label       | shared_count | separate_only_count | combined_only_count |
 |:-----------|:------------|-------------:|--------------------:|--------------------:|
-| se         | annotated   |        60659 |                   0 |                   0 |
-| se         | unannotated |        18982 |                   0 |                   0 |
-| afe        | annotated   |        82852 |                   0 |                   0 |
-| afe        | unannotated |        31761 |                   0 |                   0 |
-| ale        | annotated   |        52570 |                   0 |                   0 |
-| ale        | unannotated |        17473 |                   0 |                   0 |
-| five       | annotated   |        18872 |                   0 |                   0 |
-| five       | unannotated |         6925 |                   0 |                   0 |
-| three      | annotated   |        22604 |                   0 |                   0 |
-| three      | unannotated |         7843 |                   0 |                   0 |
-| mse        | annotated   |        43069 |                   0 |                   0 |
-| mse        | unannotated |        10694 |                   0 |                   0 |
-| mxe        | annotated   |          388 |                   0 |                   0 |
-| mxe        | unannotated |           82 |                   0 |                   0 |
-| ri         | annotated   |        10383 |                   0 |                   0 |
-| ri         | unannotated |        23836 |                   0 |                   0 |
+| se         | annotated   |        55020 |                 813 |                   0 |
+| se         | unannotated |         2820 |                 312 |                   0 |
+| afe        | annotated   |        70759 |               10601 |                   0 |
+| afe        | unannotated |         2148 |                1566 |                   0 |
+| ale        | annotated   |        43524 |               13828 |                   0 |
+| ale        | unannotated |         1123 |                1289 |                   0 |
+| five       | annotated   |        13783 |                 423 |                   0 |
+| five       | unannotated |          756 |                 145 |                   0 |
+| three      | annotated   |        18014 |                 472 |                   0 |
+| three      | unannotated |          941 |                 140 |                   0 |
+| mse        | annotated   |        38267 |                 229 |                   0 |
+| mse        | unannotated |         1064 |                 123 |                   0 |
+| mxe        | annotated   |          346 |                 115 |                   0 |
+| mxe        | unannotated |            8 |                   9 |                   0 |
+| ri         | annotated   |         9585 |                1675 |                   0 |
+| ri         | unannotated |         6692 |                1139 |                   0 |
 
-This looks better to me, with the caveat that we lose all the
-combined_only events in
-<a href="#fig-splice_events_breakdown" class="quarto-xref">Figure 1</a>.
-The number of shared AFE events in
-<a href="#fig-splice_events_breakdown" class="quarto-xref">Figure 1</a>
-is ~40,000 so we seem to get most of those AFE events if we ask for
-splice events that are shared in 5 or more samples. The reduction in SE
-events is small too - we go from around 20,000 in
-<a href="#fig-splice_events_breakdown" class="quarto-xref">Figure 1</a>,
-to slightly under 20,000 here.
+## How many of each splice event types are quantified?
+
+### PSI value counts for unfiltered events
+
+Histogram of quantified events
+
+``` r
+# PSI distribution plots of events in each method
+number_events_dist <- function(
+    df,
+    psi_type, title) {
+    # construct histogram
+    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
+    geom_histogram(bins = 20) +
+    facet_wrap(vars(event_type, label), scales = "free_y") +
+    scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45)) +
+    ggtitle(title)
+}
+
+number_events_dist(all_events, "n_quantified",   "Number of quantified PSI values in separate table")
+```
+
+<div id="fig-num_quantified_psi">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi-1.png"
+id="fig-num_quantified_psi" />
+
+Figure 4
+
+</div>
+
+Histogram of events dropped by Shiba due to insufficient read counts
+
+``` r
+number_events_dist(all_events, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
+```
+
+<div id="fig-num_low_read_na">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na-1.png"
+id="fig-num_low_read_na" />
+
+Figure 5
+
+</div>
+
+Histogram of events dropped by separate table due to insufficient
+transcript representation
+
+``` r
+number_events_dist(all_events, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
+```
+
+    Warning: Removed 79579 rows containing non-finite outside the scale range
+    (`stat_bin()`).
+
+<div id="fig-num_low_transcript_na">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na-1.png"
+id="fig-num_low_transcript_na" />
+
+Figure 6
+
+</div>
+
+### PSI value counts for events filtered for quantified PSI values in a minimum amount of samples
+
+Histogram of quantified events
+
+``` r
+number_events_dist(all_events_min_samples, "n_quantified",   "Number of quantified PSI values in separate table")
+```
+
+<div id="fig-num_quantified_psi_minfiltered">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi_minfiltered-1.png"
+id="fig-num_quantified_psi_minfiltered" />
+
+Figure 7
+
+</div>
+
+Histogram of events dropped by Shiba due to insufficient read counts
+
+``` r
+number_events_dist(all_events_min_samples, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
+```
+
+<div id="fig-num_low_read_na_minfiltered">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na_minfiltered-1.png"
+id="fig-num_low_read_na_minfiltered" />
+
+Figure 8
+
+</div>
+
+Histogram of events dropped by separate table due to insufficient
+transcript representation
+
+``` r
+number_events_dist(all_events_min_samples, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
+```
+
+<div id="fig-num_low_transcript_na_minfiltered">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na_minfiltered-1.png"
+id="fig-num_low_transcript_na_minfiltered" />
+
+Figure 9
+
+</div>
+
+The way I am plotting these histograms makes it difficult to compare the
+number of PSI values in each category between the unfilterd and filtered
+data frames. I additionally want to compare these numbers between the
+separate and complete tables but am not sure if that is useful
+information. These are a lot of facets that would be confusing to look
+at all at once. One idea I have is to just plot the skipped exon
+histograms, colored by the type of PSI value (n_quantified,
+n_shiba_dropped, n_separate_dropped), Faceted by label
+(annotated/unannotated), and whether the quantification is from the
+separate or combined table. I would make one of these plots for the full
+dataframe and a second for the filtered one.
+
+My biggest takeaway here is “if we filter for min 5 samples, there are
+fewer thing dropped. But many things are still dropped, which is bad”

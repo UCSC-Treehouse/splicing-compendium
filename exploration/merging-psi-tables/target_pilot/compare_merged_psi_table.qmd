@@ -450,7 +450,7 @@ all_events_summary_min_samples <- all_events_min_samples |>
 plot_event_summary(all_events_summary_min_samples)
 ```
 Observations:
-* Although most events are shared after applying this filter and we still have unannotated events, 
+-   Although most events are shared after applying this filter and we still have unannotated events, 
 we also still have events only found in the separate table.
 These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
@@ -546,3 +546,6 @@ These are a lot of facets that would be confusing to look at all at once.
 One idea I have is to just plot the skipped exon histograms, colored by the type of PSI value (n_quantified, n_shiba_dropped, n_separate_dropped),
 Faceted by label (annotated/unannotated), and whether the quantification is from the separate or combined table.
 I would make one of these plots for the full dataframe and a second for the filtered one.
+
+My biggest takeaway here is "if we filter for min 5 samples, there are fewer thing dropped. 
+But many things are still dropped, which is bad"

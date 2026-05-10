@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-08
+2026-05-10
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -455,13 +455,8 @@ counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y 
       y = "Number of events"
     ) +
     facet_wrap(vars(label)) +
-<<<<<<< HEAD
-    theme(strip.text = element_text(size = 15)) +
-  scale_x_discrete(guide = guide_axis(angle = 45))
-=======
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     theme(strip.text = element_text(size = 15))
->>>>>>> celiang/compare-events-in-splice-tables
 
 # create percents grouped barplot
 percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = percent)) +
@@ -564,15 +559,6 @@ Filter for minimum samples with numeric PSI values in the separate table
 and check n_quantified
 
 ``` r
-<<<<<<< HEAD
-# make dataframe filtered for events where there are numeric PSI values in at least 5 samples
-min_samples_events <- all_events |>
-  # there is probably a more secure way to do this but the only numeric values in this table should be the PSI values per sample so i think this works
-  dplyr::filter(rowSums(dplyr::across(where(is.numeric), ~ . >= 0 )) >= min_samples)
-
-# event-level summary of the number of each splice event type in each splice table
-all_events_summary_min_samples <- min_samples_events |>
-=======
 # event-level summary of the number of each splice event type in each splice table
 all_events_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
@@ -600,7 +586,6 @@ Plot event distributions of the filtered table
 ``` r
 # event-level summary of the number of each splice event type in each splice table
 all_events_summary_min_samples <- all_events_min_samples |>
->>>>>>> celiang/compare-events-in-splice-tables
   # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
   dplyr::summarise(
     .by = c(event_type, label),
@@ -659,284 +644,10 @@ all_events_summary_min_samples |>
 | ri         | annotated   |         9585 |                1675 |                   0 |
 | ri         | unannotated |         6692 |                1139 |                   0 |
 
-<<<<<<< HEAD
-This looks better to me, with the caveat that we lose all the
-combined_only events in
-<a href="#fig-splice_events_breakdown" class="quarto-xref">Figure 1</a>.
-The number of shared unannotated AFE events in
-<a href="#fig-splice_events_breakdown" class="quarto-xref">Figure 1</a>
-is ~40,000 so we seem to get most of those AFE events if we ask for
-splice events that are shared in 5 or more samples. The reduction in
-unannotated SE events is small too - we go from around 20,000 in
-<a href="#fig-splice_events_breakdown" class="quarto-xref">Figure 1</a>,
-to slightly under 20,000 here.
+Observations: - Although most events are shared after applying this
+filter and we still have unannotated events, we also still have events
+only found in the separate table. These events are harder to deal with
+because they may be real events mislabeled by Shiba, or they may be
+unreal events (we cannot easily tell)
 
-## Examine sample-level splice events
-
-Pivot longer for plotting sample-level splice event info
-
-``` r
-# Pivot all events df longer
-# Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
-long_all_events <- pivot_long(all_events)
-
-# print column names
-colnames(long_all_events)
-```
-
-    [1] "event_type" "pos_id"     "label"      "sample"     "combined"  
-    [6] "separate"  
-
-``` r
-# check some smaples
-head(long_all_events)
-```
-
-| event_type | pos_id | label | sample | combined | separate |
-|:---|:---|:---|:---|---:|---:|
-| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559043 | -1.0000 | -2.0000 |
-| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559044 | -1.0000 | -2.0000 |
-| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559052 | -1.0000 | -1.0000 |
-| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559054 | -1.0000 | -1.0000 |
-| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559075 | -1.0000 | -1.0000 |
-| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559100 | 0.6875 | 0.6875 |
-
-### Examine relationships between of PSI and NA values of combined and separate tables
-
-#### How well correlated are the PSI values and NAs in each splice table type?
-
-I decided to go with a plot instead of a table for this because the
-table is 170,000 rows long. From eyeballing the table in R, I saw a
-couple values that had -2 PSI values in the separate table and -1 in the
-combined table. But it was hard to get a sense of all the possible
-separate - combined PSI value and NA combinations
-
-Even though my function should drop NAs, I still get NAs in the separate
-PSI column. If I try to drop NAs at the end, I get en error that the
-datframe contains list-cols (Warning: Values from `PSI` are not uniquely
-identified; output will contain list-cols.)
-
-``` r
-# plot basic scatterplot to see the different PSI value / NA matchup categories in the data
-ggplot(long_all_events, aes(x = combined, y = separate)) +
-  geom_point()
-```
-
-    Warning: Removed 20325272 rows containing missing values or values outside the scale
-    range (`geom_point()`).
-
-![](compare_merged_psi_table_files/figure-commonmark/psi_na_matchup_categories-1.png)
-
-From this plot, I see four different categories of splice event matches
-between the separate and combined tables:
-
-- Upper dot: We have some splice events that are dropped by Shiba due to
-  no alternative splicing in the separate tables (Y = -2) but are also
-  dropped in the combined tables because there were too few reads anyway
-  (X = -1).
-- Lower dot: We have some splice events that had too few reads for a
-  numeric PSI in both tables (x = -1, y = -1)
-- Diagonal line: We also see events whose PSI values are numeric and
-  have a linear relationship in both combined and separate methods
-  (these are likley the events that were identical and found in both)
-- The most concerning case is the horizontal line at Y=-2, corresponding
-  to splice events dropped in the separate tables due to lack of
-  transcripts for a gene but was captured in the combined splice table.
-  In this section, we can see that the PSI values calculated in the
-  combined table span the full PSI value range from 0-1, so there is no
-  easy way to replace the -2 NA values in the separate table.
-
-Summarize how many of each of these match categories are present in the
-pilot tables
-
-``` r
-na_comparison_summary(long_all_events)
-```
-
-| match_category                        |    count |    total |  percent |
-|:--------------------------------------|---------:|---------:|---------:|
-| separate dropped, combined shiba NA   | 27666041 | 58697936 | 47.13290 |
-| both Shiba NAs                        | 11156030 | 58697936 | 19.00583 |
-| both numeric PSIs                     | 12670697 | 58697936 | 21.58627 |
-| numeric PSI dropped in separate table |  7205168 | 58697936 | 12.27499 |
-
-So ~12% of all unique samples/event combinations that have events with a
-“ground truth” numeric PSI value which gets dropped in Shiba
-
-Summarize how many of each of these match categories are present in the
-pilot tables, filtered for events with numeric PSI in min_samples
-
-``` r
-# pivot min_sample filtered event-level df longer
-long_min_sample_all_events <- pivot_long(min_samples_events)
-
-# create summary table of match categories
-na_comparison_summary(long_min_sample_all_events)
-```
-
-| match_category                        |    count |    total |  percent |
-|:--------------------------------------|---------:|---------:|---------:|
-| both numeric PSIs                     | 12593448 | 35991384 | 34.99017 |
-| separate dropped, combined shiba NA   |  9142074 | 35991384 | 25.40073 |
-| both Shiba NAs                        |  7070503 | 35991384 | 19.64499 |
-| numeric PSI dropped in separate table |  7185359 | 35991384 | 19.96411 |
-
-In both tables, the majority of NAs are from low counts. There is a
-higher percentage of numeric PSIs that we lose out on in the separate
-table, even with the min_samples filter.
-
-#### Plot PSI distribution of numeric PSI dropped in separate table
-
-``` r
-# plot PSI distributions of events in combined dataframe
-psi_values_lost_in_separate(long_all_events)
-```
-
-![](compare_merged_psi_table_files/figure-commonmark/psi_dist_of_combined_only_events-1.png)
-
-``` r
-# plot PSI distributions of events in combined dataframe
-psi_values_lost_in_separate(long_min_sample_all_events)
-```
-
-![](compare_merged_psi_table_files/figure-commonmark/psi_dist_of_combined_only_events_min_samples-1.png)
-=======
 ## How many of each splice event types are quantified?
-
-### PSI value counts for unfiltered events
-
-Histogram of quantified events
-
-``` r
-# PSI distribution plots of events in each method
-number_events_dist <- function(
-    df,
-    psi_type, title) {
-    # construct histogram
-    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
-    geom_histogram(bins = 20) +
-    facet_wrap(vars(event_type, label), scales = "free_y") +
-    scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    # make facet labels bigger
-    theme(strip.text.x = element_text(size = global_size),
-          # rotate x axis labels so they don't overlap
-          axis.text.x = element_text(angle =45)) +
-    ggtitle(title)
-}
-
-number_events_dist(all_events, "n_quantified",   "Number of quantified PSI values in separate table")
-```
-
-<div id="fig-num_quantified_psi">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi-1.png"
-id="fig-num_quantified_psi" />
-
-Figure 4
-
-</div>
-
-Histogram of events dropped by Shiba due to insufficient read counts
-
-``` r
-number_events_dist(all_events, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
-```
-
-<div id="fig-num_low_read_na">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na-1.png"
-id="fig-num_low_read_na" />
-
-Figure 5
-
-</div>
-
-Histogram of events dropped by separate table due to insufficient
-transcript representation
-
-``` r
-number_events_dist(all_events, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
-```
-
-    Warning: Removed 79579 rows containing non-finite outside the scale range
-    (`stat_bin()`).
-
-<div id="fig-num_low_transcript_na">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na-1.png"
-id="fig-num_low_transcript_na" />
-
-Figure 6
-
-</div>
-
-### PSI value counts for events filtered for quantified PSI values in a minimum amount of samples
-
-Histogram of quantified events
-
-``` r
-number_events_dist(all_events_min_samples, "n_quantified",   "Number of quantified PSI values in separate table")
-```
-
-<div id="fig-num_quantified_psi_minfiltered">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi_minfiltered-1.png"
-id="fig-num_quantified_psi_minfiltered" />
-
-Figure 7
-
-</div>
-
-Histogram of events dropped by Shiba due to insufficient read counts
-
-``` r
-number_events_dist(all_events_min_samples, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
-```
-
-<div id="fig-num_low_read_na_minfiltered">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na_minfiltered-1.png"
-id="fig-num_low_read_na_minfiltered" />
-
-Figure 8
-
-</div>
-
-Histogram of events dropped by separate table due to insufficient
-transcript representation
-
-``` r
-number_events_dist(all_events_min_samples, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
-```
-
-<div id="fig-num_low_transcript_na_minfiltered">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na_minfiltered-1.png"
-id="fig-num_low_transcript_na_minfiltered" />
-
-Figure 9
-
-</div>
-
-The way I am plotting these histograms makes it difficult to compare the
-number of PSI values in each category between the unfilterd and filtered
-data frames. I additionally want to compare these numbers between the
-separate and complete tables but am not sure if that is useful
-information. These are a lot of facets that would be confusing to look
-at all at once. One idea I have is to just plot the skipped exon
-histograms, colored by the type of PSI value (n_quantified,
-n_shiba_dropped, n_separate_dropped), Faceted by label
-(annotated/unannotated), and whether the quantification is from the
-separate or combined table. I would make one of these plots for the full
-dataframe and a second for the filtered one.
-
-My biggest takeaway here is “if we filter for min 5 samples, there are
-fewer thing dropped. But many things are still dropped, which is bad”
->>>>>>> celiang/compare-events-in-splice-tables

@@ -476,7 +476,7 @@ all_events <- all_events |>
     # count the number of PSI values that are not one of our NA types
     n_quantified = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) >= 0, 
+      dplyr::pick(dplyr::matches("(_PSI_separate)$")) >= 0,
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
@@ -489,11 +489,11 @@ all_events <- all_events |>
       # elect sample PSI values that have -2 NA type
       dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -2
     ),
-    ## count PSI value types in combined table ##    
+    ## count PSI value types in combined table ##
     # count the number of PSI values that are not one of our NA types
     n_quantified_combined = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) >= 0, 
+      dplyr::pick(dplyr::matches("(_PSI_combined)$")) >= 0,
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
@@ -510,7 +510,7 @@ all_events <- all_events |>
 
 # check what summary looks like
 all_events |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped, 
+  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped,
                 n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
   head()
 ```
@@ -555,7 +555,7 @@ all_events_summary_min_samples <- all_events_min_samples |>
 plot_event_summary(all_events_summary_min_samples)
 ```
 Observations:
--   Although most events are shared after applying this filter and we still have unannotated events, 
+-   Although most events are shared after applying this filter and we still have unannotated events,
 we also still have events only found in the separate table.
 These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
@@ -566,7 +566,7 @@ all_events_summary_min_samples |>
 ```
 
 Observations:
--   Although most events are shared after applying this filter and we still have unannotated events, 
+-   Although most events are shared after applying this filter and we still have unannotated events,
 we also still have events only found in the separate table.
 These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
@@ -657,7 +657,7 @@ One idea I have is to just plot the skipped exon histograms, colored by the type
 Faceted by label (annotated/unannotated), and whether the quantification is from the separate or combined table.
 I would make one of these plots for the full dataframe and a second for the filtered one.
 
-My biggest takeaway here is "if we filter for min 5 samples, there are fewer thing dropped. 
+My biggest takeaway here is "if we filter for min 5 samples, there are fewer thing dropped.
 But many things are still dropped, which is bad"
 
 ## Examine sample-level splice events
@@ -713,7 +713,7 @@ So ~12% of all unique samples/event combinations that have events with a “grou
 Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
 ```{r}
 # pivot min_sample filtered event-level df longer
-long_min_sample_all_events <- pivot_long(min_samples_events)
+long_min_sample_all_events <- pivot_long(all_events_min_samples)
 
 # create summary table of match categories
 na_comparison_summary(long_min_sample_all_events)

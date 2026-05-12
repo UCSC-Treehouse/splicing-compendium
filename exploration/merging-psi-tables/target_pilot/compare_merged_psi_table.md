@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-10
+2026-05-12
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -133,6 +133,23 @@ plot_event_summary <- function(
   percent_plot /
     counts_plot
 
+}
+
+# Histogram of quantified events
+number_events_dist <- function(
+    df,
+    psi_type, title) {
+    # construct histogram
+    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
+    geom_histogram(binwidth = 1) +
+    facet_wrap(vars(label), scales = "free_y") +
+    scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45)) +
+    ggtitle(title)
 }
 
 ## Sample-level functions
@@ -505,48 +522,48 @@ all_events <- all_events |>
   dplyr::mutate(
     ## count PSI value types in separate table ##
     # count the number of PSI values that are not one of our NA types
-    n_quantified = rowSums(
+    n_quantified_separate = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) >= 0, 
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0, 
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
-    n_shiba_na = rowSums(
+    n_shiba_na_separate = rowSums(
       # select sample PSI values that have -1 NA type
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -1,
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) == -1,
       na.rm = TRUE),
     # count number of PSI values dropped due to lack of transcript diversity in single samples
-    n_separate_dropped = rowSums(
+    n_dropped_separate = rowSums(
       # elect sample PSI values that have -2 NA type
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -2
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) == -2
     ),
     ## count PSI value types in combined table ##    
     # count the number of PSI values that are not one of our NA types
     n_quantified_combined = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) >= 0, 
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0, 
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
     n_shiba_na_combined = rowSums(
       # select sample PSI values that have -1 NA type
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -1,
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) == -1,
       na.rm = TRUE),
     # count number of PSI values dropped due to lack of transcript diversity in single samples
-    n_separate_dropped_combined = rowSums(
+    n_dropped_combined = rowSums(
       # elect sample PSI values that have -2 NA type
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -2
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) == -2
     )
   )
 
 # check what summary looks like
 all_events |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped, 
-                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
   head()
 ```
 
-| pos_id | n_quantified | n_shiba_na | n_separate_dropped | n_quantified_combined | n_shiba_na_combined | n_separate_dropped_combined |
+| pos_id | n_quantified_separate | n_shiba_na_separate | n_dropped_separate | n_quantified_combined | n_shiba_na_combined | n_dropped_combined |
 |:---|---:|---:|---:|---:|---:|---:|
 | SE@GL000008.2@129985-130583@85625-155430 | 2 | 24 | 62 | 2 | 86 | 0 |
 | SE@GL000008.2@135134-135173@85625-155430 | 1 | 19 | 68 | 1 | 87 | 0 |
@@ -556,23 +573,26 @@ all_events |>
 | SE@GL000008.2@156667-156761@154715-157528 | 1 | 28 | 59 | 1 | 87 | 0 |
 
 Filter for minimum samples with numeric PSI values in the separate table
-and check n_quantified
+and check n_quantified. The resulting summaries of this filtered table
+will be incomplete, as it will not contain information of events in the
+combined table that are present in min_samples but are missed completely
+in the separate tables.
 
 ``` r
 # event-level summary of the number of each splice event type in each splice table
 all_events_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
-  dplyr::filter(n_quantified >= min_samples)
+  dplyr::filter(n_quantified_separate >= min_samples)
 
 # check what summary columns look like
 all_events_min_samples  |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped,
-                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
-  dplyr::arrange((n_quantified)) |>
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
+  dplyr::arrange((n_quantified_separate)) |>
   head()
 ```
 
-| pos_id | n_quantified | n_shiba_na | n_separate_dropped | n_quantified_combined | n_shiba_na_combined | n_separate_dropped_combined |
+| pos_id | n_quantified_separate | n_shiba_na_separate | n_dropped_separate | n_quantified_combined | n_shiba_na_combined | n_dropped_combined |
 |:---|---:|---:|---:|---:|---:|---:|
 | SE@GL000008.2@197587-197618@194536-198476 | 5 | 23 | 60 | 5 | 83 | 0 |
 | SE@GL000008.2@88636-88695@85625-129985 | 5 | 23 | 60 | 5 | 83 | 0 |
@@ -651,3 +671,69 @@ because they may be real events mislabeled by Shiba, or they may be
 unreal events (we cannot easily tell)
 
 ## How many of each splice event types are quantified?
+
+Histogram of quantified events
+
+``` r
+number_events_dist(all_events, "n_quantified_separate", "Number of quantified PSI values in separate table") /
+
+number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
+```
+
+<div id="fig-num_quantified_psi">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi-1.png"
+id="fig-num_quantified_psi" />
+
+Figure 4
+
+</div>
+
+As expected, we have more observations of quantified unannotated PSI
+values in the combined table
+
+Histogram of events dropped by Shiba due to insufficient read counts
+
+``` r
+number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped due to insufficient read counts in separate table") /
+
+number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
+```
+
+<div id="fig-num_low_read_na">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na-1.png"
+id="fig-num_low_read_na" />
+
+Figure 5
+
+</div>
+
+Histogram of events dropped due to insufficient transcript
+representation
+
+``` r
+number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
+```
+
+    Warning: Removed 79579 rows containing non-finite outside the scale range
+    (`stat_bin()`).
+
+``` r
+# I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
+```
+
+<div id="fig-num_low_transcript_na">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na-1.png"
+id="fig-num_low_transcript_na" />
+
+Figure 6
+
+</div>
+
+I mainly see that these missing values are present more in the
+unannotated events

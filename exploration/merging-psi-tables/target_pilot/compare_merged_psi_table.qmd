@@ -158,6 +158,23 @@ plot_event_summary <- function(
 
 }
 
+# Histogram of quantified events
+number_events_dist <- function(
+    df,
+    psi_type, title) {
+    # construct histogram
+    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
+    geom_histogram(binwidth = 1) +
+    facet_wrap(vars(label), scales = "free_y") +
+    scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45)) +
+    ggtitle(title)
+}
+
 ## Sample-level functions
 
 # pivot event-level df long
@@ -572,3 +589,40 @@ we also still have events only found in the separate table.
 These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
 ## How many of each splice event types are quantified?
+
+Histogram of quantified events
+
+```{r}
+#| label: fig-num_quantified_psi
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events, "n_quantified_separate", "Number of quantified PSI values in separate table") /
+
+number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
+```
+As expected, we have more observations of quantified unannotated PSI values in the combined table
+
+Histogram of events dropped by Shiba due to insufficient read counts
+
+```{r}
+#| label: fig-num_low_read_na
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped due to insufficient read counts in separate table") /
+
+number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
+```
+
+Histogram of events dropped due to insufficient transcript representation
+
+```{r}
+#| label: fig-num_low_transcript_na
+#| fig-width: 11
+#| fig-height: 8
+
+number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
+  
+# I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
+```

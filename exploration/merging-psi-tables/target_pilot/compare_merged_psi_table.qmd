@@ -213,7 +213,8 @@ na_comparison_summary <- function(long_df) {
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
           separate >= 0 & combined >= 0 ~ "PSI quantified in both",
           separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
-          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table"
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in combined table"
         )
     ) |>
     dplyr::summarise(
@@ -227,7 +228,7 @@ na_comparison_summary <- function(long_df) {
 }
 
 # plot PSI distributions of events with numeric PSI values in combined tables but are dropped in separate tables
-psi_values_lost_in_separate <- function(na_comparison_df) {
+psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
   na_comparison_df |>
     # drop NAs from putting together the separate and combined tables
     tidyr::drop_na() |>
@@ -237,12 +238,14 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
         dplyr::case_when(
           separate == -1 & combined == -1 ~ "both Shiba NAs",
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
-          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+          separate >= 0 & combined >= 0 ~ "PSI quantified in both",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in combined table"
         )
     ) |>
     # plot only events in combined table with numeric PSIs that are dropped in the separate table
-    dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
+    dplyr::filter(match_category == match_queried,) |>
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
       facet_wrap(vars(event_type, label), scales = "free_y") +
@@ -721,7 +724,9 @@ na_comparison_summary(long_min_sample_all_events)
 In both tables, the majority of NAs are from low counts.
 There is a higher percentage of numeric PSIs that we lose out on in the separate table, even with the min_samples filter.
 
-#### Plot PSI distribution of numeric PSI dropped in separate table
+#### Plot PSI distribution of PSI values lost in each method
+
+##### Quantified PSI values dropped in separate tables due to lack of transcript diversity
 
 ```{r}
 #| label: psi_dist_of_combined_only_events
@@ -729,7 +734,7 @@ There is a higher percentage of numeric PSIs that we lose out on in the separate
 #| fig-height: 8
 
 # plot PSI distributions of events in combined dataframe
-psi_values_lost_in_separate(long_all_events)
+psi_values_lost_in_tables(long_all_events, "PSI quantified in combined, dropped in separate table")
 ```
 
 
@@ -739,5 +744,25 @@ psi_values_lost_in_separate(long_all_events)
 #| fig-height: 8
 
 # plot PSI distributions of events in combined dataframe
-psi_values_lost_in_separate(long_min_sample_all_events)
+psi_values_lost_in_tables(long_min_sample_all_events, "PSI quantified in combined, dropped in separate table")
+```
+##### PSI values only quantified in separate tables 
+These events may be real events that have been miscategorized by shiba in the separate method
+
+```{r}
+#| label: psi_dist_of_separate_only_events
+#| fig-width: 11
+#| fig-height: 8
+
+# plot PSI distributions of events in combined dataframe
+psi_values_lost_in_tables(long_all_events, "PSI only quantified in separate table")
+```
+
+```{r}
+#| label: psi_dist_of_separate_only_events_min_samples
+#| fig-width: 11
+#| fig-height: 8
+
+# plot PSI distributions of events in combined dataframe
+psi_values_lost_in_tables(long_min_sample_all_events, "PSI only quantified in separate table")
 ```

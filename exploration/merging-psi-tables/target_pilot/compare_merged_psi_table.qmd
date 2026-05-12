@@ -209,12 +209,16 @@ na_comparison_summary <- function(long_df) {
     dplyr::mutate(
       match_category =
         dplyr::case_when(
-          separate == -1 & combined == -1 ~ "both Shiba NAs",
-          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-          separate >= 0 & combined >= 0 ~ "PSI quantified in both",
-          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
-          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table",
-          separate >= 0 & is.na(combined) ~ "PSI only quantified in combined table"
+          separate == -1 & combined == -1 ~ "-1 in both",
+          separate == -1 & is.na(combined) ~ "NA in combined, -1 in separate",
+          separate == -2 & combined == -1 ~ "-2 in separate, -1 in combined",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, -2 in separate table",
+          is.na(separate) & combined >= 0 ~ "NA in separate, quantified in combined",
+          is.na(separate) & combined == -1 ~ "NA in separate, -1 in combined",
+          is.na(separate) & combined == -2 ~ "NA in separate, -2 in combined",
+          separate >= 0 & is.na(combined) ~ "NA in combined, quantified in separate",
+          separate == -2 & is.na(combined) ~ "NA in combined, -2 in separate",
+          separate >= 0 & combined >= 0 ~ "PSI quantified in both"
         )
     ) |>
     dplyr::summarise(
@@ -709,9 +713,17 @@ In this section, we can see that the PSI values calculated in the combined table
 
 Summarize how many of each of these match categories are present in the pilot tables
 ```{r}
-na_comparison_summary(long_all_events)
+important_categories <- c("PSI quantified in both", "NA in separate, quantified in combined", "NA in combined, quantified in separate", "PSI quantified in combined, -2 in separate table")
+
+na_comparison_summary(long_all_events) |>
+  # arrange most important categories to the front
+  dplyr::arrange(match(match_category, important_categories))
 ```
-So ~12% of all unique samples/event combinations that have events with a “ground truth” numeric PSI value which gets dropped in Shiba
+We care most about "PSI quantified in both", "NA in separate, quantified in combined", "NA in combined, quantified in separate", and "PSI quantified in combined, -2 in separate table" categories.
+* Events we expect are real and are captured in both methods: PSI quantified in both
+* Events we expect are real and are missed or miscategorized in the separate method: NA in separate, quantified in combined
+* Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in separate
+* Events we expect are real but are missed in the separate method due to how events are defined in the GTF: PSI quantified in combined, -2 in separate table
 
 Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
 ```{r}
@@ -719,7 +731,9 @@ Summarize how many of each of these match categories are present in the pilot ta
 long_min_sample_all_events <- pivot_long(all_events_min_samples)
 
 # create summary table of match categories
-na_comparison_summary(long_min_sample_all_events)
+na_comparison_summary(long_min_sample_all_events) |>
+  # arrange most important categories to the front
+  dplyr::arrange(match(match_category, important_categories))
 ```
 In both tables, the majority of NAs are from low counts.
 There is a higher percentage of numeric PSIs that we lose out on in the separate table, even with the min_samples filter.

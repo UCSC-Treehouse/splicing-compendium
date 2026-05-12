@@ -8,6 +8,8 @@ editor_options:
   markdown:
     wrap: sentence
 date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  use_cache: TRUE
 ---
 
 **Question:** Does merging separate splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
@@ -264,26 +266,30 @@ psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
 ## Directories and files
 
 ```{r}
+## directories ##
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-
 # define the data directories
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
-
+#output dir for long tables
+target_pilot_output <- file.path(exploration_dir, "psi_tables")
 # directory of shiba results produced from the same shiba run
 combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
-
 # psi table directory
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
-
 # Directory of PSI table, merged from separate shiba runs
 separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
 
+# Check output dir exists; if not, create it
+if (!dir.exists(target_pilot_output)) {
+  dir.create(target_pilot_output)
+}
+
+## files ##
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")
-
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
   se = "PSI_SE.txt",
@@ -295,11 +301,13 @@ psi_files <- c(
   mxe = "PSI_MXE.txt",
   ri = "PSI_RI.txt"
 )
-
 # construct psi table paths of shiba results of two samples run together
 shiba_psi_paths <-file.path(combined_splice_results_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
-
+# long df output file of combined and separate PSI tables
+long_df_output <- file.path(target_pilot_output, "long_psi_df.rds") 
+# long df output filtered by min samples
+min_sample_long_df_output <- file.path(target_pilot_output, "min_filtered_long_psi_df.rds")
 ```
 
 Read in files
@@ -668,12 +676,23 @@ But many things are still dropped, which is bad"
 
 ## Examine sample-level splice events
 
+### Make long df of events
+
 Pivot longer for plotting sample-level splice event info
+
+Check if result exists in cache
+```{r}
+use_cached_long <- file.exists(long_df_output) && params$use_cache
+```
 
 ```{r}
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
+if (use_cached_long) {
+  long_all_events <- readr::read_rds(long_all_events)
+} else {
 long_all_events <- pivot_long(all_events)
+}
 
 # print column names
 colnames(long_all_events)
@@ -725,9 +744,20 @@ We care most about "PSI quantified in both", "NA in separate, quantified in comb
 * Events we expect are real but are missed in the separate method due to how events are defined in the GTF: PSI quantified in combined, -2 in separate table
 
 Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
+
+### Make filtered df long
+
+Check if result exists in cache
 ```{r}
-# pivot min_sample filtered event-level df longer
+use_cached_filtered_long <- file.exists(min_sample_long_df_output) && params$use_cache
+```
+
+```{r}
+if (use_cached_filtered_long) {
+  long_min_sample_all_events <- readr::read_rds(min_sample_long_df_output)
+} else {
 long_min_sample_all_events <- pivot_long(all_events_min_samples)
+}
 
 # create summary table of match categories
 na_comparison_summary(long_min_sample_all_events) |>
@@ -770,7 +800,6 @@ These events may be real events that have been miscategorized by shiba in the se
 # plot PSI distributions of events in combined dataframe
 psi_values_lost_in_tables(long_all_events, "PSI only quantified in separate table")
 ```
-
 ```{r}
 #| label: psi_dist_of_separate_only_events_min_samples
 #| fig-width: 11
@@ -779,3 +808,14 @@ psi_values_lost_in_tables(long_all_events, "PSI only quantified in separate tabl
 # plot PSI distributions of events in combined dataframe
 psi_values_lost_in_tables(long_min_sample_all_events, "PSI only quantified in separate table")
 ```
+
+## Write output
+Write long table into output
+```{r}
+# long df
+saveRDS(long_all_events, file = long_df_output)
+
+# filtered long df
+saveRDS(long_min_sample_all_events, file = min_sample_long_df_output)
+```
+

@@ -515,7 +515,8 @@ all_events |>
   head()
 ```
 
-Filter for minimum samples with numeric PSI values in the separate table and check n_quantified
+Filter for minimum samples with numeric PSI values in the separate table and check n_quantified.
+The resulting summaries of this filtered table will be incomplete, as it will not contain information of events in the combined table that are present in min_samples but are missed completely in the separate tables.
 ```{r}
 # event-level summary of the number of each splice event type in each splice table
 all_events_min_samples <- all_events |>

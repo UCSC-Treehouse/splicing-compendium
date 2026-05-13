@@ -659,7 +659,7 @@ use_cached_long <- file.exists(long_df_output) && params$use_cache
 # Pivot all events df longer
 # Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
 if (use_cached_long) {
-  long_all_events <- readr::read_rds(long_all_events)
+  long_all_events <- readr::read_rds(long_df_output)
 } else {
 long_all_events <- pivot_long(all_events)
 }

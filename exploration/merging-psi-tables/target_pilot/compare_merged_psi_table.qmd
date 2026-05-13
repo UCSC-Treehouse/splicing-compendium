@@ -17,7 +17,7 @@ params:
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.
 Before doing so, we use this notebook to test that merging PSI tables from separate runs will not introduce a large amount of untrustworthy splice events.
 
-As part of tracking differences between the two tables, we have labeled NA values introduced at various steps of the data processing pipeline with different negative values:
+As part of tracking differences between the two tables, we have labeled NA values introduced at various steps of the data processing pipeline with different negative values: 
 
 -   -1: NA values assigned by Shiba (splice events with low coverage)
 
@@ -158,6 +158,23 @@ plot_event_summary <- function(
   percent_plot /
     counts_plot
 
+}
+
+# Histogram of quantified events
+number_events_dist <- function(
+    df,
+    psi_type, title) {
+    # construct histogram
+    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
+    geom_histogram(binwidth = 1) +
+    facet_wrap(vars(label), scales = "free_y") +
+    scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45)) +
+    ggtitle(title)
 }
 
 ## Sample-level functions
@@ -301,13 +318,14 @@ psi_files <- c(
   mxe = "PSI_MXE.txt",
   ri = "PSI_RI.txt"
 )
+
 # construct psi table paths of shiba results of two samples run together
 shiba_psi_paths <-file.path(combined_splice_results_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
+
+## output ##
 # long df output file of combined and separate PSI tables
 long_df_output <- file.path(target_pilot_output, "long_psi_df.rds") 
-# long df output filtered by min samples
-min_sample_long_df_output <- file.path(target_pilot_output, "min_filtered_long_psi_df.rds")
 ```
 
 Read in files
@@ -488,59 +506,60 @@ all_events <- all_events |>
   dplyr::mutate(
     ## count PSI value types in separate table ##
     # count the number of PSI values that are not one of our NA types
-    n_quantified = rowSums(
+    n_quantified_separate = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) >= 0,
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0, 
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
-    n_shiba_na = rowSums(
+    n_shiba_na_separate = rowSums(
       # select sample PSI values that have -1 NA type
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -1,
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) == -1,
       na.rm = TRUE),
     # count number of PSI values dropped due to lack of transcript diversity in single samples
-    n_separate_dropped = rowSums(
+    n_dropped_separate = rowSums(
       # elect sample PSI values that have -2 NA type
-      dplyr::pick(dplyr::matches("(_PSI_separate)$")) == -2
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) == -2
     ),
-    ## count PSI value types in combined table ##
+    ## count PSI value types in combined table ##    
     # count the number of PSI values that are not one of our NA types
     n_quantified_combined = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) >= 0,
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0, 
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
     n_shiba_na_combined = rowSums(
       # select sample PSI values that have -1 NA type
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -1,
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) == -1,
       na.rm = TRUE),
     # count number of PSI values dropped due to lack of transcript diversity in single samples
-    n_separate_dropped_combined = rowSums(
+    n_dropped_combined = rowSums(
       # elect sample PSI values that have -2 NA type
-      dplyr::pick(dplyr::matches("(_PSI_combined)$")) == -2
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) == -2
     )
   )
 
 # check what summary looks like
 all_events |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped,
-                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
   head()
 ```
 
-Filter for minimum samples with numeric PSI values in the separate table and check n_quantified
+Filter for minimum samples with numeric PSI values in the separate table and check n_quantified.
+The resulting summaries of this filtered table will be incomplete, as it will not contain information of events in the combined table that are present in min_samples but are missed completely in the separate tables.
 ```{r}
 # event-level summary of the number of each splice event type in each splice table
 all_events_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
-  dplyr::filter(n_quantified >= min_samples)
+  dplyr::filter(n_quantified_separate >= min_samples)
 
 # check what summary columns look like
 all_events_min_samples  |>
-  dplyr::select(pos_id, n_quantified, n_shiba_na, n_separate_dropped,
-                n_quantified_combined, n_shiba_na_combined, n_separate_dropped_combined) |>
-  dplyr::arrange((n_quantified)) |>
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
+  dplyr::arrange((n_quantified_separate)) |>
   head()
 ```
 
@@ -569,7 +588,7 @@ all_events_summary_min_samples <- all_events_min_samples |>
 plot_event_summary(all_events_summary_min_samples)
 ```
 Observations:
--   Although most events are shared after applying this filter and we still have unannotated events,
+-   Although most events are shared after applying this filter and we still have unannotated events, 
 we also still have events only found in the separate table.
 These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
@@ -580,13 +599,11 @@ all_events_summary_min_samples |>
 ```
 
 Observations:
--   Although most events are shared after applying this filter and we still have unannotated events,
+-   Although most events are shared after applying this filter and we still have unannotated events, 
 we also still have events only found in the separate table.
 These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
 ## How many of each splice event types are quantified?
-
-### PSI value counts for unfiltered events
 
 Histogram of quantified events
 
@@ -595,25 +612,12 @@ Histogram of quantified events
 #| fig-width: 11
 #| fig-height: 8
 
-# PSI distribution plots of events in each method
-number_events_dist <- function(
-    df,
-    psi_type, title) {
-    # construct histogram
-    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
-    geom_histogram(bins = 20) +
-    facet_wrap(vars(event_type, label), scales = "free_y") +
-    scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    # make facet labels bigger
-    theme(strip.text.x = element_text(size = global_size),
-          # rotate x axis labels so they don't overlap
-          axis.text.x = element_text(angle =45)) +
-    ggtitle(title)
-}
+number_events_dist(all_events, "n_quantified_separate", "Number of quantified PSI values in separate table") /
 
-number_events_dist(all_events, "n_quantified",   "Number of quantified PSI values in separate table")
+number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
+As expected, we have more observations of quantified unannotated PSI values in the combined table
+
 Histogram of events dropped by Shiba due to insufficient read counts
 
 ```{r}
@@ -621,58 +625,25 @@ Histogram of events dropped by Shiba due to insufficient read counts
 #| fig-width: 11
 #| fig-height: 8
 
-number_events_dist(all_events, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
+number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped due to insufficient read counts in separate table") /
+
+number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
-Histogram of events dropped by separate table due to insufficient transcript representation
+
+Histogram of events dropped due to insufficient transcript representation
 
 ```{r}
 #| label: fig-num_low_transcript_na
 #| fig-width: 11
 #| fig-height: 8
 
-number_events_dist(all_events, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
+number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
+  
+# I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
 ```
-### PSI value counts for events filtered for quantified PSI values in a minimum amount of samples
+I mainly see that these missing values are present more in the unannotated events
 
-Histogram of quantified events
-
-```{r}
-#| label: fig-num_quantified_psi_minfiltered
-#| fig-width: 11
-#| fig-height: 8
-
-number_events_dist(all_events_min_samples, "n_quantified",   "Number of quantified PSI values in separate table")
-```
-
-Histogram of events dropped by Shiba due to insufficient read counts
-
-```{r}
-#| label: fig-num_low_read_na_minfiltered
-#| fig-width: 11
-#| fig-height: 8
-
-number_events_dist(all_events_min_samples, "n_shiba_na",   "Number of PSIs dropped due to insufficient read counts in separate table")
-```
-
-Histogram of events dropped by separate table due to insufficient transcript representation
-
-```{r}
-#| label: fig-num_low_transcript_na_minfiltered
-#| fig-width: 11
-#| fig-height: 8
-
-number_events_dist(all_events_min_samples, "n_separate_dropped", "Number of PSIs dropped due to insufficient transcripts in separate table")
-```
-
-The way I am plotting these histograms makes it difficult to compare the number of PSI values in each category between the unfilterd and filtered data frames.
-I additionally want to compare these numbers between the separate and complete tables but am not sure if that is useful information.
-These are a lot of facets that would be confusing to look at all at once.
-One idea I have is to just plot the skipped exon histograms, colored by the type of PSI value (n_quantified, n_shiba_dropped, n_separate_dropped),
-Faceted by label (annotated/unannotated), and whether the quantification is from the separate or combined table.
-I would make one of these plots for the full dataframe and a second for the filtered one.
-
-My biggest takeaway here is "if we filter for min 5 samples, there are fewer thing dropped.
-But many things are still dropped, which is bad"
+## How many of each splice event types are quantified?
 
 ## Examine sample-level splice events
 
@@ -747,17 +718,9 @@ Summarize how many of each of these match categories are present in the pilot ta
 
 ### Make filtered df long
 
-Check if result exists in cache
 ```{r}
-use_cached_filtered_long <- file.exists(min_sample_long_df_output) && params$use_cache
-```
 
-```{r}
-if (use_cached_filtered_long) {
-  long_min_sample_all_events <- readr::read_rds(min_sample_long_df_output)
-} else {
 long_min_sample_all_events <- pivot_long(all_events_min_samples)
-}
 
 # create summary table of match categories
 na_comparison_summary(long_min_sample_all_events) |>

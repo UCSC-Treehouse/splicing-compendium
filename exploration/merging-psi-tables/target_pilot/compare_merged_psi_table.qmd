@@ -622,7 +622,8 @@ number_events_dist(all_events, "n_quantified_separate", "Number of quantified PS
 
 number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
-As expected, we have more observations of quantified unannotated PSI values in the combined table
+As expected, we have more observations of quantified unannotated PSI values in the combined table (higher bars at the end of the X axis). 
+More critically, the unannotated observations in the combined table that we lose in the separate tables seem to be quantified in most of the TARGET pilot samples.
 
 Histogram of events dropped by Shiba due to insufficient read counts
 
@@ -635,6 +636,11 @@ number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped du
 
 number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
+These histograms are now counting events that are lost (number of -1 values).
+The same trend regarding unannotated events is seen here as in @fig-num_quantified_psi.
+We also see a higher number of annotated events dropped in all samples in the combined tables.
+I suspect the reason for these two observations is because the combined tables have a larger dictionary of possible splice events due to the merged GTF.
+So all these splice events not found in the separate tables have the potential to have -1 values.
 
 Histogram of events dropped due to insufficient transcript representation
 
@@ -647,4 +653,6 @@ number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insu
   
 # I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
 ```
-I mainly see that these missing values are present more in the unannotated events
+Similar to @fig-num_low_read_na, these histograms represent the number of events lose (-2 events).
+I mainly see that these missing values are present more in the unannotated events, where most samples have the same event dropped.
+I suspect this is due to the unannotated event only being present in one or two samples.

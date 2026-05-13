@@ -642,7 +642,6 @@ number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insu
 # I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
 ```
 I mainly see that these missing values are present more in the unannotated events
-
 ## How many of each splice event types are quantified?
 
 ## Examine sample-level splice events

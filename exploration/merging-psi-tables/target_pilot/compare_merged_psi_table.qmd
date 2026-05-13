@@ -677,8 +677,6 @@ Write long table into output
 # long df
 saveRDS(long_all_events, file = long_df_output)
 
-# filtered long df
-saveRDS(long_min_sample_all_events, file = min_sample_long_df_output)
 ```
 
 ### Examine relationships between of PSI and NA values of combined and separate tables

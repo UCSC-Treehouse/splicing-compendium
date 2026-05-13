@@ -270,7 +270,7 @@ psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
     dplyr::filter(match_category == match_queried,) |>
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
-      facet_wrap(vars(event_type, label), scales = "free_y") +
+      facet_wrap(vars(label), scales = "free_y") +
     scale_fill_manual(values = cbPalette) +
       plot_theme +
       # make facet labels bigger
@@ -671,6 +671,16 @@ colnames(long_all_events)
 head(long_all_events)
 ```
 
+### Write output
+Write long table into output
+```{r}
+# long df
+saveRDS(long_all_events, file = long_df_output)
+
+# filtered long df
+saveRDS(long_min_sample_all_events, file = min_sample_long_df_output)
+```
+
 ### Examine relationships between of PSI and NA values of combined and separate tables
 
 #### How well correlated are the PSI values and NAs in each splice table type?
@@ -760,14 +770,4 @@ psi_values_lost_in_tables(long_all_events, "PSI only quantified in separate tabl
 
 # plot PSI distributions of events in combined dataframe
 psi_values_lost_in_tables(long_min_sample_all_events, "PSI only quantified in separate table")
-```
-
-## Write output
-Write long table into output
-```{r}
-# long df
-saveRDS(long_all_events, file = long_df_output)
-
-# filtered long df
-saveRDS(long_min_sample_all_events, file = min_sample_long_df_output)
 ```

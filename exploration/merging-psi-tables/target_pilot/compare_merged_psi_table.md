@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-12
+2026-05-13
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -199,15 +199,19 @@ event_summary <- function(
 # Create summary table of number and percentage of events in each PSI-NA matchup category
 na_comparison_summary <- function(long_df) {
   long_df |>
-    # try to get rid of the NA NAs here
-    tidyr::drop_na() |>
     dplyr::mutate(
       match_category =
         dplyr::case_when(
-          separate == -1 & combined == -1 ~ "both Shiba NAs",
-          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
-          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+          separate == -1 & combined == -1 ~ "-1 in both",
+          separate == -1 & is.na(combined) ~ "NA in combined, -1 in separate",
+          separate == -2 & combined == -1 ~ "-2 in separate, -1 in combined",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, -2 in separate table",
+          is.na(separate) & combined >= 0 ~ "NA in separate, quantified in combined",
+          is.na(separate) & combined == -1 ~ "NA in separate, -1 in combined",
+          is.na(separate) & combined == -2 ~ "NA in separate, -2 in combined",
+          separate >= 0 & is.na(combined) ~ "NA in combined, quantified in separate",
+          separate == -2 & is.na(combined) ~ "NA in combined, -2 in separate",
+          separate >= 0 & combined >= 0 ~ "PSI quantified in both"
         )
     ) |>
     dplyr::summarise(
@@ -221,7 +225,7 @@ na_comparison_summary <- function(long_df) {
 }
 
 # plot PSI distributions of events with numeric PSI values in combined tables but are dropped in separate tables
-psi_values_lost_in_separate <- function(na_comparison_df) {
+psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
   na_comparison_df |>
     # drop NAs from putting together the separate and combined tables
     tidyr::drop_na() |>
@@ -231,15 +235,17 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
         dplyr::case_when(
           separate == -1 & combined == -1 ~ "both Shiba NAs",
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
-          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+          separate >= 0 & combined >= 0 ~ "PSI quantified in both",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in combined table"
         )
     ) |>
     # plot only events in combined table with numeric PSIs that are dropped in the separate table
-    dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
+    dplyr::filter(match_category == match_queried,) |>
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
-      facet_wrap(vars(event_type, label), scales = "free_y") +
+      facet_wrap(vars(label), scales = "free_y") +
     scale_fill_manual(values = cbPalette) +
       plot_theme +
       # make facet labels bigger
@@ -252,26 +258,30 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
 ## Directories and files
 
 ``` r
+## directories ##
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-
 # define the data directories
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
-
+#output dir for long tables
+target_pilot_output <- file.path(exploration_dir, "psi_tables")
 # directory of shiba results produced from the same shiba run
 combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
-
 # psi table directory
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
-
 # Directory of PSI table, merged from separate shiba runs
 separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
 
+# Check output dir exists; if not, create it
+if (!dir.exists(target_pilot_output)) {
+  dir.create(target_pilot_output)
+}
+
+## files ##
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")
-
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
   se = "PSI_SE.txt",
@@ -287,6 +297,10 @@ psi_files <- c(
 # construct psi table paths of shiba results of two samples run together
 shiba_psi_paths <-file.path(combined_splice_results_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
+
+## output ##
+# long df output file of combined and separate PSI tables
+long_df_output <- file.path(target_pilot_output, "long_psi_df.rds")
 ```
 
 Read in files
@@ -524,7 +538,7 @@ all_events <- all_events |>
     # count the number of PSI values that are not one of our NA types
     n_quantified_separate = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0, 
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0,
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
@@ -541,7 +555,7 @@ all_events <- all_events |>
     # count the number of PSI values that are not one of our NA types
     n_quantified_combined = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0, 
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0,
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
@@ -558,7 +572,7 @@ all_events <- all_events |>
 
 # check what summary looks like
 all_events |>
-  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate,
                 n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
   head()
 ```
@@ -586,7 +600,7 @@ all_events_min_samples <- all_events |>
 
 # check what summary columns look like
 all_events_min_samples  |>
-  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate,
                 n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
   dplyr::arrange((n_quantified_separate)) |>
   head()
@@ -736,4 +750,174 @@ Figure 6
 </div>
 
 I mainly see that these missing values are present more in the
-unannotated events
+unannotated events \## How many of each splice event types are
+quantified?
+
+## Examine sample-level splice events
+
+### Make long df of events
+
+Pivot longer for plotting sample-level splice event info
+
+Check if result exists in cache
+
+``` r
+use_cached_long <- file.exists(long_df_output) && params$use_cache
+```
+
+``` r
+# Pivot all events df longer
+# Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
+if (use_cached_long) {
+  long_all_events <- readr::read_rds(long_df_output)
+} else {
+long_all_events <- pivot_long(all_events)
+}
+
+# print column names
+colnames(long_all_events)
+```
+
+    [1] "event_type" "pos_id"     "label"      "sample"     "combined"  
+    [6] "separate"  
+
+``` r
+# check some smaples
+head(long_all_events)
+```
+
+| event_type | pos_id | label | sample | combined | separate |
+|:---|:---|:---|:---|---:|---:|
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559043 | -1.0000 | -2.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559044 | -1.0000 | -2.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559052 | -1.0000 | -1.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559054 | -1.0000 | -1.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559075 | -1.0000 | -1.0000 |
+| se | SE@GL000008.2@129985-130583@85625-155430 | annotated | SRR1559100 | 0.6875 | 0.6875 |
+
+### Write output
+
+Write long table into output
+
+``` r
+# long df
+saveRDS(long_all_events, file = long_df_output)
+```
+
+### Examine relationships between of PSI and NA values of combined and separate tables
+
+#### How well correlated are the PSI values and NAs in each splice table type?
+
+I decided to go with a plot instead of a table for this because the
+table is 170,000 rows long. From eyeballing the table in R, I saw a
+couple values that had -2 PSI values in the separate table and -1 in the
+combined table. But it was hard to get a sense of all the possible
+separate - combined PSI value and NA combinations
+
+Even though my function should drop NAs, I still get NAs in the separate
+PSI column. If I try to drop NAs at the end, I get en error that the
+datframe contains list-cols (Warning: Values from `PSI` are not uniquely
+identified; output will contain list-cols.)
+
+``` r
+# plot basic scatterplot to see the different PSI value / NA matchup categories in the data
+ggplot(long_all_events, aes(x = combined, y = separate)) +
+  geom_point()
+```
+
+    Warning: Removed 20325272 rows containing missing values or values outside the scale
+    range (`geom_point()`).
+
+![](compare_merged_psi_table_files/figure-commonmark/psi_na_matchup_categories-1.png)
+
+From this plot, I see four different categories of splice event matches
+between the separate and combined tables:
+
+- Upper dot: We have some splice events that are dropped by Shiba due to
+  no alternative splicing in the separate tables (Y = -2) but are also
+  dropped in the combined tables because there were too few reads anyway
+  (X = -1).
+- Lower dot: We have some splice events that had too few reads for a
+  numeric PSI in both tables (x = -1, y = -1)
+- Diagonal line: We also see events whose PSI values are numeric and
+  have a linear relationship in both combined and separate methods
+  (these are likley the events that were identical and found in both)
+- The most concerning case is the horizontal line at Y=-2, corresponding
+  to splice events dropped in the separate tables due to lack of
+  transcripts for a gene but was captured in the combined splice table.
+  In this section, we can see that the PSI values calculated in the
+  combined table span the full PSI value range from 0-1, so there is no
+  easy way to replace the -2 NA values in the separate table.
+
+Summarize how many of each of these match categories are present in the
+pilot tables
+
+``` r
+important_categories <- c("PSI quantified in both", "NA in separate, quantified in combined", "NA in combined, quantified in separate", "PSI quantified in combined, -2 in separate table")
+
+na_comparison_summary(long_all_events) |>
+  # arrange most important categories to the front
+  dplyr::arrange(match(match_category, important_categories))
+```
+
+| match_category | count | total | percent |
+|:---|---:|---:|---:|
+| PSI quantified in both | 12670697 | 79023208 | 16.034147 |
+| NA in separate, quantified in combined | 3307421 | 79023208 | 4.185379 |
+| NA in combined, quantified in separate | 1546935 | 79023208 | 1.957571 |
+| PSI quantified in combined, -2 in separate table | 7205168 | 79023208 | 9.117787 |
+| -2 in separate, -1 in combined | 27666041 | 79023208 | 35.010020 |
+| -1 in both | 11156030 | 79023208 | 14.117410 |
+| NA in separate, -1 in combined | 3695531 | 79023208 | 4.676514 |
+| NA in combined, -2 in separate | 10942532 | 79023208 | 13.847238 |
+| NA in combined, -1 in separate | 832853 | 79023208 | 1.053935 |
+
+We care most about “PSI quantified in both”, “NA in separate, quantified
+in combined”, “NA in combined, quantified in separate”, and “PSI
+quantified in combined, -2 in separate table” categories. \* Events we
+expect are real and are captured in both methods: PSI quantified in both
+\* Events we expect are real and are missed or miscategorized in the
+separate method: NA in separate, quantified in combined \* Events that
+may be real and miscategorized (but are difficult to confirm): NA in
+combined, quantified in separate \* Events we expect are real but are
+missed in the separate method due to how events are defined in the GTF:
+PSI quantified in combined, -2 in separate table
+
+Summarize how many of each of these match categories are present in the
+pilot tables, filtered for events with numeric PSI in min_samples
+
+### Make filtered df long
+
+``` r
+long_min_sample_all_events <- pivot_long(all_events_min_samples)
+
+# create summary table of match categories
+na_comparison_summary(long_min_sample_all_events) |>
+  # arrange most important categories to the front
+  dplyr::arrange(match(match_category, important_categories))
+```
+
+| match_category | count | total | percent |
+|:---|---:|---:|---:|
+| PSI quantified in both | 12363779 | 26200152 | 47.189722 |
+| NA in combined, quantified in separate | 1421478 | 26200152 | 5.425457 |
+| PSI quantified in combined, -2 in separate table | 884696 | 26200152 | 3.376683 |
+| -1 in both | 6284307 | 26200152 | 23.985765 |
+| -2 in separate, -1 in combined | 3774018 | 26200152 | 14.404565 |
+| NA in combined, -2 in separate | 909789 | 26200152 | 3.472457 |
+| NA in combined, -1 in separate | 562085 | 26200152 | 2.145350 |
+
+In both tables, the majority of NAs are from low counts. There is a
+higher percentage of numeric PSIs that we lose out on in the separate
+table, even with the min_samples filter.
+
+#### Plot PSI distribution of PSI values lost in each method
+
+##### Quantified PSI values dropped in separate tables due to lack of transcript diversity
+
+``` r
+# plot PSI distributions of events in combined dataframe
+psi_values_lost_in_tables(long_all_events, "PSI quantified in combined, dropped in separate table")
+```
+
+![](compare_merged_psi_table_files/figure-commonmark/psi_dist_of_combined_only_events-1.png)

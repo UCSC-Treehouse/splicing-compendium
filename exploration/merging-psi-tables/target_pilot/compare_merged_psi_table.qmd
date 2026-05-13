@@ -749,23 +749,3 @@ There is a higher percentage of numeric PSIs that we lose out on in the separate
 # plot PSI distributions of events in combined dataframe
 psi_values_lost_in_tables(long_all_events, "PSI quantified in combined, dropped in separate table")
 ```
-
-##### PSI values only quantified in separate tables
-These events may be real events that have been miscategorized by shiba in the separate method
-
-```{r}
-#| label: psi_dist_of_separate_only_events
-#| fig-width: 11
-#| fig-height: 8
-
-# plot PSI distributions of events in combined dataframe
-psi_values_lost_in_tables(long_all_events, "PSI only quantified in separate table")
-```
-```{r}
-#| label: psi_dist_of_separate_only_events_min_samples
-#| fig-width: 11
-#| fig-height: 8
-
-# plot PSI distributions of events in combined dataframe
-psi_values_lost_in_tables(long_min_sample_all_events, "PSI only quantified in separate table")
-```

@@ -26,7 +26,7 @@ if (!dir.exists(out_dir)) {
 }
 
 ## Read in files ##
-sample_sheet <- read_tsv(sample_sheet_file, col_names = FALSE)
+sample_sheet <- readr::read_tsv(sample_sheet_file, col_names = FALSE)
 # convert df to list of samples
 samples <- sample_sheet$X1
 
@@ -48,11 +48,14 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
                header = TRUE,
                sep="\t",
                stringsAsFactors=FALSE,
-               quote="")
+               quote="",
+               # make sure columns are all the same class for merging
+               colClasses = "character")
+
   }) |>
     # merge junctions tables from multiple samples
     # the resulting table separates junction counts from each sample by columns with the sample ID
     purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
 
 ## Save merged junction counts as output
-write.tsv(merged_junctions, out_junctions)
+readr::write.tsv(merged_junctions, out_junctions)

@@ -1,4 +1,5 @@
 ### merge junctions.bed files produced by separate shiba runs ###
+# usage: Rscript 03-merge_separate_junctions.R
 
 # define sample group
 group <- "target"
@@ -55,7 +56,7 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
   }) |>
     # merge junctions tables from multiple samples
     # the resulting table separates junction counts from each sample by columns with the sample ID
-    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
+    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr"))) |>
 
 ## Save merged junction counts as output
 readr::write_tsv(merged_junctions, out_junctions)

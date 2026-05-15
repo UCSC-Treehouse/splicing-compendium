@@ -58,4 +58,4 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
 
 ## Save merged junction counts as output
-readr::write.tsv(merged_junctions, out_junctions)
+readr::write_tsv(merged_junctions, out_junctions)

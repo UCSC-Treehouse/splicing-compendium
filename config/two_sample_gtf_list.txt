@@ -1,0 +1,2 @@
+../results/target/shiba/SRR4376025/annotation/assembled_annotation.gtf
+../results/target/shiba/SRR1559031/annotation/assembled_annotation.gtf

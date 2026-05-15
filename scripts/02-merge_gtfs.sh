@@ -51,3 +51,11 @@ done < ${sample_list}
 
 # run stringtie merge on gtfs
 stringtie --merge -p ${threads} -G ${reference_gtf} -o ${out_gtf} ${gtf_list}
+
+# zip gtf files back up to save space
+while read sample; do
+    # check if file is not already zipped
+    if [[ ! -f "${shiba_dir}/${sample}/annotation/assembled_annotation.gtf.gz" ]]; then
+        # zip the gtf to save space
+        pigz ${shiba_dir}/${sample}/annotation/assembled_annotation.gtf
+    fi

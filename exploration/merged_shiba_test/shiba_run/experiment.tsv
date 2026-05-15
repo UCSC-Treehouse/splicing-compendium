@@ -1,0 +1,3 @@
+sample	bam_path	group	technology
+SRR4376025	data/target/star-output/SRR4376025/Aligned.sortedByCoord.out.bam	target	short
+SRR1559031	data/target/star-output/SRR1559031/Aligned.sortedByCoord.out.bam	target	short

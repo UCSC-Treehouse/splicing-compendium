@@ -22,3 +22,4 @@ exploration/merging-psi-tables/target_pilot/merged_results/
 exploration/merging-psi-tables/target_pilot/shiba_combined/*
 !exploration/merging-psi-tables/target_pilot/shiba_combined/README.md
 !exploration/merging-psi-tables/target_pilot/shiba_combined/report.json
+!exploration/merged_shiba_test/shiba_run

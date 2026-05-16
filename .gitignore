@@ -22,6 +22,7 @@ exploration/merging-psi-tables/target_pilot/merged_results/
 exploration/merging-psi-tables/target_pilot/shiba_combined/*
 !exploration/merging-psi-tables/target_pilot/shiba_combined/README.md
 !exploration/merging-psi-tables/target_pilot/shiba_combined/report.json
-exploration/merged_shiba_test/*
-!exploration/merged_shiba_test/shiba_run
-!exploration/merged_shiba_test/report.json
+exploration/merged_shiba_test/shiba_results/combined_run/*
+!exploration/merged_shiba_test/shiba_results/combined_run/experiment.tsv
+!exploration/merged_shiba_test/shiba_results/combined_run/report.json
+!exploration/merged_shiba_test/shiba_results/combined_run/shiba_config.yaml

@@ -18,11 +18,17 @@ results/*
 ._.DS_Store
 data
 
+# exploration files for testing merging PSI tables only
 exploration/merging-psi-tables/target_pilot/merged_results/
 exploration/merging-psi-tables/target_pilot/shiba_combined/*
 !exploration/merging-psi-tables/target_pilot/shiba_combined/README.md
 !exploration/merging-psi-tables/target_pilot/shiba_combined/report.json
+
+# combined shiba run on 2 samples for testing merging GTFs and junctions
 exploration/merged_shiba_test/shiba_results/combined_run/*
 !exploration/merged_shiba_test/shiba_results/combined_run/experiment.tsv
 !exploration/merged_shiba_test/shiba_results/combined_run/report.json
 !exploration/merged_shiba_test/shiba_results/combined_run/shiba_config.yaml
+
+# merged method (GTFs and junctions) tested on 2 samples
+exploration/merged_shiba_test/shiba_results/merged_method

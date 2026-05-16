@@ -1,25 +1,48 @@
 ### merge junctions.bed files produced by separate shiba runs ###
 # usage: Rscript 03-merge_separate_junctions.R
 
-# define sample group
-group <- "target"
+# Load library
+library("optparse")
+
+# Set up options to Rscript with optparse
+option_list <-list(
+  make_option(
+    opt_str = "--samples",
+    type = "character",
+    help = "Specify input path of sample sheet listing sample IDs of junction bedfiles to merge"),
+    # sample sheet path should look like config/samples.tsv
+  make_option(
+    opt_str = "--junctions",
+    type = "character",
+    help = "Specify input path for sample junction .bed file to merge"),
+    # junctions bedfile path should look like results/group/shiba/sample/junctions/junctions.bed
+  make_option(
+    opt_str = "--output",
+    type = "character",
+    help = "Specify output path for merged junction counts bedfile.")
+    # output should look like results/merged_shiba/timestamp/merged_junctions.bed
+  )
+
+# Parse options
+opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Directories and files ##
-# define the data directories
-# sample sheet dir
-config_dir <- file.path("config")
-# shiba results dir
-shiba_dir <- file.path("results", group, "shiba")
-# output dir for merged bedfile
-out_dir <- file.path("results/merged_shiba")
+# find the root-level repo directory
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
-# define files
-# define output file
-out_junctions <- file.path(out_dir, "merged_junctions.bed")
+# find the project directory (compendium-shiba-run)
+base_dir <- here::here()
 
-# define input files
-# sample sheet of samples to merge
-sample_sheet_file <- file.path(config_dir, "two_sample_merge_samples.tsv")
+# define paths to files
+input_file <- file.path(opt$junctions)
+samples_file <- file.path(opt$samples)
+
+# check that input junction bedfile exists
+if(!file.exists(input_file)) {stop("Please enter valid input file for --junctions")}
+
+# create output directory if it does not exist
+out_dir <- dirname(opt$output)
+dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 ## make directories if they dont exist ##
 if (!dir.exists(out_dir)) {
@@ -27,9 +50,11 @@ if (!dir.exists(out_dir)) {
 }
 
 ## Read in files ##
-sample_sheet <- readr::read_tsv(sample_sheet_file, col_names = FALSE)
+sample_sheet <- readr::read_tsv(samples_file, col_names = TRUE)
 # convert df to list of samples
-samples <- sample_sheet$X1
+samples <- sample_sheet$samples
+
+###### this section below needs to be reworded to use the junction file paths as input
 
 # make sample paths to the junctions.bed files for separate splice runs
 junction_paths <- file.path(

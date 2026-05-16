@@ -48,7 +48,7 @@ out_dir <- dirname(opt$output)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Construct input bam paths using accession numbers
-# TARGET sample path should look like: `shiba-run-data/target/star-output/{accession}/Aligned.sortedByCoord.out.bam`
+# TARGET sample path should look like: `data/target/star-output/{accession}/Aligned.sortedByCoord.out.bam`
 # Note: shiba-run-data is a symlink to the "/mnt/bulk" directory used in the current Snakefile.
 # However, this symlink must be redifined for all OpenStack instances.
 # This is done with the command: `ln -s /mnt/bulk data`

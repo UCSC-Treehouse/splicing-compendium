@@ -1,5 +1,4 @@
-# snakefile for merging shiba separate results
-# Build reference indices first if necessary: snakemake --snakefile build_references.smk --cores 15
+# SRR1559031nakefile for merging GTF and junction counts bed files produced by separate shiba runs and running Shiba on the merged files
 # A sample sheet of all samples with separate Shiba results is given to the config file to identify files to run the workflow on
 # Otherwise, this workflow will operate on all samples in the shiba results directory
 # Run from project root: snakemake --snakefile merge_results.smk -j 15

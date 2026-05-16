@@ -51,7 +51,7 @@ dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 # TARGET sample path should look like: `shiba-run-data/target/star-output/{accession}/Aligned.sortedByCoord.out.bam`
 # Note: shiba-run-data is a symlink to the "/mnt/bulk" directory used in the current Snakefile.
 # However, this symlink must be redifined for all OpenStack instances.
-# This is done with the command: `ln -s /mnt/bulk shiba-run-data`
+# This is done with the command: `ln -s /mnt/bulk data`
 
 # construct experiment.tsv for one sample at a time
 experiment_df <- data.frame(

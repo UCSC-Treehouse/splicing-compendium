@@ -7,13 +7,9 @@ library("optparse")
 # Set up options to Rscript with optparse
 option_list <-list(
   make_option(
-    opt_str = "--samples",
-    type = "character",
-    help = "Specify input path of sample sheet listing sample IDs of junction bedfiles to merge"),
-    # sample sheet path should look like config/samples.tsv
-  make_option(
     opt_str = "--junctions",
     type = "character",
+    action = "store",
     help = "Specify input path for sample junction .bed file to merge"),
     # junctions bedfile path should look like results/group/shiba/sample/junctions/junctions.bed
   make_option(
@@ -34,14 +30,8 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 base_dir <- here::here()
 
 # define paths to files
-input_file <- file.path(opt$junctions)
-samples_file <- file.path(opt$samples)
-
-# check that input junction bedfile exists
-if(!file.exists(input_file)) {stop("Please enter valid input file for --junctions")}
-
 # create output directory if it does not exist
-out_dir <- dirname(opt$output)
+out_dir <- dirname(opt$output) # output is a file so this probably needs to be updated
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 ## make directories if they dont exist ##
@@ -49,20 +39,19 @@ if (!dir.exists(out_dir)) {
   dir.create(out_dir, recursive = TRUE)
 }
 
-## Read in files ##
-sample_sheet <- readr::read_tsv(samples_file, col_names = TRUE)
-# convert df to list of samples
-samples <- sample_sheet$samples
+# Split space-separated input files into vector
+junction_paths <- strsplit(opt$junctions, " ")[[1]]
+
+# check that input junction bedfile exists - needs to be updated to act on a vector
+if(!file.exists(junction_paths)) {stop("Please enter valid input file for --junctions")}
+
+# Use filenames as sample names
+sample_names <- basename(dirname(dirname(junction_paths)))
+
+names(junction_paths) <- sample_names
 
 ###### this section below needs to be reworded to use the junction file paths as input
 
-# make sample paths to the junctions.bed files for separate splice runs
-junction_paths <- file.path(
-  shiba_dir,
-  samples,
-  "junctions",
-  "junctions.bed"
-)
 # name the separate junction file paths
 names(junction_paths) <- names(samples)
 

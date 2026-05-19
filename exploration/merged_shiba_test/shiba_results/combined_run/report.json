@@ -1,0 +1,15 @@
+{
+  "tool": {
+    "name": "Shiba",
+    "version": "v0.8.1"
+  },
+  "run": {
+    "command": "/home/ubuntu/splicing-compendium/.pixi/envs/default/bin/shiba.py -p 14 exploration/merged_shiba_test/shiba_run/shiba_config.yaml",
+    "start_time": "2026-05-15T00:04:02.718602",
+    "end_time": "2026-05-15T01:18:31.946857",
+    "duration_seconds": 4469.228
+  },
+  "experiment": {
+    "table_path": "exploration/merged_shiba_test/shiba_run/experiment.tsv"
+  }
+}

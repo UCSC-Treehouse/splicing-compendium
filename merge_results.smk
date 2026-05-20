@@ -16,8 +16,8 @@ if config.get("sample_sheet"):
 else:
     SAMPLES, = glob_wildcards(os.path.join("results", SAMPLE_GROUP, "shiba", "{sample}", "annotation", "assembled_annotation.gtf.gz"))
 
-# this might be fragile if I run parts of the pipeline over several days.. Replace with version number instead?
-TIMESTAMP = datetime.now().strftime("%Y%m%d")
+# a timestamp might be fragile if I run parts of the pipeline over several days
+VERSION = "test"
 
 # these pathvars are from our "separate shiba runs" snakemake in main
 pathvars:
@@ -25,7 +25,7 @@ pathvars:
     reports = os.path.join("reports", SAMPLE_GROUP),
     results = os.path.join("results", SAMPLE_GROUP),
     shiba_results = "<results>/shiba",
-    merged_shiba_results = os.path.join("<shiba_results>/merged_results", TIMESTAMP),
+    merged_shiba_results = os.path.join("<shiba_results>/merged_results", VERSION),
     logs = os.path.join("logs", SAMPLE_GROUP),
     references = "references"
 
@@ -48,7 +48,7 @@ JCN_MANIFEST = "<merged_shiba_results>/junction_manifest.tsv"
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        JCN_MANIFEST
+        "<merged_shiba_results>/merged_junctions.bed"
 
 rule make_junction_manifest:
     input:
@@ -56,7 +56,6 @@ rule make_junction_manifest:
     output:
         JCN_MANIFEST
     run:
-
         rows = []
         for f in input:
             # Extract sample name from path
@@ -68,5 +67,16 @@ rule make_junction_manifest:
                 "junction_bed": os.path.abspath(f)
             })
 
+        # write dataframe into a tsv to pass into merge script
         df = pd.DataFrame(rows)
         df.to_csv(output[0], sep="\t", index=False)
+
+rule merge_junctions:
+    input: JCN_MANIFEST
+    output: "<merged_shiba_results>/merged_junctions.bed"
+    priority: 1
+    threads: 4
+    shell:
+        """
+        Rscript scripts/03-merge_separate_junctions.R --junctions={input} --output={output}
+        """

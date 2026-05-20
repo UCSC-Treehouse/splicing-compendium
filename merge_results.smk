@@ -10,7 +10,7 @@ configfile: "config/merge_shiba_config.yaml"
 
 GENOME_ID = config["genome_id"]
 SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
-GROUPS = pd.read_table(config["sample_sheet])["group"].tolist()
+GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
 
 # these pathvars are from our "separate shiba runs" snakemake in main
@@ -21,8 +21,8 @@ pathvars:
 
 # path to group shiba results
 GROUP_SHIBA_RESULTS = expand(
-    os.path.join("results", {group}, "shiba"),
-    group=SAMPLE_GROUP
+    os.path.join("results", "{group}", "shiba"),
+    group=GROUPS
 )
 
 # path to junction.bed files
@@ -59,10 +59,7 @@ UNZIPPED_GTFs = expand(
 rule all:
     input:
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
-        merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
 
-# Don't do manifest, just pass in joined samples in the other example in the PR
-# update bed joining code in the other branch too
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
@@ -70,5 +67,5 @@ rule merge_junctions:
     threads: 4
     shell:
         """
-        Rscript scripts/03-merge_separate_junctions.R --junctions={",".join(input)} --output={output}
+        Rscript scripts/03-merge_separate_junctions.R --junctions={{",".join(input)}} --output={output}
         """

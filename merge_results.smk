@@ -69,9 +69,9 @@ GTF_MANIFEST = "<merged_shiba_results>/gtf_manifest.tsv"
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/merged_junctions.bed"
+        merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
+        merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
 
-# maybe this can be combined with gtf manifest rule?
 rule make_junction_manifest:
     localrule: True
     input:
@@ -79,11 +79,13 @@ rule make_junction_manifest:
     output:
         JCN_MANIFEST
     run:
-        # Extract sample name from path
+        ## make junctions bedfile manifest for merging ##
+        # Extract junctions sample name from path
         # results/<group>/shiba/<sample>/junctions/junctions.bed
         samples = [f.split(os.sep)[-3] for f in input]
-        df = pd.DataFrame({"sample": samples, "junction_bed": input})
-        df.to_csv(output[0], sep="\t", index=False)
+        jcn_df = pd.DataFrame({"sample": samples, "junction_bed": input})
+        jcn_df.to_csv(output[0], sep="\t", index=False)
+
 
 rule merge_junctions:
     input: JCN_MANIFEST
@@ -109,27 +111,27 @@ rule unzip_gtfs:
         """
 
 rule make_gtf_manifest:
-    input:
-        UNZIPPED_GTFs
-    output:
-        GTF_MANIFEST
+    input: UNZIPPED_GTFs
+    output: GTF_MANIFEST
     priority: 1
-    threads: 4
+    threads: 1
     run:
-        """
-
-        """
-
+        ## make gtf manifest for merging ##
+        # input is a list of gtf paths like so: results/<group>/shiba/<sample>/annotation/assembled_annotation.gtf
+        with open(output[0], 'w') as f:
+            for path in input:
+                f.write(f"{path}\n")
 
 rule merge_gtfs:
     input:
-        gtfs = UNZIPPED_GTFs
-    output:
+        sample_gtfs = UNZIPPED_GTFs,
+        reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf",
         manifest = GTF_MANIFEST
+    output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
     priority: 1
     threads: 4
     shell:
         """
-
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} ${input.manifest}
         """

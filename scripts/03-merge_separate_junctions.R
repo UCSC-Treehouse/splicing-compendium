@@ -60,4 +60,4 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
 merged_junctions[is.na(merged_junctions)] <- 0
 
 ## Save merged junction counts as output
-readr::write_tsv(merged_junctions, out_junctions)
+readr::write_tsv(merged_junctions, opt$output)

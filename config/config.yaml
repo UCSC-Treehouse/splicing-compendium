@@ -1,8 +1,8 @@
 # replace SAMPLE_GROUP with "target" or "gtex" depending on group of files to be preprocessed
-sample_group: gtex
+sample_group: target
 
 # path to sample sheet (tsv format, column: sample)
-sample_sheet: config/test.tsv
+sample_sheet: config/merge_shiba_config.yaml
 
 genome_id: gencode.v47.primary_assembly
 genome_assembly: GRCh38.primary_assembly.genome

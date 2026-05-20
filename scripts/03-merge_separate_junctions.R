@@ -10,13 +10,12 @@ option_list <-list(
     opt_str = "--junctions",
     type = "character",
     action = "store",
-    help = "Specify input path for sample junction .bed file to merge"),
-    # junctions bedfile path should look like results/group/shiba/sample/junctions/junctions.bed
+    help = "Specify input path to manifest file of paths to sample junction .bed files to merge"),
+
   make_option(
     opt_str = "--output",
     type = "character",
     help = "Specify output path for merged junction counts bedfile.")
-    # output should look like results/merged_shiba/timestamp/merged_junctions.bed
   )
 
 # Parse options
@@ -29,32 +28,17 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 # find the project directory (compendium-shiba-run)
 base_dir <- here::here()
 
-# define paths to files
-# create output directory if it does not exist
-out_dir <- dirname(opt$output) # output is a file so this probably needs to be updated
-dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
+# Read in junctions bed manifest as dataframe
+junctions_manifest_df <- read.delim(opt$junctions, sep="\t")
 
-## make directories if they dont exist ##
-if (!dir.exists(out_dir)) {
-  dir.create(out_dir, recursive = TRUE)
-}
+# extract junction bed paths from manifest into a vector
+junction_paths <- junctions_manifest_df$junction_bed
 
-# Split space-separated input files into vector
-junction_paths <- strsplit(opt$junctions, " ")[[1]]
+# extract sample names from manifest into vector
+sample_names <- junctions_manifest_df$sample
 
-# check that input junction bedfile exists - needs to be updated to act on a vector
-if(!file.exists(junction_paths)) {stop("Please enter valid input file for --junctions")}
-
-# Use filenames as sample names
-sample_names <- basename(dirname(dirname(junction_paths)))
-
+# assign sample names to junction paths
 names(junction_paths) <- sample_names
-
-###### this section below needs to be reworded to use the junction file paths as input
-
-# name the separate junction file paths
-names(junction_paths) <- names(samples)
-
 
 ## read in files and merge##
 # read in junctions.bed files created from separate Shiba runs
@@ -72,7 +56,7 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     # the resulting table separates junction counts from each sample by columns with the sample ID
     purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
 
-# convert NAs to 0
+# convert NAs from low junction counts to 0
 merged_junctions[is.na(merged_junctions)] <- 0
 
 ## Save merged junction counts as output

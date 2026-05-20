@@ -1,6 +1,5 @@
 # Snakefile for merging GTF and junction counts bed files produced by separate shiba runs and running Shiba on the merged files
-# A sample sheet of all samples with separate Shiba results is given to the config file to identify files to run the workflow on
-# Otherwise, this workflow will operate on all samples in the shiba results directory
+# A sample sheet of all sample accessions with separate Shiba results, and their group, is given to the config file to identify files to run the workflow on
 # Run from project root: snakemake --snakefile merge_results.smk -j 15
 
 import os
@@ -11,13 +10,9 @@ configfile: "config/merge_shiba_config.yaml"
 
 GENOME_ID = config["genome_id"]
 SAMPLE_GROUP = config["sample_group"]
-if config.get("sample_sheet"):
-    SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
-else: # this part needs to be changed as we sometimes need to junctions and sometimes the GTFs - maybe make sample sheet required?
-    SAMPLES, = glob_wildcards(os.path.join("results", SAMPLE_GROUP, "shiba", "{sample}", "annotation", "assembled_annotation.gtf.gz"))
-
-# a timestamp might be fragile if I run parts of the pipeline over several days
-VERSION = "test" # probably move this to configfile
+SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
+GROUPS = pd.read_table(config["sample_sheet])["group"].tolist()
+VERSION = config["version"]
 
 # these pathvars are from our "separate shiba runs" snakemake in main
 pathvars:

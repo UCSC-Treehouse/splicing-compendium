@@ -13,11 +13,11 @@ GENOME_ID = config["genome_id"]
 SAMPLE_GROUP = config["sample_group"]
 if config.get("sample_sheet"):
     SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
-else:
+else: # this part needs to be changed as we sometimes need to junctions and sometimes the GTFs - maybe make sample sheet required?
     SAMPLES, = glob_wildcards(os.path.join("results", SAMPLE_GROUP, "shiba", "{sample}", "annotation", "assembled_annotation.gtf.gz"))
 
 # a timestamp might be fragile if I run parts of the pipeline over several days
-VERSION = "test"
+VERSION = "test" # probably move this to configfile
 
 # these pathvars are from our "separate shiba runs" snakemake in main
 pathvars:
@@ -38,12 +38,33 @@ JUNCTION_BEDS = expand(
     sample=SAMPLES
 )
 
+# path to sample gtfs from separate shiba runs
+SAMPLE_GTFS = expand(
+    os.path.join(
+        "<shiba_results>",
+        "{sample}/annotation/assembled_annotation.gtf.gz"
+    ),
+    sample=SAMPLES
+)
+
+# path to unzipped sample gtfs
+UNZIPPED_GTFs = expand(
+    os.path.join(
+        "<shiba_results>",
+        "{sample}/annotation/assembled_annotation.gtf"
+    ),
+    sample=SAMPLES
+)
+
 # path to junctions manifest file to pass into junction merging rule
 # How do I get it to grab both TARGET and GTEx sample groups?
 # Another rule to merge manifest files from multiple groups together?
 # What's best for if we want this script to be usable for splice compendium updates? e.g. adding new datasets to compendium
 # Example: Adding CBTN + GTEx brain
 JCN_MANIFEST = "<merged_shiba_results>/junction_manifest.tsv"
+
+# path to GTF manifest file
+GTF_MANIFEST = "<merged_shiba_results>/gtf_manifest.tsv"
 
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
@@ -72,3 +93,32 @@ rule merge_junctions:
         """
         Rscript scripts/03-merge_separate_junctions.R --junctions={input} --output={output}
         """
+
+rule unzip_gtfs:
+    input:
+        SAMPLE_GTFS
+    output:
+        temp(UNZIPPED_GTFs)
+    priority: 1
+    threads: 4
+    shell:
+        """
+        # keep zipped input so we don't need to zip the GTFs again
+        gunzip {input} --keep
+        """
+
+rule make_gtf_manifest:
+    input:
+        UNZIPPED_GTFs
+    output:
+        GTF_MANIFEST
+    priority: 1
+    threads: 4
+    shell:
+        """
+        """
+
+
+rule merge_gtfs:
+    input:
+        UNZIPPED_GTFs

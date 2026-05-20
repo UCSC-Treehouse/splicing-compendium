@@ -129,7 +129,7 @@ rule merge_gtfs:
         reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf",
         manifest = GTF_MANIFEST
     output:
-        merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:

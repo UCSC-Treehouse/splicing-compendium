@@ -10,7 +10,7 @@ option_list <-list(
     opt_str = "--junctions",
     type = "character",
     action = "store",
-    help = "Specify input path to manifest file of paths to sample junction .bed files to merge"),
+    help = "Comma-separated list of input files to merge"),
 
   make_option(
     opt_str = "--output",
@@ -28,19 +28,11 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 # find the project directory (compendium-shiba-run)
 base_dir <- here::here()
 
-# Read in junctions bed manifest as dataframe
-junctions_manifest_df <- read.delim(opt$junctions, sep="\t")
+# Read in junctions bed list into a vector
+# each element of list looks like results/target/shiba/SRR4376025/junctions/junctions.bed
+junction_paths <- strsplit(opt$junctions, ",")[[1]]
 
-# extract junction bed paths from manifest into a vector
-junction_paths <- junctions_manifest_df$junction_bed
-
-# extract sample names from manifest into vector
-sample_names <- junctions_manifest_df$sample
-
-# assign sample names to junction paths
-names(junction_paths) <- sample_names
-
-## read in files and merge##
+## read in files and merge ##
 # read in junctions.bed files created from separate Shiba runs
 merged_junctions <- purrr::map(junction_paths, \(file) {
     read.table(file,

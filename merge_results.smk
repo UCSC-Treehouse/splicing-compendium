@@ -71,6 +71,7 @@ rule all:
     input:
         "<merged_shiba_results>/merged_junctions.bed"
 
+# maybe this can be combined with gtf manifest rule?
 rule make_junction_manifest:
     localrule: True
     input:
@@ -114,11 +115,21 @@ rule make_gtf_manifest:
         GTF_MANIFEST
     priority: 1
     threads: 4
-    shell:
+    run:
         """
+
         """
 
 
 rule merge_gtfs:
     input:
-        UNZIPPED_GTFs
+        gtfs = UNZIPPED_GTFs
+    output:
+        manifest = GTF_MANIFEST
+        merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
+    priority: 1
+    threads: 4
+    shell:
+        """
+
+        """

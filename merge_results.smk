@@ -64,7 +64,7 @@ rule make_junction_manifest:
 
             rows.append({
                 "sample": sample,
-                "junction_bed": os.path.abspath(f)
+                "junction_bed": f
             })
 
         # write dataframe into a tsv to pass into merge script

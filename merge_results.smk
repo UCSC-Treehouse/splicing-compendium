@@ -63,9 +63,12 @@ rule all:
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
+    # compute joined junctions string prior to passing into join script
+    params:
+        junctions=lambda wildcards, input: ",".join(input)
     priority: 1
     threads: 4
     shell:
         """
-        Rscript scripts/03-merge_separate_junctions.R --junctions={{",".join(input)}} --output={output}
+        Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
         """

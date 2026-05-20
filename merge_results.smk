@@ -111,6 +111,7 @@ rule unzip_gtfs:
         """
 
 rule make_gtf_manifest:
+    localrule: True
     input: UNZIPPED_GTFs
     output: GTF_MANIFEST
     priority: 1
@@ -133,5 +134,5 @@ rule merge_gtfs:
     threads: 4
     shell:
         """
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} ${input.manifest}
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {input.manifest}
         """

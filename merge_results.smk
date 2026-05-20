@@ -72,29 +72,16 @@ rule all:
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
         merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
 
-rule make_junction_manifest:
-    localrule: True
-    input:
-        JUNCTION_BEDS
-    output:
-        JCN_MANIFEST
-    run:
-        ## make junctions bedfile manifest for merging ##
-        # Extract junctions sample name from path
-        # results/<group>/shiba/<sample>/junctions/junctions.bed
-        samples = [f.split(os.sep)[-3] for f in input]
-        jcn_df = pd.DataFrame({"sample": samples, "junction_bed": input})
-        jcn_df.to_csv(output[0], sep="\t", index=False)
-
-
+# Don't do manifest, just pass in joined samples in the other example in the PR
+# update bed joining code in the other branch too
 rule merge_junctions:
-    input: JCN_MANIFEST
+    input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
     priority: 1
     threads: 4
     shell:
         """
-        Rscript scripts/03-merge_separate_junctions.R --junctions={input} --output={output}
+        Rscript scripts/03-merge_separate_junctions.R --junctions={",".join(input)} --output={output}
         """
 
 rule unzip_gtfs:
@@ -110,29 +97,18 @@ rule unzip_gtfs:
         gunzip {input} --keep
         """
 
-rule make_gtf_manifest:
-    localrule: True
-    input: UNZIPPED_GTFs
-    output: GTF_MANIFEST
-    priority: 1
-    threads: 1
-    run:
-        ## make gtf manifest for merging ##
-        # input is a list of gtf paths like so: results/<group>/shiba/<sample>/annotation/assembled_annotation.gtf
-        with open(output[0], 'w') as f:
-            for path in input:
-                f.write(f"{path}\n")
-
+# don't give this a manifest, pass it a list of GTF paths (avoid copying files across shared filesystems)
 rule merge_gtfs:
     input:
         sample_gtfs = UNZIPPED_GTFs,
         reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf",
-        manifest = GTF_MANIFEST
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {input.manifest}
+        # make list of all input files and print it into manifest one line at a time
+        echo "{'\n'.join(input.manifest)}" > gtf_manifest.txt
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} gtf_manifest.txt
         """

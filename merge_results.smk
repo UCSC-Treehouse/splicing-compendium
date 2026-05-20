@@ -56,19 +56,10 @@ rule make_junction_manifest:
     output:
         JCN_MANIFEST
     run:
-        rows = []
-        for f in input:
-            # Extract sample name from path
-            # results/<group>/shiba/<sample>/junctions/junctions.bed
-            sample = f.split(os.sep)[3]
-
-            rows.append({
-                "sample": sample,
-                "junction_bed": f
-            })
-
-        # write dataframe into a tsv to pass into merge script
-        df = pd.DataFrame(rows)
+        # Extract sample name from path
+        # results/<group>/shiba/<sample>/junctions/junctions.bed
+        samples = [f.split(os.sep)[-3] for f in input]
+        df = pd.DataFrame({"sample": samples, "junction_bed": input})
         df.to_csv(output[0], sep="\t", index=False)
 
 rule merge_junctions:

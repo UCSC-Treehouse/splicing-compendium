@@ -51,6 +51,7 @@ rule all:
         "<merged_shiba_results>/merged_junctions.bed"
 
 rule make_junction_manifest:
+    localrule: True
     input:
         JUNCTION_BEDS
     output:

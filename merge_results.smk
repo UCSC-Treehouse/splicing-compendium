@@ -19,39 +19,28 @@ pathvars:
     merged_shiba_results = os.path.join("results", "merged_shiba", VERSION),
     references = "references"
 
-# path to group shiba results
-GROUP_SHIBA_RESULTS = expand(
-    os.path.join("results", "{group}", "shiba"),
-    group=GROUPS
-)
-
 # path to junction.bed files
+# need to zip paths so group/sample pairs are matched rowwise
 JUNCTION_BEDS = expand(
-    os.path.join(
-        "{group_shiba_result}",
-        "{sample}/junctions/junctions.bed"
-    ),
-    group_shiba_result=GROUP_SHIBA_RESULTS,
+    "results/{group}/shiba/{sample}/junctions/junctions.bed",
+    zip,
+    group=GROUPS,
     sample=SAMPLES
 )
 
 # path to sample gtfs from separate shiba runs
 SAMPLE_GTFS = expand(
-    os.path.join(
-        "{group_shiba_result}",
-        "{sample}/annotation/assembled_annotation.gtf.gz"
-    ),
-    group_shiba_result=GROUP_SHIBA_RESULTS,
+    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf.gz",
+    zip,
+    group=GROUPS,
     sample=SAMPLES
 )
 
 # path to unzipped sample gtfs
 UNZIPPED_GTFs = expand(
-    os.path.join(
-        "{group_shiba_result}",
-        "{sample}/annotation/assembled_annotation.gtf"
-    ),
-    group_shiba_result=GROUP_SHIBA_RESULTS,
+    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf",
+    zip,
+    group=GROUPS,
     sample=SAMPLES
 )
 

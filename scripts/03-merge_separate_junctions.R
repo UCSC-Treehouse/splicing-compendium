@@ -38,8 +38,5 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     # the resulting table separates junction counts from each sample by columns with the sample ID
     purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
 
-# convert NAs from low junction counts to 0
-merged_junctions[is.na(merged_junctions)] <- 0
-
 ## Save merged junction counts as output
 readr::write_tsv(merged_junctions, opt$output)

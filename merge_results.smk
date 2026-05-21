@@ -36,14 +36,6 @@ SAMPLE_GTFS = expand(
     sample=SAMPLES
 )
 
-# path to unzipped gtfs from separate shiba runs
-UNZIPPED_GTFS = expand(
-    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf",
-    zip,
-    group=GROUPS,
-    sample=SAMPLES
-)
-
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
@@ -71,19 +63,29 @@ rule merge_gtfs:
     params:
         # compute unzipped GTF paths string to print into manifest file for stringtie merge
         gtf_manifest = lambda wildcards, input: "\n".join(
-            path.removesuffix(".gz") for path in input.sample_gtfs)
+            path.removesuffix(".gz") for path in input.sample_gtfs),
+        unzipped_gtf = lambda wildcards, input:[
+            path.removesuffix(".gz") for path in input.sample_gtfs
+            ],
+        manifest_path = "<merged_shiba_results>"
     output:
-        # mark unzipped gtfs as temp so they are deleted once merging is complete
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
         # make list of all input files and print it into manifest one line at a time
-        echo "{params.gtf_manifest}" > {output.gtf_manifest_file}
+        echo "{params.gtf_manifest}" > {params.manifest_path}/gtf_manifest.txt
 
         # unzip input gtfs for stringtie
-        gunzip -k {input.sample_gtfs}
+        for gz_gtf in {input.sample_gtfs}; do
+            # unzip gtfs, keeping zipped files
+            gunzip -k {input.sample_gtfs}
+            done
 
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} gtf_manifest.txt
+        # merge gtfs with stringtie for splice analysis
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {params.manifest_path}/gtf_manifest.txt
+
+        # delete unzipped gtfs
+        rm {params.unzipped_gtf}
         """

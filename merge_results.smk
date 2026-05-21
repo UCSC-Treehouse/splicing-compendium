@@ -66,25 +66,32 @@ rule merge_gtfs:
             path.removesuffix(".gz") for path in input.sample_gtfs),
         unzipped_gtf = lambda wildcards, input:[
             path.removesuffix(".gz") for path in input.sample_gtfs
-            ],
-        manifest_path = "<merged_shiba_results>"
+            ]
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
+        # instantiate manifest as a temp file
+        manifest=$(mktemp)
+
         # make list of all input files and print it into manifest one line at a time
-        echo "{params.gtf_manifest}" > {params.manifest_path}/gtf_manifest.txt
+        echo "{params.gtf_manifest}" > $manifest
 
         # unzip input gtfs for stringtie
         for gz_gtf in {input.sample_gtfs}; do
-            # unzip gtfs, keeping zipped files
-            gunzip -k {input.sample_gtfs}
-            done
+            # create the uncompressed file path
+            gtf="${{gz_gtf%.gz}}"
+            # decompress (leaving the original) explicitly - decompressed files are in the same directory as the compressed files
+            gunzip -c "$gz_gtf" > "$gtf"
+        done
 
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {params.manifest_path}/gtf_manifest.txt
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
+
+        # remove temporary manifest
+        rm $manifest
 
         # delete unzipped gtfs
         rm {params.unzipped_gtf}

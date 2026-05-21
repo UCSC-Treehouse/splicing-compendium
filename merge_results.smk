@@ -36,14 +36,6 @@ SAMPLE_GTFS = expand(
     sample=SAMPLES
 )
 
-# path to unzipped gtfs from separate shiba runs
-UNZIPPED_GTFS = expand(
-    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf",
-    zip,
-    group=GROUPS,
-    sample=SAMPLES
-)
-
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
@@ -70,23 +62,38 @@ rule merge_gtfs:
     params:
         # compute unzipped GTF paths string to print into manifest file for stringtie merge
         gtf_manifest = lambda wildcards, input: "\n".join(
-            path.removesuffix(".gz") for path in input.sample_gtfs)
+            path.removesuffix(".gz") for path in input.sample_gtfs),
+        unzipped_gtf = lambda wildcards, input:[
+            path.removesuffix(".gz") for path in input.sample_gtfs
+            ]
     output:
-        # mark unzipped gtfs as temp so they are deleted once merging is complete
-        unzipped_gtfs = temp(UNZIPPED_GTFS),
-        gtf_manifest_file = "<merged_shiba_results>/gtf_manifest.txt",
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
+        # instantiate manifest as a temp file
+        manifest=$(mktemp)
+
         # make list of all input files and print it into manifest one line at a time
-        echo "{params.gtf_manifest}" > {output.gtf_manifest_file}
+        echo "{params.gtf_manifest}" > $manifest
 
         # unzip input gtfs for stringtie
-        gunzip -k {input.sample_gtfs}
+        for gz_gtf in {input.sample_gtfs}; do
+            # create the uncompressed file path
+            gtf="${{gz_gtf%.gz}}"
+            # decompress (leaving the original) explicitly - decompressed files are in the same directory as the compressed files
+            gunzip -c "$gz_gtf" > "$gtf"
+        done
 
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {output.gtf_manifest_file}
+        # merge gtfs with stringtie for splice analysis
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
+
+        # remove temporary manifest
+        rm $manifest
+
+        # delete unzipped gtfs
+        rm {params.unzipped_gtf}
         """
 
 rule gtf_to_events:

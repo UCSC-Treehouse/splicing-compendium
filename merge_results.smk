@@ -1,6 +1,5 @@
 # Snakefile for merging GTF and junction counts bed files produced by separate shiba runs and running Shiba on the merged files
-# A sample sheet of all samples with separate Shiba results is given to the config file to identify files to run the workflow on
-# Otherwise, this workflow will operate on all samples in the shiba results directory
+# A sample sheet of all sample accessions with separate Shiba results, and their group, is given to the config file to identify files to run the workflow on
 # Run from project root: snakemake --snakefile merge_results.smk -j 15
 
 import os
@@ -10,61 +9,32 @@ from datetime import datetime
 configfile: "config/merge_shiba_config.yaml"
 
 GENOME_ID = config["genome_id"]
-SAMPLE_GROUP = config["sample_group"]
-if config.get("sample_sheet"):
-    SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
-else: # this part needs to be changed as we sometimes need to junctions and sometimes the GTFs - maybe make sample sheet required?
-    SAMPLES, = glob_wildcards(os.path.join("results", SAMPLE_GROUP, "shiba", "{sample}", "annotation", "assembled_annotation.gtf.gz"))
-
-# a timestamp might be fragile if I run parts of the pipeline over several days
-VERSION = "test" # probably move this to configfile
+SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
+GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
+VERSION = config["version"]
 
 # these pathvars are from our "separate shiba runs" snakemake in main
+# the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
-    data = os.path.join("data", SAMPLE_GROUP),
-    reports = os.path.join("reports", SAMPLE_GROUP),
-    results = os.path.join("results", SAMPLE_GROUP),
-    shiba_results = "<results>/shiba",
-    merged_shiba_results = os.path.join("<shiba_results>/merged_results", VERSION),
-    logs = os.path.join("logs", SAMPLE_GROUP),
+    merged_shiba_results = f"results/merged_shiba/{VERSION}",
     references = "references"
 
 # path to junction.bed files
+# need to zip paths so group/sample pairs are matched rowwise
 JUNCTION_BEDS = expand(
-    os.path.join(
-        "<shiba_results>",
-        "{sample}/junctions/junctions.bed"
-    ),
+    "results/{group}/shiba/{sample}/junctions/junctions.bed",
+    zip,
+    group=GROUPS,
     sample=SAMPLES
 )
 
 # path to sample gtfs from separate shiba runs
 SAMPLE_GTFS = expand(
-    os.path.join(
-        "<shiba_results>",
-        "{sample}/annotation/assembled_annotation.gtf.gz"
-    ),
+    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf.gz",
+    zip,
+    group=GROUPS,
     sample=SAMPLES
 )
-
-# path to unzipped sample gtfs
-UNZIPPED_GTFs = expand(
-    os.path.join(
-        "<shiba_results>",
-        "{sample}/annotation/assembled_annotation.gtf"
-    ),
-    sample=SAMPLES
-)
-
-# path to junctions manifest file to pass into junction merging rule
-# How do I get it to grab both TARGET and GTEx sample groups?
-# Another rule to merge manifest files from multiple groups together?
-# What's best for if we want this script to be usable for splice compendium updates? e.g. adding new datasets to compendium
-# Example: Adding CBTN + GTEx brain
-JCN_MANIFEST = "<merged_shiba_results>/junction_manifest.tsv"
-
-# path to GTF manifest file
-GTF_MANIFEST = "<merged_shiba_results>/gtf_manifest.tsv"
 
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
@@ -72,16 +42,17 @@ rule all:
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
         merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
 
-# Don't do manifest, just pass in joined samples in the other example in the PR
-# update bed joining code in the other branch too
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
+    # compute joined junctions string prior to passing into join script
+    params:
+        junctions=lambda wildcards, input: ",".join(input)
     priority: 1
     threads: 4
     shell:
         """
-        Rscript scripts/03-merge_separate_junctions.R --junctions={",".join(input)} --output={output}
+        Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
         """
 
 rule unzip_gtfs:

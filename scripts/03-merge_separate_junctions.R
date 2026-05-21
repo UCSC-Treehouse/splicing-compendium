@@ -10,7 +10,7 @@ option_list <-list(
     opt_str = "--junctions",
     type = "character",
     action = "store",
-    help = "Specify input path to manifest file of paths to sample junction .bed files to merge"),
+    help = "Comma-separated list of input file paths to merge"),
 
   make_option(
     opt_str = "--output",
@@ -21,43 +21,22 @@ option_list <-list(
 # Parse options
 opt <- parse_args(OptionParser(option_list = option_list))
 
-## Directories and files ##
-# find the root-level repo directory
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+## File paths ##
+# Read in junctions bed list into a vector
+# each element of list looks like results/target/shiba/SRR4376025/junctions/junctions.bed
+junction_paths <- strsplit(opt$junctions, ",")[[1]]
 
-# find the project directory (compendium-shiba-run)
-base_dir <- here::here()
-
-# Read in junctions bed manifest as dataframe
-junctions_manifest_df <- read.delim(opt$junctions, sep="\t")
-
-# extract junction bed paths from manifest into a vector
-junction_paths <- junctions_manifest_df$junction_bed
-
-# extract sample names from manifest into vector
-sample_names <- junctions_manifest_df$sample
-
-# assign sample names to junction paths
-names(junction_paths) <- sample_names
-
-## read in files and merge##
+## read in files and merge ##
 # read in junctions.bed files created from separate Shiba runs
 merged_junctions <- purrr::map(junction_paths, \(file) {
-    read.table(file,
-               header = TRUE,
-               sep="\t",
-               stringsAsFactors=FALSE,
-               quote="",
-               # make sure columns are all the same class for merging
-               colClasses = "character")
+    readr::read_tsv(file,
+               # make sure columns are types that we expect
+               col_types = readr::cols(.default = "i", ID = "c", chr = "c"))
 
   }) |>
     # merge junctions tables from multiple samples
     # the resulting table separates junction counts from each sample by columns with the sample ID
-    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
-
-# convert NAs from low junction counts to 0
-merged_junctions[is.na(merged_junctions)] <- 0
+    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
 
 ## Save merged junction counts as output
 readr::write_tsv(merged_junctions, opt$output)

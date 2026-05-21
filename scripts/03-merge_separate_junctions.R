@@ -29,13 +29,9 @@ junction_paths <- strsplit(opt$junctions, ",")[[1]]
 ## read in files and merge ##
 # read in junctions.bed files created from separate Shiba runs
 merged_junctions <- purrr::map(junction_paths, \(file) {
-    read.table(file,
-               header = TRUE,
-               sep="\t",
-               stringsAsFactors=FALSE,
-               quote="",
-               # make sure columns are all the same class for merging
-               colClasses = "character")
+    readr::read_tsv(file,
+               # make sure columns are types that we expect
+               col_types = readr::cols(.default = "i", ID = "c", chr = "c"))
 
   }) |>
     # merge junctions tables from multiple samples

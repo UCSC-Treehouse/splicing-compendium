@@ -74,8 +74,6 @@ rule merge_gtfs:
             path.removesuffix(".gz") for path in input.sample_gtfs)
     output:
         # mark unzipped gtfs as temp so they are deleted once merging is complete
-        unzipped_gtfs = temp(UNZIPPED_GTFS),
-        gtf_manifest_file = "<merged_shiba_results>/gtf_manifest.txt",
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4

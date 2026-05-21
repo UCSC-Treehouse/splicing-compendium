@@ -36,6 +36,14 @@ SAMPLE_GTFS = expand(
     sample=SAMPLES
 )
 
+# path to unzipped gtfs from separate shiba runs
+UNZIPPED_GTFS = expand(
+    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf",
+    zip,
+    group=GROUPS,
+    sample=SAMPLES
+)
+
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
@@ -57,15 +65,26 @@ rule merge_junctions:
 
 rule merge_gtfs:
     input:
+        # sample_gtfs are zipped
         sample_gtfs = SAMPLE_GTFS,
-        reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf",
+        reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf"
+    params:
+        # compute unzipped GTF paths string to print into manifest file for stringtie merge
+        gtf_manifest = lambda wildcards, input: "\n".join(
+            path.removesuffix(".gz") for path in input.sample_gtfs)
     output:
+        # mark unzipped gtfs as temp so they are deleted once merging is complete
+        unzipped_gtfs = temp(UNZIPPED_GTFS),
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
         # make list of all input files and print it into manifest one line at a time
-        echo "{'\n'.join(input.sample_gtfs)}" > gtf_manifest.txt
+        echo "{params.gtf_manifest}" > gtf_manifest.txt
+
+        # unzip input gtfs for stringtie
+        gunzip -k {input.sample_gtfs}
+
         stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} gtf_manifest.txt
         """

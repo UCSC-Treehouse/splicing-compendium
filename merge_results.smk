@@ -40,7 +40,7 @@ SAMPLE_GTFS = expand(
 rule all:
     input:
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
-        merged_gtf = "<merged_shiba_results>/merged_gtf.bed"
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -55,23 +55,9 @@ rule merge_junctions:
         Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
         """
 
-rule unzip_gtfs:
-    input:
-        SAMPLE_GTFS
-    output:
-        temp(UNZIPPED_GTFs)
-    priority: 1
-    threads: 4
-    shell:
-        """
-        # keep zipped input so we don't need to zip the GTFs again
-        gunzip {input} --keep
-        """
-
-# don't give this a manifest, pass it a list of GTF paths (avoid copying files across shared filesystems)
 rule merge_gtfs:
     input:
-        sample_gtfs = UNZIPPED_GTFs,
+        sample_gtfs = SAMPLE_GTFS,
         reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf",
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
@@ -80,6 +66,6 @@ rule merge_gtfs:
     shell:
         """
         # make list of all input files and print it into manifest one line at a time
-        echo "{'\n'.join(input.manifest)}" > gtf_manifest.txt
+        echo "{'\n'.join(input.sample_gtfs)}" > gtf_manifest.txt
         stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} gtf_manifest.txt
         """

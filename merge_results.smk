@@ -13,11 +13,11 @@ SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
 
-# these pathvars are from our "separate shiba runs" snakemake in main
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
     merged_shiba_results = f"results/merged_shiba/{VERSION}",
     references = "references"
+    shiba_scripts = "share/shiba-0.8.1-0/src"
 
 # path to junction.bed files
 # need to zip paths so group/sample pairs are matched rowwise
@@ -87,5 +87,18 @@ rule merge_gtfs:
         # unzip input gtfs for stringtie
         gunzip -k {input.sample_gtfs}
 
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} gtf_manifest.txt
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {output.gtf_manifest_file}
+        """
+
+rule gtf_to_events:
+    input:
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
+        reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf"
+    output:
+        shiba_out = directory("<merged_shiba_results>/events")
+    priority: 1
+    threads: 10 # too many? I want it to run fast
+    shell:
+        """
+        python $CONDA_PREFIX/<shiba_scripts>/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
         """

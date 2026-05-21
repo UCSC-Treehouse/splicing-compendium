@@ -75,13 +75,14 @@ rule merge_gtfs:
     output:
         # mark unzipped gtfs as temp so they are deleted once merging is complete
         unzipped_gtfs = temp(UNZIPPED_GTFS),
+        gtf_manifest_file = "<merged_shiba_results>/gtf_manifest.txt",
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
         # make list of all input files and print it into manifest one line at a time
-        echo "{params.gtf_manifest}" > gtf_manifest.txt
+        echo "{params.gtf_manifest}" > {output.gtf_manifest_file}
 
         # unzip input gtfs for stringtie
         gunzip -k {input.sample_gtfs}

@@ -36,7 +36,7 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
   }) |>
     # merge junctions tables from multiple samples
     # the resulting table separates junction counts from each sample by columns with the sample ID
-    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("ID", "start", "end", "chr")))
+    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
 
 ## Save merged junction counts as output
 readr::write_tsv(merged_junctions, opt$output)

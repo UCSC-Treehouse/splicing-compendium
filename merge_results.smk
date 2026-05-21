@@ -16,7 +16,7 @@ VERSION = config["version"]
 # these pathvars are from our "separate shiba runs" snakemake in main
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
-    merged_shiba_results = os.path.join("results", "merged_shiba", VERSION),
+    merged_shiba_results = f"results/merged_shiba/{VERSION}",
     references = "references"
 
 # path to junction.bed files

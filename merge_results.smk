@@ -36,14 +36,6 @@ SAMPLE_GTFS = expand(
     sample=SAMPLES
 )
 
-# path to unzipped sample gtfs
-UNZIPPED_GTFs = expand(
-    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf",
-    zip,
-    group=GROUPS,
-    sample=SAMPLES
-)
-
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:

@@ -13,11 +13,13 @@ SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
 
+# use conda prefix in pixi env
+envvars: "CONDA_PREFIX"
+
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
     merged_shiba_results = f"results/merged_shiba/{VERSION}",
-    references = "references"
-    shiba_scripts = "share/shiba-0.8.1-0/src"
+    references = "references",
 
 # path to junction.bed files
 # need to zip paths so group/sample pairs are matched rowwise
@@ -47,8 +49,7 @@ UNZIPPED_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
-        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
+        shiba_out = "<merged_shiba_results>/events"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -96,9 +97,11 @@ rule gtf_to_events:
         reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf"
     output:
         shiba_out = directory("<merged_shiba_results>/events")
+    params:
+        shiba_scripts = "share/shiba-0.8.1-0/src"
     priority: 1
     threads: 10 # too many? I want it to run fast
     shell:
         """
-        python $CONDA_PREFIX/<shiba_scripts>/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
+        python ${{CONDA_PREFIX}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
         """

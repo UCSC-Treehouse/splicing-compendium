@@ -21,13 +21,7 @@ option_list <-list(
 # Parse options
 opt <- parse_args(OptionParser(option_list = option_list))
 
-## Directories and files ##
-# find the root-level repo directory
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-
-# find the project directory (compendium-shiba-run)
-base_dir <- here::here()
-
+## File paths ##
 # Read in junctions bed list into a vector
 # each element of list looks like results/target/shiba/SRR4376025/junctions/junctions.bed
 junction_paths <- strsplit(opt$junctions, ",")[[1]]

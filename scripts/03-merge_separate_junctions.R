@@ -10,7 +10,7 @@ option_list <-list(
     opt_str = "--junctions",
     type = "character",
     action = "store",
-    help = "Comma-separated list of input files to merge"),
+    help = "Comma-separated list of input file paths to merge"),
 
   make_option(
     opt_str = "--output",

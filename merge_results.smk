@@ -12,9 +12,7 @@ GENOME_ID = config["genome_id"]
 SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
-
-# use conda prefix in pixi env
-envvars: "CONDA_PREFIX"
+SHIBA_SCRIPTS = config["shiba_scripts_path"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
@@ -98,7 +96,7 @@ rule gtf_to_events:
     output:
         shiba_out = directory("<merged_shiba_results>/events")
     params:
-        shiba_scripts = "share/shiba-0.8.1-0/src"
+        shiba_scripts = SHIBA_SCRIPTS
     priority: 1
     threads: 10 # too many? I want it to run fast
     shell:

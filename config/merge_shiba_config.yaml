@@ -6,3 +6,4 @@ genome_id: gencode.v47.primary_assembly
 genome_assembly: GRCh38.primary_assembly.genome
 genome_fasta_url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/GRCh38.primary_assembly.genome.fa.gz
 genome_gtf_url: https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_47/gencode.v47.primary_assembly.annotation.gtf.gz
+shiba_scripts_path: share/shiba-0.8.1-0/src

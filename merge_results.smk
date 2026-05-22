@@ -9,17 +9,13 @@ from datetime import datetime
 configfile: "config/merge_shiba_config.yaml"
 
 # read in configfile values
-GENOME_ID = config["genome_id"]
 SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
-VERSION = config["version"]
 SHIBA_SCRIPTS = config["shiba_scripts_path"]
-REFERENCE_GTF = config["reference_gtf"]
-MIN_READS = config["min_reads"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
-    merged_shiba_results = f"results/merged_shiba/{VERSION}"
+    merged_shiba_results = f"results/merged_shiba/{config["version"]}"
 
 # path to junction.bed files
 # need to zip paths so group/sample pairs are matched rowwise
@@ -60,7 +56,7 @@ rule merge_gtfs:
     input:
         # sample_gtfs are zipped
         sample_gtfs = SAMPLE_GTFS,
-        reference_gtf = REFERENCE_GTF
+        reference_gtf = config["reference_gtf"]
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
@@ -93,7 +89,7 @@ rule merge_gtfs:
 rule gtf_to_events:
     input:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
-        reference_gtf = REFERENCE_GTF
+        reference_gtf = config["reference_gtf"]
     output:
         shiba_out = directory("<merged_shiba_results>/events")
     params:
@@ -113,7 +109,7 @@ rule calculate_psi:
         shiba_out = directory("<merged_shiba_results>/psi")
     params:
         shiba_scripts = SHIBA_SCRIPTS,
-        min_reads = MIN_READS
+        min_reads = config["min_reads"]
     priority: 1
     threads: 15
     shell:

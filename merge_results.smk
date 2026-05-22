@@ -118,5 +118,5 @@ rule calculate_psi:
     threads: 15
     shell:
         """
-        python ${{CONDA_PREFIX}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_out}
+        python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_out}
         """

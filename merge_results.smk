@@ -107,7 +107,7 @@ rule gtf_to_events:
 
 rule calculate_psi:
     input:
-        events_dir = directory("<merged_shiba_results>/events"),
+        events_dir = "<merged_shiba_results>/events",
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed"
     output:
         shiba_out = directory("<merged_shiba_results>/psi")

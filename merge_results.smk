@@ -15,6 +15,7 @@ GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
 SHIBA_SCRIPTS = config["shiba_scripts_path"]
 REFERENCE_GTF = config["reference_gtf"]
+MIN_READS = config["min_reads"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:

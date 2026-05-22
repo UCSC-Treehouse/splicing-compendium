@@ -11,7 +11,6 @@ configfile: "config/merge_shiba_config.yaml"
 # read in configfile values
 SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
-SHIBA_SCRIPTS = config["shiba_scripts_path"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
@@ -93,7 +92,7 @@ rule gtf_to_events:
     output:
         shiba_out = directory("<merged_shiba_results>/events")
     params:
-        shiba_scripts = SHIBA_SCRIPTS
+        shiba_scripts = config["shiba_scripts_path"]
     priority: 1
     threads: 10 # too many? I want it to run fast
     shell:
@@ -108,8 +107,8 @@ rule calculate_psi:
     output:
         shiba_out = directory("<merged_shiba_results>/psi")
     params:
-        shiba_scripts = SHIBA_SCRIPTS,
-        min_reads = config["min_reads"]
+        shiba_scripts = config["shiba_scripts_path"],
+        min_reads = config["shiba_min_reads"]
     priority: 1
     threads: 15
     shell:

@@ -14,7 +14,7 @@ SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
 SHIBA_SCRIPTS = config["shiba_scripts_path"]
-REFERENCES = config["ref_dir"]
+REFERENCE_GTF = config["reference_gtf"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
@@ -60,7 +60,7 @@ rule merge_gtfs:
     input:
         # sample_gtfs are zipped
         sample_gtfs = SAMPLE_GTFS,
-        reference_gtf = f"{REFERENCES}/{GENOME_ID}.annotation.gtf"
+        reference_gtf = REFERENCE_GTF
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
@@ -93,7 +93,7 @@ rule merge_gtfs:
 rule gtf_to_events:
     input:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
-        reference_gtf = f"{REFERENCES}/{GENOME_ID}.annotation.gtf"
+        reference_gtf = REFERENCE_GTF
     output:
         shiba_out = directory("<merged_shiba_results>/events")
     params:

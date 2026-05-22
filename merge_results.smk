@@ -8,16 +8,18 @@ from datetime import datetime
 
 configfile: "config/merge_shiba_config.yaml"
 
+# read in configfile values
 GENOME_ID = config["genome_id"]
 SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
+SHIBA_SCRIPTS = config["shiba_scripts_path"]
+REFERENCE_GTF = config["reference_gtf"]
 
-# these pathvars are from our "separate shiba runs" snakemake in main
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
     merged_shiba_results = f"results/merged_shiba/{VERSION}",
-    references = "references"
+    references = REFERENCES
 
 # path to junction.bed files
 # need to zip paths so group/sample pairs are matched rowwise
@@ -39,8 +41,7 @@ SAMPLE_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
-        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
+        shiba_out = "<merged_shiba_results>/events"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -59,7 +60,7 @@ rule merge_gtfs:
     input:
         # sample_gtfs are zipped
         sample_gtfs = SAMPLE_GTFS,
-        reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf"
+        reference_gtf = REFERENCE_GTF
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
@@ -87,4 +88,19 @@ rule merge_gtfs:
 
         # remove temporary manifest
         rm $manifest
+        """
+
+rule gtf_to_events:
+    input:
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
+        reference_gtf = REFERENCE_GTF
+    output:
+        shiba_out = directory("<merged_shiba_results>/events")
+    params:
+        shiba_scripts = SHIBA_SCRIPTS
+    priority: 1
+    threads: 10 # too many? I want it to run fast
+    shell:
+        """
+        python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
         """

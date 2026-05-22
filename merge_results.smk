@@ -60,13 +60,6 @@ rule merge_gtfs:
         # sample_gtfs are zipped
         sample_gtfs = SAMPLE_GTFS,
         reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf"
-    params:
-        # compute unzipped GTF paths string to print into manifest file for stringtie merge
-        gtf_manifest = lambda wildcards, input: "\n".join(
-            path.removesuffix(".gz") for path in input.sample_gtfs),
-        unzipped_gtf = lambda wildcards, input:[
-            path.removesuffix(".gz") for path in input.sample_gtfs
-            ]
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
@@ -85,14 +78,16 @@ rule merge_gtfs:
             gtf="${{gz_gtf%.gz}}"
             # decompress (leaving the original) explicitly - decompressed files are in the same directory as the compressed files
             gunzip -c "$gz_gtf" > "$gtf"
+            # Add to the manifest
+            echo "$gtf" >> $manifest
         done
 
         # merge gtfs with stringtie for splice analysis
         stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
 
+        # delete gtf files using the manifest
+        xargs rm < $manifest
+        
         # remove temporary manifest
         rm $manifest
-
-        # delete unzipped gtfs
-        rm {params.unzipped_gtf}
         """

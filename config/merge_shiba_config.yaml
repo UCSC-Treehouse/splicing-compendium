@@ -5,4 +5,4 @@ version: test
 genome_id: gencode.v47.primary_assembly
 genome_assembly: GRCh38.primary_assembly.genome
 shiba_scripts_path: share/shiba-0.8.1-0/src
-ref_dir: references
+reference_gtf: references/gencode.v47.primary_assembly.annotation.gtf

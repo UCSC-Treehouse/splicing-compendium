@@ -15,6 +15,7 @@ GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 VERSION = config["version"]
 SHIBA_SCRIPTS = config["shiba_scripts_path"]
 REFERENCES = config["ref_dir"]
+MIN_READS = config["min_reads"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
@@ -103,4 +104,20 @@ rule gtf_to_events:
     shell:
         """
         python ${{CONDA_PREFIX}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
+        """
+
+rule calculate_psi:
+    input:
+        events_dir = directory("<merged_shiba_results>/events"),
+        merged_junctions = "<merged_shiba_results>/merged_junctions.bed"
+    output:
+        shiba_out = directory("<merged_shiba_results>/psi")
+    params:
+        shiba_scripts = SHIBA_SCRIPTS
+        min_reads = MIN_READS
+    priority: 1
+    threads: 15
+    shell:
+        """
+        python ${{CONDA_PREFIX}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p $threads -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_out}
         """

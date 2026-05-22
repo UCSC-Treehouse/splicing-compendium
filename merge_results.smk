@@ -69,9 +69,6 @@ rule merge_gtfs:
         # instantiate manifest as a temp file
         manifest=$(mktemp)
 
-        # make list of all input files and print it into manifest one line at a time
-        echo "{params.gtf_manifest}" > $manifest
-
         # unzip input gtfs for stringtie
         for gz_gtf in {input.sample_gtfs}; do
             # create the uncompressed file path
@@ -87,7 +84,7 @@ rule merge_gtfs:
 
         # delete gtf files using the manifest
         xargs rm < $manifest
-        
+
         # remove temporary manifest
         rm $manifest
         """

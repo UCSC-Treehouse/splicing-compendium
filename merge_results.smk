@@ -42,7 +42,7 @@ SAMPLE_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        shiba_out = "<merged_shiba_results>/events"
+        shiba_out = "<merged_shiba_results>/psi"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -113,11 +113,11 @@ rule calculate_psi:
     output:
         shiba_out = directory("<merged_shiba_results>/psi")
     params:
-        shiba_scripts = SHIBA_SCRIPTS
+        shiba_scripts = SHIBA_SCRIPTS,
         min_reads = MIN_READS
     priority: 1
     threads: 15
     shell:
         """
-        python ${{CONDA_PREFIX}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p $threads -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_out}
+        python ${{CONDA_PREFIX}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_out}
         """

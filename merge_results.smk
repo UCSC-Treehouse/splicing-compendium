@@ -40,6 +40,7 @@ SAMPLE_GTFS = expand(
 rule all:
     input:
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -52,4 +53,38 @@ rule merge_junctions:
     shell:
         """
         Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
+        """
+
+rule merge_gtfs:
+    input:
+        # sample_gtfs are zipped
+        sample_gtfs = SAMPLE_GTFS,
+        reference_gtf = f"<references>/{GENOME_ID}.annotation.gtf"
+    output:
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
+    priority: 1
+    threads: 4
+    shell:
+        """
+        # instantiate manifest as a temp file
+        manifest=$(mktemp)
+
+        # unzip input gtfs for stringtie
+        for gz_gtf in {input.sample_gtfs}; do
+            # create the uncompressed file path
+            gtf="${{gz_gtf%.gz}}"
+            # decompress (leaving the original) explicitly - decompressed files are in the same directory as the compressed files
+            gunzip -c "$gz_gtf" > "$gtf"
+            # Add to the manifest
+            echo "$gtf" >> $manifest
+        done
+
+        # merge gtfs with stringtie for splice analysis
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
+
+        # delete gtf files using the manifest
+        xargs rm < $manifest
+
+        # remove temporary manifest
+        rm $manifest
         """

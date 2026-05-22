@@ -18,8 +18,7 @@ REFERENCE_GTF = config["reference_gtf"]
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
-    merged_shiba_results = f"results/merged_shiba/{VERSION}",
-    references = REFERENCES
+    merged_shiba_results = f"results/merged_shiba/{VERSION}"
 
 # path to junction.bed files
 # need to zip paths so group/sample pairs are matched rowwise

@@ -102,5 +102,5 @@ rule gtf_to_events:
     threads: 10 # too many? I want it to run fast
     shell:
         """
-        python ${{CONDA_PREFIX}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
+        python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
         """

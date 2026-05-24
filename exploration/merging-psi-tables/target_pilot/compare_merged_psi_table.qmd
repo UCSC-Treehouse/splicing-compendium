@@ -671,28 +671,31 @@ We also see a higher number of annotated events dropped in all samples in the co
 I suspect the reason for these two observations is because the combined tables have a larger dictionary of possible splice events due to the merged GTF.
 So all these splice events not found in the separate tables have the potential to have -1 values.
 
-Histogram of events dropped due to insufficient transcript representation
+Check histograms of events dropped in separate tables (-2 values).
+These histograms plot the number of splice events dropped in splice tables made form the separate Shiba runs method.
+These events should correspond to splice events that only have one transcript annotated in the sample's GTF.
 
 ```{r}
-#| label: fig-num_low_transcript_na
+#| label: fig-num_separate_table_na
 #| fig-width: 11
 #| fig-height: 8
 
 number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
   
-# I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
+# I do not plot this for the combined table because they are all 0 (we only define what is dropped in the separate tables based off what is missing when individual separate tables are merged)
 ```
-Check histograms of events dropped due to low transcript diversity in skipped exons
+
+Histogram of events missing in separate tables for skipped exon events
+
 ```{r}
-#| label: fig-num_low_transcript_na_se
+#| label: fig-num_separate_table_na_se
 #| fig-width: 11
 #| fig-height: 8
 
 all_events |>
   dplyr::filter(event_type == "se") |>
-  number_events_dist("n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
+  number_events_dist("n_dropped_separate", "# PSIs dropped in separate table")
 ```
 
-Similar to @fig-num_low_read_na, these histograms represent the number of events lose (-2 events).
-I mainly see that these missing values are present more in the unannotated events, where most samples have the same event dropped.
-I suspect this is due to the unannotated event only being present in one or two samples.
+Similar to @fig-num_low_read_na, I mainly see that these missing values are present more in the unannotated events, where the event is only quantified in a small number of samples.
+In both @fig-num_separate_table_na and @fig-num_separate_table_na_se, the events that are dropped are absent in most samples.

@@ -1,7 +1,7 @@
 executor: slurm
 
 default-resources:
-  - slurm_account=standard
-  - slurm_partition=short # set to the partition they tell you us use
-  - mem_mb=512
-  - runtime=5        # minutes
+  slurm_account: standard
+  slurm_partition: short # set to the partition they tell you us use
+  mem_mb: 512
+  runtime: 5 # minutes

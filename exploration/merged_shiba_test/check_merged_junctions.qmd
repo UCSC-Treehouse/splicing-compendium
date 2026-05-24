@@ -47,3 +47,18 @@ vroom::problems(combined_jcn_problems) |> table()
 ```
 
 No, this only appears when junctions bedfiles are made from samples run separately with Shiba
+
+Combine start/end coords, treating them as
+
+```{r}
+# read in junctions.bed files created from separate Shiba runs
+merged_junctions <- purrr::map(junction_paths, \(file) {
+    readr::read_tsv(file,
+               # make sure columns are types that we expect
+               col_types = readr::cols(.default = "d", ID = "c", chr = "c", start = "c", end = "c"))
+
+  }) |>
+    # merge junctions tables from multiple samples
+    # the resulting table separates junction counts from each sample by columns with the sample ID
+    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
+```

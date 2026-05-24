@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-13
+2026-05-24
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -20,16 +20,16 @@ with different negative values:
 
 - -2: NA values from merging the separate tables together (samples have
   a NA value after this step if there are genes dropped by Shiba for
-  those samples because there is only one transcript detected for that
-  gene)
+  those samples because there is only one transcript detected in the GTF
+  for that gene)
 
 - NA: NA values from merging the separate and combined tables. These NAs
   represent splice events that are only found in one analysis method
   (combined vs. separate)
 
 We are particularly interested in the impact merging separate tables has
-on unannotated event detection, since this is one novelty of using
-Shiba.
+on unannotated event detection, since this is why we chose to use Shiba
+over other tools.
 
 **Targeted questions this notebook is trying to answer:**
 
@@ -141,7 +141,7 @@ plot_event_summary <- function(
       x = "Annotation status of event",,
       y = "Number of events"
     ) +
-    facet_wrap(vars(label), scales = "free_y") +
+    facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
 
@@ -158,7 +158,7 @@ number_events_dist <- function(
     # construct histogram
     ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
     geom_histogram(binwidth = 1) +
-    facet_wrap(vars(label), scales = "free_y") +
+    facet_wrap(vars(label)) +
     scale_fill_manual(values = cbPalette) +
     plot_theme +
     # make facet labels bigger
@@ -255,7 +255,7 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
     dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
-      facet_wrap(vars(event_type, label), scales = "free_y") +
+      facet_wrap(vars(event_type, label)) +
     scale_fill_manual(values = cbPalette) +
       plot_theme +
       # make facet labels bigger
@@ -786,6 +786,14 @@ Figure 7
 
 </div>
 
+These histograms are now counting events that are lost (number of -1
+values). In the histogram of PSI values dropped due to low read counts
+in the combined table, most events that are dropped are dropped in
+almost all the samples. We see fewer events dropped due to low read
+counts in general in the separate tables, but this might be because the
+events that would have been dropped are missing from the separate are
+also missing due to the GTF (-2 NAs).
+
 Check PSI values dropped from insufficient read histograms for skipped
 exons
 
@@ -809,17 +817,19 @@ Figure 8
 
 </div>
 
-These histograms are now counting events that are lost (number of -1
-values). The same trend regarding unannotated events is seen here as in
-<a href="#fig-num_quantified_psi" class="quarto-xref">Figure 5</a>. We
-also see a higher number of annotated events dropped in all samples in
-the combined tables. I suspect the reason for these two observations is
+The same trend regarding unannotated events is seen here as in
+<a href="#fig-num_low_read_na" class="quarto-xref">Figure 7</a>. We also
+see a higher number of annotated events dropped in all samples in the
+combined tables. I suspect the reason for these two observations is
 because the combined tables have a larger dictionary of possible splice
 events due to the merged GTF. So all these splice events not found in
 the separate tables have the potential to have -1 values.
 
-Histogram of events dropped due to insufficient transcript
-representation
+Check histograms of events dropped in separate tables (-2 values). These
+histograms plot the number of splice events dropped in splice tables
+made form the separate Shiba runs method. These events should correspond
+to splice events that only have one transcript annotated in the sample’s
+GTF and so are dropped by Shiba.
 
 ``` r
 number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
@@ -829,44 +839,44 @@ number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insu
     (`stat_bin()`).
 
 ``` r
-# I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what is missing when individual separate tables are merged)
+# I do not plot this for the combined table because they are all 0 (we only define what is dropped in the separate tables based off what is missing when individual separate tables are merged)
 ```
 
-<div id="fig-num_low_transcript_na">
+<div id="fig-num_separate_table_na">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na-1.png"
-id="fig-num_low_transcript_na" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_separate_table_na-1.png"
+id="fig-num_separate_table_na" />
 
 Figure 9
 
 </div>
 
-Check histograms of events dropped due to low transcript diversity in
-skipped exons
+Histogram of events missing in separate tables for skipped exon events
 
 ``` r
 all_events |>
   dplyr::filter(event_type == "se") |>
-  number_events_dist("n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
+  number_events_dist("n_dropped_separate", "# PSIs dropped in separate table")
 ```
 
     Warning: Removed 7791 rows containing non-finite outside the scale range
     (`stat_bin()`).
 
-<div id="fig-num_low_transcript_na_se">
+<div id="fig-num_separate_table_na_se">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_transcript_na_se-1.png"
-id="fig-num_low_transcript_na_se" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_separate_table_na_se-1.png"
+id="fig-num_separate_table_na_se" />
 
 Figure 10
 
 </div>
 
-Similar to
-<a href="#fig-num_low_read_na" class="quarto-xref">Figure 7</a>, these
-histograms represent the number of events lose (-2 events). I mainly see
-that these missing values are present more in the unannotated events,
-where most samples have the same event dropped. I suspect this is due to
-the unannotated event only being present in one or two samples.
+I mainly see that these missing values are present more in the
+unannotated events, where the event is only quantified in a small number
+of samples. In both
+<a href="#fig-num_separate_table_na" class="quarto-xref">Figure 9</a>
+and <a href="#fig-num_separate_table_na_se"
+class="quarto-xref">Figure 10</a>, the events that are dropped are
+absent in most samples.

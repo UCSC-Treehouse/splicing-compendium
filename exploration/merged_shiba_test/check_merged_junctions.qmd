@@ -1,0 +1,49 @@
+---
+title: "Debug merge junctions warning"
+format: html
+editor: visual
+---
+
+## Files and directories
+
+```{r}
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+## define the data directories ##
+exploration_dir <- file.path(repo_root, "exploration")
+results_dir <- file.path(repo_root, "results", "merged_shiba", "test") # manually merged junction and gtf files and shiba results
+merged_test_dir <- file.path(exploration_dir, "merged_shiba_test")
+shiba_results_dir <- file.path(merged_test_dir, "shiba_results")
+combined_junctions_file <- file.path(shiba_results_dir, "combined_run", "junctions", "junctions.bed") # combined run shiba results, junctions, and gtf ("control" results and files)
+
+## data files ##
+# Read in junctions bed paths into a vector
+junction_paths <- c(file.path(repo_root, "results/target/shiba/SRR4376025/junctions/junctions.bed"), 
+                   file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed"))
+
+```
+
+Compare merged junctions with combined junctions
+
+```{r}
+SRR4376025_problems <- vroom::vroom(file.path(repo_root, "results/target/shiba/SRR4376025/junctions/junctions.bed"))
+
+vroom::problems(SRR4376025_problems)
+```
+
+```{r}
+SRR1559031_problems <- vroom::vroom(file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed")) 
+
+vroom::problems(SRR1559031_problems) |> table()
+```
+
+Check if the combined junctions.bed has this weird junction coordinate
+
+```{r}
+combined_jcn_problems <- vroom::vroom(combined_junctions_file) 
+
+vroom::problems(combined_jcn_problems) |> table()
+```
+
+No, this only appears when junctions bedfiles are made from samples run separately with Shiba

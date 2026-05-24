@@ -164,7 +164,7 @@ plot_event_summary <- function(
       x = "Annotation status of event",,
       y = "Number of events"
     ) +
-    facet_wrap(vars(label), scales = "free_y") +
+    facet_wrap(vars(label)) +
     scale_x_discrete(guide = guide_axis(angle = 45)) +
     plot_theme
 
@@ -181,7 +181,7 @@ number_events_dist <- function(
     # construct histogram
     ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
     geom_histogram(binwidth = 1) +
-    facet_wrap(vars(label), scales = "free_y") +
+    facet_wrap(vars(label)) +
     scale_fill_manual(values = cbPalette) +
     plot_theme +
     # make facet labels bigger
@@ -278,7 +278,7 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
     dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
-      facet_wrap(vars(event_type, label), scales = "free_y") +
+      facet_wrap(vars(event_type, label)) +
     scale_fill_manual(values = cbPalette) +
       plot_theme +
       # make facet labels bigger

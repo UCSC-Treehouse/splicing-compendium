@@ -19,12 +19,12 @@ As part of tracking differences between the two tables, we have labeled NA value
 
 -   -1: NA values assigned by Shiba (splice events with low coverage)
 
--   -2: NA values from merging the separate tables together (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected for that gene)
+-   -2: NA values from merging the separate tables together (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected in the GTF for that gene)
 
 -   NA: NA values from merging the separate and combined tables.
     These NAs represent splice events that are only found in one analysis method (combined vs. separate)
 
-We are particularly interested in the impact merging separate tables has on unannotated event detection, since this is one novelty of using Shiba.
+We are particularly interested in the impact merging separate tables has on unannotated event detection, since this is why we chose to use Shiba over other tools.
 
 **Targeted questions this notebook is trying to answer:**
 
@@ -651,6 +651,12 @@ number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped du
 
 number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
+
+These histograms are now counting events that are lost (number of -1 values).
+In the histogram of PSI values dropped due to low read counts in the combined table, most events that are dropped are dropped in almost all the samples.
+We see fewer events dropped due to low read counts in general in the separate tables, 
+but this might be because the events that would have been dropped are missing from the separate are also missing due to the GTF (-2 NAs).
+
 Check PSI values dropped from insufficient read histograms for skipped exons
 ```{r}
 #| label: fig-num_low_read_na_se
@@ -665,15 +671,15 @@ all_events |>
   dplyr::filter(event_type == "se") |>
   number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in separate table") + plot_layout(guides = "collect")
 ```
-These histograms are now counting events that are lost (number of -1 values).
-The same trend regarding unannotated events is seen here as in @fig-num_quantified_psi.
+
+The same trend regarding unannotated events is seen here as in @fig-num_low_read_na.
 We also see a higher number of annotated events dropped in all samples in the combined tables.
 I suspect the reason for these two observations is because the combined tables have a larger dictionary of possible splice events due to the merged GTF.
 So all these splice events not found in the separate tables have the potential to have -1 values.
 
 Check histograms of events dropped in separate tables (-2 values).
 These histograms plot the number of splice events dropped in splice tables made form the separate Shiba runs method.
-These events should correspond to splice events that only have one transcript annotated in the sample's GTF.
+These events should correspond to splice events that only have one transcript annotated in the sample's GTF and so are dropped by Shiba.
 
 ```{r}
 #| label: fig-num_separate_table_na
@@ -697,5 +703,5 @@ all_events |>
   number_events_dist("n_dropped_separate", "# PSIs dropped in separate table")
 ```
 
-Similar to @fig-num_low_read_na, I mainly see that these missing values are present more in the unannotated events, where the event is only quantified in a small number of samples.
+I mainly see that these missing values are present more in the unannotated events, where the event is only quantified in a small number of samples.
 In both @fig-num_separate_table_na and @fig-num_separate_table_na_se, the events that are dropped are absent in most samples.

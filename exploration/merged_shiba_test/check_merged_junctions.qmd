@@ -87,6 +87,24 @@ combined_jcn_problems |>
 ```
 The event looks normal in the combined file.
 
+## Check problem junction before fix
+```{r}
+# read in junctions.bed files created from separate Shiba runs
+merged_junctions <- purrr::map(junction_paths, \(file) {
+    readr::read_tsv(file,
+               # make sure columns are types that we expect
+               col_types = readr::cols(.default = "d", ID = "c", chr = "c", start = "c", end = "c"))
+  })|>
+    # merge junctions tables from multiple samples
+    # the resulting table separates junction counts from each sample by columns with the sample ID
+    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
+
+# check problem junction
+merged_junctions |>
+  dplyr::filter(ID == "chr9:35660647-35660648")
+
+```
+
 ## Proposed new junction merging method:
 
 Combine start/end coords, treating them as
@@ -96,18 +114,35 @@ Combine start/end coords, treating them as
 merged_junctions <- purrr::map(junction_paths, \(file) {
     readr::read_tsv(file,
                # make sure columns are types that we expect
-               col_types = readr::cols(.default = "d", ID = "c", chr = "c", start = "c", end = "c"))
-
-  }) |>
+               col_types = readr::cols(.default = "d", ID = "c", chr = "c", start = "c", end = "c")) |>
+    # fix duplicated entries separated by semicolons
+    dplyr::mutate(
+      dplyr::across(c(chr, start, end),
+      \(x) {
+        sapply(x, \(val) {
+          if (!stringr::str_detect(val, ";")) {
+            return(val)
+          }
+          
+          parts <- stringr::str_split(val, ";")[[1]]
+          
+          if (length(unique(parts)) == 1) {
+            parts[1]
+          } else {
+            break
+          }
+        }
+      )
+  
+})
+)
+}
+) |>
     # merge junctions tables from multiple samples
     # the resulting table separates junction counts from each sample by columns with the sample ID
     purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
-```
 
-Check problem junction
-```{r}
+# Check problem junction
 merged_junctions |>
   dplyr::filter(ID == "chr9:35660647-35660648")
 ```
-
-So here we get artificial NA values because the junctions are the same 

@@ -219,6 +219,7 @@ concatenated fields
 # read in junctions.bed files created from separate Shiba runs
 merged_junctions <- purrr::map(junction_paths, \(file) {
   # read in separate bedfiles for each sample
+  withCallingHandlers(
   readr::read_tsv(
     file,
     # make sure columns are types that we expect
@@ -226,27 +227,15 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
       .default = "d",
       ID = "c",
       chr = "c",
-      start = "c",
-      end = "c"
+      start = "d",
+      end = "d"
     )
+  ),
+  # convert warnings in reading bedfiles into a failure and stop
+  warning = \(w) stop(w)
+  )
+  }
   ) |>
-    # fix duplicated entries separated by semicolons
-    dplyr::mutate(
-      dplyr::across(
-        c(chr, start, end),
-        ~ ifelse (
-          # check if chr, start, or end fields have a semicolon
-          stringr::str_detect(.x, ";"),
-          # if column contains ";", split by the semicolon and return the first item in the list
-          # this assumes all values with ; are duplicates so the first and second values in the split list are the same
-          stringr::str_split_i(.x, ";", 1),
-          # if column values don't contain ";", return the unchanged value
-          .x
-        )
-      )
-    ) 
-}
-) |>
   # merge junctions tables from multiple samples
   # the resulting table separates junction counts from each sample by columns with the sample ID
   purrr::reduce(
@@ -257,6 +246,11 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
   )
 ```
 
+    Warning: One or more parsing issues, call `problems()` on your data frame for details,
+    e.g.:
+      dat <- vroom(...)
+      problems(dat)
+
 Check position ID of fixed chr/start/end entry
 
 ``` r
@@ -264,9 +258,10 @@ merged_junctions |>
   dplyr::filter(ID == "chr9:35660647-35660648")
 ```
 
-| chr  | start    | end      | ID                     | SRR4376025 | SRR1559031 |
-|:-----|:---------|:---------|:-----------------------|-----------:|-----------:|
-| chr9 | 35660647 | 35660648 | chr9:35660647-35660648 |          1 |         57 |
+| chr       |    start |      end | ID                     | SRR4376025 | SRR1559031 |
+|:----------|---------:|---------:|:-----------------------|-----------:|-----------:|
+| chr9      | 35660647 | 35660648 | chr9:35660647-35660648 |          1 |         NA |
+| chr9;chr9 |       NA |       NA | chr9:35660647-35660648 |         NA |         57 |
 
-Now the junction counts of chr9:35660647-35660648 for both samples are
-properly merged
+In this case the junctions stay unmerged because the merging code
+stopped with a warning from the invalid entry

@@ -359,8 +359,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/smart_open-7.1.0-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/smmap-5.0.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-9.16.3-hdfd78af_0.conda
+      - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-2.7.0-pyhdfd78af_0.conda
+      - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-jobstep-0.4.0-pyhdfd78af_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-common-1.22.0-pyhd4c3c12_0.conda
-      - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-executor-plugins-9.3.7-pyhdfd78af_0.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-executor-plugins-9.4.0-pyh84498cf_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-logger-plugins-1.2.3-pyhdfd78af_0.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-report-plugins-1.3.0-pyhd4c3c12_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-scheduler-plugins-2.0.1-pyhd4c3c12_0.conda
@@ -5074,6 +5076,32 @@ packages:
   purls: []
   size: 10492
   timestamp: 1770308886427
+- conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-2.7.0-pyhdfd78af_0.conda
+  sha256: 5ccbbf2cffffbee58f60cfd457aeccd12db22f89eb6502f10933fb6aee581748
+  md5: 62ab14970d6313ab9a5eea92c8a4bd77
+  depends:
+  - numpy >=1.26.4,<3.0
+  - pandas >=2.2.3,<3.0
+  - python >=3.11.0,<4.0.0
+  - pyyaml
+  - snakemake-executor-plugin-slurm-jobstep >=0.4.0,<0.5.0
+  - snakemake-interface-common >=1.21.0,<2.0.0
+  - snakemake-interface-executor-plugins >=9.3.9,<10.0.0
+  - throttler >=1.2.2,<2.0.0
+  license: MIT
+  license_family: MIT
+  size: 46970
+  timestamp: 1779442603897
+- conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-jobstep-0.4.0-pyhdfd78af_0.conda
+  sha256: 82ad84bf106e0fbab62f6c001311aff53faefe323254c8b2b3540f310bb48dfe
+  md5: 7d4f2bf739967798eb4d8c02d59cf36c
+  depends:
+  - python >=3.11.0,<4.0.0
+  - snakemake-interface-common >=1.13.0,<2.0.0
+  - snakemake-interface-executor-plugins >=9.0.0,<10.0.0
+  license: MIT
+  size: 14678
+  timestamp: 1765807808315
 - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-common-1.22.0-pyhd4c3c12_0.conda
   sha256: d13802cb086c1b6be2c4e903e01f946fc973436e6100514169df82e537166bce
   md5: e9bb00d8c7d26a5cd220d3d73bee45fb
@@ -5088,9 +5116,9 @@ packages:
   - pkg:pypi/snakemake-interface-common?source=hash-mapping
   size: 21989
   timestamp: 1759253200205
-- conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-executor-plugins-9.3.7-pyhdfd78af_0.tar.bz2
-  sha256: 70f7dd3ab1685bf27d86e9ff7900656751056503734472616c5d840c637df266
-  md5: f54fd47c15198486efe5ceb35d556216
+- conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-executor-plugins-9.4.0-pyh84498cf_0.conda
+  sha256: 16c8e1ba64837b10460459e710e2578e8b0be5d1ed9501cfcf27b2ba316e5ad2
+  md5: 0d8bbf1699b16ac225031ae0c73729f8
   depends:
   - argparse-dataclass >=2.0.0,<3.0.0
   - python >=3.11.0,<4.0.0
@@ -5098,10 +5126,8 @@ packages:
   - throttler >=1.2.2,<2.0.0
   license: MIT
   license_family: MIT
-  purls:
-  - pkg:pypi/snakemake-interface-executor-plugins?source=hash-mapping
-  size: 22834
-  timestamp: 1750715329449
+  size: 25394
+  timestamp: 1772990565157
 - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-logger-plugins-1.2.3-pyhdfd78af_0.tar.bz2
   sha256: 156579df920ecc5c275dc4e94b595e0b8ce97f9f037631515e1b19c0652e1f88
   md5: de9701be8653cc2442f32fa76c08da61

@@ -22,3 +22,4 @@ rsync = ">=3.4,<4"
 samtools = ">=1.22.1,<2"
 stringtie = "3.0.0.*"
 sra-tools = { version = "3.2.1.*", channel = "bioconda" }
+snakemake-executor-plugin-slurm = ">=2.7.0,<3"

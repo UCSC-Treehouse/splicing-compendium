@@ -66,7 +66,15 @@ Check what line looks like in the bedfile:
 readLines(file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed"))[434393]
 ```
 
-I also noticed at least one entry in this problem sample where the "chr" field has duplicated values.
+Check if problem junction also had a "correct" entry:
+```{r}
+SRR1559031_problems |>
+  dplyr::filter(start == "35660647",
+                end == "35660648")
+```
+No, when the junction is in incorrect bed format, there is no corresponding duplicate 'fixed' version.
+
+In the problem junction, the "chr" field also has duplicated values.
 This is event ID chr9:35660647-35660648, which has "chr9;chr9" for the chromosome
 ```{r}
 SRR1559031_problems |> dplyr::slice(434391, 434392, 434393)

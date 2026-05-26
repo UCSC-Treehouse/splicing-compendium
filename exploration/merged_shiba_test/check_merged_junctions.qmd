@@ -21,6 +21,8 @@ shiba_results_dir <- file.path(merged_test_dir, "shiba_results")
 combined_junctions_file <- file.path(shiba_results_dir, "combined_run", "junctions", "junctions.bed") 
 
 # junction bedfiles generated from separate shiba runs
+# the way the paths are read in could probably be optimized but I don't know if that's worth doing now
+# since we plan to read in paths from snakemake
 SRR4376025_bedfile <- file.path(repo_root, "results/target/shiba/SRR4376025/junctions/junctions.bed")
 SRR1559031_bedfile <- file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed")
 
@@ -41,7 +43,6 @@ SRR4376025_problems <- vroom::vroom(SRR4376025_bedfile)
 
 vroom::problems(SRR4376025_problems) |> table()
 ```
-
 No problems in the SRR4376025 bedfile, though we may want to set the default column type for numeric values as double (d), instead of integer (i)
 
 Check SRR1559031 bedfile for problems:
@@ -51,7 +52,6 @@ SRR1559031_problems <- vroom::vroom(SRR1559031_bedfile)
 
 vroom::problems(SRR1559031_problems)
 ```
-
 One source of the merging problem is in row 434393 in SRR1559031, where the position coordinates seem to be duplicated
 
 Check what line looks like in the bedfile:
@@ -60,12 +60,13 @@ Check what line looks like in the bedfile:
 readLines(file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed"))[434393]
 ```
 
-I also noticed at least one entry in this problem sample where the "chr" field has duplicated values
+I also noticed at least one entry in this problem sample where the "chr" field has duplicated values.
+This is event ID chr9:35660647-35660648, which has "chr9;chr9" for the chromosome
 ```{r}
 SRR1559031_problems |> dplyr::slice(434391, 434392, 434393)
 ```
 
-chr9:35660647-35660648 is our problem junction but has high read counts ( > 10 ) so it seems like an important junction to be able to keep.
+chr9:35660647-35660648, our problem junction, also has high read counts ( > 10 ) so it seems like an important junction to be able to keep.
 Maybe a workaround would be to manually fix the chr/start/end coordinates of these cases by extracting them from the ID field, 
 assuming these cases are always duplicates...
 
@@ -80,12 +81,13 @@ vroom::problems(combined_jcn_problems) |> table()
 ```
 The problem is not in the combined junction bedfile.
 
-Check for the specific junction in combined junctions.bed
+Check for the specific junction in the combined junctions.bed
 ```{r}
 combined_jcn_problems |>
   dplyr::filter(ID == "chr9:35660647-35660648")
 ```
 The event looks normal in the combined file.
+Importantly, the ID is the same: chr9:35660647-35660648
 
 ## Check problem junction before fix
 ```{r}
@@ -104,45 +106,59 @@ merged_junctions |>
   dplyr::filter(ID == "chr9:35660647-35660648")
 
 ```
+With how we currently merge junctions, the problem junction appears as two separate events that are missing values in the other samples
 
 ## Proposed new junction merging method:
 
-Combine start/end coords, treating them as
+Use ID to extract chr, start, and end fields in events with weird concatenated fields
 
 ```{r}
 # read in junctions.bed files created from separate Shiba runs
 merged_junctions <- purrr::map(junction_paths, \(file) {
-    readr::read_tsv(file,
-               # make sure columns are types that we expect
-               col_types = readr::cols(.default = "d", ID = "c", chr = "c", start = "c", end = "c")) |>
+
+  readr::read_tsv(
+    file,
+    # make sure columns are types that we expect
+    col_types = readr::cols(
+      .default = "d",
+      ID = "c",
+      chr = "c",
+      start = "c",
+      end = "c"
+    )
+  ) |>
     # fix duplicated entries separated by semicolons
     dplyr::mutate(
-      dplyr::across(c(chr, start, end),
-      \(x) {
-        sapply(x, \(val) {
-          if (!stringr::str_detect(val, ";")) {
-            return(val)
-          }
-          
-          parts <- stringr::str_split(val, ";")[[1]]
-          
-          if (length(unique(parts)) == 1) {
-            parts[1]
-          } else {
-            break
-          }
+      dplyr::across(
+        c(chr, start, end),
+        \(x) {
+          sapply(x, \(val) {
+            # check if chr, start, or end fields have a semicolon
+            if (!stringr::str_detect(val, ";")) {
+              # split string by semicolon and take the first field
+              # this assumes the junctions separated by ; are always duplicates
+              deduplicated <- stringr::str_split_i(val, ";", 1)
+            }
+          })
         }
       )
-  
-})
-)
-}
-) |>
-    # merge junctions tables from multiple samples
-    # the resulting table separates junction counts from each sample by columns with the sample ID
-    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
+    )
+}) |>
+  # merge junctions tables from multiple samples
+  # the resulting table separates junction counts
+  # from each sample by columns with the sample ID
+  purrr::reduce(
+    \(x, y) dplyr::full_join(
+      x, y,
+      by = c("chr", "start", "end", "ID")
+    )
+  )
 
 # Check problem junction
 merged_junctions |>
   dplyr::filter(ID == "chr9:35660647-35660648")
 ```
+```{r}
+?stringr::str_split_i()
+```
+

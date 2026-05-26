@@ -1,7 +1,13 @@
 ---
 title: "Debug merge junctions warning"
-format: html
-editor: visual
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
 ## Files and directories

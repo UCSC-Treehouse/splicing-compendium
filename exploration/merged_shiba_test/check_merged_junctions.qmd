@@ -130,7 +130,7 @@ Use ID to extract chr, start, and end fields in events with weird concatenated f
 # read in junctions.bed files created from separate Shiba runs
 merged_junctions <- purrr::map(junction_paths, \(file) {
   # read in separate bedfiles for each sample
-  withCallingHandlers(
+  junctions <- withCallingHandlers(
   readr::read_tsv(
     file,
     # make sure columns are types that we expect
@@ -143,10 +143,24 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     )
   ),
   # convert warnings in reading bedfiles into a failure and stop
+  # warnings here indicate there are still junctions remaining in invalid format (e.g. "12345;12345") 
   warning = \(w) stop(w)
-  )
-  }
-  ) |>
+  ) 
+  
+  # check for duplicate junction IDs and fail if any are found
+  dup_ids <- junctions$ID[duplicated(junctions$ID)]
+  
+    if (length(dup_ids) > 0) {
+      stop(paste0("Found duplicate junction ID: ", 
+                  file,
+                  " : ",
+                  paste(unique(dup_ids), collapse = ", ")))
+    }
+  
+  # return junctions object to merge
+  junctions
+
+  }) |>
   # merge junctions tables from multiple samples
   # the resulting table separates junction counts from each sample by columns with the sample ID
   purrr::reduce(

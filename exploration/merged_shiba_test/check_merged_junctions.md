@@ -232,6 +232,7 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     )
   ),
   # convert warnings in reading bedfiles into a failure and stop
+  # warnings here indicate there are still junctions remaining in invalid format (e.g. "12345;12345") 
   warning = \(w) stop(w)
   )
   }

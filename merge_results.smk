@@ -36,9 +36,7 @@ SAMPLE_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        shiba_psi_out = directory("<merged_shiba_results>/psi"),
-        zipped_junctions = "<merged_shiba_results>/merged_junctions.bed.gz",
-        zipped_gtf = "<merged_shiba_results>/merged_gtf.gtf.gz"
+        shiba_psi_out = directory("<merged_shiba_results>/psi")
 
 rule merge_junctions:
     input: JUNCTION_BEDS

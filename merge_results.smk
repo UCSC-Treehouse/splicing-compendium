@@ -53,22 +53,22 @@ rule merge_junctions:
 
         for file in {input}; do
             # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
-            awk 'BEGIN{FS=OFS="\t"} { # set tab as delimiter
-              for (i = 1; i <= NF; i++) {
-                  if ($i ~ /;/) { # only process fields containing ";"
+            awk 'BEGIN{{FS=OFS="\t"}} {{ # set tab as delimiter
+              for (i = 1; i <= NF; i++) {{
+                  if ($i ~ /;/) {{ # only process fields containing ";"
                       n = split($i, parts, ";") # split into parts on semicolons
                       new = parts[1]
-                      for (j = 2; j <= n; j++) {
-                          if (parts[j] != parts[j-1]) { # skip consecutive duplicates
+                      for (j = 2; j <= n; j++) {{
+                          if (parts[j] != parts[j-1]) {{ # skip consecutive duplicates
                               new = new ";" parts[j] # reassemble if values are different
-                          }
-                      }
+                          }}
+                      }}
                       $i = new
-                  }
-              }
+                  }}
+              }}
               print
-          }' $file > $tempdir/$n.bed
-          
+          }}' $file > $tempdir/$n.bed
+
           ((n ++))
         done
 

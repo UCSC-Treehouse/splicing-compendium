@@ -49,9 +49,14 @@ rule merge_junctions:
     threads: 4
     shell:
         """
-        # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
-        # look for "value;value" inside tab-delimited fields and replace these entries with "value"
-        sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' {input} > tmp; mv tmp {input}
+        tempdir=$(mktemp -d)
+        for file in {input}; do
+            # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
+            # look for "value;value" inside tab-delimited fields and replace these entries with "value"
+            sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' {input} > $tempdir/$(basename $file)
+        done
+
+        rm -rf $tempdir
 
         Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
         """

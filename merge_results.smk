@@ -42,23 +42,22 @@ rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
     # compute joined junctions string prior to passing into join script
-    params:
-        # use comma-separated list of inputs for R script
-        junctions=lambda wildcards, input: ",".join(input)
     priority: 1
     threads: 4
     shell:
         """
         tempdir=$(mktemp -d)
+
         for file in {input}; do
             # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
             # look for "value;value" inside tab-delimited fields and replace these entries with "value"
             sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' {input} > $tempdir/$(basename $file)
         done
 
-        rm -rf $tempdir
+        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}
 
-        Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
+        # remove tempdir of deduplicated junctions
+        rm -rf $tempdir
         """
 
 rule merge_gtfs:

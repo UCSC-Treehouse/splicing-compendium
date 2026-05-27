@@ -49,9 +49,14 @@ rule merge_junctions:
         tempdir=$(mktemp -d)
 
         for file in {input}; do
+            # initialize a number for identifying the temp junction files
+            n = 1
             # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
             # look for "value;value" inside tab-delimited fields and replace these entries with "value"
-            sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' {input} > $tempdir/$(basename $file)
+            # save result in a temp dir
+            sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' {input} > $tempdir/$n_$(basename $file)
+            # add 1 to n for each file to give it an identifier (otherwise all files are "junctions.bed")
+            ((n ++))
         done
 
         Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}

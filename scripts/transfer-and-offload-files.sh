@@ -50,7 +50,7 @@ bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
 shiba_dest_dir="${destination_root_dir}/results/$1"
 # fastp reports destination dir
-fastp_dest_dir="${destination_repo_dir}/reports/$1"
+fastp_dest_dir="${destination_repo_dir}/reports"
 # path to md5sum check results file
 md5sum_checks="${log_dir}"/${4:-"onlyForOffloading"}
 

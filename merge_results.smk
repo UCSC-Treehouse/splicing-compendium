@@ -36,7 +36,7 @@ SAMPLE_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        shiba_psi_out = directory("<merged_shiba_results>/psi")
+        "<merged_shiba_results>/merged_junctions.bed"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -46,15 +46,17 @@ rule merge_junctions:
     threads: 4
     shell:
         """
-        tempdir=$(mktemp -d)
+        mkdir -p test_temp
+        tempdir=$(mktemp -d -p test_temp)
+        # initialize a number for identifying the temp junction files
+        n=1
 
         for file in {input}; do
-            # initialize a number for identifying the temp junction files
-            n = 1
             # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
             # look for "value;value" inside tab-delimited fields and replace these entries with "value"
+            # keep looping until no fields with ";" are found
             # save result in a temp dir
-            sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' {input} > $tempdir/$n_$(basename $file)
+            sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' $file > $tempdir/${{n}}_$(basename $file)
             # add 1 to n for each file to give it an identifier (otherwise all files are "junctions.bed")
             ((n ++))
         done
@@ -62,7 +64,7 @@ rule merge_junctions:
         Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}
 
         # remove tempdir of deduplicated junctions
-        rm -rf $tempdir
+        # rm -rf $tempdir
         """
 
 rule merge_gtfs:

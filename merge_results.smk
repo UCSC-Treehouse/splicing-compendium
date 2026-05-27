@@ -115,9 +115,7 @@ rule calculate_psi:
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
     output:
-        shiba_psi_out = directory("<merged_shiba_results>/psi"),
-        zipped_junctions = "<merged_shiba_results>/merged_junctions.bed.gz",
-        zipped_gtf = "<merged_shiba_results>/merged_gtf.gtf.gz"
+        shiba_psi_out = directory("<merged_shiba_results>/psi")
     params:
         shiba_scripts = config["shiba_scripts_path"],
         min_reads = config["shiba_min_reads"]
@@ -126,11 +124,4 @@ rule calculate_psi:
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}
-
-        # zip results
-        pigz -p {threads} \
-         {output.shiba_psi_out}/*.txt \
-         {input.merged_junctions} \
-         {input.merged_gtf} \
-         {input.events_dir}/*.txt
         """

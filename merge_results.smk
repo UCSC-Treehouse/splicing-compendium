@@ -36,7 +36,7 @@ SAMPLE_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/merged_junctions.bed"
+        "<merged_shiba_results>/psi"
 
 rule merge_junctions:
     input: JUNCTION_BEDS
@@ -46,6 +46,7 @@ rule merge_junctions:
     threads: 4
     shell:
         """
+        # make parent temp dir to control where temp goes, for debugging temp files
         mkdir -p test_temp
         tempdir=$(mktemp -d -p test_temp)
         # initialize a number for identifying the temp junction files
@@ -75,7 +76,8 @@ rule merge_junctions:
         Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}
 
         # remove tempdir of deduplicated junctions
-        # rm -rf $tempdir
+        rm -rf test_temp
+        rm -rf $tempdir
         """
 
 rule merge_gtfs:

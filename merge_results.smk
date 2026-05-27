@@ -53,12 +53,23 @@ rule merge_junctions:
 
         for file in {input}; do
             # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
-            # look for "value;value" inside tab-delimited fields and replace these entries with "value"
-            # keep looping until no fields with ";" are found
-            # save result in a temp dir
-            sed -E ':a; s/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g; ta' $file > $tempdir/${{n}}_$(basename $file)
-            # add 1 to n for each file to give it an identifier (otherwise all files are "junctions.bed")
-            ((n ++))
+            awk 'BEGIN{FS=OFS="\t"} { # set tab as delimiter
+              for (i = 1; i <= NF; i++) {
+                  if ($i ~ /;/) { # only process fields containing ";"
+                      n = split($i, parts, ";") # split into parts on semicolons
+                      new = parts[1]
+                      for (j = 2; j <= n; j++) {
+                          if (parts[j] != parts[j-1]) { # skip consecutive duplicates
+                              new = new ";" parts[j] # reassemble if values are different
+                          }
+                      }
+                      $i = new
+                  }
+              }
+              print
+          }' $file > $tempdir/$n.bed
+          
+          ((n ++))
         done
 
         Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}

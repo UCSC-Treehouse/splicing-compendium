@@ -45,8 +45,6 @@ rule merge_junctions:
     output: "<merged_shiba_results>/merged_junctions.bed"
     # compute joined junctions string prior to passing into join script
     params:
-        # to deduplicate bedfiles with sed, a space-separated list of inputs is needed
-        sed_junctions=lambda wildcards, input: " ".join(input),
         # use comma-separated list of inputs for R script
         junctions=lambda wildcards, input: ",".join(input)
     priority: 1
@@ -55,7 +53,7 @@ rule merge_junctions:
         """
         # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
         # look for "value;value" inside tab-delimited fields and replace these entries with "value"
-        sed -E 's/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g' {params.sed_junctions}
+        sed -E 's/(^|\t)([^\t;]*);\2(\t|$)/\1\2\3/g' {input}
 
         Rscript scripts/03-merge_separate_junctions.R --junctions={params.junctions} --output={output}
         """

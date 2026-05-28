@@ -42,7 +42,16 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     )
   )
   # check if there are NAs in bedfile and print rows with NAs
-  junctions[!complete.cases(junctions), ]
+  if (anyNA(junctions)) {
+    # select rows in bedfile with NAs for printing
+    na_bed_rows <- junctions[!complete.cases(junctions), ]
+    stop(
+      paste0("NAs found in bedfile", "\n"),
+      paste0(c("chr", "start", "end", "ID"), sep = "\t"),
+      paste0("\n"),
+      paste0(unlist(dup_rows), sep = "\t")
+    )
+  }
 
   # return junctions object to merge
   junctions

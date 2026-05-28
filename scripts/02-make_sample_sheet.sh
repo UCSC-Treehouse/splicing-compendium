@@ -27,18 +27,16 @@ touch $sample_sheet
 
 # add column headers to sample sheet
 # -e allows for special characters like \t
-echo -e "group\tsamples" > $sample_sheet
+echo -e "group\tsamples" >> $sample_sheet
 
 # sample results are organized for each group in the following structure:
 # results/target|gtex/shiba/accession
 # loop over sample results directories for each group
-# and append the grooup + sample accession to the sample sheet
+# and append the group + sample accession to the sample sheet
 for group in "${groups[@]}"; do
     # find all paths to accession directories in results/
-    find "${results_dir}/${group}/shiba" -mindepth 1 -maxdepth 1 -type d \
-    # execute basename on each accession path to obtain accession id
-    # the escaped \ (\;) marks end of exec command
-    exec basename {} \; \
+    # printf '%f\n' prints the basename of the file paths, followed by a new line
+    find "${results_dir}/${group}/shiba" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
     | while read accession; do # loop through accession basenames and add them + group to sample sheet
         echo -e "${group}\t${accession}" >> $sample_sheet
     done

@@ -41,7 +41,6 @@ rule all:
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
-    # compute joined junctions string prior to passing into join script
     priority: 1
     threads: 4
     shell:

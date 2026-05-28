@@ -46,9 +46,7 @@ rule merge_junctions:
     threads: 4
     shell:
         """
-        # make parent temp dir to control where temp goes, for debugging temp files
-        mkdir -p test_temp
-        tempdir=$(mktemp -d -p test_temp)
+        tempdir=$(mktemp -d)
         # initialize a number for identifying the temp junction files
         n=1
 
@@ -76,7 +74,6 @@ rule merge_junctions:
         Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}
 
         # remove tempdir of deduplicated junctions
-        rm -rf test_temp
         rm -rf $tempdir
         """
 

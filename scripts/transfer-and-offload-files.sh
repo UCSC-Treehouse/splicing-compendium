@@ -23,11 +23,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set floating IP of openstack that is the file source as variable
-ip="10.50.100.149"
+ip="10.50.100.156"
 
 # we need the root dir so that repo dirs can be accessed within data/ like from within star-output/
 data_dir="../data"
 log_dir="../logs"
+reports_dir="../reports"
 # storage paths outside of repo
 group_dir="${data_dir}/$1"
 # in each star_output sample dir, there is the bam, bam.bai, logs, ReadsPerGene.out.tab, and SJ.out.tab
@@ -36,6 +37,8 @@ bam_dir="${group_dir}/star-output"
 results_dir="../results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
 shiba_dir="${results_dir}/$1/shiba"
+#fastp reports dir
+fastp_dir="${reports_dir}/$1"
 # remote destination directory to rsync to
 destination_root_dir="/private/spinning/treehouse"
 # destination repo dir
@@ -46,6 +49,8 @@ destination_scripts_dir="${destination_repo_dir}/scripts"
 bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
 shiba_dest_dir="${destination_root_dir}/results/$1"
+# fastp reports destination dir
+fastp_dest_dir="${destination_repo_dir}/reports"
 # path to md5sum check results file
 md5sum_checks="${log_dir}"/${4:-"onlyForOffloading"}
 
@@ -94,6 +99,9 @@ elif [ $3 == "shiba" ]; then
     file_dir=$shiba_dir
     destination_dir=$shiba_dest_dir
     echo "shiba results files"
+elif [ $3 == "fastp" ]; then
+    file_dir=$fastp_dir
+    destination_dir=$fastp_dest_dir
 else
     echo "please use valid option for what files to act on"
     # cause script to fail due to error

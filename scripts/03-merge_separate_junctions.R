@@ -71,9 +71,7 @@ if (any(duplicated(merged_junctions$ID))) {
   dup_rows <- merged_junctions[duplicated(merged_junctions$ID),]
   # quit and send error message about duplicates
   stop(paste0("Found duplicate junction ID: ", "\n"),
-       paste0(c("chr", "start", "end", "ID"), sep = "\t"),
-       paste0("\n"),
-       paste0(unlist(dup_rows), sep = "\t")
+       readr::format_tsv(dup_rows)
        )
     }
 

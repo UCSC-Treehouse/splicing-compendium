@@ -9,7 +9,6 @@ reports/
 .snakemake/
 .rds
 references/
-metadata/
 results/*
 !results/.gitkeep
 

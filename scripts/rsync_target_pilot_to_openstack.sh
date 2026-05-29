@@ -17,6 +17,8 @@ ip="10.50.100.156"
 data_dir="../data"
 log_dir="../logs"
 # storage paths outside of repo
+# noting here that this is probably unnecessary if the only thing I will transfer are TARGET pilot samples
+# in other words group_dir could probably be hardcoded in to just be "data_dir/target"
 group_dir="${data_dir}/$1"
 # destination repo dir
 mustard_repo_dir="/private/groups/treehouse/working-projects/celiang/splicing-compendium"
@@ -46,10 +48,13 @@ fi
 # Redirect stdout and stderr to log file and print to stdout
 exec > >(tee $log_file) 2>&1
 
+# instantiate .txt file to contain only TARGET pilot sample IDs
 touch target_pilot_shiba_results_manifest.txt
 
+# print only TARGET pilot sample IDs to manifest file
 awk 'NR > 1 {print $1}' $target_pilot_sample_file | while read sample; do
     echo $sample >> target_pilot_shiba_results_manifest.txt
 done
 
+# rsync all sample IDs from manifest sheet to openstack from prism
 rsync -r -avP --files-from=target_pilot_shiba_results_manifest.txt celiang@mustard.prism:$shiba_dir ../results/$1/shiba

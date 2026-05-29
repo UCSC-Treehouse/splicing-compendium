@@ -13,23 +13,25 @@ current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 # set floating IP of openstack that is the file source as variable
 ip="10.50.100.156"
 
-# we need the root dir so that repo dirs can be accessed within data/ like from within star-output/
+## define directories ##
 data_dir="../data"
 log_dir="../logs"
-# storage paths outside of repo
-# noting here that this is probably unnecessary if the only thing I will transfer are TARGET pilot samples
-# in other words group_dir could probably be hardcoded in to just be "data_dir/target"
-group_dir="${data_dir}/$1"
+group_dir="${data_dir}/target"
 # destination repo dir
 mustard_repo_dir="/private/groups/treehouse/working-projects/celiang/splicing-compendium"
 # splice results dir
 results_dir="${mustard_repo_dir}/results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
 shiba_dir="${results_dir}/$1/shiba"
-# log dir
-log_file="${log_dir}/${current_datetime}_grab_target_pilot_results"
+
+## define input files ##
 # experiment_tsv of pilot results
 target_pilot_sample_file="../exploration/merging-psi-tables/target_pilot/experiment.tsv"
+
+## define output files ##
+# log file
+log_file="${log_dir}/${current_datetime}_grab_target_pilot_results.txt"
+target_pilot_manifest_file="${log_dir}/target_pilot_shiba_results_manifest.txt"
 
 # create directories if they do not already exist
 mkdir -p $log_dir
@@ -49,11 +51,11 @@ fi
 exec > >(tee $log_file) 2>&1
 
 # instantiate .txt file to contain only TARGET pilot sample IDs
-echo "" > target_pilot_shiba_results_manifest.txt
+echo "" > $target_pilot_manifest_file
 
 # print only TARGET pilot sample IDs to manifest file
 awk 'NR > 1 {print $1}' $target_pilot_sample_file | while read sample; do
-    echo $sample >> target_pilot_shiba_results_manifest.txt
+    echo $sample >> $target_pilot_manifest_file
 done
 
 # rsync all sample IDs from manifest sheet to openstack from prism

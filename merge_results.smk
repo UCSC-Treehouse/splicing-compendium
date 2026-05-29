@@ -140,4 +140,9 @@ rule calculate_psi:
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}
+
+        # zip PSI results
+        pigz -p {threads} \
+        {output.shiba_psi_out}/*.txt
+
         """

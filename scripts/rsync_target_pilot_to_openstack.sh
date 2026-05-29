@@ -49,7 +49,7 @@ fi
 exec > >(tee $log_file) 2>&1
 
 # instantiate .txt file to contain only TARGET pilot sample IDs
-touch target_pilot_shiba_results_manifest.txt
+echo "" > target_pilot_shiba_results_manifest.txt
 
 # print only TARGET pilot sample IDs to manifest file
 awk 'NR > 1 {print $1}' $target_pilot_sample_file | while read sample; do

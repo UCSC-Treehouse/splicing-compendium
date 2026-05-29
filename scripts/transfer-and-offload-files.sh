@@ -15,7 +15,14 @@
 # If an invalid argument is given, the following error message will be returned: "please use valid option for what action to perform"
 
 # Argument 3: Type of file to perform action on (valid options: bam, shiba, fastp)
-# bam:
+# bam: output files from STAR alignment and indexing with samtools (bam, bam.bai, sj counts, logs)
+# shiba: output files from shiba splice quantification (gtf, junctions.bed, splice event coordinates, PSI matrices)
+# fastp: fastp reports generated from adapter trimming (.JSON and .html reports)
+# If an invalid argument is given, the following error message will be returned: "please use valid option for what files to act on"
+
+# Argument 4: File name of md5sum file generated from "checksums" being performed on files
+# Only needed if argument 2 is "offload", will be passed into the $md5sum_checks variable for offloading portion of script
+# No error message will be returned if this file is invalid, but the script will fail due to the file in $md5sum_checks not existing or files listed in $md5sum_checks not being found
 
 ## Usage examples ##
 

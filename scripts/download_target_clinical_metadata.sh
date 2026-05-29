@@ -37,6 +37,8 @@ clinical_metadata_urls=(
     "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TARGET-NBL.survival.tsv.gz"
     "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TARGET-RT.clinical.tsv.gz"
     "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TARGET-RT.survival.tsv.gz"
+    "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TARGET-WT.clinical.tsv.gz"
+    "https://gdc-hub.s3.us-east-1.amazonaws.com/download/TARGET-WT.survival.tsv.gz"
 )
 
 # make directories if they don't exist

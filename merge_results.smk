@@ -143,7 +143,6 @@ rule calculate_psi:
 
         # zip PSI results and events files
         pigz -p {threads} \
-        {output.shiba_psi_out}/*.txt \
-        {input.events_dir}/*.txt
+        {output.shiba_psi_out}/*.txt
 
         """

@@ -1,8 +1,30 @@
 #!/bin/bash
 
+## Description ##
+
 # To clear space on OpenStack for the continued processing of data, we need to offload processed data and results to /private/spinning/treehouse
 # this directory has a 100TB quota but cannot perform with more than 3 threads
 # this script transfers files to /private/spinning/treehouse
+
+# General usage: bash scripts/transfer-and-offload-files.sh [argument 1] [argument 2] [argument 3] [argument 4]
+
+# Argument 1: Sample group of files to act on (valid options: target, gtex)
+# If an invalid argument is given, the following error message will be returned: "please use valid option for sample group"
+
+# Argument 2: Action to perform on sample group files (valid options: transfer, checksums, offload)
+# If an invalid argument is given, the following error message will be returned: "please use valid option for what action to perform"
+
+# Argument 3: Type of file to perform action on (valid options: bam, shiba, fastp)
+# bam: output files from STAR alignment and indexing with samtools (bam, bam.bai, sj counts, logs)
+# shiba: output files from shiba splice quantification (gtf, junctions.bed, splice event coordinates, PSI matrices)
+# fastp: fastp reports generated from adapter trimming (.JSON and .html reports)
+# If an invalid argument is given, the following error message will be returned: "please use valid option for what files to act on"
+
+# Argument 4: File name of md5sum file generated from "checksums" being performed on files
+# Only needed if argument 2 is "offload", will be passed into the $md5sum_checks variable for offloading portion of script
+# No error message will be returned if this file is invalid, but the script will fail due to the file in $md5sum_checks not existing or files listed in $md5sum_checks not being found
+
+## Usage examples ##
 
 # Usage example for data transfer
 # bash scripts/transfer-and-offload-files.sh target transfer shiba
@@ -13,7 +35,10 @@
 # Usage example for offloading files after transfer
 # bash scripts/transfer-and-offload-files.sh target offload shiba [timestamped checksum filename.txt]
 
+##############
+
 # cause nonzero exit status and undefined variables to stop the script
+
 set -euo pipefail
 
 # Set the working directory to the directory of this file
@@ -23,11 +48,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 
 # set floating IP of openstack that is the file source as variable
-ip="10.50.100.149"
+ip="10.50.100.156"
 
 # we need the root dir so that repo dirs can be accessed within data/ like from within star-output/
 data_dir="../data"
 log_dir="../logs"
+reports_dir="../reports"
 # storage paths outside of repo
 group_dir="${data_dir}/$1"
 # in each star_output sample dir, there is the bam, bam.bai, logs, ReadsPerGene.out.tab, and SJ.out.tab
@@ -36,6 +62,8 @@ bam_dir="${group_dir}/star-output"
 results_dir="../results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
 shiba_dir="${results_dir}/$1/shiba"
+#fastp reports dir
+fastp_dir="${reports_dir}/$1"
 # remote destination directory to rsync to
 destination_root_dir="/private/spinning/treehouse"
 # destination repo dir
@@ -46,6 +74,8 @@ destination_scripts_dir="${destination_repo_dir}/scripts"
 bam_dest_dir="${destination_root_dir}/data/$1"
 # shiba results destination dir
 shiba_dest_dir="${destination_root_dir}/results/$1"
+# fastp reports destination dir
+fastp_dest_dir="${destination_repo_dir}/reports"
 # path to md5sum check results file
 md5sum_checks="${log_dir}"/${4:-"onlyForOffloading"}
 
@@ -61,7 +91,7 @@ if [ $1 == "gtex" ]; then
 elif [ $1 == "target" ]; then
     echo "target sample group"
 else
-    echo "please use valid option for sample group"
+    echo "please use valid option for sample group. valid options: target, gtex"
     # cause script to fail due to error
     exit 1
 fi
@@ -80,7 +110,7 @@ elif [ $2 == "offload" ]; then
     log_file="${log_dir}/${current_datetime}_${ip}_${1}_${3}_offload_files.txt"
     echo "offload files"
 else
-    echo "please use valid option for what action to perform"
+    echo "please use valid option for what action to perform. valid options: transfer, checksums, offload"
     # cause script to fail due to error
     exit 1
 fi
@@ -94,8 +124,11 @@ elif [ $3 == "shiba" ]; then
     file_dir=$shiba_dir
     destination_dir=$shiba_dest_dir
     echo "shiba results files"
+elif [ $3 == "fastp" ]; then
+    file_dir=$fastp_dir
+    destination_dir=$fastp_dest_dir
 else
-    echo "please use valid option for what files to act on"
+    echo "please use valid option for what files to act on. valid options: bam, shiba, fastp"
     # cause script to fail due to error
     exit 1
 fi

@@ -22,12 +22,9 @@ config_dir="../config"
 # define output file
 sample_sheet="${config_dir}/sample_sheet.tsv"
 
-# instantiate sample sheet
-touch $sample_sheet
-
-# add column headers to sample sheet
+# create column headers in blank sample sheet
 # -e allows for special characters like \t
-echo -e "group\tsamples" >> $sample_sheet
+echo -e "samples\tgroup" > $sample_sheet
 
 # sample results are organized for each group in the following structure:
 # results/target|gtex/shiba/accession
@@ -38,6 +35,6 @@ for group in "${groups[@]}"; do
     # printf '%f\n' prints the basename of the file paths, followed by a new line
     find "${results_dir}/${group}/shiba" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
     | while read accession; do # loop through accession basenames and add them + group to sample sheet
-        echo -e "${group}\t${accession}" >> $sample_sheet
+        echo -e "${accession}\t${group}" >> $sample_sheet
     done
 done

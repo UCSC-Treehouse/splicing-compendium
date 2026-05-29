@@ -91,7 +91,7 @@ if [ $1 == "gtex" ]; then
 elif [ $1 == "target" ]; then
     echo "target sample group"
 else
-    echo "please use valid option for sample group"
+    echo "please use valid option for sample group. valid options: target, gtex"
     # cause script to fail due to error
     exit 1
 fi
@@ -110,7 +110,7 @@ elif [ $2 == "offload" ]; then
     log_file="${log_dir}/${current_datetime}_${ip}_${1}_${3}_offload_files.txt"
     echo "offload files"
 else
-    echo "please use valid option for what action to perform"
+    echo "please use valid option for what action to perform. valid options: transfer, checksums, offload"
     # cause script to fail due to error
     exit 1
 fi
@@ -128,7 +128,7 @@ elif [ $3 == "fastp" ]; then
     file_dir=$fastp_dir
     destination_dir=$fastp_dest_dir
 else
-    echo "please use valid option for what files to act on"
+    echo "please use valid option for what files to act on. valid options: bam, shiba, fastp"
     # cause script to fail due to error
     exit 1
 fi

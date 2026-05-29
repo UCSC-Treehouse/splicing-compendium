@@ -20,9 +20,9 @@ group_dir="${data_dir}/target"
 # destination repo dir
 mustard_repo_dir="/private/groups/treehouse/working-projects/celiang/splicing-compendium"
 # splice results dir
-results_dir="${mustard_repo_dir}/results"
+mustard_results_dir="${mustard_repo_dir}/results"
 # shiba results dir - within here are annotation, events, junction, and splice/gene expression results files
-shiba_dir="${results_dir}/$1/shiba"
+mustard_shiba_dir="${results_dir}/target/shiba"
 
 ## define input files ##
 # experiment_tsv of pilot results
@@ -36,17 +36,6 @@ target_pilot_manifest_file="${log_dir}/target_pilot_shiba_results_manifest.txt"
 # create directories if they do not already exist
 mkdir -p $log_dir
 
-# validate user input for data group
-if [ $1 == "gtex" ]; then
-    echo "gtex sample group"
-elif [ $1 == "target" ]; then
-    echo "target sample group"
-else
-    echo "please use valid option for sample group"
-    # cause script to fail due to error
-    exit 1
-fi
-
 # Redirect stdout and stderr to log file and print to stdout
 exec > >(tee $log_file) 2>&1
 
@@ -59,4 +48,4 @@ awk 'NR > 1 {print $1}' $target_pilot_sample_file | while read sample; do
 done
 
 # rsync all sample IDs from manifest sheet to openstack from prism
-rsync -r -avP --files-from=target_pilot_shiba_results_manifest.txt celiang@mustard.prism:$shiba_dir ../results/$1/shiba
+rsync -r -avP --files-from=$target_pilot_manifest_file celiang@mustard.prism:$mustard_shiba_dir ../results/target/shiba

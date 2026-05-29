@@ -1,8 +1,23 @@
 #!/bin/bash
 
+## Description ##
+
 # To clear space on OpenStack for the continued processing of data, we need to offload processed data and results to /private/spinning/treehouse
 # this directory has a 100TB quota but cannot perform with more than 3 threads
 # this script transfers files to /private/spinning/treehouse
+
+# General usage: bash scripts/transfer-and-offload-files.sh [argument 1] [argument 2] [argument 3] [argument 4]
+
+# Argument 1: Sample group of files to act on (valid options: target, gtex)
+# If an invalid argument is given, the following error message will be returned: "please use valid option for sample group"
+
+# Argument 2: Action to perform on sample group files (valid options: transfer, checksums, offload)
+# If an invalid argument is given, the following error message will be returned: "please use valid option for what action to perform"
+
+# Argument 3: Type of file to perform action on (valid options: bam, shiba, fastp)
+# bam:
+
+## Usage examples ##
 
 # Usage example for data transfer
 # bash scripts/transfer-and-offload-files.sh target transfer shiba
@@ -14,6 +29,7 @@
 # bash scripts/transfer-and-offload-files.sh target offload shiba [timestamped checksum filename.txt]
 
 # cause nonzero exit status and undefined variables to stop the script
+
 set -euo pipefail
 
 # Set the working directory to the directory of this file

@@ -6,6 +6,10 @@ import os
 import pandas as pd
 from datetime import datetime
 
+# register storage provider
+storage:
+    provider: "fs",
+
 configfile: "config/merge_shiba_config.yaml"
 
 # read in configfile values

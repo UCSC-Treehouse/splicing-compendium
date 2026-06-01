@@ -9,7 +9,7 @@ from datetime import datetime
 configfile: "config/merge_shiba_config.yaml"
 
 # read in configfile values
-SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
+SAMPLES = pd.read_table(config["sample_sheet"])["sample"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 
 # the main snakefile will also need to be changed to reflect how we handle sample groups

@@ -24,7 +24,7 @@ sample_sheet="${config_dir}/sample_sheet.tsv"
 
 # create column headers in blank sample sheet
 # -e allows for special characters like \t
-echo -e "samples\tgroup" > $sample_sheet
+echo -e "sample\tgroup" > $sample_sheet
 
 # sample results are organized for each group in the following structure:
 # results/target|gtex/shiba/accession

@@ -1,5 +1,5 @@
 # path to sample sheet (tsv format, columns: group, sample)
-sample_sheet: config/target_pilot_merge.tsv
+sample_sheet: exploration/merging-psi-tables/target_pilot/experiment.tsv
 # shiba psi calculation parameters
 shiba_min_reads: 10 # default = 10
 # version name of splice analysis run (e.g. v1, v2, v3)

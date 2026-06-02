@@ -1,0 +1,15 @@
+executor: slurm
+
+default-resources:
+  slurm_account: standard
+  slurm_partition: short # set to the partition they tell you us use
+  mem_mb: 512
+  runtime: 20 # minutes
+
+default-storage-provider: fs
+local-storage-prefix: /data/tmp/ # copy to tmp for fast reading in local node
+shared-fs-usage:
+  - persistence
+  - software-deployment
+  - sources
+  - source-cache

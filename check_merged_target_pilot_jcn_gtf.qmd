@@ -1,0 +1,92 @@
+---
+title: Check Merge vs. Combined TARGET Pilot GTF and Junction files
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Read in directories and files
+
+Define directories and file paths
+
+```{r}
+### Directories ###
+## combined shiba run results on target pilot samples ##
+# shiba results dir
+combined_results_dir <- file.path("exploration", "merging-psi-tables", "target_pilot", "shiba_combined")
+# junctions dir
+combined_junctions_dir <- file.path(combined_results_dir, "junctions")
+# gtf dir
+combined_gtf_dir <- file.path(combined_results_dir, "annotation")
+
+## merged shiba run results on target pilot samples ##
+# shiba results dir
+merged_results_dir <- file.path("results", "merged_shiba", "target_pilot")
+
+### Files ###
+## combined shiba target pilot files
+combined_gtf_file <- file.path(combined_gtf_dir, "assembled_annotation.gtf")
+combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
+
+## merged shiba target pilot files
+merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")
+merged_junctions_file <- file.path(merged_results_dir, "merged_junctions.bed")
+```
+
+Read in files
+
+```{r}
+
+# read in files generated from combined shiba run
+
+combined_junctions <- readr::read_tsv(
+  combined_junctions_file,
+  col_types = readr::cols(
+    .default = "d",
+    ID = "c",
+    chr = "c",
+    start = "d",
+    end = "d"
+  )
+)
+
+combined_gtf <- read.table(combined_gtf_file, header = FALSE, sep = '\t')
+
+# read in files generated from merged shiba run
+
+merged_junctions <- readr::read_tsv(
+  merged_junctions_file,
+  col_types = readr::cols(
+    .default = "d",
+    ID = "c",
+    chr = "c",
+    start = "d",
+    end = "d"
+  )
+)
+
+merged_gtf <- read.table(merged_gtf_file, header = FALSE, sep = "\t")
+
+
+```
+
+## Check if files are identical
+
+### Check if combined and merged junctions.bed files are identical
+
+```{r}
+
+identical(combined_junctions, merged_junctions)
+```
+
+### check if combined and merged gtfs are identical
+```{r}
+identical(combined_gtf, merged_gtfs)
+```
+
+

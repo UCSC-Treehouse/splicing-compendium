@@ -43,7 +43,6 @@ Read in files
 ```{r}
 
 # read in files generated from combined shiba run
-
 combined_junctions <- readr::read_tsv(
   combined_junctions_file,
   col_types = readr::cols(
@@ -55,10 +54,7 @@ combined_junctions <- readr::read_tsv(
   )
 )
 
-combined_gtf <- read.table(combined_gtf_file, header = FALSE, sep = '\t')
-
 # read in files generated from merged shiba run
-
 merged_junctions <- readr::read_tsv(
   merged_junctions_file,
   col_types = readr::cols(
@@ -70,9 +66,18 @@ merged_junctions <- readr::read_tsv(
   )
 )
 
-merged_gtf <- read.table(merged_gtf_file, header = FALSE, sep = "\t")
 
+```
 
+Check tables for parsing errors
+```{r}
+combined_junctions_dat <- vroom::vroom(combined_junctions_file)
+vroom::problems(combined_junctions_dat)
+```
+
+```{r}
+merged_junctions_dat <- vroom::vroom(merged_junctions_file)
+vroom::problems(merged_junctions_dat)
 ```
 
 ## Check if files are identical
@@ -80,13 +85,30 @@ merged_gtf <- read.table(merged_gtf_file, header = FALSE, sep = "\t")
 ### Check if combined and merged junctions.bed files are identical
 
 ```{r}
-
 identical(combined_junctions, merged_junctions)
 ```
 
-### check if combined and merged gtfs are identical
+## Check differences in junctions bedfiles
+Dimensions of each bedfile
 ```{r}
-identical(combined_gtf, merged_gtfs)
+dim(combined_junctions)
+```
+```{r}
+dim(merged_junctions)
 ```
 
+Elements unique to each junction bedfile
 
+```{r}
+# elements in combined junctions df but not in merged
+junctions_unique_to_combined <- setdiff(combined_junctions, merged_junctions)
+head(junctions_unique_to_combined)
+
+```
+
+```{r}
+# elements in combined junctions df but not in merged
+junctions_unique_to_merged <- setdiff(merged_junctions, combined_junctions)
+head(junctions_unique_to_merged)
+
+```

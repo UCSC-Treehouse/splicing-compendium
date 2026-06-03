@@ -3,7 +3,7 @@ executor: slurm
 default-resources:
   slurm_account: standard
   slurm_partition: short # set to the partition they tell you us use
-  mem_mb: 512
+  mem_mb: 1000
   runtime: 20 # minutes
 
 default-storage-provider: fs

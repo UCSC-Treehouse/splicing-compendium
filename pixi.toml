@@ -24,3 +24,4 @@ stringtie = "3.0.0.*"
 sra-tools = { version = "3.2.1.*", channel = "bioconda" }
 snakemake-executor-plugin-slurm = ">=2.7.1,<3"
 snakemake-storage-plugin-fs = ">=1.1.3,<2"
+snakemake-interface-storage-plugins = ">=4.4.1,<5"

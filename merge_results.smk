@@ -35,7 +35,7 @@ SAMPLE_GTFS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/merged_junctions.bed"
+        "<merged_shiba_results>/psi"
 
 rule merge_junctions:
     input: JUNCTION_BEDS

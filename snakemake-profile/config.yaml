@@ -3,11 +3,12 @@ executor: slurm
 default-resources:
   slurm_account: standard
   slurm_partition: short # set to the partition they tell you us use
-  mem_mb: 1000
-  runtime: 20 # minutes
+  mem_mb: 100
+  runtime: 5 # minutes
 
 default-storage-provider: fs
-local-storage-prefix: /data/tmp/ # copy to tmp for fast reading in local node
+local-storage-prefix: /data/tmp/$USER # copy to tmp for fast reading in local node
+remote-job-local-storage-prefix: /data/tmp/$USER/\$SLURM_JOB_ID
 shared-fs-usage:
   - persistence
   - software-deployment

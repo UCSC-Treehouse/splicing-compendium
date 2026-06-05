@@ -32,6 +32,8 @@ merged_results_dir <- file.path("results", "merged_shiba", "target_pilot")
 ## combined shiba target pilot files
 combined_gtf_file <- file.path(combined_gtf_dir, "assembled_annotation.gtf")
 combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
+# deduplicated combined junctions file - made by running bash scripts/deduplicate_shiba_junctions.sh
+deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "deduplicate_junctions.bed")
 
 ## merged shiba target pilot files
 merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")
@@ -45,6 +47,18 @@ Read in files
 # read in files generated from combined shiba run
 combined_junctions <- readr::read_tsv(
   combined_junctions_file,
+  col_types = readr::cols(
+    .default = "d",
+    ID = "c",
+    chr = "c",
+    start = "d",
+    end = "d"
+  )
+)
+
+# read in combined junctions table that have been deduplicated
+deduplicated_combined_junctions <- readr::read_tsv(
+  merged_junctions_file,
   col_types = readr::cols(
     .default = "d",
     ID = "c",
@@ -72,13 +86,19 @@ merged_junctions <- readr::read_tsv(
 Check tables for parsing errors
 ```{r}
 combined_junctions_dat <- vroom::vroom(combined_junctions_file)
-vroom::problems(combined_junctions_dat)
+combined_junctions_problems <- vroom::problems(combined_junctions_dat)
 ```
 
 ```{r}
 merged_junctions_dat <- vroom::vroom(merged_junctions_file)
-vroom::problems(merged_junctions_dat)
 ```
+
+```{r}
+deduplicated_comb_junctions_dat <- vroom::vroom(deduplicated_combined_junctions)
+deduplicated_comb_junctions_problems <- vroom::problems(deduplicated_combined_junctions)
+```
+
+No problems are present in merged_junctions file
 
 ## Check if files are identical
 
@@ -88,11 +108,22 @@ vroom::problems(merged_junctions_dat)
 identical(combined_junctions, merged_junctions)
 ```
 
+### Check if deduplicated combined and merged junctions are identical
+
+```{r}
+identical(deduplicated_combined_junctions, merged_junctions)
+```
+
 ## Check differences in junctions bedfiles
 Dimensions of each bedfile
 ```{r}
 dim(combined_junctions)
 ```
+
+```{r}
+dim(deduplicated_combined_junctions)
+```
+
 ```{r}
 dim(merged_junctions)
 ```
@@ -100,15 +131,31 @@ dim(merged_junctions)
 Elements unique to each junction bedfile
 
 ```{r}
-# elements in combined junctions df but not in merged
-junctions_unique_to_combined <- setdiff(combined_junctions, merged_junctions)
-head(junctions_unique_to_combined)
+# elements in deduplicated combined junctions df but not in merged
+junctions_unique_to_combined <- setdiff(deduplicated_combined_junctions, merged_junctions)
+
+# sort so that we get IDs printed in the same order
+junctions_unique_to_combined <- junctions_unique_to_combined[order(junctions_unique_to_combined$ID), ]
+
+# print head of junction positions to see what is unique
+head(junctions_unique_to_combined[, c("chr", "start", "end", "ID)])
+
+# print number of junctions that are unique to combined bedfile
+nrow(junctions_unique_to_combined)
 
 ```
 
 ```{r}
 # elements in combined junctions df but not in merged
-junctions_unique_to_merged <- setdiff(merged_junctions, combined_junctions)
-head(junctions_unique_to_merged)
+junctions_unique_to_merged <- setdiff(merged_junctions, deduplicated_combined_junctions)
+
+# sort so that we get IDs printed in the same order
+junctions_unique_to_merged <-junctions_unique_to_merged[order(junctions_unique_to_merged$ID)]
+
+# print head of junction positions to see what is unique
+head(junctions_unique_to_merged[, c("chr", "start", "end", "ID)])
+
+# print number of junctions that are unique to merged bedfile
+nrow(junctions_unique_to_merged)
 
 ```

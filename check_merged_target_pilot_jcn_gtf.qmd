@@ -138,7 +138,7 @@ junctions_unique_to_combined <- setdiff(deduplicated_combined_junctions, merged_
 junctions_unique_to_combined <- junctions_unique_to_combined[order(junctions_unique_to_combined$ID), ]
 
 # print head of junction positions to see what is unique
-head(junctions_unique_to_combined[, c("chr", "start", "end", "ID")])
+head(junctions_unique_to_combined[, c("chr", "start", "end", "ID")], n = 3)
 
 # print number of junctions that are unique to combined bedfile
 nrow(junctions_unique_to_combined)
@@ -153,7 +153,7 @@ junctions_unique_to_merged <- setdiff(merged_junctions, deduplicated_combined_ju
 junctions_unique_to_merged <-junctions_unique_to_merged[order(junctions_unique_to_merged$ID)]
 
 # print head of junction positions to see what is unique
-head(junctions_unique_to_merged[, c("chr", "start", "end", "ID)])
+head(junctions_unique_to_merged[, c("chr", "start", "end", "ID")], n = 3)
 
 # print number of junctions that are unique to merged bedfile
 nrow(junctions_unique_to_merged)

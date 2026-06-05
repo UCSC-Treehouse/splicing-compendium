@@ -17,6 +17,9 @@ Define directories and file paths
 ```{r directories_and_files}
 ### Directories ###
 ## combined shiba run results on target pilot samples ##
+# merged table eval dir
+exploration_eval_dir <- file.path("exploration", "merged-method-target-pilot-eval")
+
 # shiba results dir
 combined_results_dir <- file.path("exploration", "merging-psi-tables", "target_pilot", "shiba_combined")
 # junctions dir
@@ -38,7 +41,21 @@ deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "dedup
 ## merged shiba target pilot files
 merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")
 merged_junctions_file <- file.path(merged_results_dir, "merged_junctions.bed")
+
+## output files
+only_in_comb_junc <- file.path(exploration_eval_dir, "jcn_only_in_combined.bed")
+only_in_merged_junc <- file.path(exploration_eval_dir, "jcn_only_in_merged.bed")
+
 ```
+
+Create output dir if it does not exist
+```{r create_dirs}
+# Check if it exists; if not, create it
+if (!dir.exists(exploration_eval_dir)) {
+  dir.create(exploration_eval_dir, recursive = TRUE)
+}
+```
+
 
 Read in files
 
@@ -137,9 +154,6 @@ junctions_unique_to_combined <- setdiff(deduplicated_combined_junctions, merged_
 # sort so that we get IDs printed in the same order
 junctions_unique_to_combined <- junctions_unique_to_combined[order(junctions_unique_to_combined$ID), ]
 
-# print head of junction positions to see what is unique
-head(junctions_unique_to_combined[, c("chr", "start", "end", "ID")], n = 3)
-
 # print number of junctions that are unique to combined bedfile
 nrow(junctions_unique_to_combined)
 
@@ -152,10 +166,15 @@ junctions_unique_to_merged <- setdiff(merged_junctions, deduplicated_combined_ju
 # sort so that we get IDs printed in the same order
 junctions_unique_to_merged <-junctions_unique_to_merged[order(junctions_unique_to_merged$ID)]
 
-# print head of junction positions to see what is unique
-head(junctions_unique_to_merged[, c("chr", "start", "end", "ID")], n = 3)
-
 # print number of junctions that are unique to merged bedfile
 nrow(junctions_unique_to_merged)
+
+```
+
+```{r save-output}
+# save junctions only in merged or combined tables as output
+readr::write_tsv(junctions_unique_to_merged, file = jcn_only_in_merged)
+
+readr::write_tsv(junctions_unique_to_combined, file = jcn_only_in_combined)
 
 ```

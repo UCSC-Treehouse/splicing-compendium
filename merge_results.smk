@@ -1,6 +1,6 @@
 # Snakefile for merging GTF and junction counts bed files produced by separate shiba runs and running Shiba on the merged files
 # A sample sheet of all sample accessions with separate Shiba results, and their group, is given to the config file to identify files to run the workflow on
-# Run from project root: snakemake --snakefile merge_results.smk --executor slurm --profile pheonix-profile -j 15
+# Run from project root: snakemake --snakefile merge_results.smk --profile pheonix-profile
 
 import os
 import pandas as pd

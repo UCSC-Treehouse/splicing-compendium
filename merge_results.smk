@@ -1,6 +1,6 @@
 # Snakefile for merging GTF and junction counts bed files produced by separate shiba runs and running Shiba on the merged files
 # A sample sheet of all sample accessions with separate Shiba results, and their group, is given to the config file to identify files to run the workflow on
-# Run from project root: snakemake --snakefile merge_results.smk -j 15
+# Run from project root: snakemake --snakefile merge_results.smk --profile pheonix-profile
 
 import os
 import pandas as pd
@@ -12,7 +12,6 @@ configfile: "config/merge_shiba_config.yaml"
 SAMPLES = pd.read_table(config["sample_sheet"])["sample"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 
-# the main snakefile will also need to be changed to reflect how we handle sample groups
 pathvars:
     merged_shiba_results = f"results/merged_shiba/{config["version"]}"
 

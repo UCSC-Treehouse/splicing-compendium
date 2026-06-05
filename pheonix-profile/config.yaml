@@ -1,5 +1,8 @@
 executor: slurm
 
+# Set the maximum number of concurrent jobs to execute or submit
+jobs: 50
+
 default-resources:
   slurm_account: standard
   slurm_partition: short # set to the partition they tell you us use

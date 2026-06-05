@@ -32,7 +32,7 @@ merged_results_dir <- file.path("results", "merged_shiba", "target_pilot")
 ## combined shiba target pilot files
 combined_gtf_file <- file.path(combined_gtf_dir, "assembled_annotation.gtf")
 combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
-# deduplicated combined junctions file - made by running bash scripts/deduplicate_shiba_junctions.sh
+# deduplicated combined junctions file - made by running bash scripts/deduplicated_shiba_junctions.sh
 deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "deduplicate_junctions.bed")
 
 ## merged shiba target pilot files
@@ -84,7 +84,7 @@ merged_junctions <- readr::read_tsv(
 ```
 
 Check tables for parsing errors
-```{r}
+```{r check_parsing_errors}
 combined_junctions_dat <- vroom::vroom(combined_junctions_file)
 combined_junctions_problems <- vroom::problems(combined_junctions_dat)
 ```
@@ -104,7 +104,7 @@ No problems are present in merged_junctions file
 
 ### Check if combined and merged junctions.bed files are identical
 
-```{r}
+```{r check_identical}
 identical(combined_junctions, merged_junctions)
 ```
 
@@ -116,7 +116,7 @@ identical(deduplicated_combined_junctions, merged_junctions)
 
 ## Check differences in junctions bedfiles
 Dimensions of each bedfile
-```{r}
+```{r check_dimensions}
 dim(combined_junctions)
 ```
 
@@ -130,7 +130,7 @@ dim(merged_junctions)
 
 Elements unique to each junction bedfile
 
-```{r}
+```{r print_unique}
 # elements in deduplicated combined junctions df but not in merged
 junctions_unique_to_combined <- setdiff(deduplicated_combined_junctions, merged_junctions)
 

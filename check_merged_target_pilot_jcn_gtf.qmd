@@ -33,7 +33,7 @@ merged_results_dir <- file.path("results", "merged_shiba", "target_pilot")
 combined_gtf_file <- file.path(combined_gtf_dir, "assembled_annotation.gtf")
 combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
 # deduplicated combined junctions file - made by running bash scripts/deduplicated_shiba_junctions.sh
-deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "deduplicate_junctions.bed")
+deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "deduplicated_junctions.bed")
 
 ## merged shiba target pilot files
 merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")

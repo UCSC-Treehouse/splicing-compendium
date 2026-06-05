@@ -14,7 +14,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 Define directories and file paths
 
-```{r}
+```{r directories_and_files}
 ### Directories ###
 ## combined shiba run results on target pilot samples ##
 # shiba results dir
@@ -42,7 +42,7 @@ merged_junctions_file <- file.path(merged_results_dir, "merged_junctions.bed")
 
 Read in files
 
-```{r}
+```{r read_in_files}
 
 # read in files generated from combined shiba run
 combined_junctions <- readr::read_tsv(
@@ -58,7 +58,7 @@ combined_junctions <- readr::read_tsv(
 
 # read in combined junctions table that have been deduplicated
 deduplicated_combined_junctions <- readr::read_tsv(
-  merged_junctions_file,
+  deduplicated_combined_junctions_file,
   col_types = readr::cols(
     .default = "d",
     ID = "c",
@@ -94,7 +94,7 @@ merged_junctions_dat <- vroom::vroom(merged_junctions_file)
 ```
 
 ```{r}
-deduplicated_comb_junctions_dat <- vroom::vroom(deduplicated_combined_junctions)
+deduplicated_comb_junctions_dat <- vroom::vroom(deduplicated_combined_junctions_file)
 deduplicated_comb_junctions_problems <- vroom::problems(deduplicated_combined_junctions)
 ```
 

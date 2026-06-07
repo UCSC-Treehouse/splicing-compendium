@@ -12,7 +12,8 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 The goals of this notebook are to filter the following SRA tables for files to download:
 
--   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing differential splicing
+- TARGET SRA table, for pediatric cancer bulk RNA-seq to download. 
+These sequences will be used as a query group for performing differential splicing
 
 Additionally, this notebook obtains an estimate of how much space files will take up. 
 There is 2.64Tb of free space on the huge OpenStack instance. 
@@ -20,13 +21,14 @@ We have access to 5 more instances, which equate to 13.2TB of space
 
 Metadata used for this analysis are:
 
--   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. 
+- `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. 
 Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
--   `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
+- `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
 
 We also use the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, which describes what library prep approach was used for some samples.
 
-From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). 
+From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. 
+These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). 
 An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
 
 ## Setup
@@ -126,7 +128,7 @@ target_filtered_sra <- target_sra |>
   dplyr::mutate(Bytes = as.numeric(Bytes)) |>
   # select for only relevant columns
   dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`, biospecimen_repository_sample_id
   )
 
 # count how many rows there are

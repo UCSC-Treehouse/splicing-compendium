@@ -145,36 +145,40 @@ dim(deduplicated_combined_junctions)
 dim(merged_junctions)
 ```
 
+Take random 100 junctions for ease of debugging
+```{r subsample_junctions}
+
+# create list of dataframes consisting of merged and combined junctions file
+junctions_list <- list(merged_junctions, combined_junctions)
+
+# subset junctions dfs by randomly taking 100 rows
+junctions_list <- lapply(junctions_list, dplyr::slice_sample, n=100)
+
+```
+
+
 Elements unique to each junction bedfile
 
-```{r print_unique}
+```{r print_unique_combined}
 # elements in deduplicated combined junctions df but not in merged
 junctions_unique_to_combined <- setdiff(deduplicated_combined_junctions, merged_junctions)
-
-# sort so that we get IDs printed in the same order
-junctions_unique_to_combined <- junctions_unique_to_combined[order(junctions_unique_to_combined$ID), ]
 
 # print number of junctions that are unique to combined bedfile
 nrow(junctions_unique_to_combined)
 
 ```
 
-```{r}
+```{r print_unique_merged}
 # elements in combined junctions df but not in merged
 junctions_unique_to_merged <- setdiff(merged_junctions, deduplicated_combined_junctions)
-
-# sort so that we get IDs printed in the same order
-junctions_unique_to_merged <-junctions_unique_to_merged[order(junctions_unique_to_merged$ID)]
 
 # print number of junctions that are unique to merged bedfile
 nrow(junctions_unique_to_merged)
 
 ```
 
-```{r save-output}
-# save junctions only in merged or combined tables as output
-readr::write_tsv(junctions_unique_to_merged, file = jcn_only_in_merged)
+# check what class the setdiff output IDs
 
-readr::write_tsv(junctions_unique_to_combined, file = jcn_only_in_combined)
-
+```{r check_output}
+class(junctions_unique_to_merged)
 ```

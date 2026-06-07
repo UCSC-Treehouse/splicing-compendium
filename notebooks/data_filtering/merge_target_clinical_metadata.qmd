@@ -1,0 +1,115 @@
+---
+title: Add clinical metadata to TARGET compendium v1 sample sheet
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable 
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+This notebook adds clinical metadata to 
+
+## Setup
+
+### Read in directories and files
+
+Clinical metadata columns are:
+sample	
+id	
+disease_type	
+case_id	
+submitter_id	
+primary_site	
+cause_of_death.demographic	
+race.demographic	
+gender.demographic	
+ethnicity.demographic	
+vital_status.demographic	
+age_at_index.demographic	
+days_to_birth.demographic	
+age_is_obfuscated.demographic	
+days_to_death.demographic	
+primary_site.project	
+project_id.project	
+disease_type.project	
+name.project	
+name.program.project	entity_submitter_id.annotations	notes.annotations	submitter_id.annotations	classification.annotations	entity_id.annotations	created_datetime.annotations	annotation_id.annotations	entity_type.annotations	updated_datetime.annotations	case_id.annotations	state.annotations	category.annotations	status.annotations	case_submitter_id.annotations	tissue_or_organ_of_origin.diagnoses	age_at_diagnosis.diagnoses	morphology.diagnoses	classification_of_tumor.diagnoses	icd_10_code.diagnoses	days_to_diagnosis.diagnoses	primary_diagnosis.diagnoses	year_of_diagnosis.diagnoses	diagnosis_is_primary_disease.diagnoses	site_of_resection_or_biopsy.diagnoses	age_at_earliest_diagnosis.diagnoses.xena_derived	age_at_earliest_diagnosis_in_years.diagnoses.xena_derived	protocol_identifier.treatments.diagnoses	updated_datetime.treatments.diagnoses	treatment_id.treatments.diagnoses	submitter_id.treatments.diagnoses	state.treatments.diagnoses	treatment_or_therapy.treatments.diagnoses	created_datetime.treatments.diagnoses	sample_type_id.samples	tumor_descriptor.samples	sample_id.samples	sample_type.samples	tumor_code.samples	preservation_method.samples	freezing_method.samples	tumor_code_id.samples	oct_embedded.samples	specimen_type.samples	tissue_type.samples
+
+sample field: TARGET-10-PAMDRM-09A	
+
+survival metadata columns: sample	OS.time	OS	_PATIENT
+sample field: TARGET-10-PANSFD-09A
+
+```{r directories_and_files}
+
+## Define paths to directories ##
+
+# find the project directory
+base_dir <- here::here()
+# define directory paths
+# accession metadata dir
+metadata_dir <- file.path(base_dir, "metadata")
+# clinical TARGET metadata directory
+clinical_target_dir <- file.path(metadata_dir, "clinical", "target")
+# filtered accessions directory
+gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+# sample sheet dir of samples that were downloaded and processed
+config_dir <- file.path(base_dir, "config")
+
+## Define paths to input files ##
+
+# TARGET accessions with dbGaP metadata
+target_accessions_path <-  file.path(gtex_target_metadata_dir, "target_accessions.tsv")
+# final list of accessions that were downloaded and processed
+compendium_samples_path <- file.path(config_dir, "sample_sheet.tsv")
+
+# TARGET clinical metadata files
+
+# Define list of TARGET clinical metadata files
+target_clinical_files <- c(
+  all_p1_clin = "TARGET-ALL-P1.clinical.tsv",
+  all_p1_surv = "TARGET-ALL-P1.survival.tsv",
+  all_p2_clin = "TARGET-ALL-P2.clinical.tsv",
+  all_p2_surv = "TARGET-ALL-P2.survival.tsv",
+  aml_clin = "TARGET-AML.clinical.tsv",
+  aml_surv = "TARGET-AML.survival.tsv",
+  nbl_clin = "TARGET-NBL.clinical.tsv",
+  nbl_surv = "TARGET-NBL.survival.tsv",
+  rt_clin = "TARGET-RT.clinical.tsv",
+  rt_surv = "TARGET-RT.survival.tsv",
+  wt_clin = "TARGET-WT.clinical.tsv",
+  wt_surv = "TARGET-WT.survival.tsv"
+)
+
+# construct TARGET clinical metadata paths
+target_clinical_metadata_paths <-file.path(clinical_target_dir, target_clinical_files)
+names(target_clinical_metadata_paths) <- names(target_clinical_files)
+```
+
+Read in files 
+
+```{r read_files}
+
+## Sample sheets ##
+
+# filtered target accessions to download
+target_accessions <- readr::read_tsv(target_accessions_path, col_types = readr::cols( .default = "c"))
+# sample sheet of what was downloaded and processed
+compendium_samples <- readr::read_tsv(compendium_samples_path, col_types = readr::cols( .default = "c"))
+
+## Clinical metadata ##
+
+# read in metadata paths
+target_metadata <- target_clinical_metadata_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c"))
+  })
+
+# combine clinical and survival metadata 
+combined_target_metadata <- purrr::list_rbind(target_metadata, names_to = "metadata_type")
+
+```
+

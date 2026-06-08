@@ -144,10 +144,10 @@ target_sra_metadata <- target_sra |>
     BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`,
     biospecimen_repository_sample_id
   ) |>
-  # derive patient ID from sample ID 
+  # derive target sample ID from sample ID 
   dplyr::mutate(
     # remove the hyphen followed by characters that are not hyphens that are at the end of the string
-    patient_id = sub("-[^-]+$", "", biospecimen_repository_sample_id)
+    target_sample_id = sub("-[^-]+$", "", biospecimen_repository_sample_id)
   )
   
 # Check target metadata contents
@@ -163,7 +163,7 @@ Combine target metadata with SRA sheet of samples that were downloaded
 
 # merge target accessions with clinical metadata 
 target_clinical_accessions <- target_sra_metadata |>
-  dplyr::left_join(target_metadata, by = dplyr::join_by(patient_id == sample))
+  dplyr::left_join(target_metadata, by = dplyr::join_by(target_sample_id == sample))
 
 # print head to eyeball contents
 target_clinical_accessions |>

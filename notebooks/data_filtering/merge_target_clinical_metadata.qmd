@@ -139,12 +139,12 @@ target_downloaded <- compendium_samples |>
 target_sra_metadata <- target_sra |>
   dplyr::filter(Run %in% target_downloaded) |>
   # select for relevant columns
-  dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site,
-    study_name, analyte_type, `Assay Type`, `SRA Study`,
-    BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`,
-    biospecimen_repository_sample_id
-  ) |>
+  # dplyr::select(
+  #   Run, biospecimen_repository, `DATASTORE filetype`, body_site,
+  #   study_name, analyte_type, `Assay Type`, `SRA Study`,
+  #   BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`,
+  #   biospecimen_repository_sample_id
+  # ) |>
   # derive target sample ID from sample ID 
   dplyr::mutate(
     # remove the hyphen followed by characters that are not hyphens that are at the end of the string
@@ -171,13 +171,41 @@ target_clinical_accessions <- dplyr::left_join(
     )
 ```
 
-Check row 2421
+Check row 2421 - this corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, 
+but only one entry in the clinical metadata.
+Some clinical metadata columns have a list of values for this sample, which I think indicates it contains information from different samples.
+
 ```{r}
-targ
+# print row of target_metadata that has multiple rows which match to target-sra_metadata
+target_metadata[2421,] # sample column value is "TARGET-20-PARTXH-09A"
 ```
 
+```{r}
+# print rows corresponding to sample TARGET-20-PARTXH-09A in the target_sra_metadata sheet to check if multiple rows match to the clinical metadata for explainable reasons 
+target_sra_metadata |> dplyr::filter(
+  target_sample_id == "TARGET-20-PARTXH-09A"
+)
+```
 
-Below os a breakdown of columns that are excluded.
+In this case, it makes sense to me to preserve both matches (two samples from the same patient) since the clinical information should mostly be the same for samples from the same patient 
+
+Merge TARGET accessions with clinical metadata without assuming one-to-one relationship
+```{r}
+# merge target accessions with clinical metadata 
+target_clinical_accessions <- dplyr::left_join(
+  target_sra_metadata,
+  target_metadata, 
+  by = dplyr::join_by(
+    target_sample_id == sample)
+    )
+
+# print columns
+colnames(target_clinical_accessions)
+```
+
+## Filter merged TARGET clinical metadata 
+
+Below is a breakdown of columns that are excluded from the final clinical metadata:
 
 ### Columns excluded from the metadata because they contain redundant values found in other columns
 

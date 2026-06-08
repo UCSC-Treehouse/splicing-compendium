@@ -22,7 +22,7 @@ We plan to include the following metadata fields in the accessions sheet:
 
 - survival
 
-- Something with a single number or value per column so it can be computed on easily
+- Anything with a single number or value per column so it can be computed on easily
 
 ## Setup
 

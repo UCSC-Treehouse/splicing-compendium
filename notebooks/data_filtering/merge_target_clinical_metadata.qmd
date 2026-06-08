@@ -102,17 +102,16 @@ compendium_samples <- readr::read_tsv(compendium_samples_path, col_types = readr
 target_clinical_metadata <- target_clinical_metadata_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c"))
-  })
+  }) |> 
+  purrr::list_rbind()
 
 target_survival_metadata <- target_survival_metadata_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default="c"))
-  })
+  }) |>
+  purrr::list_rbind()
 
-# combine clinical and survival metadata 
-combined_target_clinical <- purrr::list_rbind(target_clinical_metadata)
 
-combined_target_survival <- purrr::list_rbind(target_survival_metadata)
 
 ```
 

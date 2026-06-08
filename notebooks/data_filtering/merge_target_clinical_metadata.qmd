@@ -36,7 +36,6 @@ We plan to include the following metadata fields in the accessions sheet:
 base_dir <- here::here()
 
 # define directory paths
-
 # accession metadata dir
 metadata_dir <- file.path(base_dir, "metadata")
 # clinical TARGET metadata directory
@@ -111,8 +110,6 @@ target_survival_metadata <- target_survival_metadata_paths |>
   }) |>
   purrr::list_rbind()
 
-
-
 ```
 
 The "sample" column in the survival and clinical metadata tables have entries that look like: TARGET-10-PAMDRM-09A
@@ -138,7 +135,7 @@ target_downloaded <- compendium_samples |>
   dplyr::pull(sample)
 
 # filter target accessions for accessions that are in the sample sheet
-target_accessions <- target_sra |>
+target_sra_metadata <- target_sra |>
   dplyr::filter(Run %in% target_downloaded) |>
   # select for relevant columns
   dplyr::select(
@@ -165,7 +162,7 @@ Combine target metadata with SRA sheet of samples that were downloaded
 ```{r combine_metadata_with_sra}
 
 # merge target accessions with clinical metadata 
-target_clinical_accessions <- target_accessions |>
+target_clinical_accessions <- target_sra_metadata |>
   dplyr::left_join(target_metadata, by = dplyr::join_by(patient_id == sample))
 
 # print head to eyeball contents

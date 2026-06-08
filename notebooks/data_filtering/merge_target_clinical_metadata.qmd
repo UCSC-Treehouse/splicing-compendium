@@ -126,8 +126,11 @@ Combine metadata with accessions sheet and filter target SRA metadata for those 
 ```{r combine_metadata}
 
 # combine target clinical and survival metadata
-target_metadata <- combined_target_survival |>
-  dplyr::full_join(combined_target_clinical, by="sample")
+target_metadata <- dplyr::full_join(
+  target_clinical_metadata,
+  target_survival_metadata,
+  by = "sample"
+)
 
 # make a list of target accessions that were downloaded and processed
 target_downloaded <- compendium_samples |>

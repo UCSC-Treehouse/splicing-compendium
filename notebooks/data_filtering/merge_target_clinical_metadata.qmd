@@ -10,15 +10,19 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Introduction
 
-This notebook adds clinical metadata to the TARGET accessions sheet.
-Clinical metadata is obtained from the UCSC Xena browser: https://xenabrowser.net/datapages/?hub=https://gdc.xenahubs.net:443
+This notebook adds clinical metadata to the TARGET accessions sheet. Clinical metadata is obtained from the UCSC Xena browser: https://xenabrowser.net/datapages/?hub=https://gdc.xenahubs.net:443
 
 We plan to include the following metadata fields in the accessions sheet:
-* age at dx
-* race/ethnicity
-* sex
-* survival
-* Something with a single number or value per column so it can be computed on easily
+
+- age at dx
+
+- race/ethnicity
+
+- sex
+
+- survival
+
+- Something with a single number or value per column so it can be computed on easily
 
 ## Setup
 
@@ -74,9 +78,13 @@ target_clinical_metadata_paths <-file.path(clinical_target_dir, target_clinical_
 names(target_clinical_metadata_paths) <- names(target_clinical_files)
 target_survival_metadata_paths <- file.path(clinical_target_dir, target_survival_files)
 names(target_survival_files) <- names(target_survival_files)
+
+## Output ##
+# define path to output file
+target_accessions_with_clinical_metadata <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
 ```
 
-Read in files 
+Read in files
 
 ```{r read_files}
 
@@ -108,9 +116,11 @@ combined_target_survival <- purrr::list_rbind(target_survival_metadata)
 
 ```
 
-The "sample" column are shared between survival and clinical metadata tables and has entries that look like: TARGET-10-PAMDRM-09A	
+The "sample" column in the survival and clinical metadata tables have entries that look like: TARGET-10-PAMDRM-09A
 
-The "sample" column in the metadata table correspond to the "biospecimen_repository_sample_id" column in the target accessions table
+The "sample" column in the metadata table correspond to the "biospecimen_repository_sample_id" column in the target accessions table, which looks like: TARGET-10-PAMDRM-09A-01D
+
+"biospecimen_repository_sample_id" needs to be cleaned so the last substring separated by "-" is removed
 
 Combine metadata with accessions sheet and filter target SRA metadata for those corresponding to samples that were downloaded and processed
 
@@ -118,7 +128,7 @@ Combine metadata with accessions sheet and filter target SRA metadata for those 
 
 # combine target clinical and survival metadata
 target_metadata <- combined_target_survival |>
-  merge(combined_target_clinical, by="sample")
+  dplyr::full_join(combined_target_clinical, by="sample")
 
 # make a list of target accessions that were downloaded and processed
 target_downloaded <- compendium_samples |>
@@ -134,18 +144,39 @@ target_accessions <- target_sra |>
     study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`,
     BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`,
     biospecimen_repository_sample_id
+  ) |>
+  # derive patient ID from sample ID 
+  dplyr::mutate(
+    # remove the hyphen followed by characters that are not hyphens that are at the end of the string
+    patient_id = sub("-[^-]+$", "", biospecimen_repository_sample_id)
   )
   
 # Check target metadata contents
 colnames(target_metadata)
 
 ```
-There are more fields in the metadata than we planned to include, so some discussion on what may or may not be useful as a group will be helpful.
-For now, I won't exclude any metadata and will just focus on merging the metadata with the accessions sheet
 
-Combine target metadata with SRA sheet of samples that were downloaded 
+There are more fields in the metadata than we planned to include, so some discussion on what may or may not be useful as a group will be helpful. For now, I won't exclude any metadata and will just focus on merging the metadata with the accessions sheet
+
+Combine target metadata with SRA sheet of samples that were downloaded
 
 ```{r combine_metadata_with_sra}
 
+# merge target accessions with clinical metadata 
+target_clinical_accessions <- target_accessions |>
+  dplyr::left_join(target_metadata, by = dplyr::join_by(patient_id == sample))
+
+# print head to eyeball contents
+target_clinical_accessions |>
+  dplyr::slice_sample( n = 5) |>
+  head(n = 5)
+
 ```
 
+Not all samples have all clinical/survival metadata fields.
+
+## Write output
+
+```{r write_output}
+# holding off on this until the code has gone through review
+```

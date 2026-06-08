@@ -139,8 +139,8 @@ target_sra_metadata <- target_sra |>
   dplyr::filter(Run %in% target_downloaded) |>
   # select for relevant columns
   dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes,
-    study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`,
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site,
+    study_name, analyte_type, `Assay Type`, `SRA Study`,
     BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`,
     biospecimen_repository_sample_id
   ) |>
@@ -159,11 +159,60 @@ There are more fields in the metadata than we planned to include, so some discus
 
 Combine target metadata with SRA sheet of samples that were downloaded
 
+Columns excluded from the final dataframe due to having information that is not useful:
+
+vital_status (values: Dead, Alive), name.program.project (value = TARGET),
+
+Columns excluded due to having multiple values per row/ID: primary_site.project, entity.submitter_id.annotations, notes.annotations, submitter_id.annotations, classification.annotaitons, entity_id.annotations, annotation_id.annotations, entity_type.annotations,
+
 ```{r combine_metadata_with_sra}
 
 # merge target accessions with clinical metadata 
 target_clinical_accessions <- target_sra_metadata |>
-  dplyr::left_join(target_metadata, by = dplyr::join_by(target_sample_id == sample))
+  dplyr::left_join(target_metadata, by = dplyr::join_by(target_sample_id == sample)) |>
+  # select for columns that are relevant to clinical metadata
+  dplyr::select(
+    # these columns have the same values in other columns
+    # I select for the most clearly named column of these, or rename the column with the most values for clarity
+    submitter_id,
+    disease_type,
+    age_at_diagnosis_days = age_at_diagnosis.diagnoses,
+    case_id,
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # selected over age_at_index.demographic due to having unrounded numbers
+    # the remaining columns are not repeated in the data frame and are selected for clinical relevance
+    disease_type,
+    submitter_id,
+    primary_site,
+    cause_of_death.demographic,
+    race.demographic,
+    gender.demographic,
+    ethnicity.demographic,
+    project_id.project,
+    name.project,
+    tissue_or_organ_of_origin.diagnoses,
+    morphology.diagnoses,
+    classification_of_tumor.diagnoses,
+    icd_10_code.diagnoses,
+    primary_diagnosis.diagnoses,
+    sample_type_id.samples,
+    tumor_descriptor.samples,
+    sample_type.samples,
+    tumor_code_id.samples,
+    sample_type.samples,
+    tissue_type.samples,
+    inss_stage.diagnoses,
+    cog_neuroblastoma_risk_group.diagnoses,
+    mitosis_karyorrhexis_index.diagnoses,
+    inpc_grade.diagnoses,
+    pathology_detail_id.pathology_details.diagnoses,
+    necrosis_percent.pathology_details.diagnoses,
+    percent_tumor_nuclei.pathology_details.diagnoses,
+    pediatric_kidney_staging.diagnoses,
+    wilms_tumor_histologic_subtype.diagnoses,
+    OS.time,
+    OS,
+    `_PATIENT`
+  )
 
 # print head to eyeball contents
 target_clinical_accessions |>
@@ -173,6 +222,11 @@ target_clinical_accessions |>
 ```
 
 Not all samples have all clinical/survival metadata fields.
+
+```{r}
+target_clinical_accessions |>
+  dplyr::select(age_at_earliest_diagnosis.diagnoses.xena_derived, age_at_diagnosis.diagnoses, age_at_index.demographic)
+```
 
 ## Write output
 

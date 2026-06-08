@@ -152,7 +152,7 @@ Take random 1000 junctions for ease of debugging
 junctions_list <- list(merged_junctions, deduplicated_combined_junctions)
 
 # subset junctions dfs by randomly taking 100 rows
-junctions_list <- lapply(junctions_list, dplyr::select, chr == "chr1")
+junctions_list <- lapply(junctions_list, dplyr::filter, chr == "chr1")
 
 ```
 

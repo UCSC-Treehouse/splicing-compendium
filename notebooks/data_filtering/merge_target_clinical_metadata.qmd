@@ -170,7 +170,6 @@ target_clinical_accessions <- dplyr::left_join(
     relationship = "one-to-one"
     )
 ```
-
 Check row 2421 - this corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, 
 but only one entry in the clinical metadata.
 Some clinical metadata columns have a list of values for this sample, which I think indicates it contains information from different samples.
@@ -265,13 +264,16 @@ target_clinical_accessions |>
   head()
 ```
 
+```{r}
+target_clinical_accessions |>
+  dplyr::select(disease_type, name.project, primary_diagnosis.diagnoses) |>
+  head()
+```
 
-Columns excluded due to having multiple values per row/ID: primary_site.project, entity.submitter_id.annotations, notes.annotations, submitter_id.annotations, classification.annotations, entity_id.annotations, annotation_id.annotations, entity_type.annotations,
 
 ### Columns excluded from the metadata because they contain uninformative and/or non-clinical information
 
 vital_status (values: Dead, Alive), name.program.project (value = TARGET),
-
 
 
 ## Combine target metadata with SRA sheet of samples that were downloaded
@@ -279,23 +281,16 @@ vital_status (values: Dead, Alive), name.program.project (value = TARGET),
 ```{r combine_metadata_with_sra}
 
 # merge target accessions with clinical metadata 
-target_clinical_accessions <- target_sra_metadata |>
-  dplyr::left_join(target_metadata, by = dplyr::join_by(
-    target_sample_id == sample),
-    relationship = "one-to-one"
-    ) |>
+target_clinical_accessions <- target_clinical_accessions |>
   # select for columns that are relevant to clinical metadata
   dplyr::select(
     # these columns have the same values in other columns
     # I select for the most clearly named column of these, or rename the column with the most values for clarity
-    submitter_id,
-    disease_type,
     age_at_diagnosis_days = age_at_diagnosis.diagnoses,
     case_id,
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # selected over age_at_index.demographic due to having unrounded numbers
     # the remaining columns are not repeated in the data frame and are selected for clinical relevance
     disease_type,
-    submitter_id,
     primary_site,
     cause_of_death.demographic,
     race.demographic,
@@ -325,7 +320,34 @@ target_clinical_accessions <- target_sra_metadata |>
     wilms_tumor_histologic_subtype.diagnoses,
     OS.time,
     OS,
-    `_PATIENT`
+    `_PATIENT`,
+    # these columns are from the dbGaP SRA metadata
+    Run,
+  analyte_type,
+  `Assay Type`,
+  BioProject,
+  BioSample,
+  biospecimen_repository,
+  biospecimen_repository_sample_id,
+  `Center Name`,
+  Experiment,
+  `dbGaP accession`,
+  Instrument,
+  `Library Name`,
+  LibraryLayout,
+  LibrarySelection,
+  LibrarySource,
+  Organism,
+  Platform,
+  `Sample Name`,
+  `SRA Study`,
+  study_design,
+  study_name,
+  submitted_subject_id,
+  Bases,
+  AvgSpotLen,
+  histological_type,
+  body_site
   )
 
 # print head to eyeball contents

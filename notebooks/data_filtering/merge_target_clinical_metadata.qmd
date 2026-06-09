@@ -212,10 +212,58 @@ Below is a breakdown of columns that are excluded from the final clinical metada
 The following columns are excluded because they are redundant with the submitter_id column
 
 ```{r}
-
+target_clinical_accessions |>
+  # showing ALL phase 1 because columns ending in "annotations" only have value for this cancer type
+  dplyr::filter(study_name == "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1") |>
+  dplyr::select(submitter_id, 
+                entity_submitter_id.annotations, 
+                case_submitter_id.annotations,
+                # submitter_id is redundant because it concatenates classification.annotations and case_submitter_id.annotations
+                submitter_id.annotations,
+                classification.annotations) |>
+  head()
 ```
 
+The following columns are excluded because they are redundant with the disease_type column
 
+```{r}
+target_clinical_accessions |>
+  dplyr::select(disease_type, 
+                disease_type.project) |>
+  head()
+```
+
+The following columns are excluded because they are redundant with the primary_site column
+
+```{r}
+target_clinical_accessions |>
+  dplyr::select(primary_site, 
+                primary_site.project) |>
+  head()
+```
+
+The following columns are excluded because they are redundant with the age_at_diagnosis.diagnoses column
+
+```{r}
+target_clinical_accessions |>
+  dplyr::select(age_at_diagnosis.diagnoses,
+                age_at_earliest_diagnosis.diagnoses.xena_derived) |>
+  head()
+```
+
+The following columns are excluded because they are redundant with the id column
+```{r}
+target_clinical_metadata |>
+  dplyr::select(id, case_id, entity_id.annotations, case_id.annotations) |>
+  head()
+```
+
+age_at_earliest_diagnosis_in_years.xena_derived is selected over age_at_index.demographic because it has non-rounded age in years
+```{r}
+target_clinical_accessions |>
+  dplyr::select(age_at_index.demographic, age_at_earliest_diagnosis_in_years.diagnoses.xena_derived) |>
+  head()
+```
 
 
 Columns excluded due to having multiple values per row/ID: primary_site.project, entity.submitter_id.annotations, notes.annotations, submitter_id.annotations, classification.annotations, entity_id.annotations, annotation_id.annotations, entity_type.annotations,

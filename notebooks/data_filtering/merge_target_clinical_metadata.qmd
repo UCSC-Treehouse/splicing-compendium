@@ -159,18 +159,9 @@ colnames(target_sra_metadata)
 There are more fields in the metadata than we planned to include, so some discussion on what may or may not be useful as a group will be helpful. 
 For now, I focus on excluding fields that are duplicates of other columns, or fields I don't think are as useful for clinical analysis (like vital_status, program project name).
 
-Merge TARGET accessions with clinical metadata
-```{r}
-# merge target accessions with clinical metadata 
-target_clinical_accessions <- dplyr::left_join(
-  target_sra_metadata,
-  target_metadata, 
-  by = dplyr::join_by(
-    target_sample_id == sample),
-    relationship = "one-to-one"
-    )
-```
-Check row 2421 - this corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, 
+## Merge TARGET accessions with clinical metadata
+
+Row 2421 of the clinical metadata corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, 
 but only one entry in the clinical metadata.
 Some clinical metadata columns have a list of values for this sample, which I think indicates it contains information from different samples.
 
@@ -186,10 +177,28 @@ target_sra_metadata |> dplyr::filter(
 )
 ```
 
-In this case, it makes sense to me to preserve both matches (two samples from the same patient) since the clinical information should mostly be the same for samples from the same patient 
-
-Merge TARGET accessions with clinical metadata without assuming one-to-one relationship
+Check - are there sample-specific entries in the clinical metadata?
 ```{r}
+target_metadata |> dplyr::filter(sample == "TARGET-20-PARTXH-09A") |>
+  dplyr::select(primary_site.project,
+                disease_type.project,
+                protocol_identifier.treatments.diagnoses,
+                updated_datetime.treatments.diagnoses,
+                treatment_id.treatments.diagnoses,
+                submitter_id.treatments.diagnoses,
+                state.treatments.diagnoses,
+                treatment_or_therapy.treatments.diagnoses,
+                created_datetime.treatments.diagnoses
+                )
+```
+There are, but there is no way to associate which items in the list-columns correspond to which samples.
+Additionally, some columns like treatment_or_therapy.treatments.diagnoses have five entries, 
+indicating they correspond to samples from the same patient not in the compendium.
+In this case, it makes sense to me to preserve both samples from the same patient and drop metadata columns that have these list values.
+So samples from the same patient will just have the same clinical metadata. 
+
+### Merge TARGET accessions with clinical metadata without assuming one-to-one relationship
+```{r merge_accessions_with_metadata}
 # merge target accessions with clinical metadata 
 target_clinical_accessions <- dplyr::left_join(
   target_sra_metadata,
@@ -225,7 +234,7 @@ target_clinical_accessions |>
 
 The following columns are excluded because they are redundant with the disease_type column
 
-```{r}
+```{r redundant_disease}
 target_clinical_accessions |>
   dplyr::select(disease_type, 
                 disease_type.project) |>
@@ -234,7 +243,7 @@ target_clinical_accessions |>
 
 The following columns are excluded because they are redundant with the primary_site column
 
-```{r}
+```{r redundant_primary_site}
 target_clinical_accessions |>
   dplyr::select(primary_site, 
                 primary_site.project) |>
@@ -258,18 +267,25 @@ target_clinical_metadata |>
 ```
 
 age_at_earliest_diagnosis_in_years.xena_derived is selected over age_at_index.demographic because it has non-rounded age in years
-```{r}
+```{r redundant_age_at_diag_years}
 target_clinical_accessions |>
   dplyr::select(age_at_index.demographic, age_at_earliest_diagnosis_in_years.diagnoses.xena_derived) |>
   head()
 ```
 
-```{r}
+There are multiple age columns, so I select age_at_diagnosis.diagnoses
+```{r redundant_age}
+target_clinical_accessions |>
+  dplyr::select(age_at_earliest_diagnosis.diagnoses.xena_derived, age_at_diagnosis.diagnoses, age_at_index.demographic)
+```
+
+These fields are very similar, but contain slightly different information, so I decided to keep them
+
+```{r similar_fields}
 target_clinical_accessions |>
   dplyr::select(disease_type, name.project, primary_diagnosis.diagnoses) |>
   head()
 ```
-
 
 ### Columns excluded from the metadata because they contain uninformative and/or non-clinical information
 
@@ -357,12 +373,6 @@ target_clinical_accessions |>
 
 ```
 
-Not all samples have all clinical/survival metadata fields.
-
-```{r}
-target_clinical_accessions |>
-  dplyr::select(age_at_earliest_diagnosis.diagnoses.xena_derived, age_at_diagnosis.diagnoses, age_at_index.demographic)
-```
 
 ## Write output
 

@@ -290,7 +290,7 @@ nrow(merged_only_chr1_10)
 nrow(merged_only_chr1_10) / nrow(merged_junctions_chr1)
 ```
 
-If we filter for junctions with more than 10 counts, we the fraction of events we miss in the merged junctions file is even smaller in chromosome 1.
+If we filter for junctions with more than 10 counts, the fraction of events we miss in the merged junctions file is even smaller in chromosome 1.
 
 ### Print examples of junctions only in merged or combined tables
 
@@ -317,7 +317,7 @@ This junction is completely missed, with the closest coordinate being chr1:18369
 Print examples of junctions only in the merged junctions file
 
 ```{r junctions_only_in_merged}
-merged_only_chr1_10 |> 
+merged_only_chr1_10 |>
   dplyr::arrange(start) |>
   head()
 ```
@@ -325,7 +325,7 @@ merged_only_chr1_10 |>
 For comparison, examine combined chromosome 1 counts-filtered junction table for junctions near chr1:268020-268021
 
 ```{r}
-combined_junctions_chr1_10 |>
+deduplicated_combined_junctions_chr1_10 |>
   dplyr::arrange(start) |>
   dplyr::filter((268020 -  10) < start &
                   start < (268020 + 10) ) |>
@@ -351,4 +351,4 @@ Because the values in the merged table are 0 for the counts that differ from the
 I think this means that junctions defined differently when Shiba runs on one vs. multiple samples in a way that I don't understand yet.
 But since this difference impacts a very small fraction of junctions in chromosome 1, maybe it is not something worth trying to fix.
 
-Another note - because the concatenated junctions bug impacted one junction with reads \> 10 in the combined junctions bedfile, I expect this will result in differenes in the PSI table
+Another note - because the concatenated junctions bug impacted one junction with reads \> 10 in the combined junctions bedfile, I expect this will result in differences in the PSI table

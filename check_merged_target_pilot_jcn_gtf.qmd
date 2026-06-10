@@ -68,6 +68,9 @@ Read in files
 target_pilot_samples <- readr::read_tsv(target_pilot_sample_sheet) |>
   dplyr::pull(sample)
 
+# minimum number of samples to filter minimum number of junctions by
+min_samples <- 5
+
 # read in files generated from combined shiba run
 combined_junctions <- readr::read_tsv(
   combined_junctions_file,
@@ -107,12 +110,18 @@ merged_junctions <- readr::read_tsv(
 
 ```
 
-Check tables for parsing errors
+## Check tables for parsing errors
+### Print parsing errors in combined junctions table
 
 ```{r check_parsing_errors}
 combined_junctions_dat <- vroom::vroom(combined_junctions_file)
 combined_junctions_problems <- vroom::problems(combined_junctions_dat)
+combined_junctions_problems
 ```
+We have `r nrow(unique(combined_junctions_problems$row))` junctions in the combined junctions file that are impacted by the concatenation bug in Shiba.
+PSI files for events involving these junctions are expected to be problematic in the combined PSI file.
+
+### Check for parsing errors in the merged and deduplicated junctions tables
 
 ```{r}
 merged_junctions_dat <- vroom::vroom(merged_junctions_file)
@@ -127,8 +136,6 @@ No problems are present in merged_junctions file or deduplicated junctions file
 
 ## Check if files are identical
 
-Deduplicated and merged junctions are still not identical, so need to drill down on what junctions are different
-
 ```{r}
 # ensure column order is the same before checking if data frames are identical
 deduplicated_combined_junctions <- deduplicated_combined_junctions |>
@@ -140,13 +147,11 @@ merged_junctions <- merged_junctions |>
 identical(deduplicated_combined_junctions, merged_junctions)
 ```
 
+Deduplicated and merged junctions are still not identical, so need to drill down on what junctions are different
+
 ## Check differences in junctions bedfiles
 
 Dimensions of each bedfile
-
-```{r check_dimensions}
-dim(combined_junctions)
-```
 
 ```{r}
 dim(deduplicated_combined_junctions)
@@ -156,7 +161,10 @@ dim(deduplicated_combined_junctions)
 dim(merged_junctions)
 ```
 
-### Subsample junctions to those in chromosome 1
+There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` more junctions in the merged junction file compared to the combined junction file.
+
+## Subsample junctions to those in chromosome 1
+To allow for running on my laptop, subsample junctions files for those in chromosome 1 prior to checking for differences
 
 ```{r subsample_junctions}
 merged_junctions_chr1 <- merged_junctions |> dplyr::filter(chr == "chr1")
@@ -179,16 +187,17 @@ deduplicated_combined_junctions_chr1 |>
   head()
 ```
 
-From quickly eyeballing chromosome 1, the column orders of samples are not the same, but according to [setdiff documentation](https://dplyr.tidyverse.org/reference/setops.html), the order of the columns should not matter.
+Many junctions also have counts below 10 across all samples.
+These junctions are not expected to make it into PSI calculation based off default Shiba filters (\> 10 junctions).
 
-Check of chromosomes 1 of the combined and merged junctions bedfiles are identical
-
-```{r}
-identical(deduplicated_combined_junctions_chr1, merged_junctions_chr1_10)
+Check number of junctions in each subsetted dataframe
+```{r check_num_junctions_chr1}
+nrow(merged_junctions_chr1)
+nrow(deduplicated_combined_junctions_chr1)
 ```
 
-Many junctions also have counts below 10 across all samples.
-These junctions are not expected to make it into PSI calculation based off default Shiba filters (\> 10 junctions), but may factor into splice event coordinate definition.
+There are `r nrow(merged_junctions_chr1) - nrow(deduplicated_combined_junctions_chr1)` more junctions in the merged bedfile, compared to the combined bedfile.
+The chromosome 1-subsetted junction bedfiles are not identical.
 
 Remove junctions in chromosome 1 whose counts are \< 10 in all samples and check for differences
 
@@ -261,4 +270,10 @@ Potential sources of differences in the merged method that may result in junctio
 
 - I don't know how shiba "decides" what junctions get the duplication bug and how the bug impacts how junction coordinates are defined in each run
 
+`r nrow(combined_only_chr1_10)`
+
 Another note - because the concatenated junctions bug impacted one junction with reads > 10 in the combined junctions bedfile, I expect this will result in differenes in the PSI table
+
+-m filte for things with 10 counts ina t least 5 samples to keep consistent with psi filtering
+-explain waqrnings seen in eac file more and print parsing errors
+show examples of junctions that dont match - any glaring things that explain why they are not in the merged method?

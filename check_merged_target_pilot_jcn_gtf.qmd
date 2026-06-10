@@ -260,3 +260,5 @@ Potential sources of differences in the merged method that may result in junctio
   I don't know how Shiba handles junctions not found in all samples in the combined version
 
 - I don't know how shiba "decides" what junctions get the duplication bug and how the bug impacts how junction coordinates are defined in each run
+
+Another note - because the concatenated junctions bug impacted one junction with reads > 10 in the combined junctions bedfile, I expect this will result in differenes in the PSI table

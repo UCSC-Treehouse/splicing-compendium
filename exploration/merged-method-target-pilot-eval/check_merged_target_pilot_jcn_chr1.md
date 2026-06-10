@@ -1,4 +1,4 @@
-# Check Merge vs. Combined TARGET Pilot Junction files
+# Check Merge vs. Combined TARGET Pilot Junction files (chromosome 1)
 Cindy Liang (celiang@ucsc.edu)
 2026-06-10
 

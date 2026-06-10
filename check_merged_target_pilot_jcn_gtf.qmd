@@ -123,7 +123,7 @@ deduplicated_comb_junctions_dat <- vroom::vroom(deduplicated_combined_junctions_
 deduplicated_comb_junctions_problems <- vroom::problems(deduplicated_combined_junctions)
 ```
 
-No problems are present in merged_junctions file
+No problems are present in merged_junctions file or deduplicated junctions file
 
 ## Check if files are identical
 

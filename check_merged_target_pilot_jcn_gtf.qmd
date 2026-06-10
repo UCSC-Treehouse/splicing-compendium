@@ -201,33 +201,33 @@ The chromosome 1-subsetted junction bedfiles are not identical.
 
 Remove junctions in chromosome 1 whose counts are \< 10 in all samples and check for differences
 
-```{r filter_junction_counts}
+```{r filter_junction_counts_merged}
 merged_junctions_chr1_10 <- merged_junctions_chr1 |> dplyr::filter(
   dplyr::if_all(
     dplyr::all_of(target_pilot_samples), ~ . > 10
     )
   )
 
-merged_junctions_chr1_10 |> 
-  dplyr::arrange(start) |> 
+merged_junctions_chr1_10 |>
+  dplyr::arrange(start) |>
   head()
 ```
 
-```{r}
+```{r filter_junction_counts_combined}
 deduplicated_combined_junctions_chr1_10 <- deduplicated_combined_junctions_chr1 |> dplyr::filter(
   dplyr::if_all(
     dplyr::all_of(target_pilot_samples), ~ . > 10
     )
   )
 
-deduplicated_combined_junctions_chr1_10 |> 
-  dplyr::arrange(start) |> 
+deduplicated_combined_junctions_chr1_10 |>
+  dplyr::arrange(start) |>
   head()
 ```
 
 The two tables look identical so far - check with setdiff
 
-```{r}
+```{r check_identical_chr1_countsfiltered}
 identical(deduplicated_combined_junctions_chr1, merged_junctions_chr1)
 
 identical(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
@@ -235,11 +235,11 @@ identical(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
 
 Check what's different in chromosome 1 junctions \> 10 counts
 
-```{r}
+```{r count_differences_chr1_countsfiltered}
 combined_only_chr1 <- dplyr::setdiff(deduplicated_combined_junctions_chr1, merged_junctions_chr1)
 nrow(combined_only_chr1)
 
-# check fraction of combined_only_chr1 junctions that are only in chr1 of deduplicated combined junctions 
+# check fraction of combined_only_chr1 junctions that are only in chr1 of deduplicated combined junctions
 nrow(combined_only_chr1) / nrow(deduplicated_combined_junctions_chr1)
 
 merged_only_chr1 <- dplyr::setdiff(merged_junctions_chr1, deduplicated_combined_junctions_chr1)
@@ -251,12 +251,12 @@ nrow(merged_only_chr1) / nrow(merged_junctions_chr1)
 combined_only_chr1_10 <- dplyr::setdiff(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
 nrow(combined_only_chr1_10)
 
-# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions 
+# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions
 nrow(combined_only_chr1_10) / nrow(deduplicated_combined_junctions_chr1)
 
 merged_only_chr1_10 <- dplyr::setdiff(merged_junctions_chr1_10, deduplicated_combined_junctions_chr1_10)
 nrow(merged_only_chr1_10)
-# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions 
+# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions
 nrow(merged_only_chr1_10) / nrow(merged_junctions_chr1)
 ```
 

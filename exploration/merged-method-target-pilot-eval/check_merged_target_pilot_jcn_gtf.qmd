@@ -1,5 +1,5 @@
 ---
-title: Check Merge vs. Combined TARGET Pilot Junction files
+title: Check Merge vs. Combined TARGET Pilot Junction files (chromosome 1)
 author: "Cindy Liang (celiang@ucsc.edu)"
 format:
   gfm:

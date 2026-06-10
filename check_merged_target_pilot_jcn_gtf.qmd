@@ -260,29 +260,3 @@ Potential sources of differences in the merged method that may result in junctio
   I don't know how Shiba handles junctions not found in all samples in the combined version
 
 - I don't know how shiba "decides" what junctions get the duplication bug and how the bug impacts how junction coordinates are defined in each run
-
-Elements unique to each junction bedfile
-
-```{r print_unique_combined}
-# elements in deduplicated combined junctions df but not in merged
-junctions_unique_to_combined <- setdiff(deduplicated_combined_junctions, merged_junctions)
-
-# print number of junctions that are unique to combined bedfile
-nrow(junctions_unique_to_combined)
-
-```
-
-```{r print_unique_merged}
-# elements in combined junctions df but not in merged
-junctions_unique_to_merged <- setdiff(merged_junctions, deduplicated_combined_junctions)
-
-# print number of junctions that are unique to merged bedfile
-nrow(junctions_unique_to_merged)
-
-```
-
-# check what class the setdiff output IDs
-
-```{r check_output}
-class(junctions_unique_to_merged)
-```

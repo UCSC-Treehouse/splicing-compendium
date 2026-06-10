@@ -111,6 +111,7 @@ merged_junctions <- readr::read_tsv(
 ```
 
 ## Check tables for parsing errors
+
 ### Print parsing errors in combined junctions table
 
 ```{r check_parsing_errors}
@@ -118,6 +119,7 @@ combined_junctions_dat <- vroom::vroom(combined_junctions_file)
 combined_junctions_problems <- vroom::problems(combined_junctions_dat)
 combined_junctions_problems
 ```
+
 We have `r nrow(unique(combined_junctions_problems$row))` junctions in the combined junctions file that are impacted by the concatenation bug in Shiba.
 PSI files for events involving these junctions are expected to be problematic in the combined PSI file.
 
@@ -164,19 +166,12 @@ dim(merged_junctions)
 There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` more junctions in the merged junction file compared to the combined junction file.
 
 ## Subsample junctions to those in chromosome 1
+
 To allow for running on my laptop, subsample junctions files for those in chromosome 1 prior to checking for differences
 
 ```{r subsample_junctions}
-merged_junctions_chr1 <- merged_junctions |> dplyr::filter(chr == "chr1")
 deduplicated_combined_junctions_chr1 <- deduplicated_combined_junctions |> dplyr::filter(chr == "chr1")
-```
-
-Check head of merged chromosome 1 junctions
-
-```{r head_merged_junctions}
-merged_junctions_chr1 |>
-  dplyr::arrange(start) |>
-  head()
+merged_junctions_chr1 <- merged_junctions |> dplyr::filter(chr == "chr1")
 ```
 
 Check head of deduplicated combined chromosome 1 junctions
@@ -187,25 +182,40 @@ deduplicated_combined_junctions_chr1 |>
   head()
 ```
 
+Check head of merged chromosome 1 junctions
+
+```{r head_merged_junctions}
+merged_junctions_chr1 |>
+  dplyr::arrange(start) |>
+  head()
+```
+
 Many junctions also have counts below 10 across all samples.
 These junctions are not expected to make it into PSI calculation based off default Shiba filters (\> 10 junctions).
 
 Check number of junctions in each subsetted dataframe
+
 ```{r check_num_junctions_chr1}
-nrow(merged_junctions_chr1)
 nrow(deduplicated_combined_junctions_chr1)
+nrow(merged_junctions_chr1)
 ```
 
 There are `r nrow(merged_junctions_chr1) - nrow(deduplicated_combined_junctions_chr1)` more junctions in the merged bedfile, compared to the combined bedfile.
 The chromosome 1-subsetted junction bedfiles are not identical.
 
-Remove junctions in chromosome 1 whose counts are \< 10 in all samples and check for differences
+### Filter for junctions with at least 10 junctions in min_samples
+
+Filter for junctions in chromosome 1 whose counts are \< 10 in `r min_samples` samples and check for differences
 
 ```{r filter_junction_counts_merged}
 merged_junctions_chr1_10 <- merged_junctions_chr1 |> dplyr::filter(
-  dplyr::if_all(
-    dplyr::all_of(target_pilot_samples), ~ . > 10
+  # count number of columns per row with junction count of at least 10
+  rowSums(
+    dplyr::across(
+      dplyr::all_of(target_pilot_samples), ~ . >= 10
     )
+    # filter for rows where at least 5 columns (samples) have counts of at least 10
+  ) >= 5
   )
 
 merged_junctions_chr1_10 |>
@@ -214,10 +224,15 @@ merged_junctions_chr1_10 |>
 ```
 
 ```{r filter_junction_counts_combined}
+
 deduplicated_combined_junctions_chr1_10 <- deduplicated_combined_junctions_chr1 |> dplyr::filter(
-  dplyr::if_all(
-    dplyr::all_of(target_pilot_samples), ~ . > 10
+  # count number of columns per row with junction count of at least 10
+  rowSums(
+    dplyr::across(
+      dplyr::all_of(target_pilot_samples), ~ . >= 10
     )
+    # filter for rows where at least 5 columns (samples) have counts of at least 10
+  ) >= 5
   )
 
 deduplicated_combined_junctions_chr1_10 |>
@@ -225,55 +240,115 @@ deduplicated_combined_junctions_chr1_10 |>
   head()
 ```
 
-The two tables look identical so far - check with setdiff
+Check for differences between counts-filtered junction files
 
-```{r check_identical_chr1_countsfiltered}
-identical(deduplicated_combined_junctions_chr1, merged_junctions_chr1)
-
-identical(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
+```{r check_differences_counts_filtered}
+nrow(deduplicated_combined_junctions_chr1_10)
+nrow(merged_junctions_chr1_10)
 ```
 
-Check what's different in chromosome 1 junctions \> 10 counts
+There are more junctions in the combined bedfile, compared to the merged bedfile, after filtering for junctions with at least 10 counts in `r min_samples` samples.
 
-```{r count_differences_chr1_countsfiltered}
+### Check what's different in chromosome 1 junctions
+
+```{r count_differences_chr1}
+
+# print number of junctions in chromosome 1 only in combined junctions bedfile
 combined_only_chr1 <- dplyr::setdiff(deduplicated_combined_junctions_chr1, merged_junctions_chr1)
 nrow(combined_only_chr1)
 
-# check fraction of combined_only_chr1 junctions that are only in chr1 of deduplicated combined junctions
-nrow(combined_only_chr1) / nrow(deduplicated_combined_junctions_chr1)
+# check fraction of junctions that are only in chr1 of combined junctions bedfile
+frac_combined_only_chr1 <- nrow(combined_only_chr1) / nrow(deduplicated_combined_junctions_chr1)
+frac_combined_only_chr1
 
+# print number of junctions in chromosome 1 only in merged junctions bedfile
 merged_only_chr1 <- dplyr::setdiff(merged_junctions_chr1, deduplicated_combined_junctions_chr1)
 nrow(merged_only_chr1)
 
 # check fraction of merged_only_chr1 junctions that are only in chr1 of merged combined junctions
-nrow(merged_only_chr1) / nrow(merged_junctions_chr1)
+frac_merged_only_chr1 <- nrow(merged_only_chr1) / nrow(merged_junctions_chr1)
+frac_merged_only_chr1
 
+```
+
+Overall, only `r frac_combined_only_chr1 * 100`% of all chromosome 1 junctions are only found in the combined junctions file and `r frac_merged_only_chr1 * 100`% of all chromosome 1 junctions are only found in the in the merged junctions file.
+
+```{r count_differences_chr1_countsfiltered}
+
+# print number of junctions in chromosome 1 only in combined junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
 combined_only_chr1_10 <- dplyr::setdiff(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
 nrow(combined_only_chr1_10)
 
-# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions
+# check fraction of combined_only_chr1 junctions > 10 counts
 nrow(combined_only_chr1_10) / nrow(deduplicated_combined_junctions_chr1)
 
+# print number of junctions in chromosome 1 only in merged junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
 merged_only_chr1_10 <- dplyr::setdiff(merged_junctions_chr1_10, deduplicated_combined_junctions_chr1_10)
 nrow(merged_only_chr1_10)
-# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions
+
+# check fraction of merged_chr1 junctions > 10 counts
 nrow(merged_only_chr1_10) / nrow(merged_junctions_chr1)
 ```
 
-Overall, only 1% of all chromosome 1 junctions are only found in either the combined or merged junctions files.
-If we filter for junctions with more than 10 counts, we miss a small (0.1%) fraction of junctions in the combined file using the merged method, but we do not have any junctions not found in the combined method, which is great.
+If we filter for junctions with more than 10 counts, we the fraction of events we miss in the merged junctions file is even smaller in chromosome 1.
 
-Potential sources of differences in the merged method that may result in junctions or junction values not present in the combined junctions file:
+### Print examples of junctions only in merged or combined tables
 
-- After merging separate junction.bed files, I manually convert all NAs to 0.
-  I don't know how Shiba handles junctions not found in all samples in the combined version
+Print examples of junctions only in the combined junctions file
 
-- I don't know how shiba "decides" what junctions get the duplication bug and how the bug impacts how junction coordinates are defined in each run
+```{r junctions_missed_in_merged}
+combined_only_chr1_10 |>
+  dplyr::arrange(start) |>
+  head()
+```
 
-`r nrow(combined_only_chr1_10)`
+For comparison, examine merged chromosome 1 counts-filtered junction table for junctions near chr1:18369-18370
 
-Another note - because the concatenated junctions bug impacted one junction with reads > 10 in the combined junctions bedfile, I expect this will result in differenes in the PSI table
+```{r}
+merged_junctions_chr1_10 |>
+  dplyr::arrange(start) |>
+  dplyr::filter((18369 -  10) < start &
+                  start < (18369 + 10) ) |>
+  head()
+```
 
--m filte for things with 10 counts ina t least 5 samples to keep consistent with psi filtering
--explain waqrnings seen in eac file more and print parsing errors
-show examples of junctions that dont match - any glaring things that explain why they are not in the merged method?
+This junction is completely missed, with the closest coordinate being chr1:18369-18913.
+
+Print examples of junctions only in the merged junctions file
+
+```{r junctions_only_in_merged}
+merged_only_chr1_10 |> 
+  dplyr::arrange(start) |>
+  head()
+```
+
+For comparison, examine combined chromosome 1 counts-filtered junction table for junctions near chr1:268020-268021
+
+```{r}
+combined_junctions_chr1_10 |>
+  dplyr::arrange(start) |>
+  dplyr::filter((268020 -  10) < start &
+                  start < (268020 + 10) ) |>
+  head()
+```
+
+Position chr1:268020-268021 is actually a junction recorded in the combined junctions table.
+The difference come in the counts going into each sample:
+
+| sample | junction count in merged table | junction count in combined table |
+|----|----|----|
+| **SRR1712457** | 0 | 3 |
+| **SRR1712459** | 0 | 3 |
+| **SRR1712460** | 0 | 8 |
+| **SRR1712461** | 0 | 3 |
+| **SRR1712462** | 0 | 4 |
+| ... | ... | ... |
+| **SRR1799041** | 0 | 16 |
+
+From scanning chr1:268020-268021, the counts differences arise from cases where the merged junctions counts have a value of 0 for a sample and the combined file is not zero for the same sample.
+For all cases except for SRR1799041, the counts that are dropped in the merged table are < 10.
+Because the values in the merged table are 0 for the counts that differ from the combined table, I suspect these differences stem from junctions that are not shared across samples (these appear as NA values which we replace with 0 in the final merged bedfile).
+I think this means that junctions defined differently when Shiba runs on one vs. multiple samples in a way that I don't understand yet.
+But since this difference impacts a very small fraction of junctions in chromosome 1, maybe it is not something worth trying to fix.
+
+Another note - because the concatenated junctions bug impacted one junction with reads \> 10 in the combined junctions bedfile, I expect this will result in differenes in the PSI table

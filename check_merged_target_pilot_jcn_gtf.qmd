@@ -21,7 +21,9 @@ Define directories and file paths
 exploration_eval_dir <- file.path("exploration", "merged-method-target-pilot-eval")
 
 # shiba results dir
-combined_results_dir <- file.path("exploration", "merging-psi-tables", "target_pilot", "shiba_combined")
+# target pilot explroation dir
+target_pilot_dir <- file.path("exploration", "merging-psi-tables", "target_pilot")
+combined_results_dir <- file.path(target_pilot_dir, "shiba_combined")
 # junctions dir
 combined_junctions_dir <- file.path(combined_results_dir, "junctions")
 # gtf dir
@@ -33,6 +35,8 @@ merged_results_dir <- file.path("results", "merged_shiba", "target_pilot")
 
 ### Files ###
 ## combined shiba target pilot files
+target_pilot_sample_sheet <- file.path(target_pilot_dir, "experiment.tsv")
+# combined target pilot outputs
 combined_gtf_file <- file.path(combined_gtf_dir, "assembled_annotation.gtf")
 combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
 # deduplicated combined junctions file - made by running bash scripts/deduplicated_shiba_junctions.sh
@@ -49,6 +53,7 @@ only_in_merged_junc <- file.path(exploration_eval_dir, "jcn_only_in_merged.bed")
 ```
 
 Create output dir if it does not exist
+
 ```{r create_dirs}
 # Check if it exists; if not, create it
 if (!dir.exists(exploration_eval_dir)) {
@@ -56,10 +61,12 @@ if (!dir.exists(exploration_eval_dir)) {
 }
 ```
 
-
 Read in files
 
 ```{r read_in_files}
+# list of target pilot sample IDs
+target_pilot_samples <- readr::read_tsv(target_pilot_sample_sheet) |>
+  dplyr::pull(sample)
 
 # read in files generated from combined shiba run
 combined_junctions <- readr::read_tsv(
@@ -101,6 +108,7 @@ merged_junctions <- readr::read_tsv(
 ```
 
 Check tables for parsing errors
+
 ```{r check_parsing_errors}
 combined_junctions_dat <- vroom::vroom(combined_junctions_file)
 combined_junctions_problems <- vroom::problems(combined_junctions_dat)
@@ -119,20 +127,23 @@ No problems are present in merged_junctions file
 
 ## Check if files are identical
 
-### Check if combined and merged junctions.bed files are identical
-
-```{r check_identical}
-identical(combined_junctions, merged_junctions)
-```
-
-### Check if deduplicated combined and merged junctions are identical
+Deduplicated and merged junctions are still not identical, so need to drill down on what junctions are different
 
 ```{r}
+# ensure column order is the same before checking if data frames are identical
+deduplicated_combined_junctions <- deduplicated_combined_junctions |>
+  dplyr::relocate(dplyr::all_of(target_pilot_samples), .after = dplyr::last_col())
+
+merged_junctions <- merged_junctions |>
+  dplyr::relocate(dplyr::all_of(target_pilot_samples), .after = dplyr::last_col())
+
 identical(deduplicated_combined_junctions, merged_junctions)
 ```
 
 ## Check differences in junctions bedfiles
+
 Dimensions of each bedfile
+
 ```{r check_dimensions}
 dim(combined_junctions)
 ```
@@ -145,17 +156,110 @@ dim(deduplicated_combined_junctions)
 dim(merged_junctions)
 ```
 
-Take random 1000 junctions for ease of debugging
+### Subsample junctions to those in chromosome 1
+
 ```{r subsample_junctions}
-
-# create list of dataframes consisting of merged and combined junctions file
-junctions_list <- list(merged_junctions, deduplicated_combined_junctions)
-
-# subset junctions dfs by randomly taking 100 rows
-junctions_list <- lapply(junctions_list, dplyr::filter, chr == "chr1")
-
+merged_junctions_chr1 <- merged_junctions |> dplyr::filter(chr == "chr1")
+deduplicated_combined_junctions_chr1 <- deduplicated_combined_junctions |> dplyr::filter(chr == "chr1")
 ```
 
+Check head of merged chromosome 1 junctions
+
+```{r head_merged_junctions}
+merged_junctions_chr1 |>
+  dplyr::arrange(start) |>
+  head()
+```
+
+Check head of deduplicated combined chromosome 1 junctions
+
+```{r head_dedup_combined_junctions}
+deduplicated_combined_junctions_chr1 |>
+  dplyr::arrange(start) |>
+  head()
+```
+
+From quickly eyeballing chromosome 1, the column orders of samples are not the same, but according to [setdiff documentation](https://dplyr.tidyverse.org/reference/setops.html), the order of the columns should not matter.
+
+Check of chromosomes 1 of the combined and merged junctions bedfiles are identical
+
+```{r}
+identical(deduplicated_combined_junctions_chr1, merged_junctions_chr1_10)
+```
+
+Many junctions also have counts below 10 across all samples.
+These junctions are not expected to make it into PSI calculation based off default Shiba filters (\> 10 junctions), but may factor into splice event coordinate definition.
+
+Remove junctions in chromosome 1 whose counts are \< 10 in all samples and check for differences
+
+```{r filter_junction_counts}
+merged_junctions_chr1_10 <- merged_junctions_chr1 |> dplyr::filter(
+  dplyr::if_all(
+    dplyr::all_of(target_pilot_samples), ~ . > 10
+    )
+  )
+
+merged_junctions_chr1_10 |> 
+  dplyr::arrange(start) |> 
+  head()
+```
+
+```{r}
+deduplicated_combined_junctions_chr1_10 <- deduplicated_combined_junctions_chr1 |> dplyr::filter(
+  dplyr::if_all(
+    dplyr::all_of(target_pilot_samples), ~ . > 10
+    )
+  )
+
+deduplicated_combined_junctions_chr1_10 |> 
+  dplyr::arrange(start) |> 
+  head()
+```
+
+The two tables look identical so far - check with setdiff
+
+```{r}
+identical(deduplicated_combined_junctions_chr1, merged_junctions_chr1)
+
+identical(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
+```
+
+Check what's different in chromosome 1 junctions \> 10 counts
+
+```{r}
+combined_only_chr1 <- dplyr::setdiff(deduplicated_combined_junctions_chr1, merged_junctions_chr1)
+nrow(combined_only_chr1)
+
+# check fraction of combined_only_chr1 junctions that are only in chr1 of deduplicated combined junctions 
+nrow(combined_only_chr1) / nrow(deduplicated_combined_junctions_chr1)
+
+merged_only_chr1 <- dplyr::setdiff(merged_junctions_chr1, deduplicated_combined_junctions_chr1)
+nrow(merged_only_chr1)
+
+# check fraction of merged_only_chr1 junctions that are only in chr1 of merged combined junctions
+nrow(merged_only_chr1) / nrow(merged_junctions_chr1)
+
+combined_only_chr1_10 <- dplyr::setdiff(deduplicated_combined_junctions_chr1_10, merged_junctions_chr1_10)
+nrow(combined_only_chr1_10)
+
+# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions 
+nrow(combined_only_chr1_10) / nrow(deduplicated_combined_junctions_chr1)
+
+merged_only_chr1_10 <- dplyr::setdiff(merged_junctions_chr1_10, deduplicated_combined_junctions_chr1_10)
+nrow(merged_only_chr1_10)
+# check fraction of combined_only_chr1 junctions > 10 counts that are only in chr1 of deduplicated combined junctions 
+nrow(merged_only_chr1_10) / nrow(merged_junctions_chr1)
+```
+
+Overall, only 1% of all chromosome 1 junctions are only found in either the combined or merged junctions files.
+If we filter for junctions with more than 10 counts, we miss a small (0.1%) fraction of junctions in the combined file using the merged method, but we do not have any junctions not found in the combined method, which is great.
+
+Potential sources of differences in the merged method that may result in junctions or junction values not present in the combined junctions file:
+
+- After merging separate junction.bed files, I manually convert all NAs to 0.
+  I don't know how Shiba handles junctions not found in all samples in the combined version
+
+- I don't know how shiba "decides" what junctions get the duplication bug and how the bug impacts how junction coordinates are defined in each run
 
 Elements unique to each junction bedfile
 

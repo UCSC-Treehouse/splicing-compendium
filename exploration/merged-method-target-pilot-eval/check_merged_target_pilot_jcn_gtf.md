@@ -1,4 +1,4 @@
-# Check Merge vs. Combined TARGET Pilot GTF and Junction files
+# Check Merge vs. Combined TARGET Pilot Junction files
 Cindy Liang (celiang@ucsc.edu)
 2026-06-10
 
@@ -8,13 +8,19 @@ Define directories and file paths
 
 ``` r
 ### Directories ###
+
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
 ## combined shiba run results on target pilot samples ##
+exploration_dir <- file.path(repo_root, "exploration")
+
 # merged table eval dir
-exploration_eval_dir <- file.path("exploration", "merged-method-target-pilot-eval")
+exploration_eval_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
 
 # shiba results dir
 # target pilot explroation dir
-target_pilot_dir <- file.path("exploration", "merging-psi-tables", "target_pilot")
+target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
 combined_results_dir <- file.path(target_pilot_dir, "shiba_combined")
 # junctions dir
 combined_junctions_dir <- file.path(combined_results_dir, "junctions")
@@ -23,7 +29,7 @@ combined_gtf_dir <- file.path(combined_results_dir, "annotation")
 
 ## merged shiba run results on target pilot samples ##
 # shiba results dir
-merged_results_dir <- file.path("results", "merged_shiba", "target_pilot")
+merged_results_dir <- file.path(repo_root, "results", "merged_shiba", "target_pilot")
 
 ### Files ###
 ## combined shiba target pilot files

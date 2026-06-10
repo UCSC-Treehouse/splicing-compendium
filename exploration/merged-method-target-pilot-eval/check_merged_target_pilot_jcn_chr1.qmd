@@ -52,19 +52,6 @@ deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "dedup
 merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")
 merged_junctions_file <- file.path(merged_results_dir, "merged_junctions.bed")
 
-## output files
-only_in_comb_junc <- file.path(exploration_eval_dir, "jcn_only_in_combined.bed")
-only_in_merged_junc <- file.path(exploration_eval_dir, "jcn_only_in_merged.bed")
-
-```
-
-Create output dir if it does not exist
-
-```{r create_dirs}
-# Check if it exists; if not, create it
-if (!dir.exists(exploration_eval_dir)) {
-  dir.create(exploration_eval_dir, recursive = TRUE)
-}
 ```
 
 Read in files

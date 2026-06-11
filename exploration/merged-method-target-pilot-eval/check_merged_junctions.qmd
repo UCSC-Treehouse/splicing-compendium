@@ -1,5 +1,5 @@
 ---
-title: Check Merged vs. Combined TARGET Pilot Junction files (full file)
+title: Check Merged vs. Combined TARGET Pilot Junction files
 author: "Cindy Liang (celiang@ucsc.edu)"
 format:
   gfm:
@@ -9,6 +9,31 @@ editor_options:
     wrap: sentence
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
+
+## Background ##
+
+This notebook checks junctions.bed files from two Shiba run methods for differences.
+The goal is to get a sense of how close files that go into calculating PSI values for events are to each other in the merged and combined shiba methods.
+Junctions files that are different would impact PSI calculation,
+so I am mainly looking to see if mismatched junctions are present and if present, how much of the data do they represent.
+
+Files compared in this notebook are junction count bedfiles produced from two Shiba runs from 88 TARGET pilot samples.
+"Merged" refers to shiba splice analysis run with merge_results.smk,
+while "combined" refers to shiba splice analysis run with shiba in a canonical way.
+
+Analysis outline:
+
+Check differences in full junctions files - Check how many rows (junction IDs) are in each bedfile.
+Also calculate fraction of junctions in the merged junctions table that are not in the combined table;
+the fraction of junctions in the combined table that are missed in the merged junctions table
+
+Check differences in junctions with at least 10 junctions in min_samples - Check if differences change if we filter for junctions with higher counts in at least 5 samples.
+Filter merged and combined junctions tables for junctions with counts of at least 10 in at least 5 samples.
+Calculate fraction of junctions in the merged junctions table that are not in the combined table;
+the fraction of junctions in the combined table that are missed in the merged junctions table
+
+
+
 
 ## Read in directories and files
 
@@ -124,7 +149,7 @@ filtered_merged_junctions <- merged_junctions |> dplyr::filter(
       dplyr::all_of(target_pilot_samples), ~ . >= 10
     )
     # filter for rows where at least 5 columns (samples) have counts of at least 10
-  ) >= min_samples
+  ) >= 5
   )
 
 filtered_merged_junctions |>

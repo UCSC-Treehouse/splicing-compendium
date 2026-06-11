@@ -1,0 +1,71 @@
+---
+title: Check Merged vs. Combined TARGET Pilot GTFs
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Read in directories and files
+
+Define directories and file paths
+
+```{r directories_and_files}
+### Directories ###
+
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+## combined shiba run results on target pilot samples ##
+exploration_dir <- file.path(repo_root, "exploration")
+
+# merged table eval dir
+exploration_eval_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
+
+# shiba results dir
+# target pilot exploration dir
+target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
+combined_results_dir <- file.path(target_pilot_dir, "shiba_combined")
+# gtf dir
+combined_gtf_dir <- file.path(combined_results_dir, "annotation")
+
+## merged shiba run results on target pilot samples ##
+# shiba results dir
+merged_results_dir <- file.path(repo_root, "results", "merged_shiba", "target_pilot")
+
+### Files ###
+# combined GTF
+combined_gtf_file <- file.path(combined_gtf_dir, "assembled_annotation.gtf")
+
+## merged shiba target pilot files
+merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")
+
+```
+
+Read in files
+
+```{r read_in_combined_gtf}
+
+# read in combined GTF
+combined_gtf <- read.delim(combined_gtf_file, header = FALSE, sep = '\t', skip = 2)
+
+head(combined_gtf)
+```
+
+```{r read_in_merged_gtf}
+# read in merged gtf
+merged_gtf <- read.delim(merged_gtf_file, header = FALSE, sep = '\t', skip = 2)
+head(merged_gtf)
+```
+
+## Check differences in junctions bedfiles
+
+```{r check_differences}
+
+identical(combined_gtf, merged_gtf)
+
+```

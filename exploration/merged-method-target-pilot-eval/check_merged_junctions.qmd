@@ -11,8 +11,6 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_samples: 5
   chromosome: "chr1"
-  start_pos: 268020
-  end_pos: 268021
 ---
 
 ## Background
@@ -67,7 +65,7 @@ Finished jobid: 2 (Rule: gtf_to_events)
 ```
 Because the junctions.bed files have exon-intron coordinates defined by retained intron events files obtained from one sample only, some samples will not have exon-intron counts from exon-intron boundaries that are only present in other samples.
 
-I'm not sure if it 100% makes sense to me to try to count exon-intron junctions in sample A that are only annotated in sample B. 
+I'm not sure if it 100% makes sense to me to try to count exon-intron junctions in sample A that are only annotated in sample B.
 I don't understand how we would know the sample B junction counts in sample A are real, if sample A does not have those intron-exon boundaries in its GTF.
 
 ### Analysis outline:
@@ -197,8 +195,8 @@ This portion is not 100% modular as I can't easily supply a field in params$chro
 Maybe add in an if statement to only do this filter if there is a value in params$chromosome ?
 
 ```{r}
-deduplicated_combined_junctions_chr1 <- deduplicated_combined_junctions |> dplyr::filter(chr == params$chromosome)
-merged_junctions_chr1 <- merged_junctions |> dplyr::filter(chr == params$chromosome)
+deduplicated_combined_junctions <- deduplicated_combined_junctions |> dplyr::filter(chr == params$chromosome)
+merged_junctions <- merged_junctions |> dplyr::filter(chr == params$chromosome)
 ```
 
 ### Check differences in junctions files
@@ -288,7 +286,7 @@ nrow(filtered_combined_only) / nrow(deduplicated_combined_junctions)
 filtered_merged_only <- dplyr::setdiff(filtered_merged_junctions, filtered_combined_junctions)
 nrow(filtered_merged_only)
 
-# check fraction of merged_chr1 junctions > 10 counts
+# check fraction of junctions different in the merged table > 10 counts
 nrow(filtered_merged_only) / nrow(merged_junctions)
 ```
 
@@ -307,7 +305,7 @@ filtered_combined_only |>
 For comparison, examine merged chromosome 1 counts-filtered junction table for junctions near chr1:18369-18370
 
 ```{r}
-merged_junctions_chr1_10 |>
+filtered_merged_junctions |>
   dplyr::arrange(start) |>
   dplyr::filter((18369 -  10) < start &
                   start < (18369 + 10) ) |>
@@ -326,7 +324,7 @@ filtered_merged_only |>
   head()
 ```
 
-For comparison, examine combined chromosome 1 counts-filtered junction table for junctions near `r paste0(params$chromosome, " : ", params$start_pos," - ", params$end_pos`
+For comparison, examine combined chromosome 1 counts-filtered junction table for junctions near chr1:268020-268021
 
 ```{r}
 deduplicated_combined_junctions_chr1_10 |>

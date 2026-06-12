@@ -124,18 +124,6 @@ Read in files
 target_pilot_samples <- readr::read_tsv(target_pilot_sample_sheet) |>
   dplyr::pull(sample)
 
-# read in files generated from combined shiba run
-combined_junctions <- readr::read_tsv(
-  combined_junctions_file,
-  col_types = readr::cols(
-    .default = "d",
-    ID = "c",
-    chr = "c",
-    start = "d",
-    end = "d"
-  )
-)
-
 # read in combined junctions table that have been deduplicated
 deduplicated_combined_junctions <- readr::read_tsv(
   deduplicated_combined_junctions_file,
@@ -195,8 +183,14 @@ This portion is not 100% modular as I can't easily supply a field in params$chro
 Maybe add in an if statement to only do this filter if there is a value in params$chromosome ?
 
 ```{r}
-deduplicated_combined_junctions <- deduplicated_combined_junctions |> dplyr::filter(chr == params$chromosome)
-merged_junctions <- merged_junctions |> dplyr::filter(chr == params$chromosome)
+deduplicated_combined_junctions <- deduplicated_combined_junctions |>
+  dplyr::filter(chr %in% params$chromosome) |>
+  dplyr::relocate(all_of(target_pilot_sample_sheet))
+
+merged_junctions <- merged_junctions |>
+  dplyr::filter(chr %in% params$chromosome) |>
+  dplyr::relocate(all_of(target_pilot_sample_sheet))
+
 ```
 
 ### Check differences in junctions files
@@ -324,10 +318,10 @@ filtered_merged_only |>
   head()
 ```
 
-For comparison, examine combined chromosome 1 counts-filtered junction table for junctions near chr1:268020-268021
+For comparison, examine combined counts-filtered junction table for junctions near chr1:268020-268021
 
 ```{r}
-deduplicated_combined_junctions_chr1_10 |>
+filtered_combined_junctions |>
   dplyr::arrange(start) |>
   dplyr::filter((268020 -  10) < start &
                   start < (268020 + 10) ) |>

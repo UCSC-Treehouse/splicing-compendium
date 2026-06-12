@@ -185,11 +185,11 @@ Maybe add in an if statement to only do this filter if there is a value in param
 ```{r}
 deduplicated_combined_junctions <- deduplicated_combined_junctions |>
   dplyr::filter(chr %in% params$chromosome) |>
-  dplyr::relocate(all_of(target_pilot_sample_sheet))
+  dplyr::relocate(all_of(target_pilot_samples))
 
 merged_junctions <- merged_junctions |>
   dplyr::filter(chr %in% params$chromosome) |>
-  dplyr::relocate(all_of(target_pilot_sample_sheet))
+  dplyr::relocate(all_of(target_pilot_samples))
 
 ```
 

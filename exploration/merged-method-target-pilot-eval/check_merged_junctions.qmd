@@ -8,6 +8,11 @@ editor_options:
   markdown:
     wrap: sentence
 date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  min_samples: 5
+  chromosome: "chr1"
+  start_pos: 268020
+  end_pos: 268021
 ---
 
 ## Background
@@ -60,13 +65,12 @@ localrule gtf_to_events:
 [Mon Jun  1 04:43:48 2026]
 Finished jobid: 2 (Rule: gtf_to_events)
 ```
-
 Because the junctions.bed files have exon-intron coordinates defined by retained intron events files obtained from one sample only, some samples will not have exon-intron counts from exon-intron boundaries that are only present in other samples.
 
 I'm not sure if it 100% makes sense to me to try to count exon-intron junctions in sample A that are only annotated in sample B. 
-I don't understand how we would know the sample B junction counts in sample A are real, if sample A does not have thouse intron-exon boundaries in its GTF.
+I don't understand how we would know the sample B junction counts in sample A are real, if sample A does not have those intron-exon boundaries in its GTF.
 
-Analysis outline:
+### Analysis outline:
 
 Check differences in full junctions files - Check how many rows (junction IDs) are in each bedfile.
 Also calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
@@ -92,7 +96,7 @@ exploration_dir <- file.path(repo_root, "exploration")
 exploration_eval_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
 
 # shiba results dir
-# target pilot explroation dir
+# target pilot exploration dir
 target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
 combined_results_dir <- file.path(target_pilot_dir, "shiba_combined")
 # junctions dir
@@ -105,6 +109,8 @@ merged_results_dir <- file.path(repo_root, "results", "merged_shiba", "target_pi
 ### Files ###
 ## combined shiba target pilot files
 target_pilot_sample_sheet <- file.path(target_pilot_dir, "experiment.tsv")
+# combined junctions bedfile from combined Shiba method with known invalid junctions
+combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
 # deduplicated combined junctions file - made by running bash scripts/deduplicated_shiba_junctions.sh
 deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "deduplicated_junctions.bed")
 
@@ -120,8 +126,17 @@ Read in files
 target_pilot_samples <- readr::read_tsv(target_pilot_sample_sheet) |>
   dplyr::pull(sample)
 
-# minimum number of samples to filter minimum number of junctions by
-min_samples <- 5
+# read in files generated from combined shiba run
+combined_junctions <- readr::read_tsv(
+  combined_junctions_file,
+  col_types = readr::cols(
+    .default = "d",
+    ID = "c",
+    chr = "c",
+    start = "d",
+    end = "d"
+  )
+)
 
 # read in combined junctions table that have been deduplicated
 deduplicated_combined_junctions <- readr::read_tsv(
@@ -149,9 +164,44 @@ merged_junctions <- readr::read_tsv(
 
 ```
 
+## Check tables for parsing errors
+
+### Print parsing errors in combined junctions table
+
+```{r check_parsing_errors}
+combined_junctions_dat <- vroom::vroom(combined_junctions_file)
+combined_junctions_problems <- vroom::problems(combined_junctions_dat)
+combined_junctions_problems
+```
+
+We have `r nrow(unique(combined_junctions_problems$row))` junctions in the combined junctions file that are impacted by the concatenation bug in Shiba.
+PSI files for events involving these junctions may be problematic in the combined PSI file.
+
+### Check for parsing errors in the merged and deduplicated junctions tables
+
+```{r}
+merged_junctions_dat <- vroom::vroom(merged_junctions_file)
+```
+
+```{r}
+deduplicated_comb_junctions_dat <- vroom::vroom(deduplicated_combined_junctions_file)
+deduplicated_comb_junctions_problems <- vroom::problems(deduplicated_combined_junctions)
+```
+
+No problems are present in merged_junctions file or deduplicated junctions file
+
 ## Check differences in junctions bedfiles
 
-### Check differences in full junctions files
+### Subset junctions files
+This portion is not 100% modular as I can't easily supply a field in params$chromosome that will allow all chromosomes to be passed in (unless I really do give it the full list of chromosomes)
+Maybe add in an if statement to only do this filter if there is a value in params$chromosome ?
+
+```{r}
+deduplicated_combined_junctions_chr1 <- deduplicated_combined_junctions |> dplyr::filter(chr == params$chromosome)
+merged_junctions_chr1 <- merged_junctions |> dplyr::filter(chr == params$chromosome)
+```
+
+### Check differences in junctions files
 
 ```{r count_differences}
 
@@ -189,7 +239,7 @@ filtered_merged_junctions <- merged_junctions |> dplyr::filter(
       dplyr::all_of(target_pilot_samples), ~ . >= 10
     )
     # filter for rows where at least 5 columns (samples) have counts of at least 10
-  ) >= 5
+  ) >= params$min_samples
   )
 
 filtered_merged_junctions |>
@@ -206,7 +256,7 @@ filtered_combined_junctions <- deduplicated_combined_junctions |> dplyr::filter(
       dplyr::all_of(target_pilot_samples), ~ . >= 10
     )
     # filter for rows where at least 5 columns (samples) have counts of at least 10
-  ) >= min_samples
+  ) >= params$min_samples
   )
 
 filtered_combined_junctions |>
@@ -244,6 +294,8 @@ nrow(filtered_merged_only) / nrow(merged_junctions)
 
 ### Print examples of junctions only in merged or combined tables
 
+#### Check junctions only in combined junctions file
+
 Print examples of junctions only in the combined junctions file
 
 ```{r junctions_missed_in_merged}
@@ -252,6 +304,20 @@ filtered_combined_only |>
   head()
 ```
 
+For comparison, examine merged chromosome 1 counts-filtered junction table for junctions near chr1:18369-18370
+
+```{r}
+merged_junctions_chr1_10 |>
+  dplyr::arrange(start) |>
+  dplyr::filter((18369 -  10) < start &
+                  start < (18369 + 10) ) |>
+  head()
+```
+
+This junction is completely missed, with the closest coordinate being chr1:18369-18913.
+
+#### Check junctions only in merged junctions file
+
 Print examples of junctions only in the merged junctions file
 
 ```{r junctions_only_in_merged}
@@ -259,3 +325,32 @@ filtered_merged_only |>
   dplyr::arrange(start) |>
   head()
 ```
+
+For comparison, examine combined chromosome 1 counts-filtered junction table for junctions near `r paste0(params$chromosome, " : ", params$start_pos," - ", params$end_pos`
+
+```{r}
+deduplicated_combined_junctions_chr1_10 |>
+  dplyr::arrange(start) |>
+  dplyr::filter((268020 -  10) < start &
+                  start < (268020 + 10) ) |>
+  head()
+```
+
+Position chr1:268020-268021 is actually a junction recorded in the combined junctions table.
+The difference come in the counts going into each sample:
+
+| sample | junction count in merged table | junction count in combined table |
+|----|----|----|
+| **SRR1712457** | 0 | 3 |
+| **SRR1712459** | 0 | 3 |
+| **SRR1712460** | 0 | 8 |
+| **SRR1712461** | 0 | 3 |
+| **SRR1712462** | 0 | 4 |
+| ... | ... | ... |
+| **SRR1799041** | 0 | 16 |
+
+From scanning chr1:268020-268021, the counts differences arise from cases where the merged junctions counts have a value of 0 for a sample and the combined file is not zero for the same sample.
+For all cases except for SRR1799041, the counts that are dropped in the merged table are < 10.
+
+Because the values in the merged table are 0 for the counts that differ from the combined table, I suspect these differences stem from junctions that are not shared across samples (these appear as NA values which we replace with 0 in the final merged bedfile).
+In the merged method, these 0 counts arise because exon-intron boundaries are defined from an intron events coordiantes file from gtf2event.py that was constructed from the annotations of one sample only.

@@ -10,30 +10,70 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
-## Background ##
+## Background
 
 This notebook checks junctions.bed files from two Shiba run methods for differences.
-The goal is to get a sense of how close files that go into calculating PSI values for events are to each other in the merged and combined shiba methods.
-Junctions files that are different would impact PSI calculation,
-so I am mainly looking to see if mismatched junctions are present and if present, how much of the data do they represent.
+The goal is to get a sense of how close files that go into calculating PSI values for events are to each other in the merged and combined Shiba methods.
+Junctions files that are different would impact PSI calculation, so I am mainly looking to see if mismatched junctions are present and if present, how much of the data do they represent.
 
-Files compared in this notebook are junction count bedfiles produced from two Shiba runs from 88 TARGET pilot samples.
-"Merged" refers to shiba splice analysis run with merge_results.smk,
-while "combined" refers to shiba splice analysis run with shiba in a canonical way.
+Files compared in this notebook are junction count bedfiles of 88 TARGET pilot samples, produced from running Shiba with two different methods.
+
+"Combined" refers to shiba splice analysis run with shiba in a canonical way.
+Inputs of this method are .bam files of each sample and a reference annotation GTF.
+In the combined method, unmodified Shiba scripts are run on the input files using shiba.py, which calls on Shiba scripts that generate intermediate files and perform the final PSI calculation.
+The intermediate files that go into PSI calculation from this method are:
+
+- GTF, which is made with \[bam2gtf.py\](https://github.com/Sika-Zheng-Lab/Shiba/blob/v0.8.1/src/bam2gtf.py. This script uses a stringtie merge command as part of that merges GTFs made from individual samples together with the reference GTF
+
+- junctions.bed, which is produced by [bam2junc.py](https://github.com/Sika-Zheng-Lab/Shiba/blob/v0.8.1/src/bam2junc.py).
+  This script counts exon-exon (regtools) and exon-intron (featureCounts) junctions from each bam file given as input.
+
+  - To count exon-intron junctions, Shiba uses `create_saf_file()` within `bam2junc.py` to create annotations of intron/exon boundaries to pass to featureCounts. The exon-intron boundaries are taken from the `ri_event` file generated from `gtf2events.py`.
+
+  Then, `bam2junc.py` checks if exon-exon junctions are duplicated and deduplicates them.
+  There is a bug in the deduplication step, as this notebook will later show junctions with invalid coordinates in the combined junctions file.
+  Finally, junctions files containing exon-exon and exon-intron junctions from all samples are merged together.
+
+"Merged" refers to shiba splice analysis run with `merge_results.smk`.
+The inputs of this method are junctions.bed and GTF files created by Shiba run on each sample separately.
+`merge_results.smk` merges the GTFs using the same stringtie merge command Shiba uses, then manually combines the junction files after deduplicating any invalid junction entries resulkting from the `bam2junc.py` bug.
+The jobs for the merged Shiba method were run in the following order, to generate the merged GTF and junctions.bed files:
+
+```
+[Mon Jun  1 03:46:24 2026]
+Finished jobid: 4 (Rule: merge_junctions)
+1 of 5 steps (20%) done
+[Mon Jun  1 04:07:03 2026]
+Finished jobid: 3 (Rule: merge_gtfs)
+2 of 5 steps (40%) done
+Select jobs to execute...
+Execute 1 jobs...
+[Mon Jun  1 04:07:03 2026]
+localrule gtf_to_events:
+    input: results/merged_shiba/target_pilot/merged_gtf.gtf, references/gencode.v47.primary_assembly.annotation.gtf
+    output: results/merged_shiba/target_pilot/events
+    jobid: 2
+    reason: Missing output files: results/merged_shiba/target_pilot/events; Input files updated by another job: results/merged_shiba/target_pilot/merged_gtf.gtf
+    priority: 1
+    threads: 10
+    resources: tmpdir=/tmp
+[Mon Jun  1 04:43:48 2026]
+Finished jobid: 2 (Rule: gtf_to_events)
+```
+
+Because the junctions.bed files have exon-intron coordinates defined by retained intron events files obtained from one sample only, some samples will not have exon-intron counts from exon-intron boundaries that are only present in other samples.
+
+I'm not sure if it 100% makes sense to me to try to count exon-intron junctions in sample A that are only annotated in sample B. 
+I don't understand how we would know the sample B junction counts in sample A are real, if sample A does not have thouse intron-exon boundaries in its GTF.
 
 Analysis outline:
 
 Check differences in full junctions files - Check how many rows (junction IDs) are in each bedfile.
-Also calculate fraction of junctions in the merged junctions table that are not in the combined table;
-the fraction of junctions in the combined table that are missed in the merged junctions table
+Also calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
 
 Check differences in junctions with at least 10 junctions in min_samples - Check if differences change if we filter for junctions with higher counts in at least 5 samples.
 Filter merged and combined junctions tables for junctions with counts of at least 10 in at least 5 samples.
-Calculate fraction of junctions in the merged junctions table that are not in the combined table;
-the fraction of junctions in the combined table that are missed in the merged junctions table
-
-
-
+Calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
 
 ## Read in directories and files
 

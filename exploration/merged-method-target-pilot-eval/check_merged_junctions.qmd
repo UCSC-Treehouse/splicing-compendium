@@ -75,6 +75,11 @@ Check differences in junctions with at least 10 junctions in min_samples - Check
 Filter merged and combined junctions tables for junctions with counts of at least 10 in at least 5 samples.
 Calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
 
+We discovered that the largest source of difference between the merged and combined method lies in how exon-intron junctions are defined and counted. 
+Shiba uses the retained intron events coordinates generated from gtf2events.py to define intron-exon coordinates for counting.
+Since the merged method only uses the events coordinates defined from one sample at a time, junctions counted with this method are expected to miss all exon-intron junctionds that are not shared between samples.
+Coming into this analysis, I expect all junction IDs that are different between the methods to be exon-intron junctions.
+
 ## Define functions
 ```{r}
 # pivot junctions dataframe long and add summary column of number of samples with counts exceeding min_counts
@@ -250,24 +255,49 @@ length(unique(filtered_long_combined$ID))
 length(unique(filtered_long_merged$ID))
 ```
 
-Calculate fraction of filtered junctions that are only in the combined or merged files
+Calculate fraction of filtered junctions that are different in any way in the combined or merged files
 
 ```{r count_differences_filtered}
 
 # print number of junctions only in combined junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
 filtered_combined_only <- dplyr::setdiff(filtered_long_combined, filtered_long_merged)
+# print number of unique junctions with any differences between the two dataframes
 length(unique(filtered_combined_only$ID))
 
 # check fraction of filtered_combined_only junctions
-length(unique(filtered_combined_only$ID)) / length(unique(filtered_long_combined$ID))
+length(unique(filtered_combined_only$ID)) / length(unique(long_combined_junctions$ID))
 
 # print number of junctions only in merged junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
 filtered_merged_only <- dplyr::setdiff(filtered_long_merged, filtered_long_combined)
+# print number of unique junctions with any differences between the two dataframes
 length(unique(filtered_merged_only$ID))
 
-# check fraction of junctions different in the merged table > 10 counts
-length(unique(filtered_merged_only$ID)) / length(unique(filtered_combined_only$ID))
+# check fraction of filtered merged_only junctions
+length(unique(filtered_merged_only$ID)) / length(unique(long_merged_junctions$ID))
 ```
+Check if junctions only found in combined or merged dataframes are always 1bp in length (are they always exon-intron junctions?)
+```{r}
+combined_only_ids <- setdiff(filtered_long_combined$ID, filtered_long_merged$ID)
+long_combined_only_ids <- filtered_long_combined |>
+  dplyr::filter(ID %in% combined_only_ids) |>
+  # count length of junctions only found in combined table
+  dplyr::mutate(junction_length = abs(end - start))
+
+# check if the junctions only in combined df are all always 1bp in length (are they all exon-intron junctions?)
+unique(long_combined_only_ids$junction_length)
+
+merged_only_ids <- setdiff(filtered_long_merged$ID, filtered_long_combined$ID)
+long_merged_only_ids <- filtered_long_merged |>
+  dplyr::filter(ID %in% merged_only_ids) |>
+  # count length of junctions only found in combined table
+  dplyr::mutate(junction_length = abs(end - start))
+
+# check if the junctions only in merged df are all always 1bp in length
+unique(long_combined_only_ids$junction_length)
+
+```
+
+Junctions that are only found in either the combined or merged dataframes are always 1bp in length, supporting our hypothesis that the difference stems from 
 
 ### Print examples of junctions only in merged or combined tables
 

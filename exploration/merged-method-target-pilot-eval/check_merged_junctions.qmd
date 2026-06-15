@@ -297,7 +297,7 @@ unique(long_combined_only_ids$junction_length)
 
 ```
 
-Junctions that are only found in either the combined or merged dataframes are always 1bp in length, supporting our hypothesis that the difference stems from 
+Junctions that are only found in either the combined or merged dataframes are always 1bp in length, supporting our hypothesis that the difference stems from exon-intron junctions
 
 ### Print examples of junctions only in merged or combined tables
 
@@ -314,14 +314,19 @@ filtered_combined_only |>
 For comparison, examine merged chromosome 1 counts-filtered junction table for junctions near chr1:18369-18370
 
 ```{r}
-filtered_merged_junctions |>
+merged_junctions |>
   dplyr::arrange(start) |>
   dplyr::filter((18369 -  10) < start &
-                  start < (18369 + 10) ) |>
-  head()
+                  start < (18369 + 10) )
 ```
 
 This junction is completely missed, with the closest coordinate being chr1:18369-18913.
+
+Check if chr1:18369-18913 is only in the merged table and not in the combined table
+```{r}
+"chr1:18369-18913" %in% merged_only_ids
+```
+chr1:18369-18913 is found in both the merged and combined junctions tables.
 
 #### Check junctions only in merged junctions file
 
@@ -333,10 +338,10 @@ filtered_merged_only |>
   head()
 ```
 
-For comparison, examine combined counts-filtered junction table for junctions near chr1:268020-268021
+For comparison, examine combined junction table for junctions near chr1:268020-268021
 
 ```{r}
-filtered_combined_junctions |>
+deduplicated_combined_junctions |>
   dplyr::arrange(start) |>
   dplyr::filter((268020 -  10) < start &
                   start < (268020 + 10) ) |>
@@ -360,4 +365,4 @@ From scanning chr1:268020-268021, the counts differences arise from cases where 
 For all cases except for SRR1799041, the counts that are dropped in the merged table are < 10.
 
 Because the values in the merged table are 0 for the counts that differ from the combined table, I suspect these differences stem from junctions that are not shared across samples (these appear as NA values which we replace with 0 in the final merged bedfile).
-In the merged method, these 0 counts arise because exon-intron boundaries are defined from an intron events coordiantes file from gtf2event.py that was constructed from the annotations of one sample only.
+In the merged method, these 0 counts arise because exon-intron boundaries are defined from an intron events coordinates file from gtf2event.py that was constructed from the annotations of one sample only.

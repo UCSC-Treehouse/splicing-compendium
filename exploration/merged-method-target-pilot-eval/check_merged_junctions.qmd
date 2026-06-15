@@ -10,6 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_samples: 5
+  min_counts: 10
   chromosome: "chr1"
 ---
 
@@ -65,9 +66,6 @@ Finished jobid: 2 (Rule: gtf_to_events)
 ```
 Because the junctions.bed files have exon-intron coordinates defined by retained intron events files obtained from one sample only, some samples will not have exon-intron counts from exon-intron boundaries that are only present in other samples.
 
-I'm not sure if it 100% makes sense to me to try to count exon-intron junctions in sample A that are only annotated in sample B.
-I don't understand how we would know the sample B junction counts in sample A are real, if sample A does not have those intron-exon boundaries in its GTF.
-
 ### Analysis outline:
 
 Check differences in full junctions files - Check how many rows (junction IDs) are in each bedfile.
@@ -76,6 +74,25 @@ Also calculate fraction of junctions in the merged junctions table that are not 
 Check differences in junctions with at least 10 junctions in min_samples - Check if differences change if we filter for junctions with higher counts in at least 5 samples.
 Filter merged and combined junctions tables for junctions with counts of at least 10 in at least 5 samples.
 Calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
+
+## Define functions
+```{r}
+# pivot junctions dataframe long and add summary column of number of samples with counts exceeding min_counts
+pivot_junctions_long <- function(df) {
+ df |>
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with("SRR"),
+    names_to = "sample",
+    values_to = "count"
+  ) |>
+  dplyr::group_by(ID) |>
+  # add column that counts how many samples have count values over 10 for each position
+  dplyr::mutate(
+    samples_over_min_count = sum(count >= params$min_counts)
+  ) 
+}
+
+```
 
 ## Read in directories and files
 
@@ -107,8 +124,6 @@ merged_results_dir <- file.path(repo_root, "results", "merged_shiba", "target_pi
 ### Files ###
 ## combined shiba target pilot files
 target_pilot_sample_sheet <- file.path(target_pilot_dir, "experiment.tsv")
-# combined junctions bedfile from combined Shiba method with known invalid junctions
-combined_junctions_file <- file.path(combined_junctions_dir, "junctions.bed")
 # deduplicated combined junctions file - made by running bash scripts/deduplicated_shiba_junctions.sh
 deduplicated_combined_junctions_file <- file.path(combined_junctions_dir, "deduplicated_junctions.bed")
 
@@ -149,19 +164,7 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
-
 ## Check tables for parsing errors
-
-### Print parsing errors in combined junctions table
-
-```{r check_parsing_errors}
-combined_junctions_dat <- vroom::vroom(combined_junctions_file)
-combined_junctions_problems <- vroom::problems(combined_junctions_dat)
-combined_junctions_problems
-```
-
-We have `r nrow(unique(combined_junctions_problems$row))` junctions in the combined junctions file that are impacted by the concatenation bug in Shiba.
-PSI files for events involving these junctions may be problematic in the combined PSI file.
 
 ### Check for parsing errors in the merged and deduplicated junctions tables
 
@@ -179,8 +182,6 @@ No problems are present in merged_junctions file or deduplicated junctions file
 ## Check differences in junctions bedfiles
 
 ### Subset junctions files
-This portion is not 100% modular as I can't easily supply a field in params$chromosome that will allow all chromosomes to be passed in (unless I really do give it the full list of chromosomes)
-Maybe add in an if statement to only do this filter if there is a value in params$chromosome ?
 
 ```{r}
 deduplicated_combined_junctions <- deduplicated_combined_junctions |>
@@ -223,46 +224,30 @@ There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` mor
 
 ### Check differences in junctions with at least 10 junctions in min_samples
 
-```{r filter_junction_counts_merged}
-filtered_merged_junctions <- merged_junctions |> dplyr::filter(
-  # count number of columns per row with junction count of at least 10
-  rowSums(
-    dplyr::across(
-      dplyr::all_of(target_pilot_samples), ~ . >= 10
-    )
-    # filter for rows where at least 5 columns (samples) have counts of at least 10
-  ) >= params$min_samples
-  )
+Pivot data frame longer and count the number samples with junctions above min_junctions that are present
+```{r}
+long_combined_junctions <- pivot_junctions_long(deduplicated_combined_junctions) 
+long_merged_junctions <- pivot_junctions_long(merged_junctions)
 
-filtered_merged_junctions |>
-  dplyr::arrange(start) |>
+# filter data frames for IDs where there are min_samples with min_count
+filtered_long_combined <- long_combined_junctions |>
+  dplyr::filter(samples_over_min_count >= params$min_samples)
+filtered_long_merged <- long_merged_junctions |>
+  dplyr::filter(samples_over_min_count >= params$min_samples)
+
+# spot-check
+filtered_long_combined |>
   head()
+
 ```
 
-```{r filter_junction_counts_combined}
-
-filtered_combined_junctions <- deduplicated_combined_junctions |> dplyr::filter(
-  # count number of columns per row with junction count of at least 10
-  rowSums(
-    dplyr::across(
-      dplyr::all_of(target_pilot_samples), ~ . >= 10
-    )
-    # filter for rows where at least 5 columns (samples) have counts of at least 10
-  ) >= params$min_samples
-  )
-
-filtered_combined_junctions |>
-  dplyr::arrange(start) |>
-  head()
-```
-
-Count differences between counts-filtered junction files
+## Count differences between counts-filtered junction files
 
 Count number of junctions in each filtered file
 
 ```{r count_differences_counts_filtered}
-nrow(filtered_combined_junctions)
-nrow(filtered_merged_junctions)
+length(unique(filtered_long_combined$ID))
+length(unique(filtered_long_merged$ID))
 ```
 
 Calculate fraction of filtered junctions that are only in the combined or merged files
@@ -270,18 +255,18 @@ Calculate fraction of filtered junctions that are only in the combined or merged
 ```{r count_differences_filtered}
 
 # print number of junctions only in combined junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
-filtered_combined_only <- dplyr::setdiff(filtered_combined_junctions, filtered_merged_junctions)
-nrow(filtered_combined_only)
+filtered_combined_only <- dplyr::setdiff(filtered_long_combined, filtered_long_merged)
+length(unique(filtered_combined_only$ID))
 
 # check fraction of filtered_combined_only junctions
-nrow(filtered_combined_only) / nrow(deduplicated_combined_junctions)
+length(unique(filtered_combined_only$ID)) / length(unique(filtered_long_combined$ID))
 
 # print number of junctions only in merged junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
-filtered_merged_only <- dplyr::setdiff(filtered_merged_junctions, filtered_combined_junctions)
-nrow(filtered_merged_only)
+filtered_merged_only <- dplyr::setdiff(filtered_long_merged, filtered_long_combined)
+length(unique(filtered_merged_only$ID))
 
 # check fraction of junctions different in the merged table > 10 counts
-nrow(filtered_merged_only) / nrow(merged_junctions)
+length(unique(filtered_merged_only$ID)) / length(unique(filtered_combined_only$ID))
 ```
 
 ### Print examples of junctions only in merged or combined tables

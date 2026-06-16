@@ -24,9 +24,9 @@ target_pilot_deduplicated_file="${target_pilot_combined_junctions_dir}/deduplica
 
 # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
 awk '
+# set tab as delimiter
 BEGIN{FS=OFS="\t"}
-
-{ # set tab as delimiter
+{
     for (i = 1; i <= NF; i++) {
         if ($i ~ /;/) { # only process fields containing ";"
             n = split($i, parts, ";") # split into parts on semicolons

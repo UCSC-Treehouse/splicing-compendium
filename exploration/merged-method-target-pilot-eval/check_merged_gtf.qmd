@@ -10,6 +10,13 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
+## Setup
+```{r setup}
+# import libraries
+library(rtracklayer)
+```
+
+
 ## Read in directories and files
 
 Define directories and file paths

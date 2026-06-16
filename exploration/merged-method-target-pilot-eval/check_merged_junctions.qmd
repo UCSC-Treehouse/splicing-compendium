@@ -183,16 +183,15 @@ Column names are the same, save for the order of the sample junction counts colu
 
 ### Check for parsing errors in the merged and deduplicated junctions tables
 
-```{r}
-merged_junctions_dat <- vroom::vroom(merged_junctions_file)
+```{r check merged)junctions_problems}
+vroom::problems(vroom::vroom(merged_junctions_file))
 ```
 
 ```{r}
-deduplicated_comb_junctions_dat <- vroom::vroom(deduplicated_combined_junctions_file)
-deduplicated_comb_junctions_problems <- vroom::problems(deduplicated_combined_junctions)
+vroom::problems(vroom::vroom(deduplicated_combined_junctions_file))
 ```
 
-No problems are present in merged_junctions file or deduplicated junctions file
+No problems are present in merged_junctions file or deduplicated junctions file (vroom::problems prints out nothing)
 
 ## Check differences in junctions bedfiles
 
@@ -212,14 +211,15 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 }
 
 # Ensure sample columns are in the same order 
-# subset 
-merged_junctions <- merged_junctions[, names(df1)]
-
+# subset merged junctions dataframe by the columns in the deduplicated combined junctions dataframe to ensure sample column order is the same
+merged_junctions <- merged_junctions[, names(deduplicated_combined_junctions)]
 ```
 
 ### Check differences in junctions files
 
-```{r count_differences}
+#### Count all differences between each data frame
+
+```{r count_all_differences}
 
 # print number of junctions in only in combined junctions bedfile
 combined_only <- dplyr::setdiff(deduplicated_combined_junctions, merged_junctions)
@@ -244,6 +244,27 @@ There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` mor
 `r frac_combined_only * 100`% of the combined method junctions are missed in the merged junctions file.
 
 `r frac_merged_only * 100`% of the merged method junctions are not in the combined junctions file.
+
+#### Count differences in junction position IDs
+```{r count_diff_ids}
+# print number of junction IDs only in combined junctions bedfile
+combined_only <- setdiff(deduplicated_combined_junctions$ID, merged_junctions$ID)
+# print number of unique junctions with any differences between the two dataframes
+length(combined_only)
+
+# check fraction of combined_only junction IDs
+length(combined_only) / length(deduplicated_combined_junctions$ID)
+
+# print number of junction IDs only in merged junctions bedfile
+merged_only <- setdiff(merged_junctions$ID, deduplicated_combined_junctions$ID)
+# print number of unique junctions with any differences between the two dataframes
+length(merged_only)
+
+# check fraction of filtered merged_only junction IDs
+length(merged_only) / length(merged_junctions$ID)
+```
+
+
 
 ### Check differences in junctions with at least 10 junctions in min_samples
 
@@ -293,6 +314,7 @@ length(unique(filtered_merged_only$ID))
 # check fraction of filtered merged_only junctions
 length(unique(filtered_merged_only$ID)) / length(unique(long_merged_junctions$ID))
 ```
+
 Check if junctions only found in combined or merged dataframes are always 1bp in length (are they always exon-intron junctions?)
 ```{r}
 combined_only_ids <- setdiff(filtered_long_combined$ID, filtered_long_merged$ID)

@@ -183,15 +183,12 @@ Column names are the same, save for the order of the sample junction counts colu
 
 ### Check for parsing errors in the merged and deduplicated junctions tables
 
-```{r check merged)junctions_problems}
-vroom::problems(vroom::vroom(merged_junctions_file))
+```{r check_problems}
+readr::problems(merged_junctions)
+readr::problems(deduplicated_combined_junctions)
 ```
 
-```{r}
-vroom::problems(vroom::vroom(deduplicated_combined_junctions_file))
-```
-
-No problems are present in merged_junctions file or deduplicated junctions file (vroom::problems prints out nothing)
+No problems are present in merged_junctions file or deduplicated junctions file (readr::problems prints out nothing)
 
 ## Check differences in junctions bedfiles
 
@@ -220,25 +217,30 @@ merged_junctions <- merged_junctions[, names(deduplicated_combined_junctions)]
 #### Count all differences between each data frame
 
 ```{r count_all_differences}
-
 # print number of junctions in only in combined junctions bedfile
 combined_only <- dplyr::setdiff(deduplicated_combined_junctions, merged_junctions)
-nrow(combined_only)
-
+num_combined_only <- nrow(combined_only)
+  
 # check fraction of junctions that are only in the combined junctions bedfile
-frac_combined_only <- nrow(combined_only) / nrow(deduplicated_combined_junctions)
-frac_combined_only
-
+frac_combined_only <- num_combined_only / nrow(deduplicated_combined_junctions)
+  
 # print number of junctions only in merged junctions bedfile
 merged_only <- dplyr::setdiff(merged_junctions, deduplicated_combined_junctions)
-nrow(merged_only)
-
+num_merged_only <- nrow(merged_only)
+  
 # check fraction of junctions that are only in merged junctions
-frac_merged_only <- nrow(merged_only) / nrow(merged_junctions)
-frac_merged_only
-
+frac_merged_only <- num_merged_only / nrow(merged_junctions)
+  
+# print results
+summary_message <- c(
+  paste0("Number of rows different in combined junctions: ", num_combined_only),
+  paste0("Fraction of rows different in combined junctions: ", frac_combined_only),
+  paste0("Number of rows different in merged junctions: ", num_merged_only),
+  paste0("Fraction of rows different in merged junctions: ", frac_merged_only)
+  )
+  
+summary_message
 ```
-
 There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` more junctions in the merged junction file compared to the combined junction file.
 
 `r frac_combined_only * 100`% of the combined method junctions are missed in the merged junctions file.
@@ -249,22 +251,33 @@ There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` mor
 ```{r count_diff_ids}
 # print number of junction IDs only in combined junctions bedfile
 combined_only <- setdiff(deduplicated_combined_junctions$ID, merged_junctions$ID)
-# print number of unique junctions with any differences between the two dataframes
-length(combined_only)
+# print number of junctions only in the combined dataframe
+num_combined_only <- length(combined_only)
 
 # check fraction of combined_only junction IDs
-length(combined_only) / length(deduplicated_combined_junctions$ID)
+frac_combined_only <- num_combined_only / length(deduplicated_combined_junctions$ID)
 
 # print number of junction IDs only in merged junctions bedfile
 merged_only <- setdiff(merged_junctions$ID, deduplicated_combined_junctions$ID)
 # print number of unique junctions with any differences between the two dataframes
-length(merged_only)
+num_merged_only <- length(merged_only)
 
 # check fraction of filtered merged_only junction IDs
-length(merged_only) / length(merged_junctions$ID)
+frac_merged_only <- num_merged_only / length(merged_junctions$ID)
+  
+# print results
+summary_message <- c(
+  paste0("Number of rows different in combined junctions: ", num_combined_only),
+  paste0("Fraction of rows different in combined junctions: ", frac_combined_only),
+  paste0("Number of rows different in merged junctions: ", num_merged_only),
+  paste0("Fraction of rows different in merged junctions: ", frac_merged_only)
+  )
+  
+summary_message
 ```
+`r frac_combined_only * 100`% of the combined method junction IDs are missed in the merged junctions file.
 
-
+`r frac_merged_only * 100`% of the merged method junction IDs are not in the combined junctions file.
 
 ### Check differences in junctions with at least 10 junctions in min_samples
 
@@ -356,8 +369,11 @@ For comparison, examine merged chromosome 1 counts-filtered junction table for j
 ```{r}
 merged_junctions |>
   dplyr::arrange(start) |>
-  dplyr::filter((18369 -  10) < start &
-                  start < (18369 + 10) )
+  dplyr::filter(
+    # make sure position filtered is chromosome 1 even if we analyze full bedfile
+    chr == "chr1",
+    (18369 -  10) < start &
+      start < (18369 + 10) )
 ```
 
 This junction is completely missed, with the closest coordinate being chr1:18369-18913.
@@ -383,8 +399,10 @@ For comparison, examine combined junction table for junctions near chr1:268020-2
 ```{r}
 deduplicated_combined_junctions |>
   dplyr::arrange(start) |>
-  dplyr::filter((268020 -  10) < start &
-                  start < (268020 + 10) ) |>
+  dplyr::filter(
+    chr == "chr1",
+    (268020 -  10) < start &
+    start < (268020 + 10) ) |>
   head()
 ```
 
@@ -406,3 +424,18 @@ For all cases except for SRR1799041, the counts that are dropped in the merged t
 
 Because the values in the merged table are 0 for the counts that differ from the combined table, I suspect these differences stem from junctions that are not shared across samples (these appear as NA values which we replace with 0 in the final merged bedfile).
 In the merged method, these 0 counts arise because exon-intron boundaries are defined from an intron events coordinates file from gtf2event.py that was constructed from the annotations of one sample only.
+
+## Check if differences flagged in junction IDs that are identical stem from differences in 0 counts
+```{r are_same_id_differences_from_zeros}
+# exclude different IDs from 
+
+# Locations where values differ
+differences <- df1 != df2
+
+# Locations where df1 is 0 and df2 is nonzero
+zero_to_nonzero_mask <- (df1 == 0) & (df2 != 0)
+
+# Are all differences explained by this pattern?
+all(diff_mask == zero_to_nonzero_mask, na.rm = TRUE)
+```
+

@@ -189,10 +189,10 @@ No problems are present in merged_junctions file or deduplicated junctions file
 ### Subset junctions files
 
 ```{r}
-deduplicated_combined_junctions <- deduplicated_combined_junctions |>
-  dplyr::filter(chr %in% params$chromosome) |>
-  dplyr::relocate(all_of(target_pilot_samples))
-
+if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
+  deduplicated_combined_junctions <- deduplicated_combined_junctions |>
+    dplyr::filter(chr %in% params$chromosome)
+}
 merged_junctions <- merged_junctions |>
   dplyr::filter(chr %in% params$chromosome) |>
   dplyr::relocate(all_of(target_pilot_samples))

@@ -144,6 +144,9 @@ Read in files
 target_pilot_samples <- readr::read_tsv(target_pilot_sample_sheet) |>
   dplyr::pull(sample)
 
+# read in "raw" combined junctions table
+
+
 # read in combined junctions table that have been deduplicated
 deduplicated_combined_junctions <- readr::read_tsv(
   deduplicated_combined_junctions_file,
@@ -169,6 +172,13 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
+Check that column names are the same in both dataframes
+```{r check_colnames}
+colnames(deduplicated_combined_junctions)
+colnames(merged_junctions)
+```
+Column names are the same, save for the order of the sample junction counts columns
+
 ## Check tables for parsing errors
 
 ### Check for parsing errors in the merged and deduplicated junctions tables
@@ -189,13 +199,21 @@ No problems are present in merged_junctions file or deduplicated junctions file
 ### Subset junctions files
 
 ```{r}
+# Subset junctions files if a list of chromosomes are provided, or if one chromosome is provided in params
+
 if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
   deduplicated_combined_junctions <- deduplicated_combined_junctions |>
     dplyr::filter(chr %in% params$chromosome)
 }
-merged_junctions <- merged_junctions |>
-  dplyr::filter(chr %in% params$chromosome) |>
-  dplyr::relocate(all_of(target_pilot_samples))
+
+if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
+  merged_junctions <- merged_junctions |>
+    dplyr::filter(chr %in% params$chromosome)
+}
+
+# Ensure sample columns are in the same order 
+# subset 
+merged_junctions <- merged_junctions[, names(df1)]
 
 ```
 

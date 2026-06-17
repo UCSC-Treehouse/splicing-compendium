@@ -208,8 +208,7 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 }
 
 # Ensure sample columns are in the same order 
-# subset merged junctions dataframe by the columns in the deduplicated combined junctions dataframe to ensure sample column order is the same
-merged_junctions <- merged_junctions[, names(deduplicated_combined_junctions)]
+merged_junctions <- merged_junctions |> dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 ```
 
 ### Check differences in junctions files
@@ -250,17 +249,17 @@ There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` mor
 #### Count differences in junction position IDs
 ```{r count_diff_ids}
 # print number of junction IDs only in combined junctions bedfile
-combined_only <- setdiff(deduplicated_combined_junctions$ID, merged_junctions$ID)
+combined_only_ids <- setdiff(deduplicated_combined_junctions$ID, merged_junctions$ID)
 # print number of junctions only in the combined dataframe
-num_combined_only <- length(combined_only)
+num_combined_only <- length(combined_only_ids)
 
 # check fraction of combined_only junction IDs
 frac_combined_only <- num_combined_only / length(deduplicated_combined_junctions$ID)
 
 # print number of junction IDs only in merged junctions bedfile
-merged_only <- setdiff(merged_junctions$ID, deduplicated_combined_junctions$ID)
+merged_only_ids <- setdiff(merged_junctions$ID, deduplicated_combined_junctions$ID)
 # print number of unique junctions with any differences between the two dataframes
-num_merged_only <- length(merged_only)
+num_merged_only <- length(merged_only_ids)
 
 # check fraction of filtered merged_only junction IDs
 frac_merged_only <- num_merged_only / length(merged_junctions$ID)
@@ -330,18 +329,18 @@ length(unique(filtered_merged_only$ID)) / length(unique(long_merged_junctions$ID
 
 Check if junctions only found in combined or merged dataframes are always 1bp in length (are they always exon-intron junctions?)
 ```{r}
-combined_only_ids <- setdiff(filtered_long_combined$ID, filtered_long_merged$ID)
+filtered_combined_only_ids <- setdiff(filtered_long_combined$ID, filtered_long_merged$ID)
 long_combined_only_ids <- filtered_long_combined |>
-  dplyr::filter(ID %in% combined_only_ids) |>
+  dplyr::filter(ID %in% filtered_combined_only_ids) |>
   # count length of junctions only found in combined table
   dplyr::mutate(junction_length = abs(end - start))
 
 # check if the junctions only in combined df are all always 1bp in length (are they all exon-intron junctions?)
 unique(long_combined_only_ids$junction_length)
 
-merged_only_ids <- setdiff(filtered_long_merged$ID, filtered_long_combined$ID)
+filtered_merged_only_ids <- setdiff(filtered_long_merged$ID, filtered_long_combined$ID)
 long_merged_only_ids <- filtered_long_merged |>
-  dplyr::filter(ID %in% merged_only_ids) |>
+  dplyr::filter(ID %in% filtered_merged_only_ids) |>
   # count length of junctions only found in combined table
   dplyr::mutate(junction_length = abs(end - start))
 
@@ -427,15 +426,72 @@ In the merged method, these 0 counts arise because exon-intron boundaries are de
 
 ## Check if differences flagged in junction IDs that are identical stem from differences in 0 counts
 ```{r are_same_id_differences_from_zeros}
-# exclude different IDs from 
+# Exclude IDs that are only found in each dataframe
+# The "_shared" dataframe contain rows corresponding to junctions that are shared between the merged and combined methods
+# The differences within these dataframes should come from the values of the samples' junction counts for these IDs
 
-# Locations where values differ
-differences <- df1 != df2
+merged_junctions_shared <- merged_junctions |>
+  dplyr::filter(!ID %in% merged_only_ids)
 
-# Locations where df1 is 0 and df2 is nonzero
-zero_to_nonzero_mask <- (df1 == 0) & (df2 != 0)
+combined_junctions_shared <- deduplicated_combined_junctions |>
+  dplyr::filter(!ID %in% combined_only_ids)
 
-# Are all differences explained by this pattern?
-all(diff_mask == zero_to_nonzero_mask, na.rm = TRUE)
+# check that resulting length of dataframes excluding differing IDs are the same (they should be)
+nrow(merged_junctions_shared) == nrow(combined_junctions_shared)
+
+# pull out dataframe of junction IDs with values in merged_junctions_shared not in combined_junctions_shared
+merged_shared_id_differences <- dplyr::setdiff(merged_junctions_shared, combined_junctions_shared)
+
+combined_shared_id_differences <- combined_junctions_shared |> dplyr::filter(
+  ID %in% merged_shared_id_differences$ID
+)
+
+```
+
+Examine junction counts differences in one sample only.
+Check if there are any junctions that are different because the junction counts of the merged and combined dataframes are nonzero and different
+
+```{r}
+# Pull one sample ID to examine
+sample <- "SRR1559043"
+
+# select for only this sample in the combined and merged dataframes
+merged_shared_id_differences <- merged_shared_id_differences |>
+  dplyr::select(chr, start, end, ID, dplyr::all_of(sample))
+combined_shared_id_differences <- combined_shared_id_differences |>
+  dplyr::select(chr, start, end, ID, dplyr::all_of(sample))
+
+# Combine the dataframes and label each row by whether the junction count for the example sample are zero-to-nonzero, the same, or different due to nonzero-to-nonzero reasons
+
+compare_junction_values_df <- dplyr::left_join(
+  merged_shared_id_differences,
+  combined_shared_id_differences,
+  by = c("chr", "start", "end", "ID"),
+  suffix = c("_merged", "_combined")
+) |>
+  # label junctions by nature of difference
+  dplyr::mutate(
+    difference_type = dplyr::case_when(SRR1559043_merged == SRR1559043_combined ~ "same",
+                                       SRR1559043_merged != 0 & SRR1559043_combined != 0 ~ "nonzero-to-nonzero",
+                                       SRR1559043_merged == 0 & SRR1559043_combined != 0 ~ "zero-to-nonzero"
+    )
+  )
+
+# spot-check
+compare_junction_values_df |> head()
+```
+
+Summarize fraction of junctions in sample `r target_pilot_samples[1]` in each category
+```{r}
+compare_junction_values_df |> 
+  dplyr::summarise(
+    total = dplyr::n(),
+    n_same = sum(difference_type == "same"),
+    n_zero_to_nonzero = sum(difference_type == "zero-to-nonzero"),
+    n_nonzero_to_nonzero = sum(difference_type == "nonzero-to-nonzeo"),
+    frac_same = n_same / total,
+    frac_zero_to_nonzero = n_zero_to_nonzero / total,
+    frac_nonzero_to_nonzero = n_nonzero_to_nonzero / total
+  )
 ```
 

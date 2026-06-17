@@ -40,10 +40,10 @@ The intermediate files that go into PSI calculation from this method are:
 
 "Merged" refers to shiba splice analysis run with `merge_results.smk`.
 The inputs of this method are junctions.bed and GTF files created by Shiba run on each sample separately.
-`merge_results.smk` merges the GTFs using the same stringtie merge command Shiba uses, then manually combines the junction files after deduplicating any invalid junction entries resulkting from the `bam2junc.py` bug.
+`merge_results.smk` merges the GTFs using the same stringtie merge command Shiba uses, then manually combines the junction files after deduplicating any invalid junction entries resulting from the `bam2junc.py` bug.
 The jobs for the merged Shiba method were run in the following order, to generate the merged GTF and junctions.bed files:
 
-```
+```         
 [Mon Jun  1 03:46:24 2026]
 Finished jobid: 4 (Rule: merge_junctions)
 1 of 5 steps (20%) done
@@ -64,6 +64,7 @@ localrule gtf_to_events:
 [Mon Jun  1 04:43:48 2026]
 Finished jobid: 2 (Rule: gtf_to_events)
 ```
+
 Because the junctions.bed files have exon-intron coordinates defined by retained intron events files obtained from one sample only, some samples will not have exon-intron counts from exon-intron boundaries that are only present in other samples.
 
 ### Analysis outline:
@@ -71,16 +72,23 @@ Because the junctions.bed files have exon-intron coordinates defined by retained
 Check differences in full junctions files - Check how many rows (junction IDs) are in each bedfile.
 Also calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
 
-Check differences in junctions with at least 10 junctions in min_samples - Check if differences change if we filter for junctions with higher counts in at least 5 samples.
+Check differences in junctions with at least 10 junctions in min_samples - check if differences change if we filter for junctions with higher counts in at least 5 samples.
 Filter merged and combined junctions tables for junctions with counts of at least 10 in at least 5 samples.
 Calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
 
-We discovered that the largest source of difference between the merged and combined method lies in how exon-intron junctions are defined and counted. 
+We discovered that the largest source of difference between the merged and combined method lies in how exon-intron junctions are defined and counted.
 Shiba uses the retained intron events coordinates generated from gtf2events.py to define intron-exon coordinates for counting.
-Since the merged method only uses the events coordinates defined from one sample at a time, junctions counted with this method are expected to miss all exon-intron junctionds that are not shared between samples.
+Since the merged method only uses the events coordinates defined from one sample at a time, junctions counted with this method are expected to miss all exon-intron junctions that are not shared between samples.
 Coming into this analysis, I expect all junction IDs that are different between the methods to be exon-intron junctions.
 
+To see if this is the case, this notebook also:
+
+- Checks if junctions that are different have a length of 1
+
+- Checks if all junctions whose counts values are different (but IDs are the same) betweeen the tables are different because the value in the merged table is 0 and the value in the combined table is nonzero
+
 ## Define functions
+
 ```{r}
 # pivot junctions dataframe long and add summary column of number of samples with counts exceeding min_counts
 pivot_junctions_long <- function(df) {
@@ -144,9 +152,6 @@ Read in files
 target_pilot_samples <- readr::read_tsv(target_pilot_sample_sheet) |>
   dplyr::pull(sample)
 
-# read in "raw" combined junctions table
-
-
 # read in combined junctions table that have been deduplicated
 deduplicated_combined_junctions <- readr::read_tsv(
   deduplicated_combined_junctions_file,
@@ -172,11 +177,14 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
+
 Check that column names are the same in both dataframes
+
 ```{r check_colnames}
 colnames(deduplicated_combined_junctions)
 colnames(merged_junctions)
 ```
+
 Column names are the same, save for the order of the sample junction counts columns
 
 ## Check tables for parsing errors
@@ -194,7 +202,7 @@ No problems are present in merged_junctions file or deduplicated junctions file 
 
 ### Subset junctions files
 
-```{r}
+```{r subset_junctions}
 # Subset junctions files if a list of chromosomes are provided, or if one chromosome is provided in params
 
 if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
@@ -240,6 +248,7 @@ summary_message <- c(
   
 summary_message
 ```
+
 There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` more junctions in the merged junction file compared to the combined junction file.
 
 `r frac_combined_only * 100`% of the combined method junctions are missed in the merged junctions file.
@@ -247,6 +256,7 @@ There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` mor
 `r frac_merged_only * 100`% of the merged method junctions are not in the combined junctions file.
 
 #### Count differences in junction position IDs
+
 ```{r count_diff_ids}
 # print number of junction IDs only in combined junctions bedfile
 combined_only_ids <- setdiff(deduplicated_combined_junctions$ID, merged_junctions$ID)
@@ -274,6 +284,7 @@ summary_message <- c(
   
 summary_message
 ```
+
 `r frac_combined_only * 100`% of the combined method junction IDs are missed in the merged junctions file.
 
 `r frac_merged_only * 100`% of the merged method junction IDs are not in the combined junctions file.
@@ -281,6 +292,7 @@ summary_message
 ### Check differences in junctions with at least 10 junctions in min_samples
 
 Pivot data frame longer and count the number samples with junctions above min_junctions that are present
+
 ```{r}
 long_combined_junctions <- pivot_junctions_long(deduplicated_combined_junctions) 
 long_merged_junctions <- pivot_junctions_long(merged_junctions)
@@ -328,6 +340,7 @@ length(unique(filtered_merged_only$ID)) / length(unique(long_merged_junctions$ID
 ```
 
 Check if junctions only found in combined or merged dataframes are always 1bp in length (are they always exon-intron junctions?)
+
 ```{r}
 filtered_combined_only_ids <- setdiff(filtered_long_combined$ID, filtered_long_merged$ID)
 long_combined_only_ids <- filtered_long_combined |>
@@ -378,9 +391,11 @@ merged_junctions |>
 This junction is completely missed, with the closest coordinate being chr1:18369-18913.
 
 Check if chr1:18369-18913 is only in the merged table and not in the combined table
+
 ```{r}
 "chr1:18369-18913" %in% merged_only_ids
 ```
+
 chr1:18369-18913 is found in both the merged and combined junctions tables.
 
 #### Check junctions only in merged junctions file
@@ -409,7 +424,7 @@ Position chr1:268020-268021 is actually a junction recorded in the combined junc
 The difference come in the counts going into each sample:
 
 | sample | junction count in merged table | junction count in combined table |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | **SRR1712457** | 0 | 3 |
 | **SRR1712459** | 0 | 3 |
 | **SRR1712460** | 0 | 8 |
@@ -419,12 +434,13 @@ The difference come in the counts going into each sample:
 | **SRR1799041** | 0 | 16 |
 
 From scanning chr1:268020-268021, the counts differences arise from cases where the merged junctions counts have a value of 0 for a sample and the combined file is not zero for the same sample.
-For all cases except for SRR1799041, the counts that are dropped in the merged table are < 10.
+For all cases except for SRR1799041, the counts that are dropped in the merged table are \< 10.
 
 Because the values in the merged table are 0 for the counts that differ from the combined table, I suspect these differences stem from junctions that are not shared across samples (these appear as NA values which we replace with 0 in the final merged bedfile).
 In the merged method, these 0 counts arise because exon-intron boundaries are defined from an intron events coordinates file from gtf2event.py that was constructed from the annotations of one sample only.
 
 ## Check if differences flagged in junction IDs that are identical stem from differences in 0 counts
+
 ```{r are_same_id_differences_from_zeros}
 # Exclude IDs that are only found in each dataframe
 # The "_shared" dataframe contain rows corresponding to junctions that are shared between the merged and combined methods
@@ -453,6 +469,9 @@ Check if there are any junctions that are different because the junction counts 
 
 ```{r}
 # Pull one sample ID to examine
+# This should be in params but I think ideally I would want to do this for all samples
+# Not sure of the best way to do that at the moment - maybe do this on the long dataframe? 
+
 sample <- "SRR1559043"
 
 # select for only this sample in the combined and merged dataframes
@@ -482,6 +501,7 @@ compare_junction_values_df |> head()
 ```
 
 Summarize fraction of junctions in sample `r target_pilot_samples[1]` in each category
+
 ```{r}
 compare_junction_values_df |> 
   dplyr::summarise(
@@ -494,4 +514,3 @@ compare_junction_values_df |>
     frac_nonzero_to_nonzero = n_nonzero_to_nonzero / total
   )
 ```
-

@@ -11,7 +11,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_samples: 5
   min_counts: 10
-  chromosome: "all"
+  chromosome: "chr1"
 output: md_document
 ---
 

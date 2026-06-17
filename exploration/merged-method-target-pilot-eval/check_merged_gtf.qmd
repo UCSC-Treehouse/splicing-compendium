@@ -253,9 +253,3 @@ combined_df |>
   dplyr::filter(gene_name == "ELOA3CP")
 ```
 Yes, this transcript is only in the merged dataframe for some reason
-
-Check if it is in the combined tracklayer GTF
-```{r}
-sorted_combined_gtf[sorted_combined_gtf$gene_name == "ELOA3CP"]
-```
-"Error: logical subscript contains NAs" error is thrown which I think indicates this gene is missing

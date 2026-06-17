@@ -10,12 +10,49 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 ---
 
+## Introduction
+
+## Background
+
+This notebook checks junctions.bed files from two Shiba run methods for differences.
+The goal is to get a sense of how close files that go into calculating PSI values for events are to each other in the merged and combined Shiba methods.
+Junctions files that are different would impact PSI calculation, so I am mainly looking to see if mismatched junctions are present and if present, how much of the data do they represent.
+
+Files compared in this notebook are GTFs containing transcript annotations of 88 TARGET pilot samples, produced from running Shiba with two different methods.
+
+"Combined" refers to shiba splice analysis run with shiba in a canonical way.
+Inputs of this method are .bam files of each sample and a reference annotation GTF.
+In the combined method, unmodified Shiba scripts are run on the input files using shiba.py, which calls on Shiba scripts that generate intermediate files and perform the final PSI calculation.
+The relevant intermediate files that go into PSI calculation from this method are:
+
+- GTF, which is made with \[bam2gtf.py\](https://github.com/Sika-Zheng-Lab/Shiba/blob/v0.8.1/src/bam2gtf.py. This script uses a stringtie merge command as part of that merges GTFs made from individual samples together with the reference GTF
+
+"Merged" refers to shiba splice analysis run with `merge_results.smk`. 
+The inputs of this method are junctions.bed and GTF files created by Shiba run on each sample separately.
+`merge_results.smk` merges the GTFs using the same stringtie merge command Shiba uses:
+
+The snakemake GTF merge command:
+`stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest`
+Where `$manifest` refers to the list of GTFs to merge
+
+The canonical/combined Shiba GTF merge command, for reference (from [bam2gtf.py](https://github.com/Sika-Zheng-Lab/Shiba/blob/v0.8.1/src/bam2gtf.py)):
+```
+		"stringtie",
+		"--merge",
+		"-p", str(num_processors),
+		"-G", reference_gtf,
+		"-o", assembled_gtf
+	] + gtf_list
+```
+
+### Analysis outline:
+- Check if GTFs are identical
+
 ## Setup
 ```{r setup}
 # import libraries
 library(rtracklayer)
 ```
-
 
 ## Read in directories and files
 
@@ -55,24 +92,170 @@ merged_gtf_file <- file.path(merged_results_dir, "merged_gtf.gtf")
 
 Read in files
 
-```{r read_in_combined_gtf}
+```{r read_in_gtfs}
 
-# read in combined GTF
-combined_gtf <- read.delim(combined_gtf_file, header = FALSE, sep = '\t', skip = 2)
+combined_gtf <- import(combined_gtf_file)
+merged_gtf <- import(merged_gtf_file)
 
+# quick and dirty check if they are identical
+# this is a strict check and will fail if row order is different
+identical(combined_gtf, merged_gtf)
+
+```
+
+## Sort GTFs for comparison
+
+The GTFs are not identical - first check if row/column orders are different, or if there is another easy explanation why they are different by looking at the head
+
+```{r}
 head(combined_gtf)
 ```
 
-```{r read_in_merged_gtf}
-# read in merged gtf
-merged_gtf <- read.delim(merged_gtf_file, header = FALSE, sep = '\t', skip = 2)
+```{r}
 head(merged_gtf)
+```
+It looks like the row order is not the same in each GTF.
+Attempt to sort the GTFs so that the rows appear in the same order, prior to comparison
+
+```{r}
+sorted_combined_gtf <- sort(combined_gtf)
+sorted_merged_gtf <- sort(merged_gtf)
+
+identical(sorted_combined_gtf, sorted_merged_gtf)
+```
+
+GTFs are still not identical, so print head to see if there is a clear reason
+
+```{r}
+head(sorted_merged_gtf)
+```
+```{r}
+head(sorted_combined_gtf)
 ```
 
 ## Check differences in junctions bedfiles
 
 ```{r check_differences}
+# convert sorted gtfs into dataframes
+combined_df <- as.data.frame(sorted_combined_gtf)
+merged_df <- as.data.frame(sorted_merged_gtf)
 
-identical(combined_gtf, merged_gtf)
-
+merged_gtf_only <- dplyr::setdiff(combined_df, merged_df)
+merged_gtf_only |> head()
 ```
+
+Check for closest match to chr1 start position 11121 in combined gtf
+```{r}
+combined_df |>
+  dplyr::filter(
+    seqnames == "chr1",
+    start == "11121"
+  )
+```
+Both combined GTF entries for chr1:11121-any match the merged GTF entries, so I'm unsure why it was flagged as different
+
+Check if column names are the same between each dataframe
+```{r}
+dplyr::setdiff(names(merged_df), names(combined_df))
+```
+They are the same (setdiff returns 0)
+
+Check if classes in each column are the same between data frames (they are)
+
+```{r}
+sapply(merged_df, class) == sapply(combined_df, class)
+```
+Check for differences column by column
+
+```{r}
+print("seqnames")
+
+dplyr::setdiff(merged_df$seqnames, combined_df$seqnames)
+
+print("start")
+
+dplyr::setdiff(merged_df$start, combined_df$start) |> head()
+dplyr::setdiff(combined_df$start, merged_df$start) |> head()
+
+print("end")
+
+dplyr::setdiff(merged_df$end, combined_df$end) |> head()
+dplyr::setdiff(combined_df$end, merged_df$end) |> head()
+
+print("width")
+
+dplyr::setdiff(merged_df$width, combined_df$width) |> head()
+dplyr::setdiff(combined_df$width, merged_df$width) |> head()
+
+print("strand")
+
+dplyr::setdiff(merged_df$strand, combined_df$strand) |> head()
+dplyr::setdiff(combined_df$strand, merged_df$strand) |> head()
+
+print("source")
+
+dplyr::setdiff(merged_df$source, combined_df$source) |> head()
+dplyr::setdiff(combined_df$source, merged_df$source) |> head()
+
+print("type")
+
+dplyr::setdiff(merged_df$type, combined_df$type) |> head()
+dplyr::setdiff(combined_df$type, merged_df$type) |> head()
+
+print("score")
+
+dplyr::setdiff(merged_df$score, combined_df$score) |> head()
+dplyr::setdiff(combined_df$score, merged_df$score) |> head()
+
+print("phase")
+
+dplyr::setdiff(merged_df$phase, combined_df$phase) |> head()
+dplyr::setdiff(combined_df$phase, merged_df$phase) |> head()
+
+print("gene_id")
+
+dplyr::setdiff(merged_df$gene_id, combined_df$gene_id) |> head()
+dplyr::setdiff(combined_df$gene_id, merged_df$gene_id) |> head()
+
+print("transcript_id")
+
+dplyr::setdiff(merged_df$transcript_id, combined_df$transcript_id) |> head()
+dplyr::setdiff(combined_df$transcript_id, merged_df$transcript_id) |> head()
+
+print("exon_number")
+
+dplyr::setdiff(merged_df$exon_number, combined_df$exon_number) |> head()
+dplyr::setdiff(combined_df$exon_number, merged_df$exon_number) |> head()
+
+print("gene_name")
+
+dplyr::setdiff(merged_df$gene_name, combined_df$gene_name) |> head()
+dplyr::setdiff(combined_df$gene_name, merged_df$gene_name) |> head()
+
+print("ref_gene_id")
+
+dplyr::setdiff(merged_df$ref_gene_id, combined_df$ref_gene_id ) |> head()
+dplyr::setdiff(combined_df$ref_gene_id, merged_df$ref_gene_id ) |> head()
+```
+
+Some of the differences seem like they come from stringtie-assigned transcripts that don't otherwise have transcript IDs
+
+Investigate ELOA3CP - Does it really only appear in the merged dataframe and not the combined?
+
+```{r}
+merged_df |>
+  dplyr::filter(gene_name == "ELOA3CP")
+```
+
+
+```{r}
+combined_df |>
+  dplyr::filter(gene_name == "ELOA3CP")
+```
+Yes, this transcript is only in the merged dataframe for some reason
+
+Check if it is in the combined tracklayer GTF
+```{r}
+sorted_combined_gtf[sorted_combined_gtf$gene_name == "ELOA3CP"]
+```
+"Error: logical subscript contains NAs" error is thrown which I think indicates this gene is missing

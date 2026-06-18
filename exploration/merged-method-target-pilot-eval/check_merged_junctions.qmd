@@ -9,8 +9,7 @@ editor_options:
     wrap: sentence
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
-  min_samples: 5
-  min_counts: 10
+  min_counts: 0
   chromosome: "chr1"
 output: md_document
 ---
@@ -68,7 +67,7 @@ Finished jobid: 2 (Rule: gtf_to_events)
 
 Because the junctions.bed files have exon-intron coordinates defined by retained intron events files obtained from one sample only, some samples will not have exon-intron counts from exon-intron boundaries that are only present in other samples.
 
-### Analysis outline:
+## Analysis outline:
 
 We discovered that the largest source of difference between the merged and combined method lies in how exon-intron junctions are defined and counted.
 Shiba uses the retained intron events coordinates generated from gtf2events.py to define intron-exon coordinates for counting.
@@ -98,26 +97,6 @@ Analysis questions in this notebook:
     1.  Are junction IDs that are only found in one analysis always 1bp in length (exon-intron)?
 
     2.  Are shared junction IDs with different counts in each analysis always 1bp in length?
-
-## Define functions
-
-```{r}
-# pivot junctions dataframe long and add summary column of number of samples with counts exceeding min_counts
-pivot_junctions_long <- function(df) {
- df |>
-  tidyr::pivot_longer(
-    cols = dplyr::starts_with("SRR"),
-    names_to = "sample",
-    values_to = "count"
-  ) |>
-  dplyr::group_by(ID) |>
-  # add column that counts how many samples have count values over 10 for each position
-  dplyr::mutate(
-    samples_over_min_count = sum(count >= params$min_counts)
-  )
-}
-
-```
 
 ## Read in directories and files
 
@@ -189,6 +168,19 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
+## Define functions
+```{r}
+# pivot junctions dataframe long and add summary column of number of samples with counts exceeding min_counts
+pivot_junctions_long <- function(df) {
+ df |>
+  tidyr::pivot_longer(
+    cols = dplyr::starts_with("SRR"),
+    names_to = "sample",
+    values_to = "count"
+  )
+}
+
+```
 
 ## Check tables for parsing errors
 
@@ -217,31 +209,36 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 }
 
 # Ensure sample columns are in the same order
-merged_junctions <- merged_junctions |> dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
+merged_junctions <- merged_junctions |> 
+  dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 ```
 
 ## Check differences in junctions files
 
-### To what extent are junction IDs different between bedfiles?
+### How many junction positions (IDs) are different between bedfiles from each analysis method?
 
-There are
+#### How many and what fraction of all IDs in each method are different?
 
 ```{r count_diff_ids}
-# print number of junction IDs only in combined junctions bedfile
-combined_only_ids <- setdiff(deduplicated_combined_junctions$ID, merged_junctions$ID)
-# print number of junctions only in the combined dataframe
+# save vectors of junction IDs in each junction file being compared
+combined_ids <- deduplicated_combined_junctions$ID
+merged_ids <- merged_junctions$ID
+
+# Obtain vector of junction IDs only in combined junctions bedfile
+combined_only_ids <- setdiff(combined_ids, merged_ids)
+# Save number of junctions only in the combined dataframe
 num_combined_only <- length(combined_only_ids)
 
-# check fraction of combined_only junction IDs
-frac_combined_only <- num_combined_only / length(deduplicated_combined_junctions$ID)
+# Calculate fraction of junction IDs in the combined method that are only found in the combined method
+frac_combined_only <- num_combined_only / length(combined_ids)
 
-# print number of junction IDs only in merged junctions bedfile
-merged_only_ids <- setdiff(merged_junctions$ID, deduplicated_combined_junctions$ID)
-# print number of unique junctions with any differences between the two dataframes
+# Obtain vector of junction IDs only in combined junctions bedfile
+merged_only_ids <- setdiff(merged_ids, combined_ids)
+# Save number of junctions only in the merged dataframe
 num_merged_only <- length(merged_only_ids)
 
-# check fraction of filtered merged_only junction IDs
-frac_merged_only <- num_merged_only / length(merged_junctions$ID)
+# Calculate fraction of junction IDs in the merged method that are only found in the merged method
+frac_merged_only <- num_merged_only / length(merged_ids)
 
 # print results
 summary_message <- c(
@@ -253,60 +250,41 @@ summary_message <- c(
 
 summary_message
 ```
-
 `r frac_combined_only * 100`% of the combined method junction IDs are missed in the merged junctions file.
 
 `r frac_merged_only * 100`% of the merged method junction IDs are not in the combined junctions file.
 
-### Check differences in junctions with at least 10 junctions in min_samples
-
-Pivot data frame longer and count the number samples with junctions above min_junctions that are present
+#### Of IDs that are different, how many samples have nonzero junction counts in each analysis method?
 
 ```{r}
-long_combined_junctions <- pivot_junctions_long(deduplicated_combined_junctions)
-long_merged_junctions <- pivot_junctions_long(merged_junctions)
+#| label: fig-samples_with_nonzero_counts_combined_only_ids
 
-# filter data frames for IDs where there are min_samples with min_count
-filtered_long_combined <- long_combined_junctions |>
-  dplyr::filter(samples_over_min_count >= params$min_samples)
-filtered_long_merged <- long_merged_junctions |>
-  dplyr::filter(samples_over_min_count >= params$min_samples)
+combined_only_ids_samples_summary <- deduplicated_combined_junctions |>
+  # filter for IDs only present in combined table
+  dplyr::filter(ID %in% combined_only_ids) |>
+  # pivot longer for ease of filtering by samples
+  pivot_junctions_long() |>
+  # summarize by how many samples in each junction ID have counts over 0
+  dplyr::summarize(
+    .by = ID,
+    total = dplyr::n(),
+    n_counts_over_zero = sum(count > 0) 
+  )
 
-# spot-check
-filtered_long_combined |>
-  head()
+# create histogram to spot-check
+hist(combined_only_ids_samples_summary$n_counts_over_zero,
+     main = paste("Distribution of samples with counts > 0 per junction ID"),
+     xlab = "Number of samples with counts > 0 for junction IDs only in combined table")
+```
+
+For IDs with more than 80 samples with value of 0 in counts, is it always the same couple of samples with nonzero junction counts?
+
+```{r}
 
 ```
 
-## Count differences between counts-filtered junction files
 
-Count number of junctions in each filtered file
-
-```{r count_differences_counts_filtered}
-length(unique(filtered_long_combined$ID))
-length(unique(filtered_long_merged$ID))
-```
-
-Calculate fraction of filtered junctions that are different in any way in the combined or merged files
-
-```{r count_differences_filtered}
-
-# print number of junctions only in combined junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
-filtered_combined_only <- dplyr::setdiff(filtered_long_combined, filtered_long_merged)
-# print number of unique junctions with any differences between the two dataframes
-length(unique(filtered_combined_only$ID))
-
-# check fraction of filtered_combined_only junctions
-length(unique(filtered_combined_only$ID)) / length(unique(long_combined_junctions$ID))
-
-# print number of junctions only in merged junctions bedfile after filtering for junctions with at least 10 counts in at least 5 samples
-filtered_merged_only <- dplyr::setdiff(filtered_long_merged, filtered_long_combined)
-# print number of unique junctions with any differences between the two dataframes
-length(unique(filtered_merged_only$ID))
-
-# check fraction of filtered merged_only junctions
-length(unique(filtered_merged_only$ID)) / length(unique(long_merged_junctions$ID))
-```
+### What kind of junction IDs are different between bedfiles from each analysis method?
 
 Check if junctions only found in combined or merged dataframes are always 1bp in length (are they always exon-intron junctions?)
 

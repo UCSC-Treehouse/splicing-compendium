@@ -44,7 +44,7 @@ The inputs of this method are junctions.bed and GTF files created by Shiba run o
 `merge_results.smk` merges the GTFs using the same stringtie merge command Shiba uses, then manually combines the junction files after deduplicating any invalid junction entries resulting from the `bam2junc.py` bug.
 The jobs for the merged Shiba method were run in the following order, to generate the merged GTF and junctions.bed files:
 
-```
+```         
 [Mon Jun  1 03:46:24 2026]
 Finished jobid: 4 (Rule: merge_junctions)
 1 of 5 steps (20%) done
@@ -178,16 +178,6 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
-
-Check that column names are the same in both dataframes
-
-```{r check_colnames}
-colnames(deduplicated_combined_junctions)
-colnames(merged_junctions)
-```
-
-Column names are the same, save for the order of the sample junction counts columns
-
 ## Check tables for parsing errors
 
 ### Check for parsing errors in the merged and deduplicated junctions tables
@@ -221,40 +211,6 @@ merged_junctions <- merged_junctions |> dplyr::relocate(chr, start, end, ID, dpl
 ```
 
 ### Check differences in junctions files
-
-#### Count all differences between each data frame
-
-```{r count_all_differences}
-# print number of junctions in only in combined junctions bedfile
-combined_only <- dplyr::setdiff(deduplicated_combined_junctions, merged_junctions)
-num_combined_only <- nrow(combined_only)
-
-# check fraction of junctions that are only in the combined junctions bedfile
-frac_combined_only <- num_combined_only / nrow(deduplicated_combined_junctions)
-
-# print number of junctions only in merged junctions bedfile
-merged_only <- dplyr::setdiff(merged_junctions, deduplicated_combined_junctions)
-num_merged_only <- nrow(merged_only)
-
-# check fraction of junctions that are only in merged junctions
-frac_merged_only <- num_merged_only / nrow(merged_junctions)
-
-# print results
-summary_message <- c(
-  paste0("Number of rows different in combined junctions: ", num_combined_only),
-  paste0("Fraction of rows different in combined junctions: ", frac_combined_only),
-  paste0("Number of rows different in merged junctions: ", num_merged_only),
-  paste0("Fraction of rows different in merged junctions: ", frac_merged_only)
-  )
-
-summary_message
-```
-
-There are `r nrow(merged_junctions) - nrow(deduplicated_combined_junctions)` more junctions in the merged junction file compared to the combined junction file.
-
-`r frac_combined_only * 100`% of the combined method junctions are missed in the merged junctions file.
-
-`r frac_merged_only * 100`% of the merged method junctions are not in the combined junctions file.
 
 #### Count differences in junction position IDs
 

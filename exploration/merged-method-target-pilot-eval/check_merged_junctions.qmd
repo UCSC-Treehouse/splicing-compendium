@@ -70,23 +70,34 @@ Because the junctions.bed files have exon-intron coordinates defined by retained
 
 ### Analysis outline:
 
-Check differences in full junctions files - Check how many rows (junction IDs) are in each bedfile.
-Also calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
-
-Check differences in junctions with at least 10 junctions in min_samples - check if differences change if we filter for junctions with higher counts in at least 5 samples.
-Filter merged and combined junctions tables for junctions with counts of at least 10 in at least 5 samples.
-Calculate fraction of junctions in the merged junctions table that are not in the combined table; the fraction of junctions in the combined table that are missed in the merged junctions table
-
 We discovered that the largest source of difference between the merged and combined method lies in how exon-intron junctions are defined and counted.
 Shiba uses the retained intron events coordinates generated from gtf2events.py to define intron-exon coordinates for counting.
 Since the merged method only uses the events coordinates defined from one sample at a time, junctions counted with this method are expected to miss all exon-intron junctions that are not shared between samples.
 Coming into this analysis, I expect all junction IDs that are different between the methods to be exon-intron junctions.
 
-To see if this is the case, this notebook also:
+Analysis questions in this notebook:
 
-- Checks if junctions that are different have a length of 1
+1.  How many junction positions (IDs) are different between bedfiles from each analysis method?
 
-- Checks if all junctions whose counts values are different (but IDs are the same) betweeen the tables are different because the value in the merged table is 0 and the value in the combined table is nonzero
+    1.  How many and what fraction of all IDs in each method are different?
+
+    2.  Of IDs that are different, how many samples have nonzero junction counts in each analysis method?
+
+2.  Of junction positions that are the same, how many IDs have different junction counts in the same samples in each analysis method?
+
+    1.  How many and what fraction of all IDs have samples with different junction counts?
+
+    2.  How many samples in each method have different junction counts for the same IDs?
+
+    3.  Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
+
+    4.  Are there samples that consistently have different junction counts in each method?
+
+3.  What kind of junction IDs are different between bedfiles from each analysis method?
+
+    1.  Are junction IDs that are only found in one analysis always 1bp in length (exon-intron)?
+
+    2.  Are shared junction IDs with different counts in each analysis always 1bp in length?
 
 ## Define functions
 
@@ -178,6 +189,7 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
+
 ## Check tables for parsing errors
 
 ### Check for parsing errors in the merged and deduplicated junctions tables
@@ -189,9 +201,7 @@ readr::problems(deduplicated_combined_junctions)
 
 No problems are present in merged_junctions file or deduplicated junctions file (readr::problems prints out nothing)
 
-## Check differences in junctions bedfiles
-
-### Subset junctions files
+## Subset junctions files for analysis
 
 ```{r subset_junctions}
 # Subset junctions files if a list of chromosomes are provided, or if one chromosome is provided in params
@@ -210,9 +220,11 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 merged_junctions <- merged_junctions |> dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 ```
 
-### Check differences in junctions files
+## Check differences in junctions files
 
-#### Count differences in junction position IDs
+### To what extent are junction IDs different between bedfiles?
+
+There are
 
 ```{r count_diff_ids}
 # print number of junction IDs only in combined junctions bedfile

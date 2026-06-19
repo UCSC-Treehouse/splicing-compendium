@@ -493,6 +493,14 @@ Yes, all junction IDs with differing counts in the merged method junctions table
 
 ### How many samples in each method have different junction counts for the same IDs?
 
+Remove dataframes not used anymore to save memory
+```{r remove_unused_dfs}
+rm(merged_shared_id_counts_diff_df)
+rm(combined_shared_id_counts_diff_df)
+rm(deduplicated_combined_junctions)
+rm(merged_junctions)
+```
+
 #### Count number of samples with different counts between the combined and merged tables
 What types of counts differences are present in samples with different junction counts?
 
@@ -540,4 +548,4 @@ shared_id_counts_diff_df |>
   head()
 ```
 
-SRR4419554 has the highest number of junctions with mismatched counts
+SRR4419554 has the highest number of junctions with mismatched counts for chromosome 1

@@ -235,7 +235,7 @@ No problems are present in merged_junctions file or deduplicated junctions file 
 ## Subset junctions files for analysis
 
 ```{r subset_junctions}
-# Subset junctions files if a list of chromosomes are provided, or if one chromosome is provided in params
+# Subset junctions files if the chromosome provided is not "all"
 
 if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
   deduplicated_combined_junctions <- deduplicated_combined_junctions |>

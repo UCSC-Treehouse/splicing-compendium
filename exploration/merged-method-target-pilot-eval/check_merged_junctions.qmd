@@ -250,6 +250,9 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 # Ensure sample columns are in the same order
 merged_junctions <- merged_junctions |> 
   dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
+
+# Check that columns are the same between both dataframes
+setequal(colnames(deduplicated_combined_junctions), colnames(merged_junctions))
 ```
 
 ## Check differences in junctions files
@@ -327,7 +330,14 @@ What samples have the highest number of nonzero junction counts?
 samples_with_most_zeros(merged_junctions, merged_only_ids)
 ```
 SRR2042845 still has the highest number of junction counts that are 0 in junction IDs only found in the merged method.
-So there are some problem samples that have unusually low numbers of counts.
+So there are some samples that consistently have unusually low numbers of counts.
+
+### Of junction positions that are the same, how many IDs have different junction counts in the same samples in each analysis method?
+
+```{r}
+
+```
+
 
 ### What kind of junction IDs are different between bedfiles from each analysis method?
 

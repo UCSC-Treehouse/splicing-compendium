@@ -369,7 +369,7 @@ Yes, all junction IDs only present in the combined method junctions table are ex
 
 ##### Junction IDs only present in merged method
 
-```{r combined_only_id_count_1bp_jcns}
+```{r merged_only_id_count_1bp_jcns}
 unique(merged_only_jcn_id_df$jcn_length)
 ```
 Yes, all junction IDs only present in the method method junctions table are exon-intron junctions.
@@ -440,7 +440,7 @@ summary_message
 ##### Junction IDs with different counts in combined method
 
 ```{r}
-#| label: fig-samples_with_nonzero_counts_combined_only_ids
+#| label: fig-samples_with_nonzero_counts_combined_only_ids_diff_counts
 
 num_nonzero_samples_hist(combined_shared_id_counts_diff_df)
 ```
@@ -449,7 +449,7 @@ Similar to @fig-samples_with_nonzero_counts_combined_only_ids, most junction IDs
 
 What samples have the highest number of nzero junction counts?
 
-```{r what_samples_have_zero_counts_combined_only_junction_ids}
+```{r what_samples_have_zero_counts_combined_only_junction_ids_diff_counts}
 samples_with_most_zeros(combined_shared_id_counts_diff_df)
 ```
 
@@ -458,7 +458,7 @@ SRR2042845 is still the sample with the highest number of zeros in junctions who
 ##### Junction IDs with different counts in merged method
 
 ```{r}
-#| label: fig-samples_with_nonzero_counts_merged_only_ids
+#| label: fig-samples_with_nonzero_counts_merged_only_ids_diff_counts
 
 num_nonzero_samples_hist(merged_shared_id_counts_diff_df)
 ```
@@ -467,7 +467,7 @@ Similar to @fig-samples_with_nonzero_counts_merged_only_ids, most samples have c
 
 What samples have the highest number of zero junction counts?
 
-```{r what_samples_have_zero_counts_merged_only_junction_ids}
+```{r what_samples_have_zero_counts_merged_only_junction_ids_diff_counts}
 samples_with_most_zeros(merged_shared_id_counts_diff_df)
 ```
 

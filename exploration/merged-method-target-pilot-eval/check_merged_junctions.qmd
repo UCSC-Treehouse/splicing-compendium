@@ -376,11 +376,15 @@ Yes, all junction IDs only present in the method method junctions table are exon
 
 combined_shared_id_df <- deduplicated_combined_junctions |>
   # filter out junction IDs that are only in combined df
-  dplyr::filter(!ID %in% combined_only_ids)
+  dplyr::filter(!ID %in% combined_only_ids) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start)) 
 
 merged_shared_id_df <- merged_junctions |>
   # filter out junction IDs that are only in merged df
-  dplyr::filter(!ID %in% merged_only_ids)
+  dplyr::filter(!ID %in% merged_only_ids) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start))
 
 # check that filtered dataframes have the same junction IDs (they should)
 setequal(combined_shared_id_df$ID, merged_shared_id_df$ID)
@@ -424,17 +428,56 @@ summary_message
 
 `r frac_merged_counts_different * 100`% of the merged method junction IDs are not in the combined junctions file.
 
-#### How many samples in each method have different junction counts for the same IDs?
+#### Of IDs with different junction counts in samples in each method, how many samples have nonzero junction counts in each analysis method?
+
+##### Junction IDs with different counts in combined method
 
 ```{r}
+#| label: fig-samples_with_nonzero_counts_combined_only_ids
 
+num_nonzero_samples_hist(combined_shared_id_counts_diff_df)
+```
+Similar to @fig-samples_with_nonzero_counts_combined_only_ids, most junction IDs have nonzero junction counts in at least half the samples.
+
+What samples have the highest number of nonzero junction counts?
+
+```{r what_samples_have_zero_counts_combined_only_junction_ids}
+samples_with_most_zeros(combined_shared_id_counts_diff_df)
+```
+SRR2042845 is still the sample with the highest number of zeros in junctions whose counts differ between the two methods.
+
+Are all junction IDs with different counts in the combined table exon-intron (1bp in length) junctions?
+
+```{r combined_counts_diff_1bp_jcns}
+unique(combined_shared_id_counts_diff_df$jcn_length)
+```
+Yes, all junction IDs with differing counts in the combined method junctions table are exon-intron junctions.
+
+##### Junction IDs with different counts in merged method
+
+```{r}
+#| label: fig-samples_with_nonzero_counts_merged_only_ids
+
+num_nonzero_samples_hist(merged_shared_id_counts_diff_df)
+```
+Similar to @fig-samples_with_nonzero_counts_merged_only_ids, most samples have counts of 0 in junction IDs with differing counts in the merged table.
+
+What samples have the highest number of nonzero junction counts?
+
+```{r what_samples_have_zero_counts_merged_only_junction_ids}
+samples_with_most_zeros(merged_shared_id_counts_diff_df)
 ```
 
+SRR2042845 is still the sample with the highest number of zeros in junctions whose counts differ between the two methods.
 
-    4.  Are there samples that consistently have different junction counts in each method?
+Are all junction IDs with different counts in the merged table exon-intron (1bp in length) junctions?
 
-    3.  Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
+```{r merged_counts_diff_1bp_jcns}
+unique(merged_shared_id_counts_diff_df$jcn_length)
+```
+Yes, all junction IDs with differing counts in the merged method junctions table are exon-intron junctions.
 
+### Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
 
 
 ### Print examples of junctions only in merged or combined tables

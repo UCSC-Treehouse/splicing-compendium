@@ -491,155 +491,53 @@ unique(merged_shared_id_counts_diff_df$jcn_length)
 
 Yes, all junction IDs with differing counts in the merged method junctions table are exon-intron junctions.
 
-### Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
+### How many samples in each method have different junction counts for the same IDs?
 
-### Print examples of junctions only in merged or combined tables
+#### Count number of samples with different counts between the combined and merged tables
+What types of counts differences are present in samples with different junction counts?
 
-#### Check junctions only in combined junctions file
+```{r summarize_diff_count_types}
+# pivot dataframes with differing counts longer
+combined_shared_id_df <- pivot_junctions_long(combined_shared_id_df)
+merged_shared_id_df <- pivot_junctions_long(merged_shared_id_df)
 
-Print examples of junctions only in the combined junctions file
-
-```{r junctions_missed_in_merged}
-filtered_combined_only |>
-  dplyr::arrange(start) |>
-  head()
-```
-
-For comparison, examine merged chromosome 1 counts-filtered junction table for junctions near chr1:18369-18370
-
-```{r}
-merged_junctions |>
-  dplyr::arrange(start) |>
-  dplyr::filter(
-    # make sure position filtered is chromosome 1 even if we analyze full bedfile
-    chr == "chr1",
-    (18369 -  10) < start &
-      start < (18369 + 10) )
-```
-
-This junction is completely missed, with the closest coordinate being chr1:18369-18913.
-
-Check if chr1:18369-18913 is only in the merged table and not in the combined table
-
-```{r}
-"chr1:18369-18913" %in% merged_only_ids
-```
-
-chr1:18369-18913 is found in both the merged and combined junctions tables.
-
-#### Check junctions only in merged junctions file
-
-Print examples of junctions only in the merged junctions file
-
-```{r junctions_only_in_merged}
-filtered_merged_only |>
-  dplyr::arrange(start) |>
-  head()
-```
-
-For comparison, examine combined junction table for junctions near chr1:268020-268021
-
-```{r}
-deduplicated_combined_junctions |>
-  dplyr::arrange(start) |>
-  dplyr::filter(
-    chr == "chr1",
-    (268020 -  10) < start &
-    start < (268020 + 10) ) |>
-  head()
-```
-
-Position chr1:268020-268021 is actually a junction recorded in the combined junctions table.
-The difference come in the counts going into each sample:
-
-| sample | junction count in merged table | junction count in combined table |
-|------------------------|------------------------|------------------------|
-| **SRR1712457** | 0 | 3 |
-| **SRR1712459** | 0 | 3 |
-| **SRR1712460** | 0 | 8 |
-| **SRR1712461** | 0 | 3 |
-| **SRR1712462** | 0 | 4 |
-| ... | ... | ... |
-| **SRR1799041** | 0 | 16 |
-
-From scanning chr1:268020-268021, the counts differences arise from cases where the merged junctions counts have a value of 0 for a sample and the combined file is not zero for the same sample.
-For all cases except for SRR1799041, the counts that are dropped in the merged table are \< 10.
-
-Because the values in the merged table are 0 for the counts that differ from the combined table, I suspect these differences stem from junctions that are not shared across samples (these appear as NA values which we replace with 0 in the final merged bedfile).
-In the merged method, these 0 counts arise because exon-intron boundaries are defined from an intron events coordinates file from gtf2event.py that was constructed from the annotations of one sample only.
-
-## Check if differences flagged in junction IDs that are identical stem from differences in 0 counts
-
-```{r are_same_id_differences_from_zeros}
-# Exclude IDs that are only found in each dataframe
-# The "_shared" dataframe contain rows corresponding to junctions that are shared between the merged and combined methods
-# The differences within these dataframes should come from the values of the samples' junction counts for these IDs
-
-merged_junctions_shared <- merged_junctions |>
-  dplyr::filter(!ID %in% merged_only_ids)
-
-combined_junctions_shared <- deduplicated_combined_junctions |>
-  dplyr::filter(!ID %in% combined_only_ids)
-
-# check that resulting length of dataframes excluding differing IDs are the same (they should be)
-nrow(merged_junctions_shared) == nrow(combined_junctions_shared)
-
-# pull out dataframe of junction IDs with values in merged_junctions_shared not in combined_junctions_shared
-merged_shared_id_differences <- dplyr::setdiff(merged_junctions_shared, combined_junctions_shared)
-
-combined_shared_id_differences <- combined_junctions_shared |> dplyr::filter(
-  ID %in% merged_shared_id_differences$ID
-)
-
-```
-
-Examine junction counts differences in one sample only.
-Check if there are any junctions that are different because the junction counts of the merged and combined dataframes are nonzero and different
-
-```{r}
-# Pull one sample ID to examine
-# This should be in params but I think ideally I would want to do this for all samples
-# Not sure of the best way to do that at the moment - maybe do this on the long dataframe?
-
-sample <- "SRR1559043"
-
-# select for only this sample in the combined and merged dataframes
-merged_shared_id_differences <- merged_shared_id_differences |>
-  dplyr::select(chr, start, end, ID, dplyr::all_of(sample))
-combined_shared_id_differences <- combined_shared_id_differences |>
-  dplyr::select(chr, start, end, ID, dplyr::all_of(sample))
-
-# Combine the dataframes and label each row by whether the junction count for the example sample are zero-to-nonzero, the same, or different due to nonzero-to-nonzero reasons
-
-compare_junction_values_df <- dplyr::left_join(
-  merged_shared_id_differences,
-  combined_shared_id_differences,
-  by = c("chr", "start", "end", "ID"),
-  suffix = c("_merged", "_combined")
-) |>
-  # label junctions by nature of difference
+# join long tables on chr, start, end, id, sample so that sample counts can be compared 
+shared_id_counts_diff_df <- dplyr::full_join(
+  combined_shared_id_df, 
+  merged_shared_id_df, 
+  by = c("chr", "start", "end", "ID", "sample"), 
+  suffix = c("_combined", "_merged")) |>
+  # filter for only junctions where the same sample have different counts in each method
+  dplyr::filter(count_combined != count_merged) |>
+  # categorize counts by mismatch category
   dplyr::mutate(
-    difference_type = dplyr::case_when(SRR1559043_merged == SRR1559043_combined ~ "same",
-                                       SRR1559043_merged != 0 & SRR1559043_combined != 0 ~ "nonzero-to-nonzero",
-                                       SRR1559043_merged == 0 & SRR1559043_combined != 0 ~ "zero-to-nonzero"
+    mismatch_type = dplyr::case_when(
+      count_combined == 0 & count_merged != 0 ~ "combined_0_merged_nonzero",
+      count_combined != 0 & count_merged == 0 ~ "combined_nonzero_merged_0",
+      count_combined != 0 & count_merged != 0 ~ "both_nonzero"
     )
   )
 
-# spot-check
-compare_junction_values_df |> head()
-```
-
-Summarize fraction of junctions in sample `r target_pilot_samples[1]` in each category
-
-```{r}
-compare_junction_values_df |>
-  dplyr::summarise(
-    total = dplyr::n(),
-    n_same = sum(difference_type == "same"),
-    n_zero_to_nonzero = sum(difference_type == "zero-to-nonzero"),
-    n_nonzero_to_nonzero = sum(difference_type == "nonzero-to-nonzeo"),
-    frac_same = n_same / total,
-    frac_zero_to_nonzero = n_zero_to_nonzero / total,
-    frac_nonzero_to_nonzero = n_nonzero_to_nonzero / total
+shared_id_counts_diff_df |>
+  # summarize each mismatch category
+  dplyr::summarize(
+    .by = mismatch_type,
+    n = dplyr::n()
   )
 ```
+In chromosome 1, all mismatches are due to the combined exon-intron junction having nonzero counts, while the merged exon-intron junction has zero counts. 
+
+Are there samples that consistently have different junction counts in each method?
+```{r summarize_number_of_differences_per_sample}
+shared_id_counts_diff_df |>
+  # summarize each mismatch category
+  dplyr::summarize(
+    .by = c(sample, mismatch_type),
+    n_mismatch = dplyr::n()
+  ) |>
+  # sort by sample with most mismatches
+  dplyr::arrange(dplyr::desc(n_mismatch)) |>
+  head()
+```
+
+SRR4419554 has the highest number of junctions with mismatched counts

@@ -330,7 +330,7 @@ num_nonzero_samples_hist(combined_only_jcn_id_df)
 
 Most (more than half) of the junction IDs that are only found in the combined junctions table have nonzero counts in over half of the samples.
 
-What samples have the highest number of nonzero junction counts?
+What samples have the highest number of zero junction counts?
 
 ```{r what_samples_have_zero_counts_combined_only_junction_ids}
 samples_with_most_zeros(combined_only_jcn_id_df)
@@ -348,7 +348,7 @@ num_nonzero_samples_hist(merged_only_jcn_id_df)
 
 In IDs only found in the merged junctions table, most samples have count values of 0
 
-What samples have the highest number of nonzero junction counts?
+What samples have the highest number of zero junction counts?
 
 ```{r what_samples_have_zero_counts_merged_only_junction_ids}
 samples_with_most_zeros(merged_only_jcn_id_df)
@@ -447,7 +447,7 @@ num_nonzero_samples_hist(combined_shared_id_counts_diff_df)
 
 Similar to @fig-samples_with_nonzero_counts_combined_only_ids, most junction IDs have nonzero junction counts in at least half the samples.
 
-What samples have the highest number of nonzero junction counts?
+What samples have the highest number of nzero junction counts?
 
 ```{r what_samples_have_zero_counts_combined_only_junction_ids}
 samples_with_most_zeros(combined_shared_id_counts_diff_df)
@@ -465,7 +465,7 @@ num_nonzero_samples_hist(merged_shared_id_counts_diff_df)
 
 Similar to @fig-samples_with_nonzero_counts_merged_only_ids, most samples have counts of 0 in junction IDs with differing counts in the merged table.
 
-What samples have the highest number of nonzero junction counts?
+What samples have the highest number of zero junction counts?
 
 ```{r what_samples_have_zero_counts_merged_only_junction_ids}
 samples_with_most_zeros(merged_shared_id_counts_diff_df)

@@ -256,6 +256,8 @@ summary_message
 
 #### Of IDs that are different, how many samples have nonzero junction counts in each analysis method?
 
+Roll this into a function so it can be used for the merged_only junctopmns
+
 ```{r}
 #| label: fig-samples_with_nonzero_counts_combined_only_ids
 
@@ -277,12 +279,31 @@ hist(combined_only_ids_samples_summary$n_counts_over_zero,
      xlab = "Number of samples with counts > 0 for junction IDs only in combined table")
 ```
 
-For IDs with more than 80 samples with value of 0 in counts, is it always the same couple of samples with nonzero junction counts?
+Most (more than half) of the junction IDs that are only found in the combined junctions table have nonzero counts in over half of the samples.
 
-```{r}
+What samples have the highest number of nonzero junction counts?
+
+```{r what_samples_have_zero_counts_combined_only_junction_ids}
+
+# filter dataframe of junction IDs only present in the combined method
+deduplicated_combined_junctions |>
+  dplyr::filter(ID %in% combined_only_ids) |>
+  pivot_junctions_long() |>
+  # add a column that labels if the sample has a count of 0
+  dplyr::mutate(is_zero = dplyr::if_else(count == 0, TRUE, FALSE)) |>
+  # filter for samples with a count of zero for each junction
+  dplyr::filter(is_zero == TRUE) |>
+  # for each sample, count how many times it has zero junction counts
+  dplyr::summarize(
+    .by = sample,
+    n_zero_junction_counts = dplyr::n()
+  ) |>
+  # arrange table so that sample with most zero counts is printed first, then print head 
+  dplyr::arrange(desc(n_zero_junction_counts)) |>
+  head()
 
 ```
-
+SRR2042845 has the highest number of zero counts in junction IDs only found in the combined method
 
 ### What kind of junction IDs are different between bedfiles from each analysis method?
 

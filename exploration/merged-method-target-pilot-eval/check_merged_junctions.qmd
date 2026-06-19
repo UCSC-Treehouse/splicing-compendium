@@ -82,21 +82,17 @@ Analysis questions in this notebook:
 
     2.  Of IDs that are different, how many samples have nonzero junction counts in each analysis method?
 
+    3.  Are junction IDs that are only found in one analysis always 1bp in length (exon-intron)?
+
 2.  Of junction positions that are the same, how many IDs have different junction counts in the same samples in each analysis method?
 
     1.  How many and what fraction of all IDs have samples with different junction counts?
 
     2.  How many samples in each method have different junction counts for the same IDs?
 
-    3.  Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
-
-    4.  Are there samples that consistently have different junction counts in each method?
-
-3.  What kind of junction IDs are different between bedfiles from each analysis method?
-
-    1.  Are junction IDs that are only found in one analysis always 1bp in length (exon-intron)?
-
-    2.  Are shared junction IDs with different counts in each analysis always 1bp in length?
+    3.  Are there samples that consistently have different junction counts in each method?
+    
+    4.  Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
 
 ## Read in directories and files
 
@@ -168,9 +164,20 @@ merged_junctions <- readr::read_tsv(
 )
 
 ```
+
 ## Define functions
+
 ```{r}
-# pivot junctions dataframe long and add summary column of number of samples with counts exceeding min_counts
+
+# filter junctions dataframes to junction IDs only present in either combined or merged junction dataframes and add column with length of junction
+filter_ids_only_in_one_method <- function(df, id_vector) {
+  df |> 
+  dplyr::filter(ID %in% id_vector) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start))
+}
+
+# pivot junctions dataframe long
 pivot_junctions_long <- function(df) {
  df |>
   tidyr::pivot_longer(
@@ -181,10 +188,8 @@ pivot_junctions_long <- function(df) {
 }
 
 # create histogram of the number of samples in each junction ID that has a count over 0
-num_nonzero_samples_hist <- function(df, id_vector) {
+num_nonzero_samples_hist <- function(df) {
   summary_df <- df |>
-  # filter for IDs only present in combined table
-  dplyr::filter(ID %in% id_vector) |>
   # pivot longer for ease of filtering by samples
   pivot_junctions_long() |>
   # summarize by how many samples in each junction ID have counts over 0
@@ -201,10 +206,8 @@ num_nonzero_samples_hist <- function(df, id_vector) {
 }
 
 # print the top 6 samples with the most zero counts in a given set of junctions
-samples_with_most_zeros <- function(df, id_vector) {
-  # filter dataframe of junction IDs only present in the combined method
+samples_with_most_zeros <- function(df) {
   df |>
-    dplyr::filter(ID %in% id_vector) |>
     pivot_junctions_long() |>
     # add a column that labels if the sample has a count of 0
     dplyr::mutate(is_zero = dplyr::if_else(count == 0, TRUE, FALSE)) |>
@@ -218,7 +221,7 @@ samples_with_most_zeros <- function(df, id_vector) {
     # arrange table so that sample with most zero counts is printed first, then print head
     dplyr::arrange(desc(n_zero_junction_counts)) |>
     head()
-  }
+}
 ```
 
 ## Check tables for parsing errors
@@ -292,9 +295,23 @@ summary_message <- c(
 
 summary_message
 ```
+
 `r frac_combined_only * 100`% of the combined method junction IDs are missed in the merged junctions file.
 
 `r frac_merged_only * 100`% of the merged method junction IDs are not in the combined junctions file.
+
+#### Filter dataframes to contain IDs only present in combined or merged junctions tables
+
+```{r filter_for_method_only_ids}
+combined_only_jcn_id_df <- filter_ids_only_in_one_method(
+  deduplicated_combined_junctions, 
+  combined_only_ids)
+
+merged_only_jcn_id_df <- filter_ids_only_in_one_method(
+  merged_junctions,
+  merged_only_ids
+)
+```
 
 #### Of IDs that are different, how many samples have nonzero junction counts in each analysis method?
 
@@ -303,25 +320,35 @@ summary_message
 ```{r}
 #| label: fig-samples_with_nonzero_counts_combined_only_ids
 
-num_nonzero_samples_hist(deduplicated_combined_junctions, combined_only_ids)
+num_nonzero_samples_hist(combined_only_jcn_id_df)
 ```
+
 Most (more than half) of the junction IDs that are only found in the combined junctions table have nonzero counts in over half of the samples.
 
 What samples have the highest number of nonzero junction counts?
 
 ```{r what_samples_have_zero_counts_combined_only_junction_ids}
-samples_with_most_zeros(deduplicated_combined_junctions, combined_only_ids)
+samples_with_most_zeros(combined_only_jcn_id_df)
 ```
 
 SRR2042845 has the highest number of zero counts in junction IDs only found in the combined method
+
+Are all junction IDs only found in the combined table exon-intron (1bp in length) junctions?
+
+```{r combined_only_id_count_1bp_jcns}
+unique(combined_only_jcn_id_df$jcn_length)
+```
+
+Yes, all junction IDs only present in the combined method junctions table are exon-intron junctions.
 
 ##### Junction IDs only present in merged method
 
 ```{r}
 #| label: fig-samples_with_nonzero_counts_merged_only_ids
 
-num_nonzero_samples_hist(merged_junctions, merged_only_ids)
+num_nonzero_samples_hist(merged_only_jcn_id_df)
 ```
+
 In IDs only found in the merged junctions table, most samples have count values of 0
 
 What samples have the highest number of nonzero junction counts?
@@ -329,42 +356,86 @@ What samples have the highest number of nonzero junction counts?
 ```{r what_samples_have_zero_counts_merged_only_junction_ids}
 samples_with_most_zeros(merged_junctions, merged_only_ids)
 ```
+
 SRR2042845 still has the highest number of junction counts that are 0 in junction IDs only found in the merged method.
 So there are some samples that consistently have unusually low numbers of counts.
 
-### Of junction positions that are the same, how many IDs have different junction counts in the same samples in each analysis method?
+Are all junction IDs only found in the merged table exon-intron (1bp in length) junctions?
+
+```{r combined_only_id_count_1bp_jcns}
+unique(merged_only_jcn_id_df$jcn_length)
+```
+Yes, all junction IDs only present in the method method junctions table are exon-intron junctions.
+
+### How many shared junction IDs have different counts in the same samples in each analysis method?
+
+#### Filter dataframes to contain IDs shared between combined and merged junctions tables but different counts
+
+```{r filter_for_shared_ids_different_counts}
+# filter out IDs only in combined or merged dataframes
+
+combined_shared_id_df <- deduplicated_combined_junctions |>
+  # filter out junction IDs that are only in combined df
+  dplyr::filter(!ID %in% combined_only_ids)
+
+merged_shared_id_df <- merged_junctions |>
+  # filter out junction IDs that are only in merged df
+  dplyr::filter(!ID %in% merged_only_ids)
+
+# check that filtered dataframes have the same junction IDs (they should)
+setequal(combined_shared_id_df$ID, merged_shared_id_df$ID)
+
+# Obtain subset of junction dataframes that contain junction IDs that are shared but have differing junction counts
+
+combined_shared_id_counts_diff_df <- dplyr::setdiff(combined_shared_id_df, merged_shared_id_df)
+merged_shared_id_counts_diff_df <- dplyr::setdiff(merged_shared_id_df, combined_shared_id_df)
+
+```
+
+#### How many and what fraction of all IDs in each method differ only in junction count values?
+
+```{r count_shared_ids_different_counts}
+# Save number of junctions IDs with counts that differ in the combined dataframe
+num_combined_counts_different <- length(combined_shared_id_counts_diff_df$ID)
+# Save number of junctions IDs with counts that differ in the merged dataframe
+num_merged_counts_different <- length(merged_shared_id_counts_diff_df$ID)
+
+# Calculate fraction of junctions IDs with counts that differ in the combined dataframe
+frac_combined_counts_different <- num_combined_counts_different / length(combined_ids)
+
+# Calculate fraction of junction IDs in the merged method that are only found in the merged method
+frac_merged_counts_different  <- num_merged_counts_different / length(merged_ids)
+
+# print results
+summary_message <- c(
+  paste0("Number of junctions IDs with counts that differ in the combined dataframe: ",
+         num_combined_counts_different),
+  paste0("Fraction of junctions IDs with counts that differ in the combined dataframe: ",
+         frac_combined_counts_different),
+  paste0("Number of junctions IDs with counts that differ in the merged dataframe: ",
+         num_merged_counts_different),
+  paste0("Fraction of junctions IDs with counts that differ in the merged dataframe: ",
+         frac_merged_counts_different)
+  )
+
+summary_message
+```
+`r frac_combined_counts_different * 100`% of the combined method junction IDs are missed in the merged junctions file.
+
+`r frac_merged_counts_different * 100`% of the merged method junction IDs are not in the combined junctions file.
+
+#### How many samples in each method have different junction counts for the same IDs?
 
 ```{r}
 
 ```
 
 
-### What kind of junction IDs are different between bedfiles from each analysis method?
+    4.  Are there samples that consistently have different junction counts in each method?
 
-Check if junctions only found in combined or merged dataframes are always 1bp in length (are they always exon-intron junctions?)
+    3.  Are differences in junction counts always due to counts being 0 in the merged method (due to us replacing junctions not shared between samples with 0)?
 
-```{r check_1bp_junctions}
-filtered_combined_only_ids <- setdiff(filtered_long_combined$ID, filtered_long_merged$ID)
-long_combined_only_ids <- filtered_long_combined |>
-  dplyr::filter(ID %in% filtered_combined_only_ids) |>
-  # count length of junctions only found in combined table
-  dplyr::mutate(junction_length = abs(end - start))
 
-# check if the junctions only in combined df are all always 1bp in length (are they all exon-intron junctions?)
-unique(long_combined_only_ids$junction_length)
-
-filtered_merged_only_ids <- setdiff(filtered_long_merged$ID, filtered_long_combined$ID)
-long_merged_only_ids <- filtered_long_merged |>
-  dplyr::filter(ID %in% filtered_merged_only_ids) |>
-  # count length of junctions only found in combined table
-  dplyr::mutate(junction_length = abs(end - start))
-
-# check if the junctions only in merged df are all always 1bp in length
-unique(long_combined_only_ids$junction_length)
-
-```
-
-Junctions that are only found in either the combined or merged dataframes are always 1bp in length, supporting our hypothesis that the difference stems from exon-intron junctions
 
 ### Print examples of junctions only in merged or combined tables
 

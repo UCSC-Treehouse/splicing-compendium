@@ -565,7 +565,7 @@ Are there samples that consistently have different junction counts in each metho
 This section crashes when run on the full junctions files
 ```{r summarize_number_of_differences_per_sample}
 shared_id_counts_diff_df |>
-  summarize each mismatch category
+  # summarize each mismatch category
   dplyr::summarize(
     .by = c(sample, mismatch_type),
     n_mismatch = dplyr::n()

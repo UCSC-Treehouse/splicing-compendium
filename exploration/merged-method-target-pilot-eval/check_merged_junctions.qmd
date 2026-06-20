@@ -495,10 +495,23 @@ Yes, all junction IDs with differing counts in the merged method junctions table
 
 Remove dataframes not used anymore to save memory
 ```{r remove_unused_dfs}
-rm(merged_shared_id_counts_diff_df)
-rm(combined_shared_id_counts_diff_df)
-rm(deduplicated_combined_junctions)
-rm(merged_junctions)
+
+rm(list = c(
+  "merged_shared_id_counts_diff_df",
+  "combined_shared_id_counts_diff_df",
+  "deduplicated_combined_junctions",
+  "merged_junctions",
+  "combined_ids",
+  "merged_ids",
+  "combined_only_jcn_id_df",
+  "merged_only_jcn_id_df",
+  "combined_only_ids",
+  "merged_only_ids"
+  )
+)
+
+# free up space with garbage collection
+gc()
 ```
 
 #### Count number of samples with different counts between the combined and merged tables
@@ -535,14 +548,28 @@ shared_id_counts_diff_df |>
 ```
 In chromosome 1, all mismatches are due to the combined exon-intron junction having nonzero counts, while the merged exon-intron junction has zero counts.
 
+Remove dataframes not used anymore to save memory
+```{r remove_unused_dfs_again}
+
+rm(list = c(
+  "combined_shared_id_df",
+  "merged_shared_id_df"
+  )
+)
+
+# free up space with garbage collection
+gc()
+```
+
 Are there samples that consistently have different junction counts in each method?
+This section of code crashes!
 ```{r summarize_number_of_differences_per_sample}
 shared_id_counts_diff_df |>
-  # summarize each mismatch category
+  summarize each mismatch category
   dplyr::summarize(
     .by = c(sample, mismatch_type),
     n_mismatch = dplyr::n()
-  ) |>
+    ) |>
   # sort by sample with most mismatches
   dplyr::arrange(dplyr::desc(n_mismatch)) |>
   head()

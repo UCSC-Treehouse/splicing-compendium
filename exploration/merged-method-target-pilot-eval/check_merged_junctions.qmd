@@ -10,7 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_counts: 0
-  chromosome: "all"
+  chromosome: "chr1"
 output: md_document
 ---
 
@@ -516,7 +516,7 @@ gc()
 
 #### Count number of samples with different counts between the combined and merged tables
 What types of counts differences are present in samples with different junction counts?
-
+This section crashes when run on the full junctions files
 ```{r summarize_diff_count_types}
 # pivot dataframes with differing counts longer
 combined_shared_id_df <- pivot_junctions_long(combined_shared_id_df)
@@ -562,7 +562,7 @@ gc()
 ```
 
 Are there samples that consistently have different junction counts in each method?
-This section of code crashes!
+This section crashes when run on the full junctions files
 ```{r summarize_number_of_differences_per_sample}
 shared_id_counts_diff_df |>
   summarize each mismatch category

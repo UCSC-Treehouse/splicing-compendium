@@ -10,7 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_counts: 0
-  chromosome: "chr1"
+  chromosome: "all"
 output: md_document
 ---
 
@@ -354,8 +354,7 @@ What samples have the highest number of zero junction counts?
 samples_with_most_zeros(merged_only_jcn_id_df)
 ```
 
-SRR2042845 still has the highest number of junction counts that are 0 in junction IDs only found in the merged method.
-So there are some samples that consistently have unusually low numbers of counts.
+SRR1799059 has the highest number of junction counts that are 0 in junction IDs only found in the merged method.
 
 #### Are all junction IDs only found in the combined table exon-intron (1bp in length) junctions?
 
@@ -431,9 +430,9 @@ summary_message <- c(
 
 summary_message
 ```
-`r frac_combined_counts_different * 100`% of the combined method junction IDs are missed in the merged junctions file.
+`r frac_combined_counts_different * 100`% of the combined method junction IDs have different counts in the merged junctions file.
 
-`r frac_merged_counts_different * 100`% of the merged method junction IDs are not in the combined junctions file.
+`r frac_merged_counts_different * 100`% of the merged method junction IDs have different counts in the combined junctions file.
 
 #### Of IDs with different junction counts in samples in each method, how many samples have nonzero junction counts in each analysis method?
 
@@ -506,7 +505,8 @@ rm(list = c(
   "combined_only_jcn_id_df",
   "merged_only_jcn_id_df",
   "combined_only_ids",
-  "merged_only_ids"
+  "merged_only_ids",
+  "combined"
   )
 )
 
@@ -517,7 +517,7 @@ gc()
 #### Count number of samples with different counts between the combined and merged tables
 What types of counts differences are present in samples with different junction counts?
 This section crashes when run on the full junctions files
-```{r summarize_diff_count_types}
+```{r pivot_longer_for_summary}
 # pivot dataframes with differing counts longer
 combined_shared_id_df <- pivot_junctions_long(combined_shared_id_df)
 merged_shared_id_df <- pivot_junctions_long(merged_shared_id_df)
@@ -533,18 +533,10 @@ shared_id_counts_diff_df <- dplyr::full_join(
   # categorize counts by mismatch category
   dplyr::mutate(
     mismatch_type = dplyr::case_when(
-      count_combined == 0 & count_merged != 0 ~ "combined_0_merged_nonzero",
-      count_combined != 0 & count_merged == 0 ~ "combined_nonzero_merged_0",
-      count_combined != 0 & count_merged != 0 ~ "both_nonzero"
+      count_combined != 0 & count_merged == 0 ~ "combined_nonzero_merged_0"
     )
   )
 
-shared_id_counts_diff_df |>
-  # summarize each mismatch category
-  dplyr::summarize(
-    .by = mismatch_type,
-    n = dplyr::n()
-  )
 ```
 In chromosome 1, all mismatches are due to the combined exon-intron junction having nonzero counts, while the merged exon-intron junction has zero counts.
 
@@ -561,6 +553,15 @@ rm(list = c(
 gc()
 ```
 
+```{r summarize_diff_count_types}
+shared_id_counts_diff_df |>
+  # summarize each mismatch category
+  dplyr::summarize(
+    .by = mismatch_type,
+    n = dplyr::n()
+  )
+```
+
 Are there samples that consistently have different junction counts in each method?
 This section crashes when run on the full junctions files
 ```{r summarize_number_of_differences_per_sample}
@@ -575,4 +576,4 @@ shared_id_counts_diff_df |>
   head()
 ```
 
-SRR4419554 has the highest number of junctions with mismatched counts for chromosome 1
+SRR4419554 has the highest number of junctions with mismatched counts for chromosome 1 and in the full junctions file.

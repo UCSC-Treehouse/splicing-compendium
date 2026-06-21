@@ -1,0 +1,203 @@
+# Compare non-RI events coordinates between merged and combined Shiba runs
+Cindy Liang (celiang@ucsc.edu)
+2026-06-21
+
+## Background
+
+Junctions files differ in intron-exon junctions.
+
+GTFs differ, but we suspect the source of difference to come from the
+order in which files were passed into stringtie –merge and the use of
+multithreading.
+
+We suspect that the junctions difference will only impact retained
+intron events.
+
+If so, we would exclude this event type from the compendium.
+
+If there are differences in other event types in the event coordinate
+files, we would need to change our merged compendium pipeline.
+
+## Analysis outline
+
+First pass: Just check if position IDs are all identical in all event
+types. If not identical, check what event types are impacted by
+differences - is it just one or two we can easily exclude from the
+compendium?
+
+## Setup
+
+### Define functions
+
+``` r
+# read in list of splice event coordinate files and bind them into one dataframe
+read_in_events <- function(file_paths) {
+event_coords <- file_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c"))
+  })
+
+# combine event coordinates into one table, labeled by event type 
+all_events_table <- dplyr::bind_rows(event_coords, .id = "event_type") |>
+  # drop event_id column that assigns coordinates IDs like "SE_1" "SE_2"
+  # I suspect how these positions are numbered may be arbitrary and impacted by the order in which events are defined
+  # in other words I don't care if these IDs are different, so long as the pos_id are the same
+  dplyr::select(! event_id)
+}
+```
+
+### Read in file paths and files
+
+``` r
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+## combined shiba run results on target pilot samples ##
+# parent directories
+exploration_dir <- file.path(repo_root, "exploration")
+# merged table eval dir
+exploration_eval_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
+
+# shiba results dir
+# target pilot combined shiba results dir
+target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
+combined_results_dir <- file.path(target_pilot_dir, "shiba_combined")
+# events dir
+combined_events_dir <- file.path(combined_results_dir, "events")
+
+## merged shiba run results on target pilot samples ##
+# shiba results dir
+merged_results_dir <- file.path(repo_root, "results", "merged_shiba", "target_pilot")
+# events dir
+merged_events_dir <- file.path(merged_results_dir, "events")
+
+### Files ###
+
+# list of events coordinates files to compare between the merged and combined methods
+event_files <- c(
+  se = "EVENT_SE.txt",
+  afe = "EVENT_AFE.txt",
+  ale = "EVENT_ALE.txt",
+  five = "EVENT_FIVE.txt",
+  three = "EVENT_THREE.txt",
+  mse = "EVENT_MSE.txt",
+  mxe = "EVENT_MXE.txt",
+  ri = "EVENT_RI.txt"
+)
+
+# construct events coordinate file paths of shiba results for combined run
+combined_events_paths <-file.path(combined_events_dir, event_files)
+names(combined_events_paths) <- names(event_files)
+
+merged_events_paths <-file.path(merged_events_dir, event_files)
+names(merged_events_paths) <- names(event_files)
+```
+
+Read in files
+
+``` r
+# read in combined splice event coordinates into one table
+combined_event_coords_df <- read_in_events(combined_events_paths)
+
+# read in merged splice event coordinates into one table
+merged_event_coords_df <- read_in_events(merged_events_paths)
+```
+
+## Check differences
+
+first check: see what position IDs differ and how many IDs are only
+found in each dataframe
+
+``` r
+combined_only_pos_ids <- setdiff(combined_event_coords_df$pos_id, merged_event_coords_df$pos_id)
+# count how many IDs are only in the combined file
+length(combined_only_pos_ids)
+```
+
+    [1] 46981
+
+``` r
+paste0(length(combined_only_pos_ids) / length(combined_event_coords_df$pos_id) * 100, "% of position IDs are only in the combined events tables")
+```
+
+    [1] "5.85298093274448% of position IDs are only in the combined events tables"
+
+``` r
+merged_only_pos_ids <- setdiff(merged_event_coords_df$pos_id, combined_event_coords_df$pos_id)
+length(merged_only_pos_ids)
+```
+
+    [1] 73148
+
+``` r
+paste0(length(merged_only_pos_ids) / length(merged_event_coords_df$pos_id) * 100, "% of position IDs are only in the merged events tables")
+```
+
+    [1] "8.8252184949786% of position IDs are only in the merged events tables"
+
+Check what event types these different position IDs impact
+
+``` r
+# filter dataframes for events only in these position IDs
+
+events_only_in_combined_df <- combined_event_coords_df |>
+  dplyr::filter(pos_id %in% combined_only_pos_ids)
+
+events_only_in_merged_df <- merged_event_coords_df |>
+  dplyr::filter(pos_id %in% merged_only_pos_ids)
+```
+
+summarize number of event types with position IDs only in combined DF
+
+``` r
+events_only_in_combined_df |>
+  dplyr::summarise(.by = event_type,
+                   n = dplyr::n())
+```
+
+| event_type |     n |
+|:-----------|------:|
+| se         |  2791 |
+| afe        | 16760 |
+| ale        | 13123 |
+| five       |  2849 |
+| three      |  2591 |
+| mse        |  2709 |
+| mxe        |    62 |
+| ri         |  6096 |
+
+summarize number of event types with position IDs only in merged df
+
+``` r
+events_only_in_merged_df |>
+  dplyr::summarise(.by = event_type,
+                   n = dplyr::n())
+```
+
+| event_type |     n |
+|:-----------|------:|
+| se         |  4810 |
+| afe        | 26131 |
+| ale        | 19434 |
+| five       |  5071 |
+| three      |  4405 |
+| mse        |  4943 |
+| mxe        |   115 |
+| ri         |  8239 |
+
+Although we expected the retained introns to be the only event type
+impacted by how junctions.bed is generated in the merged method,
+differences in all event types’ position IDs are present. Additionally,
+there are more AFE and ALE event types impacted by these differences
+than retained intron events for both merged and combined sets of event
+coordinates.
+
+For the event coordinate files, the only input file is the merged GTF.
+So these differences would come from the differences in GTF input file
+order and multithreading in the stringtie –merge step. In other words,
+merging GTFs on different computing systems does alter the coordinates
+of splice events that are detected.
+
+Do we want to consider re-running the pilot Shiba “combined” and
+“merged” runs on mustard with the same file order and on only one
+thread?

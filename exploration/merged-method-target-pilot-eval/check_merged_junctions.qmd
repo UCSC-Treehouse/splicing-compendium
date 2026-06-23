@@ -260,7 +260,7 @@ merged_junctions <- merged_junctions |>
   dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 
 # Check that columns are the same between both dataframes
-setequal(colnames(deduplicated_combined_junctions), colnames(merged_junctions))
+all.equal(colnames(deduplicated_combined_junctions), colnames(merged_junctions))
 ```
 
 ## Check differences in junctions files

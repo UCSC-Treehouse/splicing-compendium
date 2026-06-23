@@ -315,6 +315,7 @@ merged_only_jcn_id_df <- filter_ids_only_in_one_method(
 
 ```{r}
 #| label: fig-samples_with_nonzero_counts_combined_only_ids
+#| fig-cap: "Distribution of nonzero sample counts by junction id for junctions that are only found in the combined method."
 
 num_nonzero_samples_hist(combined_only_jcn_id_df)
 ```
@@ -327,12 +328,15 @@ What samples have the highest number of zero junction counts?
 samples_with_most_zeros(combined_only_jcn_id_df)
 ```
 
-SRR2042845 has the highest number of zero counts in junction IDs only found in the combined method
+SRR2042845 has the highest number of zero counts in junction IDs only found in the combined method.
+However, the number of zero counts in this sample are not different from the other samples by a large magnitude, 
+so missing junction counts are not primarily attributed to only one or two low-quality samples.
 
 ##### Junction IDs only present in merged method
 
 ```{r}
 #| label: fig-samples_with_nonzero_counts_merged_only_ids
+#| fig.cap: "Distribution of nonzero sample counts by junction id for junctions that are only found in the merged method."
 
 num_nonzero_samples_hist(merged_only_jcn_id_df)
 ```
@@ -346,6 +350,9 @@ samples_with_most_zeros(merged_only_jcn_id_df)
 ```
 
 SRR1799059 has the highest number of junction counts that are 0 in junction IDs only found in the merged method.
+Similar to samples in the combined method with high numbers of 0 counts, there is no single sample with zero counts magnitudes larger than the other samples.
+Missing counts in junctions recorded in the merged method are also not due to a handful of low quality samples.
+In fact, samples with many junction counts of 0 have similar numbers of missing junction counts.
 
 #### Are all junction IDs only found in the combined table exon-intron (1bp in length) junctions?
 
@@ -431,10 +438,10 @@ summary_message
 
 ```{r}
 #| label: fig-samples_with_nonzero_counts_combined_only_ids_diff_counts
+#| fig-cap: "Distribution of nonzero sample counts by junction id for junctions that are present in both methods, but have different counts in the combined method."
 
 num_nonzero_samples_hist(combined_shared_id_counts_diff_df)
 ```
-
 Similar to @fig-samples_with_nonzero_counts_combined_only_ids, most junction IDs have nonzero junction counts in at least half the samples.
 
 What samples have the highest number of nzero junction counts?
@@ -444,16 +451,19 @@ samples_with_most_zeros(combined_shared_id_counts_diff_df)
 ```
 
 SRR2042845 is still the sample with the highest number of zeros in junctions whose counts differ between the two methods.
+But the magnitude of zero counts in this sample is not unusually higher than the other samples.
 
 ##### Junction IDs with different counts in merged method
 
 ```{r}
 #| label: fig-samples_with_nonzero_counts_merged_only_ids_diff_counts
+#| fig-cap: "Distribution of nonzero sample counts by junction id for junctions that are present in both methods, but have different counts in the merged method."
 
 num_nonzero_samples_hist(merged_shared_id_counts_diff_df)
 ```
 
 Similar to @fig-samples_with_nonzero_counts_merged_only_ids, most samples have counts of 0 in junction IDs with differing counts in the merged table.
+This is likely becasue counts of 0 in the merged method in junctions where counts are not 0 in the combined method correspond to position IDs that are not shared between samples (and are thus assigned 0 in the merged method).
 
 What samples have the highest number of zero junction counts?
 
@@ -462,6 +472,7 @@ samples_with_most_zeros(merged_shared_id_counts_diff_df)
 ```
 
 SRR2042845 is still the sample with the highest number of zeros in junctions whose counts differ between the two methods.
+But the number of zero counts in these junctions are not wildly different from the other samples, so the pattern seems to be consistent throughout samples.
 
 #### Are all junction IDs with different counts in the combined table exon-intron (1bp in length) junctions?
 

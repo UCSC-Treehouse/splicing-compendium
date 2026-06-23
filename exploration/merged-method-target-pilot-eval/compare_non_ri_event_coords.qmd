@@ -12,7 +12,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Background
 
-Junctions files differ in intron-exon junctions. 
+Junctions files differ in intron-exon junctions.
 
 GTFs differ, but we suspect the source of difference to come from the order in which files were passed into stringtie --merge and the use of multithreading.
 
@@ -24,12 +24,12 @@ If there are differences in other event types in the event coordinate files, we 
 
 ## Analysis outline
 
-First pass: Just check if position IDs are all identical in all event types.
-If not identical, check what event types are impacted by differences - is it just one or two we can easily exclude from the compendium?
+- Calculate Jaccard similarity score between events coordinates created from the merged and combined methods each event type
 
 ## Setup
 
 ### Define functions
+
 ```{r define_functions}
 
 # read in list of splice event coordinate files and bind them into one dataframe
@@ -38,17 +38,24 @@ event_coords <- file_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c"))
   })
-
-# combine event coordinates into one table, labeled by event type 
-all_events_table <- dplyr::bind_rows(event_coords, .id = "event_type") |>
-  # drop event_id column that assigns coordinates IDs like "SE_1" "SE_2"
-  # I suspect how these positions are numbered may be arbitrary and impacted by the order in which events are defined
-  # in other words I don't care if these IDs are different, so long as the pos_id are the same
-  dplyr::select(! event_id)
 }
 
-```
+calculate_jaccard_for_ids <- function(event_type) {
+  combined_set <- combined_event_coords_df[[event_type]]$pos_id
+  merged_set <- merged_event_coords_df[[event_type]]$pos_id
+  
+  length(intersect(combined_set, merged_set))/ length(union(combined_set, merged_set))
+}
 
+# # combine event coordinates into one table, labeled by event type 
+# all_events_table <- dplyr::bind_rows(event_coords, .id = "event_type") |>
+#   # drop event_id column that assigns coordinates IDs like "SE_1" "SE_2"
+#   # I suspect how these positions are numbered may be arbitrary and impacted by the order in which events are defined
+#   # in other words I don't care if these IDs are different, so long as the pos_id are the same
+#   dplyr::select(! event_id)
+# }
+
+```
 
 ### Read in file paths and files
 
@@ -97,7 +104,8 @@ merged_events_paths <-file.path(merged_events_dir, event_files)
 names(merged_events_paths) <- names(event_files)
 ```
 
-Read in files 
+Read in files
+
 ```{r read_in_files}
 # read in combined splice event coordinates into one table
 combined_event_coords_df <- read_in_events(combined_events_paths)
@@ -107,8 +115,93 @@ merged_event_coords_df <- read_in_events(merged_events_paths)
 
 ```
 
-## Check differences
-first check: see what position IDs differ and how many IDs are only found in each dataframe
+## Quantify similarity of position IDs in each event coordinate file
+
+Check each event type one at a time to see how much of each type is different between the event coordinate files\
+
+Outline of event types checked (calculate Jaccard similarity index for each event type in this order)
+
+- se
+
+<!-- -->
+
+- afe
+
+- ale
+
+- five
+
+- three
+
+- mse
+
+- mxe
+
+- ri
+
+#### Skipped exons (se)
+
+```{r skipped_exon_jaccard}
+
+# define sets to compare
+# set 1 will be the combined method's event coordinates of the event type we are calcualting for
+# set 2 will be the merged method's event coordinates
+
+combined_set <- combined_event_coords_df$se$pos_id
+merged_set <- merged_event_coords_df$se$pos_id
+
+length(intersect(combined_set, merged_set))/ length(union(combined_set, merged_set))
+```
+
+Test function
+
+```{r}
+calculate_jaccard_for_ids(se)
+```
+
+#### Alternative first exons (afe)
+
+```{r}
+
+```
+
+#### Alternative last exons (ale)
+
+```{r}
+combined_set <- combined_event_coords_df$ale$pos_id
+merged_set <- merged_event_coords_df$ale$pos_id
+
+length(intersect(combined_set, merged_set))/ length(union(combined_set, merged_set))
+```
+
+#### Alternative 5' splice site (five)
+
+```{r}
+
+
+```
+
+#### Alternative 3' splice site (three)
+
+```{r}
+
+```
+
+### mse
+
+#### mxe
+
+#### ri
+
+```{r}
+combined_set <- combined_event_coords_df$ri$pos_id
+merged_set <- merged_event_coords_df$ri$pos_id
+
+length(intersect(combined_set, merged_set))/ length(union(combined_set, merged_set))
+```
+### Quantify what proportion of all event types are different between the two datasets
+This might be better done with a Jaccard index as well?
+
 
 ```{r check_pos_ids}
 combined_only_pos_ids <- setdiff(combined_event_coords_df$pos_id, merged_event_coords_df$pos_id)
@@ -120,37 +213,18 @@ merged_only_pos_ids <- setdiff(merged_event_coords_df$pos_id, combined_event_coo
 length(merged_only_pos_ids)
 paste0(length(merged_only_pos_ids) / length(merged_event_coords_df$pos_id) * 100, "% of position IDs are only in the merged events tables")
 ```
+## Conclusions
 
-Check what event types these different position IDs impact 
-```{r}
-# filter dataframes for events only in these position IDs
+- Retained intron position IDs are more different between the events files produced by the merged and combined methods compared to other splice event types
 
-events_only_in_combined_df <- combined_event_coords_df |>
-  dplyr::filter(pos_id %in% combined_only_pos_ids)
+- Differences in other event types are more minor and may be due to smaller differences stemming from multithreading or different merge order creating different transcript models in the GTFs used to create transcript coordinates
 
-events_only_in_merged_df <- merged_event_coords_df |>
-  dplyr::filter(pos_id %in% merged_only_pos_ids)
-
-```
-
-summarize number of event types with position IDs only in combined DF
-```{r}
-events_only_in_combined_df |>
-  dplyr::summarise(.by = event_type,
-                   n = dplyr::n())
-```
-summarize number of event types with position IDs only in merged df
-```{r}
-events_only_in_merged_df |>
-  dplyr::summarise(.by = event_type,
-                   n = dplyr::n())
-```
 
 Although we expected the retained introns to be the only event type impacted by how junctions.bed is generated in the merged method, differences in all event types' position IDs are present.
 Additionally, there are more AFE and ALE event types impacted by these differences than retained intron events for both merged and combined sets of event coordinates.
 
-For the event coordinate files, the only input file is the merged GTF. 
+For the event coordinate files, the only input file is the merged GTF.
 So these differences would come from the differences in GTF input file order and multithreading in the stringtie --merge step.
-In other words, merging GTFs on different computing systems does alter the coordinates of splice events that are detected. 
+In other words, merging GTFs on different computing systems does alter the coordinates of splice events that are detected.
 
 Do we want to consider re-running the pilot Shiba "combined" and "merged" runs on mustard with the same file order and on only one thread?

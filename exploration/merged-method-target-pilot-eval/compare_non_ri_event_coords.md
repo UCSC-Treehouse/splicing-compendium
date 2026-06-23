@@ -1,29 +1,34 @@
 # Compare non-RI events coordinates between merged and combined Shiba runs
 Cindy Liang (celiang@ucsc.edu)
-2026-06-21
+2026-06-23
 
 ## Background
 
-Junctions files differ in intron-exon junctions.
+From analyzing junction count files produced by the merged and combined
+Shiba methods, only exon-intron junctions were different.
 
-GTFs differ, but we suspect the source of difference to come from the
-order in which files were passed into stringtie –merge and the use of
-multithreading.
+Junctions.bed file exon-intron junctions are counted from exon-intron
+boundaries defined by `EVENT_RI.txt`, produced from the GTF of all
+samples’ transcripts by `gtf2event.py` in Shiba. Initial analysis of the
+GTFs produced by the merged and combined methods also revealed
+differences in the GTFs used to create the event coordinate files. We
+suspect these differences stem fromn differences in the order in which
+files were passed into `stringtie --merge`, and the use of
+multithreading in merging.
 
-We suspect that the junctions difference will only impact retained
-intron events.
-
-If so, we would exclude this event type from the compendium.
-
-If there are differences in other event types in the event coordinate
-files, we would need to change our merged compendium pipeline.
+We next wanted to answer how much GTF differences impacted similarity in
+the coordinates of splice events in the event coordinate files (like
+`EVENT_RI.txt`). For instance, if only one event type’s coordinates is
+disproportionately impacted by GTF differences, we may decide to not
+include quantification of that event type in the first release of the
+splice compendium. Alternatively, if differences are present throughout
+all event types, we will need to alter how the GTF is processed to make
+it more similar to the combined method.
 
 ## Analysis outline
 
-First pass: Just check if position IDs are all identical in all event
-types. If not identical, check what event types are impacted by
-differences - is it just one or two we can easily exclude from the
-compendium?
+- Calculate Jaccard similarity score between events coordinates created
+  from the merged and combined methods each event type
 
 ## Setup
 
@@ -36,13 +41,14 @@ event_coords <- file_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c"))
   })
+}
 
-# combine event coordinates into one table, labeled by event type 
-all_events_table <- dplyr::bind_rows(event_coords, .id = "event_type") |>
-  # drop event_id column that assigns coordinates IDs like "SE_1" "SE_2"
-  # I suspect how these positions are numbered may be arbitrary and impacted by the order in which events are defined
-  # in other words I don't care if these IDs are different, so long as the pos_id are the same
-  dplyr::select(! event_id)
+# calculation of Jaccard indices 
+calculate_jaccard_for_ids <- function(event_type) {
+  combined_set <- combined_event_coords_df[[event_type]]$pos_id
+  merged_set <- merged_event_coords_df[[event_type]]$pos_id
+  
+  length(intersect(combined_set, merged_set))/ length(union(combined_set, merged_set))
 }
 ```
 
@@ -103,101 +109,85 @@ combined_event_coords_df <- read_in_events(combined_events_paths)
 merged_event_coords_df <- read_in_events(merged_events_paths)
 ```
 
-## Check differences
+## Quantify similarity of position IDs in each event coordinate file
 
-first check: see what position IDs differ and how many IDs are only
-found in each dataframe
+Check each event type one at a time to see how much of each type is
+different between the event coordinate files
 
-``` r
-combined_only_pos_ids <- setdiff(combined_event_coords_df$pos_id, merged_event_coords_df$pos_id)
-# count how many IDs are only in the combined file
-length(combined_only_pos_ids)
-```
-
-    [1] 46981
+#### Skipped exons (se)
 
 ``` r
-paste0(length(combined_only_pos_ids) / length(combined_event_coords_df$pos_id) * 100, "% of position IDs are only in the combined events tables")
+calculate_jaccard_for_ids("se")
 ```
 
-    [1] "5.85298093274448% of position IDs are only in the combined events tables"
+    [1] 0.9480923
+
+#### Alternative first exons (afe)
 
 ``` r
-merged_only_pos_ids <- setdiff(merged_event_coords_df$pos_id, combined_event_coords_df$pos_id)
-length(merged_only_pos_ids)
+calculate_jaccard_for_ids("afe")
 ```
 
-    [1] 73148
+    [1] 0.8393962
+
+#### Alternative last exons (ale)
 
 ``` r
-paste0(length(merged_only_pos_ids) / length(merged_event_coords_df$pos_id) * 100, "% of position IDs are only in the merged events tables")
+calculate_jaccard_for_ids("ale")
 ```
 
-    [1] "8.8252184949786% of position IDs are only in the merged events tables"
+    [1] 0.8365145
 
-Check what event types these different position IDs impact
+#### Alternative 5’ splice site (five)
 
 ``` r
-# filter dataframes for events only in these position IDs
-
-events_only_in_combined_df <- combined_event_coords_df |>
-  dplyr::filter(pos_id %in% combined_only_pos_ids)
-
-events_only_in_merged_df <- merged_event_coords_df |>
-  dplyr::filter(pos_id %in% merged_only_pos_ids)
+calculate_jaccard_for_ids("five")
 ```
 
-summarize number of event types with position IDs only in combined DF
+    [1] 0.8570423
+
+#### Alternative 3’ splice site (three)
 
 ``` r
-events_only_in_combined_df |>
-  dplyr::summarise(.by = event_type,
-                   n = dplyr::n())
+calculate_jaccard_for_ids("three")
 ```
 
-| event_type |     n |
-|:-----------|------:|
-| se         |  2791 |
-| afe        | 16760 |
-| ale        | 13123 |
-| five       |  2849 |
-| three      |  2591 |
-| mse        |  2709 |
-| mxe        |    62 |
-| ri         |  6096 |
+    [1] 0.8871048
 
-summarize number of event types with position IDs only in merged df
+### Multiple skipped exons (mse)
 
 ``` r
-events_only_in_merged_df |>
-  dplyr::summarise(.by = event_type,
-                   n = dplyr::n())
+calculate_jaccard_for_ids("mse")
 ```
 
-| event_type |     n |
-|:-----------|------:|
-| se         |  4810 |
-| afe        | 26131 |
-| ale        | 19434 |
-| five       |  5071 |
-| three      |  4405 |
-| mse        |  4943 |
-| mxe        |   115 |
-| ri         |  8239 |
+    [1] 0.9120187
 
-Although we expected the retained introns to be the only event type
-impacted by how junctions.bed is generated in the merged method,
-differences in all event types’ position IDs are present. Additionally,
-there are more AFE and ALE event types impacted by these differences
-than retained intron events for both merged and combined sets of event
-coordinates.
+#### Mutually exclusive exons (mxe)
 
-For the event coordinate files, the only input file is the merged GTF.
-So these differences would come from the differences in GTF input file
-order and multithreading in the stringtie –merge step. In other words,
-merging GTFs on different computing systems does alter the coordinates
-of splice events that are detected.
+``` r
+calculate_jaccard_for_ids("mxe")
+```
 
-Do we want to consider re-running the pilot Shiba “combined” and
-“merged” runs on mustard with the same file order and on only one
-thread?
+    [1] 0.8599684
+
+#### Retained introns (ri)
+
+``` r
+calculate_jaccard_for_ids("ri")
+```
+
+    [1] 0.7510809
+
+## Conclusions
+
+- Retained intron position IDs are the most different between the events
+  files produced by the merged and combined methods, compared to other
+  splice event types.
+
+- Differences still exist in the other event types, where similarity
+  scores range from 0.83-0.94 and likely stem from GTF differences from
+  the different Shiba runs (different GTF merge order, multithreading).
+
+- The next step in refining the workflow is to test how much elements
+  like GTF merge order and multithreading contribute to differences in
+  the GTF.

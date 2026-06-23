@@ -174,14 +174,6 @@ merged_junctions <- readr::read_tsv(
 
 ```{r}
 
-# filter junctions dataframes to junction IDs only present in either combined or merged junction dataframes and add column with length of junction
-filter_ids_only_in_one_method <- function(df, id_vector) {
-  df |>
-  dplyr::filter(ID %in% id_vector) |>
-  # calculate junction length of each junction ID
-  dplyr::mutate(jcn_length = abs(end - start))
-}
-
 # pivot junctions dataframe long
 pivot_junctions_long <- function(df) {
  df |>
@@ -299,14 +291,17 @@ summary_message
 #### Filter dataframes to contain IDs only present in combined or merged junctions tables
 
 ```{r filter_for_method_only_ids}
-combined_only_jcn_id_df <- filter_ids_only_in_one_method(
-  deduplicated_combined_junctions,
-  combined_only_ids)
+combined_only_jcn_id_df <- deduplicated_combined_junctions |>
+  # filter junctions dataframes to junction IDs only present in the combined junction dataframe
+  dplyr::filter(ID %in% combined_only_ids) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start))
 
-merged_only_jcn_id_df <- filter_ids_only_in_one_method(
-  merged_junctions,
-  merged_only_ids
-)
+merged_only_jcn_id_df <- merged_junctions |>
+  # filter junctions dataframes to junction IDs only present in the merged junction dataframe
+  dplyr::filter(ID %in% merged_only_ids) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start))
 ```
 
 #### Of IDs that are different, how many samples have nonzero junction counts in each analysis method?

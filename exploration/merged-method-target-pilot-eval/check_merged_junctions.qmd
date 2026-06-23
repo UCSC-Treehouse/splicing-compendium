@@ -524,7 +524,9 @@ shared_id_counts_diff_df <- dplyr::full_join(
   # categorize counts by mismatch category
   dplyr::mutate(
     mismatch_type = dplyr::case_when(
-      count_combined != 0 & count_merged == 0 ~ "combined_nonzero_merged_0"
+      count_merged == 0 ~ "merged_0"
+      count_combined == 0 ~ "combined_0"
+      .default = "neither_0"
     )
   )
 

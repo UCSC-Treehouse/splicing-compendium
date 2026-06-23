@@ -10,7 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_counts: 0
-  chromosome: "all"
+  chromosome: "chr1"
 output: md_document
 ---
 
@@ -229,17 +229,6 @@ samples_with_most_zeros <- function(df) {
 }
 ```
 
-## Check tables for parsing errors
-
-### Check for parsing errors in the merged and deduplicated junctions tables
-
-```{r check_problems}
-readr::problems(merged_junctions)
-readr::problems(deduplicated_combined_junctions)
-```
-
-No problems are present in merged_junctions file or deduplicated junctions file (readr::problems prints out nothing)
-
 ## Subset junctions files for analysis
 
 ```{r subset_junctions}
@@ -256,6 +245,8 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 }
 
 # Ensure sample columns are in the same order
+deduplicated_combined_junctions <- deduplicated_combined_junctions |>
+  dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 merged_junctions <- merged_junctions |>
   dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 

@@ -1,6 +1,6 @@
 # Check Merged vs. Combined TARGET Pilot Junction files
 Cindy Liang (celiang@ucsc.edu)
-2026-06-21
+2026-06-23
 
 ## Background
 
@@ -206,14 +206,6 @@ merged_junctions <- readr::read_tsv(
 ## Define functions
 
 ``` r
-# filter junctions dataframes to junction IDs only present in either combined or merged junction dataframes and add column with length of junction
-filter_ids_only_in_one_method <- function(df, id_vector) {
-  df |>
-  dplyr::filter(ID %in% id_vector) |>
-  # calculate junction length of each junction ID
-  dplyr::mutate(jcn_length = abs(end - start))
-}
-
 # pivot junctions dataframe long
 pivot_junctions_long <- function(df) {
  df |>
@@ -238,7 +230,7 @@ num_nonzero_samples_hist <- function(df) {
 
   # create histogram to spot-check
   hist(summary_df$n_counts_over_zero,
-       main = paste("Distribution of samples with counts > 0 per junction ID"),
+       main = "Distribution of samples with counts > 0 per junction ID",
        xlab = "Number of samples with counts > 0 for junction IDs")
 }
 
@@ -261,27 +253,6 @@ samples_with_most_zeros <- function(df) {
 }
 ```
 
-## Check tables for parsing errors
-
-### Check for parsing errors in the merged and deduplicated junctions tables
-
-``` r
-readr::problems(merged_junctions)
-```
-
-| row | col | expected | actual | file |
-|----:|----:|:---------|:-------|:-----|
-
-``` r
-readr::problems(deduplicated_combined_junctions)
-```
-
-| row | col | expected | actual | file |
-|----:|----:|:---------|:-------|:-----|
-
-No problems are present in merged_junctions file or deduplicated
-junctions file (readr::problems prints out nothing)
-
 ## Subset junctions files for analysis
 
 ``` r
@@ -298,11 +269,13 @@ if(length(params$chromosome) > 1 || tolower(params$chromosome) != "all"){
 }
 
 # Ensure sample columns are in the same order
+deduplicated_combined_junctions <- deduplicated_combined_junctions |>
+  dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 merged_junctions <- merged_junctions |>
   dplyr::relocate(chr, start, end, ID, dplyr::all_of(target_pilot_samples))
 
 # Check that columns are the same between both dataframes
-setequal(colnames(deduplicated_combined_junctions), colnames(merged_junctions))
+all.equal(colnames(deduplicated_combined_junctions), colnames(merged_junctions))
 ```
 
     [1] TRUE
@@ -359,14 +332,17 @@ junctions file.
 #### Filter dataframes to contain IDs only present in combined or merged junctions tables
 
 ``` r
-combined_only_jcn_id_df <- filter_ids_only_in_one_method(
-  deduplicated_combined_junctions,
-  combined_only_ids)
+combined_only_jcn_id_df <- deduplicated_combined_junctions |>
+  # filter junctions dataframes to junction IDs only present in the combined junction dataframe
+  dplyr::filter(ID %in% combined_only_ids) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start))
 
-merged_only_jcn_id_df <- filter_ids_only_in_one_method(
-  merged_junctions,
-  merged_only_ids
-)
+merged_only_jcn_id_df <- merged_junctions |>
+  # filter junctions dataframes to junction IDs only present in the merged junction dataframe
+  dplyr::filter(ID %in% merged_only_ids) |>
+  # calculate junction length of each junction ID
+  dplyr::mutate(jcn_length = abs(end - start))
 ```
 
 #### Of IDs that are different, how many samples have nonzero junction counts in each analysis method?
@@ -379,11 +355,10 @@ num_nonzero_samples_hist(combined_only_jcn_id_df)
 
 <div id="fig-samples_with_nonzero_counts_combined_only_ids">
 
-<img
-src="check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_combined_only_ids-1.png"
-id="fig-samples_with_nonzero_counts_combined_only_ids" />
+![](check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_combined_only_ids-1.png)
 
-Figure 1
+Figure 1: Distribution of nonzero sample counts by junction id for
+junctions that are only found in the combined method.
 
 </div>
 
@@ -407,7 +382,10 @@ samples_with_most_zeros(combined_only_jcn_id_df)
 | SRR1799057 |                   5709 |
 
 SRR2042845 has the highest number of zero counts in junction IDs only
-found in the combined method
+found in the combined method. However, the number of zero counts in this
+sample are not different from the other samples by a large magnitude, so
+missing junction counts are not primarily attributed to only one or two
+low-quality samples.
 
 ##### Junction IDs only present in merged method
 
@@ -417,11 +395,10 @@ num_nonzero_samples_hist(merged_only_jcn_id_df)
 
 <div id="fig-samples_with_nonzero_counts_merged_only_ids">
 
-<img
-src="check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_merged_only_ids-1.png"
-id="fig-samples_with_nonzero_counts_merged_only_ids" />
+![](check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_merged_only_ids-1.png)
 
-Figure 2
+Figure 2: Distribution of nonzero sample counts by junction id for
+junctions that are only found in the merged method.
 
 </div>
 
@@ -444,7 +421,12 @@ samples_with_most_zeros(merged_only_jcn_id_df)
 | SRR1799057 |                  21755 |
 
 SRR1799059 has the highest number of junction counts that are 0 in
-junction IDs only found in the merged method.
+junction IDs only found in the merged method. Similar to samples in the
+combined method with high numbers of 0 counts, there is no single sample
+with zero counts magnitudes larger than the other samples. Missing
+counts in junctions recorded in the merged method are also not due to a
+handful of low quality samples. In fact, samples with many junction
+counts of 0 have similar numbers of missing junction counts.
 
 #### Are all junction IDs only found in the combined table exon-intron (1bp in length) junctions?
 
@@ -552,11 +534,11 @@ num_nonzero_samples_hist(combined_shared_id_counts_diff_df)
 
 <div id="fig-samples_with_nonzero_counts_combined_only_ids_diff_counts">
 
-<img
-src="check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_combined_only_ids_diff_counts-1.png"
-id="fig-samples_with_nonzero_counts_combined_only_ids_diff_counts" />
+![](check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_combined_only_ids_diff_counts-1.png)
 
-Figure 3
+Figure 3: Distribution of nonzero sample counts by junction id for
+junctions that are present in both methods, but have different counts in
+the combined method.
 
 </div>
 
@@ -580,7 +562,9 @@ samples_with_most_zeros(combined_shared_id_counts_diff_df)
 | SRR1799057 |                  18427 |
 
 SRR2042845 is still the sample with the highest number of zeros in
-junctions whose counts differ between the two methods.
+junctions whose counts differ between the two methods. But the magnitude
+of zero counts in this sample is not unusually higher than the other
+samples.
 
 ##### Junction IDs with different counts in merged method
 
@@ -590,17 +574,20 @@ num_nonzero_samples_hist(merged_shared_id_counts_diff_df)
 
 <div id="fig-samples_with_nonzero_counts_merged_only_ids_diff_counts">
 
-<img
-src="check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_merged_only_ids_diff_counts-1.png"
-id="fig-samples_with_nonzero_counts_merged_only_ids_diff_counts" />
+![](check_merged_junctions_files/figure-commonmark/fig-samples_with_nonzero_counts_merged_only_ids_diff_counts-1.png)
 
-Figure 4
+Figure 4: Distribution of nonzero sample counts by junction id for
+junctions that are present in both methods, but have different counts in
+the merged method.
 
 </div>
 
 Similar to <a href="#fig-samples_with_nonzero_counts_merged_only_ids"
 class="quarto-xref">Figure 2</a>, most samples have counts of 0 in
-junction IDs with differing counts in the merged table.
+junction IDs with differing counts in the merged table. This is likely
+becasue counts of 0 in the merged method in junctions where counts are
+not 0 in the combined method correspond to position IDs that are not
+shared between samples (and are thus assigned 0 in the merged method).
 
 What samples have the highest number of zero junction counts?
 
@@ -618,7 +605,9 @@ samples_with_most_zeros(merged_shared_id_counts_diff_df)
 | SRR2083162 |                  39673 |
 
 SRR2042845 is still the sample with the highest number of zeros in
-junctions whose counts differ between the two methods.
+junctions whose counts differ between the two methods. But the number of
+zero counts in these junctions are not wildly different from the other
+samples, so the pattern seems to be consistent throughout samples.
 
 #### Are all junction IDs with different counts in the combined table exon-intron (1bp in length) junctions?
 
@@ -674,8 +663,8 @@ gc()
 ```
 
                  used   (Mb) gc trigger    (Mb)   max used    (Mb)
-    Ncells    7621137  407.1   15963768   852.6   15963768   852.6
-    Vcells 1255947228 9582.2 2886549414 22022.7 2834790357 21627.8
+    Ncells    7621203  407.1   15963640   852.6   15963640   852.6
+    Vcells 1255948281 9582.2 2886550317 22022.7 2834797196 21627.8
 
 #### Count number of samples with different counts between the combined and merged tables
 
@@ -692,14 +681,22 @@ merged_shared_id_df <- pivot_junctions_long(merged_shared_id_df)
 shared_id_counts_diff_df <- dplyr::full_join(
   combined_shared_id_df,
   merged_shared_id_df,
-  by = c("chr", "start", "end", "ID", "sample"),
-  suffix = c("_combined", "_merged")) |>
+  by = c(
+    "chr",
+    "start",
+    "end",
+    "ID",
+    "sample"),
+  suffix = c("_combined", "_merged")
+  )|>
   # filter for only junctions where the same sample have different counts in each method
   dplyr::filter(count_combined != count_merged) |>
   # categorize counts by mismatch category
   dplyr::mutate(
     mismatch_type = dplyr::case_when(
-      count_combined != 0 & count_merged == 0 ~ "combined_nonzero_merged_0"
+      count_merged == 0 ~ "merged_0",
+      count_combined == 0 ~ "combined_0",
+      .default = "neither_0"
     )
   )
 ```
@@ -722,8 +719,8 @@ gc()
 ```
 
                used  (Mb)  gc trigger     (Mb)    max used     (Mb)
-    Ncells  1091467  58.3    12771015    682.1    15963768    852.6
-    Vcells 30098537 229.7 17253400797 131633.1 21451986862 163665.7
+    Ncells  1091535  58.3    12770912    682.1    15963640    852.6
+    Vcells 30099600 229.7 17253402285 131633.1 21451987939 163665.7
 
 ``` r
 shared_id_counts_diff_df |>
@@ -734,12 +731,12 @@ shared_id_counts_diff_df |>
   )
 ```
 
-| mismatch_type             |       n |
-|:--------------------------|--------:|
-| combined_nonzero_merged_0 | 2379873 |
+| mismatch_type |       n |
+|:--------------|--------:|
+| merged_0      | 2379873 |
 
 Are there samples that consistently have different junction counts in
-each method? This section crashes when run on the full junctions files
+each method?
 
 ``` r
 shared_id_counts_diff_df |>
@@ -753,14 +750,14 @@ shared_id_counts_diff_df |>
   head()
 ```
 
-| sample     | mismatch_type             | n_mismatch |
-|:-----------|:--------------------------|-----------:|
-| SRR4419554 | combined_nonzero_merged_0 |      30601 |
-| SRR1559075 | combined_nonzero_merged_0 |      30499 |
-| SRR2083176 | combined_nonzero_merged_0 |      30472 |
-| SRR4419565 | combined_nonzero_merged_0 |      30390 |
-| SRR1784865 | combined_nonzero_merged_0 |      30281 |
-| SRR1797055 | combined_nonzero_merged_0 |      30255 |
+| sample     | mismatch_type | n_mismatch |
+|:-----------|:--------------|-----------:|
+| SRR4419554 | merged_0      |      30601 |
+| SRR1559075 | merged_0      |      30499 |
+| SRR2083176 | merged_0      |      30472 |
+| SRR4419565 | merged_0      |      30390 |
+| SRR1784865 | merged_0      |      30281 |
+| SRR1797055 | merged_0      |      30255 |
 
 SRR4419554 has the highest number of junctions with mismatched counts
 for chromosome 1 and in the full junctions file.

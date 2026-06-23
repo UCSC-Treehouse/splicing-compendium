@@ -10,7 +10,7 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   min_counts: 0
-  chromosome: "chr1"
+  chromosome: "all"
 output: md_document
 ---
 
@@ -323,7 +323,7 @@ samples_with_most_zeros(combined_only_jcn_id_df)
 ```
 
 SRR2042845 has the highest number of zero counts in junction IDs only found in the combined method.
-However, the number of zero counts in this sample are not different from the other samples by a large magnitude, 
+However, the number of zero counts in this sample are not different from the other samples by a large magnitude,
 so missing junction counts are not primarily attributed to only one or two low-quality samples.
 
 ##### Junction IDs only present in merged method

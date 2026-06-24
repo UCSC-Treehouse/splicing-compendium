@@ -5,14 +5,15 @@ Cindy Liang (celiang@ucsc.edu)
 ## Background
 
 From analyzing junction count files produced by the merged and combined
-Shiba methods, only exon-intron junctions were different.
+Shiba methods in `exploration/check_merged_junctions.qmd`, only
+exon-intron junctions were different.
 
 Junctions.bed file exon-intron junctions are counted from exon-intron
 boundaries defined by `EVENT_RI.txt`, produced from the GTF of all
 samples’ transcripts by `gtf2event.py` in Shiba. Initial analysis of the
 GTFs produced by the merged and combined methods also revealed
 differences in the GTFs used to create the event coordinate files. We
-suspect these differences stem fromn differences in the order in which
+suspect these differences stem from differences in the order in which
 files were passed into `stringtie --merge`, and the use of
 multithreading in merging.
 

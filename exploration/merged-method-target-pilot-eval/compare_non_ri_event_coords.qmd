@@ -99,11 +99,11 @@ names(merged_events_paths) <- names(event_files)
 Read in files
 
 ```{r read_in_files}
-# read in combined splice event coordinates into one table
-combined_event_coords_df <- read_in_events(combined_events_paths)
+# read in combined splice event coordinates into a list
+combined_events <- read_in_events(combined_events_paths)
 
-# read in merged splice event coordinates into one table
-merged_event_coords_df <- read_in_events(merged_events_paths)
+# read in merged splice event coordinates into a list
+merged_events <- read_in_events(merged_events_paths)
 
 ```
 

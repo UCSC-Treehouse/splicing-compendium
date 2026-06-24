@@ -1,4 +1,4 @@
-# Compare non-RI events coordinates between merged and combined Shiba runs
+# Compare splice event coordinates between merged and combined Shiba runs
 Cindy Liang (celiang@ucsc.edu)
 2026-06-24
 

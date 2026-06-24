@@ -1,6 +1,6 @@
 # Compare non-RI events coordinates between merged and combined Shiba runs
 Cindy Liang (celiang@ucsc.edu)
-2026-06-23
+2026-06-24
 
 ## Background
 
@@ -35,20 +35,12 @@ it more similar to the combined method.
 ### Define functions
 
 ``` r
-# read in list of splice event coordinate files and bind them into one dataframe
+# read in list of splice event coordinate files and bind them into one list of dataframes
 read_in_events <- function(file_paths) {
 event_coords <- file_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types=readr::cols(.default = "c"))
   })
-}
-
-# calculation of Jaccard indices 
-calculate_jaccard_for_ids <- function(event_type) {
-  combined_set <- combined_event_coords_df[[event_type]]$pos_id
-  merged_set <- merged_event_coords_df[[event_type]]$pos_id
-  
-  length(intersect(combined_set, merged_set))/ length(union(combined_set, merged_set))
 }
 ```
 
@@ -102,81 +94,56 @@ names(merged_events_paths) <- names(event_files)
 Read in files
 
 ``` r
-# read in combined splice event coordinates into one table
-combined_event_coords_df <- read_in_events(combined_events_paths)
+# read in combined splice event coordinates into a list of dataframes
+combined_events_list <- read_in_events(combined_events_paths)
 
-# read in merged splice event coordinates into one table
-merged_event_coords_df <- read_in_events(merged_events_paths)
+# read in merged splice event coordinates into a list
+merged_events_list <- read_in_events(merged_events_paths)
 ```
 
 ## Quantify similarity of position IDs in each event coordinate file
 
-Check each event type one at a time to see how much of each type is
-different between the event coordinate files
-
-#### Skipped exons (se)
+Calculate Jaccard similarity index for each set of position IDs for each
+splice event type identified from each Shiba run method
 
 ``` r
-calculate_jaccard_for_ids("se")
+jaccard_indices <- purrr::map2(
+  # read in lists of combined and merged event coordinate dataframes and iterate the two simultaneously
+  combined_events_list,
+  merged_events_list,
+  # take the matching two dataframes from the combined and merged input lists
+  \(combined_df, merged_df){
+    # obtain set of position IDs 
+    combined_set <- combined_df$pos_id
+    merged_set <- merged_df$pos_id
+    
+    # calculate Jaccard index of position IDs
+    length(intersect(combined_set, merged_set)) / length(union(combined_set, merged_set))
+  }
+)
 ```
 
-    [1] 0.9480923
-
-#### Alternative first exons (afe)
+Print results
 
 ``` r
-calculate_jaccard_for_ids("afe")
+# convert list of jaccard indices into a dataframe
+jaccard_df <- data.frame(
+  jaccard_index = unlist(jaccard_indices)
+)
+
+jaccard_df
 ```
 
-    [1] 0.8393962
-
-#### Alternative last exons (ale)
-
-``` r
-calculate_jaccard_for_ids("ale")
-```
-
-    [1] 0.8365145
-
-#### Alternative 5’ splice site (five)
-
-``` r
-calculate_jaccard_for_ids("five")
-```
-
-    [1] 0.8570423
-
-#### Alternative 3’ splice site (three)
-
-``` r
-calculate_jaccard_for_ids("three")
-```
-
-    [1] 0.8871048
-
-### Multiple skipped exons (mse)
-
-``` r
-calculate_jaccard_for_ids("mse")
-```
-
-    [1] 0.9120187
-
-#### Mutually exclusive exons (mxe)
-
-``` r
-calculate_jaccard_for_ids("mxe")
-```
-
-    [1] 0.8599684
-
-#### Retained introns (ri)
-
-``` r
-calculate_jaccard_for_ids("ri")
-```
-
-    [1] 0.7510809
+|       | jaccard_index |
+|:------|--------------:|
+| se    |     0.9480923 |
+| afe   |     0.8393962 |
+| ale   |     0.8365145 |
+| five  |     0.8570423 |
+| three |     0.8871048 |
+| mse   |     0.9120187 |
+| mxe   |     0.8599684 |
+| ri    |     0.7510809 |
 
 ## Conclusions
 
@@ -190,4 +157,4 @@ calculate_jaccard_for_ids("ri")
 
 - The next step in refining the workflow is to test how much elements
   like GTF merge order and multithreading contribute to differences in
-  the GTF.
+  position IDs identified in these event coordinate files.

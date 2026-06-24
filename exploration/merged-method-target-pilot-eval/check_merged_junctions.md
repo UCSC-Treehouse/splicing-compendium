@@ -364,7 +364,12 @@ junctions that are only found in the combined method.
 
 Most (more than half) of the junction IDs that are only found in the
 combined junctions table have nonzero counts in over half of the
-samples.
+samples. I think the these IDs are caused by cases where a gene in one
+sample is thrown out in `gtf2event.py` because the one sample’s GTF only
+had one transcript for that gene. So in these cases, no coordinates for
+that gene are recorded at all/counted in the merged method, while
+coordinates are recorded and quantified in the combined method using the
+more complete GTF.
 
 What samples have the highest number of zero junction counts?
 
@@ -403,7 +408,13 @@ junctions that are only found in the merged method.
 </div>
 
 In IDs only found in the merged junctions table, most samples have count
-values of 0
+values of 0. These IDs may be RI coordinate identified from one of the
+sites differently annotated in the GTF when you compare a GTF made from
+merging only 1 sample + the reference (merged run) vs. a GTF made from
+merging all 88 samples + the reference (combined run). Maybe any sites
+only found in the merged GTF in this way have less overall transcript
+support than an annotation made from all 88 samples, which corresponds
+to less read support.
 
 What samples have the highest number of zero junction counts?
 
@@ -663,8 +674,8 @@ gc()
 ```
 
                  used   (Mb) gc trigger    (Mb)   max used    (Mb)
-    Ncells    7621203  407.1   15963640   852.6   15963640   852.6
-    Vcells 1255948281 9582.2 2886550317 22022.7 2834797196 21627.8
+    Ncells    7621209  407.1   15963562   852.6   15963562   852.6
+    Vcells 1255948832 9582.2 2886550978 22022.7 2834797731 21627.8
 
 #### Count number of samples with different counts between the combined and merged tables
 
@@ -719,8 +730,8 @@ gc()
 ```
 
                used  (Mb)  gc trigger     (Mb)    max used     (Mb)
-    Ncells  1091535  58.3    12770912    682.1    15963640    852.6
-    Vcells 30099600 229.7 17253402285 131633.1 21451987939 163665.7
+    Ncells  1091541  58.3    12770850    682.1    15963562    852.6
+    Vcells 30100151 229.7 17253403047 131633.1 21451988490 163665.7
 
 ``` r
 shared_id_counts_diff_df |>
@@ -735,6 +746,9 @@ shared_id_counts_diff_df |>
 |:--------------|--------:|
 | merged_0      | 2379873 |
 
+All mismatches are due to the merged junctions counts being 0, while the
+combined junction counts are not zero.
+
 Are there samples that consistently have different junction counts in
 each method?
 
@@ -745,19 +759,20 @@ shared_id_counts_diff_df |>
     .by = c(sample, mismatch_type),
     n_mismatch = dplyr::n()
     ) |>
-  # sort by sample with most mismatches
-  dplyr::arrange(dplyr::desc(n_mismatch)) |>
-  head()
+    head()
 ```
 
 | sample     | mismatch_type | n_mismatch |
 |:-----------|:--------------|-----------:|
-| SRR4419554 | merged_0      |      30601 |
+| SRR1559052 | merged_0      |      26518 |
 | SRR1559075 | merged_0      |      30499 |
-| SRR2083176 | merged_0      |      30472 |
-| SRR4419565 | merged_0      |      30390 |
-| SRR1784865 | merged_0      |      30281 |
-| SRR1797055 | merged_0      |      30255 |
+| SRR1559100 | merged_0      |      30118 |
+| SRR1559133 | merged_0      |      29725 |
+| SRR1559164 | merged_0      |      29703 |
+| SRR1559183 | merged_0      |      24347 |
 
 SRR4419554 has the highest number of junctions with mismatched counts
-for chromosome 1 and in the full junctions file.
+for chromosome 1 and in the full junctions file. All 6 samples with the
+most number of mismatched junction counts for shared junction IDs have
+very similar numbers of mismatches, indicating that the mismatches are
+not due to a small number of low-quality samples

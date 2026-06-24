@@ -230,7 +230,6 @@ num_nonzero_samples_hist <- function(df) {
 
   # create histogram to spot-check
   hist(summary_df$n_counts_over_zero,
-       main = "Distribution of samples with counts > 0 per junction ID",
        xlab = "Number of samples with counts > 0 for junction IDs")
 }
 

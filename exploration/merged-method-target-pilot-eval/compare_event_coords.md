@@ -1,6 +1,6 @@
 # Compare splice event coordinates between merged and combined Shiba runs
 Cindy Liang (celiang@ucsc.edu)
-2026-06-24
+2026-06-25
 
 ## Background
 
@@ -129,22 +129,23 @@ Print results
 ``` r
 # convert list of jaccard indices into a dataframe
 jaccard_df <- data.frame(
+  event_type = names(jaccard_indices),
   jaccard_index = unlist(jaccard_indices)
 )
 
 jaccard_df
 ```
 
-|       | jaccard_index |
-|:------|--------------:|
-| se    |     0.9480923 |
-| afe   |     0.8393962 |
-| ale   |     0.8365145 |
-| five  |     0.8570423 |
-| three |     0.8871048 |
-| mse   |     0.9120187 |
-| mxe   |     0.8599684 |
-| ri    |     0.7510809 |
+|       | event_type | jaccard_index |
+|:------|:-----------|--------------:|
+| se    | se         |     0.9480923 |
+| afe   | afe        |     0.8393962 |
+| ale   | ale        |     0.8365145 |
+| five  | five       |     0.8570423 |
+| three | three      |     0.8871048 |
+| mse   | mse        |     0.9120187 |
+| mxe   | mxe        |     0.8599684 |
+| ri    | ri         |     0.7510809 |
 
 ## Conclusions
 

@@ -125,9 +125,7 @@ Print results
 ```{r}
 # convert list of jaccard indices into a dataframe
 jaccard_df <- data.frame(
-  jaccard_index = unlist(jaccard_indices)
-jaccard_df <- data.frame(
-  event_type = names(jaccard_indices)
+  event_type = names(jaccard_indices),
   jaccard_index = unlist(jaccard_indices)
 )
 

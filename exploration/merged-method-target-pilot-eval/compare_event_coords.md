@@ -26,6 +26,15 @@ splice compendium. Alternatively, if differences are present throughout
 all event types, we will need to alter how the GTF is processed to make
 it more similar to the combined method.
 
+Two GTFs merged from 88 TARGET pilot samples were generated using
+unaltered Shiba v 0.8.1 bam2gtf.py scripts, commands, and with only one
+thread. Following this, Shiba v 0.8.1 gtf2events.py was run on the GTFs
+with ths same commands, using 10 threads (the amount passed to this
+script in the splice compendium merged snakemake workflow).
+
+This notenook compares the similarity between splice event coordinates
+identified from each GTF
+
 ## Analysis outline
 
 - Calculate Jaccard similarity score between events coordinates created
@@ -56,6 +65,13 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 exploration_dir <- file.path(repo_root, "exploration")
 # merged table eval dir
 exploration_eval_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
+# event coordinate file directory generated from TARGET pilot GTFs created with the same Shiba commands with one thread
+# the events files themselves were generated with the same commands, but with 10 threads
+events_dir_one_thread_bam2gtf <- file.path(exploration_dir, "merged_shiba_target_pilot", "shiba_gtf_to_event_pilot_tests")
+# events files from replicate 1 of gtf generated from bam2gtf.py with one thread
+events_dir_one_thread_bam2gtf_rep1 <- file.path(events_dir_one_thread_bam2gtf, "shiba_pilot_gtf_events")
+# events files from replicate 2 of gtf generated from bam2gtf.py with one thread
+events_dir_one_thread_bam2gtf_rep2 <- file.path(events_dir_one_thread_bam2gtf, "shiba_pilot_gtf_events_rep2")
 
 # shiba results dir
 # target pilot combined shiba results dir
@@ -90,6 +106,12 @@ names(combined_events_paths) <- names(event_files)
 
 merged_events_paths <-file.path(merged_events_dir, event_files)
 names(merged_events_paths) <- names(event_files)
+
+rep1_events_from_bam2gtf_one_thread_paths <- file.path(events_dir_one_thread_bam2gtf_rep1, event_files)
+names(rep1_events_from_bam2gtf_one_thread_paths) <- names(event_files)
+
+rep2_events_from_bam2gtf_one_thread_paths <- file.path(events_dir_one_thread_bam2gtf_rep2, event_files)
+names(rep2_events_from_bam2gtf_one_thread_paths) <- names(event_files)
 ```
 
 Read in files
@@ -100,6 +122,12 @@ combined_events_list <- read_in_events(combined_events_paths)
 
 # read in merged splice event coordinates into a list
 merged_events_list <- read_in_events(merged_events_paths)
+
+# replicate 1 of event coordinates of gtf generated from bam2gtf.py with one thread
+rep1_events_from_bam2gtf_one_thread_list <- read_in_events(rep1_events_from_bam2gtf_one_thread_paths)
+
+# replicate 2 of event coordinates of gtf generated from bam2gtf.py with one thread
+rep2_events_from_bam2gtf_one_thread_list <- read_in_events(rep2_events_from_bam2gtf_one_thread_paths)
 ```
 
 ## Quantify similarity of position IDs in each event coordinate file
@@ -108,7 +136,8 @@ Calculate Jaccard similarity index for each set of position IDs for each
 splice event type identified from each Shiba run method
 
 ``` r
-jaccard_indices <- purrr::map2(
+# Similarity scores between events files made from combined vs. merged method
+jaccard_indices_comb_vs_merged <- purrr::map2(
   # read in lists of combined and merged event coordinate dataframes and iterate the two simultaneously
   combined_events_list,
   merged_events_list,
@@ -122,6 +151,22 @@ jaccard_indices <- purrr::map2(
     length(intersect(combined_set, merged_set)) / length(union(combined_set, merged_set))
   }
 )
+
+# Similarity scores between events files made with two identical runs of unaltered Shiba scripts (one thread for bam2gtf.py, 10 threads for gtf2events.py)
+jaccard_indices_rep1_vs_rep2 <- purrr::map2(
+  # read in lists of combined and merged event coordinate dataframes and iterate the two simultaneously
+  rep1_events_from_bam2gtf_one_thread_list,
+  rep2_events_from_bam2gtf_one_thread_list,
+  # take the matching two dataframes from the rep1 and rep2 input lists
+  \(rep1_df, rep2_df){
+    # obtain set of position IDs 
+    rep1_set <- rep1_df$pos_id
+    rep2_set <- rep2_df$pos_id
+    
+    # calculate Jaccard index of position IDs
+    length(intersect(rep1_set, rep2_set)) / length(union(rep1_set, rep2_set))
+  }
+)
 ```
 
 Print results
@@ -129,24 +174,26 @@ Print results
 ``` r
 # convert list of jaccard indices into a dataframe
 jaccard_df <- data.frame(
-  event_type = names(jaccard_indices),
-  jaccard_index = unlist(jaccard_indices,
-                         use.names = FALSE)
+  event_type = names(jaccard_indices_comb_vs_merged),
+  jaccard_index_combined_vs_merged = unlist(jaccard_indices_comb_vs_merged,
+                         use.names = FALSE),
+  jaccard_indices_rep1_vs_rep2 = unlist(jaccard_indices_rep1_vs_rep2,
+                                        use.names = FALSE)
 )
 
 jaccard_df
 ```
 
-| event_type | jaccard_index |
-|:-----------|--------------:|
-| se         |     0.9480923 |
-| afe        |     0.8393962 |
-| ale        |     0.8365145 |
-| five       |     0.8570423 |
-| three      |     0.8871048 |
-| mse        |     0.9120187 |
-| mxe        |     0.8599684 |
-| ri         |     0.7510809 |
+| event_type | jaccard_index_combined_vs_merged | jaccard_indices_rep1_vs_rep2 |
+|:-----------|---------------------------------:|-----------------------------:|
+| se         |                        0.9480923 |                            1 |
+| afe        |                        0.8393962 |                            1 |
+| ale        |                        0.8365145 |                            1 |
+| five       |                        0.8570423 |                            1 |
+| three      |                        0.8871048 |                            1 |
+| mse        |                        0.9120187 |                            1 |
+| mxe        |                        0.8599684 |                            1 |
+| ri         |                        0.7510809 |                            1 |
 
 ## Conclusions
 
@@ -158,6 +205,5 @@ jaccard_df
   scores range from 0.83-0.94 and likely stem from GTF differences from
   the different Shiba runs (different GTF merge order, multithreading).
 
-- The next step in refining the workflow is to test how much elements
-  like GTF merge order and multithreading contribute to differences in
-  position IDs identified in these event coordinate files.
+- Events coordinates derived from GTF files made without multithreading
+  with the same merge order are the same

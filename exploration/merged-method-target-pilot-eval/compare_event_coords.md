@@ -1,0 +1,163 @@
+# Compare splice event coordinates between merged and combined Shiba runs
+Cindy Liang (celiang@ucsc.edu)
+2026-06-25
+
+## Background
+
+From analyzing junction count files produced by the merged and combined
+Shiba methods in `exploration/check_merged_junctions.qmd`, only
+exon-intron junctions were different.
+
+Junctions.bed file exon-intron junctions are counted from exon-intron
+boundaries defined by `EVENT_RI.txt`, produced from the GTF of all
+samples’ transcripts by `gtf2event.py` in Shiba. Initial analysis of the
+GTFs produced by the merged and combined methods also revealed
+differences in the GTFs used to create the event coordinate files. We
+suspect these differences stem from differences in the order in which
+files were passed into `stringtie --merge`, and the use of
+multithreading in merging.
+
+We next wanted to answer how much GTF differences impacted similarity in
+the coordinates of splice events in the event coordinate files (like
+`EVENT_RI.txt`). For instance, if only one event type’s coordinates is
+disproportionately impacted by GTF differences, we may decide to not
+include quantification of that event type in the first release of the
+splice compendium. Alternatively, if differences are present throughout
+all event types, we will need to alter how the GTF is processed to make
+it more similar to the combined method.
+
+## Analysis outline
+
+- Calculate Jaccard similarity score between events coordinates created
+  from the merged and combined methods each event type
+
+## Setup
+
+### Define functions
+
+``` r
+# read in list of splice event coordinate files and bind them into one list of dataframes
+read_in_events <- function(file_paths) {
+event_coords <- file_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c"))
+  })
+}
+```
+
+### Read in file paths and files
+
+``` r
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+## combined shiba run results on target pilot samples ##
+# parent directories
+exploration_dir <- file.path(repo_root, "exploration")
+# merged table eval dir
+exploration_eval_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
+
+# shiba results dir
+# target pilot combined shiba results dir
+target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
+combined_results_dir <- file.path(target_pilot_dir, "shiba_combined")
+# events dir
+combined_events_dir <- file.path(combined_results_dir, "events")
+
+## merged shiba run results on target pilot samples ##
+# shiba results dir
+merged_results_dir <- file.path(repo_root, "results", "merged_shiba", "target_pilot")
+# events dir
+merged_events_dir <- file.path(merged_results_dir, "events")
+
+### Files ###
+
+# list of events coordinates files to compare between the merged and combined methods
+event_files <- c(
+  se = "EVENT_SE.txt",
+  afe = "EVENT_AFE.txt",
+  ale = "EVENT_ALE.txt",
+  five = "EVENT_FIVE.txt",
+  three = "EVENT_THREE.txt",
+  mse = "EVENT_MSE.txt",
+  mxe = "EVENT_MXE.txt",
+  ri = "EVENT_RI.txt"
+)
+
+# construct events coordinate file paths of shiba results for combined run
+combined_events_paths <-file.path(combined_events_dir, event_files)
+names(combined_events_paths) <- names(event_files)
+
+merged_events_paths <-file.path(merged_events_dir, event_files)
+names(merged_events_paths) <- names(event_files)
+```
+
+Read in files
+
+``` r
+# read in combined splice event coordinates into a list of dataframes
+combined_events_list <- read_in_events(combined_events_paths)
+
+# read in merged splice event coordinates into a list
+merged_events_list <- read_in_events(merged_events_paths)
+```
+
+## Quantify similarity of position IDs in each event coordinate file
+
+Calculate Jaccard similarity index for each set of position IDs for each
+splice event type identified from each Shiba run method
+
+``` r
+jaccard_indices <- purrr::map2(
+  # read in lists of combined and merged event coordinate dataframes and iterate the two simultaneously
+  combined_events_list,
+  merged_events_list,
+  # take the matching two dataframes from the combined and merged input lists
+  \(combined_df, merged_df){
+    # obtain set of position IDs 
+    combined_set <- combined_df$pos_id
+    merged_set <- merged_df$pos_id
+    
+    # calculate Jaccard index of position IDs
+    length(intersect(combined_set, merged_set)) / length(union(combined_set, merged_set))
+  }
+)
+```
+
+Print results
+
+``` r
+# convert list of jaccard indices into a dataframe
+jaccard_df <- data.frame(
+  event_type = names(jaccard_indices),
+  jaccard_index = unlist(jaccard_indices,
+                         use.names = FALSE)
+)
+
+jaccard_df
+```
+
+| event_type | jaccard_index |
+|:-----------|--------------:|
+| se         |     0.9480923 |
+| afe        |     0.8393962 |
+| ale        |     0.8365145 |
+| five       |     0.8570423 |
+| three      |     0.8871048 |
+| mse        |     0.9120187 |
+| mxe        |     0.8599684 |
+| ri         |     0.7510809 |
+
+## Conclusions
+
+- Retained intron position IDs are the most different between the events
+  files produced by the merged and combined methods, compared to other
+  splice event types.
+
+- Differences still exist in the other event types, where similarity
+  scores range from 0.83-0.94 and likely stem from GTF differences from
+  the different Shiba runs (different GTF merge order, multithreading).
+
+- The next step in refining the workflow is to test how much elements
+  like GTF merge order and multithreading contribute to differences in
+  position IDs identified in these event coordinate files.

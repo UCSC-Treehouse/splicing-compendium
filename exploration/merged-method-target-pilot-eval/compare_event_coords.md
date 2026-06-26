@@ -24,21 +24,59 @@ disproportionately impacted by GTF differences, we may decide to not
 include quantification of that event type in the first release of the
 splice compendium. Alternatively, if differences are present throughout
 all event types, we will need to alter how the GTF is processed to make
-it more similar to the combined method.
-
-Two GTFs merged from 88 TARGET pilot samples were generated using
-unaltered Shiba v 0.8.1 bam2gtf.py scripts, commands, and with only one
-thread. Following this, Shiba v 0.8.1 gtf2events.py was run on the GTFs
-with ths same commands, using 10 threads (the amount passed to this
-script in the splice compendium merged snakemake workflow).
-
-This notenook compares the similarity between splice event coordinates
-identified from each GTF
+it more similar to an unaltered Shiba run (“combined” method).
 
 ## Analysis outline
 
-- Calculate Jaccard similarity score between events coordinates created
-  from the merged and combined methods each event type
+This notebook compares the similarity (Jaccard index) between splice
+event coordinates identified from different pairs of GTFs generated
+using different methods:
+
+- Negative control (expected to be identical)
+
+  - Two GTFs were generated with the unaltered Shiba v 0.8.1
+    `bam2gtf.py` script, with one thread, with the following commands:
+    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.annotation.gtf -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf -p 1 -v`
+    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.annotation.gtf -o results/merged_shiba/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf -p 1 -v`
+  - Events coordinates files for both GTFs were generated with unaltered
+    `gtf2events.py` using 10 threads (the amount passed to this script
+    in the splice compendium merged snakemake workflow) with the
+    following commands:
+    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i target_pilot_gtf_tests/one_thread_pilot_gtf.gtf -r references/gencode.v47.primary_assembly.annotation.gtf -o shiba_pilot_gtf_events -p 10 -v`
+    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i /scratch/celiang/target_pilot_gtfs/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o /scratch/celiang/shiba_event_to_gtf_tests/shiba_pilot_gtf_events_rep2 -p 10 -v`
+
+- Merged vs. combined method: To what extent are event coordinates
+  defined with the merged and combined methods different?
+
+  - Merged GTF: Individual GTFs for each sample were first generated
+    with `shiba-0.8.1-0/src/bam2gtf.py` with `Snakefile` by merging one
+    sample’s StringTie GTF and the reference GTF. Then, these GTFs were
+    merged together, along with the reference with a final
+    `stringtie —merge` command with `merge_results.smk`. 4 threads were
+    used in both merge steps (one-sample and 88 samples).
+
+    - Events coordinates files were made using
+      `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` called by
+      `merge_results.smk` , with 10 threads
+
+  - Combined GTF: Separate GTFs for 88 TARGET pilot samples were greated
+    with StringTie, then merged together with the reference using
+    `stringtie -–merge` using the unaltered `shiba-0.8.1-0/src/bam2gtf`
+    and 15 threads.
+
+    - Events coordinates files were made using
+      `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` as part of
+      the unaltered `shiba.py` workflow, with 15 threads.
+
+- Multiple threads test: To what extent does using multiple threads
+  change events coordinates defined by GTFs made with the same commands?
+
+  - Two GTFs were generated with the unaltered Shiba v 0.8.1
+    `bam2gtf.py` script, with 4 threads, with the following commands:
+
+  - `time python $CONDA_PREFIX/share/shiba-0.8.1-0/src /bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.a nnotation.gtf -o results/merged_shiba/target_pilot_gtf_tests_multithread/four_thread_pilot_gtf.gtf -p 4 -v`
+
+  - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.annotation.gtf -o results/merged_shiba/target_pilot_gtf_tests_multithread_rep2/four_thread_pilot_gtf.gtf -p 4 -v`
 
 ## Setup
 
@@ -52,6 +90,27 @@ event_coords <- file_paths |>
     readr::read_tsv(path, col_types=readr::cols(.default = "c"))
   })
 }
+
+# Calculate list of Jaccard indices for event coordinate file pairs
+# Similarity scores between events files made from combined vs. merged method
+calculate_jaccard_indices_of_events <- function(list1, 
+                                                list2, 
+                                                pos_id) {
+  purrr::map2(
+  # read in lists of event coordinate dataframes to compare and iterate the two simultaneously
+  list1,
+  list2,
+  # take the matching two dataframes from the input lists
+  \(df1, df2){
+    # obtain set of position IDs 
+    set1 <- df1$pos_id
+    set2 <- df2$pos_id
+    
+    # calculate Jaccard index of position IDs
+    length(intersect(set1, set2)) / length(union(set1, set2))
+  }
+  )
+  }
 ```
 
 ### Read in file paths and files
@@ -130,43 +189,23 @@ rep1_events_from_bam2gtf_one_thread_list <- read_in_events(rep1_events_from_bam2
 rep2_events_from_bam2gtf_one_thread_list <- read_in_events(rep2_events_from_bam2gtf_one_thread_paths)
 ```
 
-## Quantify similarity of position IDs in each event coordinate file
+## Quantify similarity of position IDs in each event coordinate file pair
 
 Calculate Jaccard similarity index for each set of position IDs for each
 splice event type identified from each Shiba run method
 
 ``` r
+jaccard_indices_comb_vs_merged <- calculate_jaccard_indices_of_events(combined_events_list, merged_events_list, pos_id)
+```
+
+``` r
 # Similarity scores between events files made from combined vs. merged method
-jaccard_indices_comb_vs_merged <- purrr::map2(
-  # read in lists of combined and merged event coordinate dataframes and iterate the two simultaneously
-  combined_events_list,
-  merged_events_list,
-  # take the matching two dataframes from the combined and merged input lists
-  \(combined_df, merged_df){
-    # obtain set of position IDs 
-    combined_set <- combined_df$pos_id
-    merged_set <- merged_df$pos_id
-    
-    # calculate Jaccard index of position IDs
-    length(intersect(combined_set, merged_set)) / length(union(combined_set, merged_set))
-  }
-)
+jaccard_indices_comb_vs_merged <- calculate_jaccard_indices_of_events(combined_events_list, merged_events_list, pos_id)
 
 # Similarity scores between events files made with two identical runs of unaltered Shiba scripts (one thread for bam2gtf.py, 10 threads for gtf2events.py)
-jaccard_indices_rep1_vs_rep2 <- purrr::map2(
-  # read in lists of combined and merged event coordinate dataframes and iterate the two simultaneously
-  rep1_events_from_bam2gtf_one_thread_list,
-  rep2_events_from_bam2gtf_one_thread_list,
-  # take the matching two dataframes from the rep1 and rep2 input lists
-  \(rep1_df, rep2_df){
-    # obtain set of position IDs 
-    rep1_set <- rep1_df$pos_id
-    rep2_set <- rep2_df$pos_id
-    
-    # calculate Jaccard index of position IDs
-    length(intersect(rep1_set, rep2_set)) / length(union(rep1_set, rep2_set))
-  }
-)
+jaccard_indices_rep1_vs_rep2 <- calculate_jaccard_indices_of_events(rep1_events_from_bam2gtf_one_thread_list,
+                                                                    rep2_events_from_bam2gtf_one_thread_list,
+                                                                    pos_id)
 ```
 
 Print results

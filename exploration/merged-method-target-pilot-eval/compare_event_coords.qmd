@@ -72,9 +72,10 @@ event_coords <- file_paths |>
 
 # Calculate list of Jaccard indices for event coordinate file pairs
 # Similarity scores between events files made from combined vs. merged method
-calculate_jaccard_indices_of_events <- function(list1, 
-                                                list2, 
-                                                pos_id) {
+calculate_jaccard_indices_of_events <- function(
+  list1,
+  list2
+) {
   purrr::map2(
   # read in lists of event coordinate dataframes to compare and iterate the two simultaneously
   list1,
@@ -176,7 +177,7 @@ rep2_events_from_bam2gtf_one_thread_list <- read_in_events(rep2_events_from_bam2
 Calculate Jaccard similarity index for each set of position IDs for each splice event type identified from each Shiba run method
 
 ```{r}
-jaccard_indices_comb_vs_merged <- calculate_jaccard_indices_of_events(combined_events_list, merged_events_list, pos_id)
+jaccard_indices_comb_vs_merged <- calculate_jaccard_indices_of_events(combined_events_list, merged_events_list)
 
 ```
 

@@ -19,43 +19,114 @@ Initial analysis of the GTFs produced by the merged and combined methods also re
 We suspect these differences stem from differences in the order in which files were passed into `stringtie --merge`, and the use of multithreading in merging.
 
 We next wanted to answer how much GTF differences impacted similarity in the coordinates of splice events in the event coordinate files (like `EVENT_RI.txt`).
-For instance, if only one event type's coordinates is disproportionately impacted by GTF differences, 
-we may decide to not include quantification of that event type in the first release of the splice compendium.
-Alternatively, if differences are present throughout all event types, 
-we will need to alter how the GTF is processed to make it more similar to an unaltered Shiba run ("combined" method).
+For instance, if only one event type's coordinates is disproportionately impacted by GTF differences, we may decide to not include quantification of that event type in the first release of the splice compendium.
+Alternatively, if differences are present throughout all event types, we will need to alter how the GTF is processed to make it more similar to an unaltered Shiba run ("combined" method).
+
+Sources of differences we want to test in this notebook are:
+
+- Use of multithreading in the GTF merge command
+
+- Potentially order of GTFs that are merged in
 
 ## Analysis outline
 
-This notebook compares the similarity (Jaccard index) between splice event coordinates identified from different pairs of GTFs generated using different methods:
+This notebook compares the similarity (Jaccard index) between splice event coordinate position IDs from event coordinate files produced from GTFs run with different StringTie conditions:
 
-- Negative control (expected to be identical)
+- **Negative control comparison**: Comparing event coordinates generated from GTFs produced with the same commands (expected to be identical):
 
-  - Two GTFs were generated with the unaltered Shiba v 0.8.1 `bam2gtf.py` script, with one thread, with the following commands:
-    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.annotation.gtf -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf -p 1 -v`
-    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.annotation.gtf -o results/merged_shiba/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf -p 1 -v`
-  - Events coordinates files for both GTFs were generated with unaltered `gtf2events.py` using 10 threads (the amount passed to this script in the splice compendium merged snakemake workflow) with the following commands:
-    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i target_pilot_gtf_tests/one_thread_pilot_gtf.gtf -r references/gencode.v47.primary_assembly.annotation.gtf -o shiba_pilot_gtf_events -p 10 -v`
-    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i /scratch/celiang/target_pilot_gtfs/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o /scratch/celiang/shiba_event_to_gtf_tests/shiba_pilot_gtf_events_rep2 -p 10 -v`
+  - Two GTFs were generated with the unaltered Shiba v 0.8.1 `bam2gtf.py` script, with one thread, with the same commands
+  - Events coordinates files for both GTFs were generated with unaltered `gtf2events.py` using 10 threads (the amount passed to this script in the splice compendium merged snakemake workflow) with the same commands. 
+  Position IDs from these coordinate files are compared for similarity with Jaccard indices in this notebook.
+  - Replicate 1 files and commands used to generate them
+    - **Input GTF replicate 1:** 
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py 
+    -i exploration/merging-psi-tables/target_pilot/experiment.tsv 
+    -r references/gencode.v47.primary_assembly.annotation.gtf 
+    -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf 
+    -p 1 
+    -v`
+    - **Events files generated from input GTF 1:** 
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
+    -i target_pilot_gtf_tests/one_thread_pilot_gtf.gtf 
+    -r references/gencode.v47.primary_assembly.annotation.gtf 
+    -o shiba_pilot_gtf_events 
+    -p 10 
+    -v`
+  - Replicate 2 files and commands used to generate them
+    - **Input GTF replicate 2:** 
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py 
+    -i exploration/merging-psi-tables/target_pilot/experiment.tsv 
+    -r references/gencode.v47.primary_assembly.annotation.gtf 
+    -o results/merged_shiba/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf 
+    -p 1 
+    -v`
+    - **Events files generated from input GTF 2:** 
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
+    -i /scratch/celiang/target_pilot_gtfs/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf 
+    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
+    -o /scratch/celiang/shiba_event_to_gtf_tests/shiba_pilot_gtf_events_rep2 
+    -p 10 
+    -v`
+
+- **Multiple threads test:** 
+To what extent does using multiple threads change events coordinates defined by GTFs made with the same commands?
+
+  - Two GTFs were generated with the unaltered Shiba v 0.8.1 `bam2gtf.py` script, with 15 threads, with the same commands
+
+  - Events coordinates files for both GTFs were generated with unaltered `gtf2events.py` using 10 threads (the amount passed to this script in the splice compendium merged snakemake workflow) with the same commands.
+    Position IDs from these coordinate files are compared for similarity with Jaccard indices in this notebook.
+
+  - Replicate 1 files and commands used to generate them:
+
+    - **Input GTF replicate 1:** 
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py 
+    -i experiment_scratch.tsv 
+    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
+    -o target_pilot_gtfs/15_threads_rep1/15_threads_pilot_gtf.gtf 
+    -p 15 
+    -v`
+
+    - **Events files generated from input GTF 1:**
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
+    -i target_pilot_gtfs/15_threads_rep1/15_threads_pilot_gtf.gtf 
+    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
+    -o shiba_gtf_to_event_pilot_tests/15threads_events_rep1 
+    -p 10 
+    -v`
+
+  - Replicate 2 files and commands used to generate them:
+
+    - **Input GTF replicate 2:** 
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py 
+    -i experiment_scratch.tsv 
+    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
+    -o target_pilot_gtfs/15_threads_rep2/15_threads_pilot_gtf.gtf 
+    -p 15 
+    -v`
+
+    - **Events files generated from input GTF 2:**
+    `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
+    -i target_pilot_gtfs/15_threads_rep2/15_threads_pilot_gtf.gtf 
+    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
+    -o shiba_gtf_to_event_pilot_tests/15threads_events_rep2 
+    -p 10 
+    -v`
 
 - Merged vs. combined method: To what extent are event coordinates defined with the merged and combined methods different?
 
-  - Merged GTF: Individual GTFs for each sample were first generated with `shiba-0.8.1-0/src/bam2gtf.py` with `Snakefile` by merging one sample's StringTie GTF and the reference GTF.
-    Then, these GTFs were merged together, along with the reference with a final `stringtie —merge` command with `merge_results.smk`.
-    4 threads were used in both merge steps (one-sample and 88 samples).
+  - Merged method files and commands used to generate them:
 
-    - Events coordinates files were made using `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` called by `merge_results.smk` , with 10 threads
+    - **Merged input GTF:** Individual GTFs for each sample were first generated with `shiba-0.8.1-0/src/bam2gtf.py` with `Snakefile` by merging one sample’s StringTie GTF and the reference GTF.
+      Then, these GTFs were merged together, along with the reference with a final `stringtie —merge` command with `merge_results.smk`.
+      4 threads were used in the merge step.
 
-  - Combined GTF: Separate GTFs for 88 TARGET pilot samples were greated with StringTie, then merged together with the reference using `stringtie -–merge` using the unaltered `shiba-0.8.1-0/src/bam2gtf` and 15 threads.
+    - **Events files generated from input merged GTF:** Events coordinates files were made using `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` called by `merge_results.smk` , with 10 threads
 
-    - Events coordinates files were made using `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` as part of the unaltered `shiba.py` workflow, with 15 threads.
+  - Combined method files and commands used to generate them:
 
-- Multiple threads test: To what extent does using multiple threads change events coordinates defined by GTFs made with the same commands?
+    - **Combined input GTF:** Separate GTFs for 88 TARGET pilot samples were greated with StringTie, then merged together with the reference using `stringtie -–merge` using the unaltered `shiba-0.8.1-0/src/bam2gtf` and 15 threads.
 
-  -  Two GTFs were generated with the unaltered Shiba v 0.8.1 `bam2gtf.py` script, with 4 threads, with the following commands:
-
-    - `time python $CONDA_PREFIX/share/shiba-0.8.1-0/src /bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.a nnotation.gtf -o results/merged_shiba/target_pilot_gtf_tests_multithread/four_thread_pilot_gtf.gtf -p 4 -v`
-
-    - `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i exploration/merging-psi-tables/target_pilot/experiment.tsv -r references/gencode.v47.primary_assembly.annotation.gtf -o results/merged_shiba/target_pilot_gtf_tests_multithread_rep2/four_thread_pilot_gtf.gtf -p 4 -v`
+    - **Events files generated from input combined GTF:** Events coordinates files were made using `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` as part of the unaltered `shiba.py` workflow, with 15 threads.
 
 ## Setup
 
@@ -180,7 +251,6 @@ Calculate Jaccard similarity index for each set of position IDs for each splice 
 jaccard_indices_comb_vs_merged <- calculate_jaccard_indices_of_events(combined_events_list, merged_events_list)
 
 ```
-
 
 ```{r calculate_jaccard}
 

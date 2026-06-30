@@ -33,4 +33,4 @@ exploration/merged_shiba_test/shiba_results/combined_run/*
 exploration/merged_shiba_test/shiba_results/merged_method
 
 # Files for testing sources of differences in merged results
-exploration/merged_shiba_target_pilot
+exploration/merged_shiba_test/shiba_gtf_to_event_pilot_tests

@@ -1,0 +1,38 @@
+'results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf', 'results/merged_shib
+a/target_pilot_gtf_tests/SRR1559043.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559044.assembled.gtf', 'resu
+lts/merged_shiba/target_pilot_gtf_tests/SRR1559052.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559054.assemb
+led.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559075.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559100.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559105.assembled.gtf', 'results/merged_shiba/target_pil
+ot_gtf_tests/SRR1559133.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559134.assembled.gtf', 'results/merged_s
+hiba/target_pilot_gtf_tests/SRR1559145.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559160.assembled.gtf', 'r
+esults/merged_shiba/target_pilot_gtf_tests/SRR1559164.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559177.ass
+embled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1559183.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests
+/SRR1559184.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712453.assembled.gtf', 'results/merged_shiba/target_
+pilot_gtf_tests/SRR1712454.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712455.assembled.gtf', 'results/merge
+d_shiba/target_pilot_gtf_tests/SRR1712456.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712457.assembled.gtf',
+ 'results/merged_shiba/target_pilot_gtf_tests/SRR1712458.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712459.
+assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712460.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_te
+sts/SRR1712461.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712462.assembled.gtf', 'results/merged_shiba/targ
+et_pilot_gtf_tests/SRR1712463.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1712464.assembled.gtf', 'results/me
+rged_shiba/target_pilot_gtf_tests/SRR1712465.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1784865.assembled.gt
+f', 'results/merged_shiba/target_pilot_gtf_tests/SRR1784867.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1791016.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1791028.assembled.gtf', 'results/merged_shiba/target_pilot_gtf
+_tests/SRR1791108.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1796863.assembled.gtf', 'results/merged_shiba/t
+arget_pilot_gtf_tests/SRR1796867.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1796893.assembled.gtf', 'results
+/merged_shiba/target_pilot_gtf_tests/SRR1796906.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1796912.assembled
+.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1796939.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1796967.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1796990.assembled.gtf', 'results/merged_shiba/target_pilot_
+gtf_tests/SRR1797014.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797024.assembled.gtf', 'results/merged_shib
+a/target_pilot_gtf_tests/SRR1797033.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797034.assembled.gtf', 'resu
+lts/merged_shiba/target_pilot_gtf_tests/SRR1797035.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797039.assemb
+led.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797052.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797053.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797055.assembled.gtf', 'results/merged_shiba/target_pil
+ot_gtf_tests/SRR1797057.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797087.assembled.gtf', 'results/merged_s
+hiba/target_pilot_gtf_tests/SRR1797107.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1797111.assembled.gtf', 'r
+esults/merged_shiba/target_pilot_gtf_tests/SRR1799022.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799025.ass
+embled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799041.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests
+/SRR1799042.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799057.assembled.gtf', 'results/merged_shiba/target_
+pilot_gtf_tests/SRR1799058.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799059.assembled.gtf', 'results/merge
+d_shiba/target_pilot_gtf_tests/SRR1799061.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799062.assembled.gtf',
+ 'results/merged_shiba/target_pilot_gtf_tests/SRR1799067.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799069.
+assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR1799081.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_te
+sts/SRR1810588.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2042833.assembled.gtf', 'results/merged_shiba/targ
+et_pilot_gtf_tests/SRR2042845.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2042853.assembled.gtf', 'results/me
+rged_shiba/target_pilot_gtf_tests/SRR2042854.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2042856.assembled.gt
+f', 'results/merged_shiba/target_pilot_gtf_tests/SRR2083154.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2083162.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2083171.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2083176.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2083188.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2239703.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR2239717.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR3162160.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR3162195.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR3162212.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR3162237.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR3162253.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR4376029.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR4416297.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR4419554.assembled.gtf', 'results/merged_shiba/target_pilot_gtf_tests/SRR4419565.assembled.gtf

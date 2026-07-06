@@ -1,0 +1,29 @@
+partitions:
+  gpu:
+    max_mem_mb_per_cpu: 4000
+    max_nodes: 6
+    max_runtime: 7-00:00:00
+    max_threads: 256
+  high_priority:
+    max_mem_mb_per_cpu: 4000
+    max_runtime: 7-00:00:00
+    max_threads: 282
+  long:
+    max_mem_mb_per_cpu: 4000
+    max_nodes: 15
+    max_runtime: 14-00:00:00
+    max_threads: 289
+  medium:
+    max_mem_mb_per_cpu: 4000
+    max_nodes: 15
+    max_runtime: '12:00:00'
+    max_threads: 289
+  short:
+    max_mem_mb_per_cpu: 4000
+    max_nodes: 20
+    max_runtime: 01:00:00
+    max_threads: 289
+  simple_nodelist:
+    max_mem_mb_per_cpu: 4000
+    max_runtime: 00:01:00
+    max_threads: 281

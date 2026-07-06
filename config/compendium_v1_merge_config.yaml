@@ -1,3 +1,4 @@
+# Purpose: For running splice compendium workflow on splice compendium v1 files (n = 2581, spanning TARGET and GTEx)
 # path to sample sheet (tsv format, columns: group, sample)
 sample_sheet: config/sample_sheet.tsv
 # shiba psi calculation parameters

@@ -1,3 +1,4 @@
+# Purpose: For testing workflow on a smaller set of samples (88 TARGET pilot samples)
 # path to sample sheet (tsv format, columns: group, sample)
 sample_sheet: exploration/merging-psi-tables/target_pilot/experiment.tsv
 # shiba psi calculation parameters

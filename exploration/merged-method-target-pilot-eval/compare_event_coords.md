@@ -1,6 +1,6 @@
 # Compare splice event coordinates between merged and combined Shiba runs
 Cindy Liang (celiang@ucsc.edu)
-2026-07-05
+2026-07-06
 
 ## Background
 
@@ -282,7 +282,7 @@ jaccard_indices_multithreading <- calculate_jaccard_indices_of_events(
 )
 
 # scrambled GTF order comparison (same threads)
-scrambled_order <- calculate_jaccard_indices_of_events(
+jaccard_indices_scrambled <- calculate_jaccard_indices_of_events(
   multithread_rep1_list,
   scrambled_list
 )
@@ -299,14 +299,10 @@ Print results
 # convert list of jaccard indices into a dataframe
 jaccard_df <- data.frame(
   event_type = names(jaccard_indices_merged_vs_combined),
-  neg_ctrl = unlist(jaccard_indices_neg_ctrl,
-                            use.names = FALSE),
-  same_threads = unlist(jaccard_indices_multithreading,
-                               use.names = FALSE),
-  scrambled = unlist(scrambled_order,
-                                use.names = FALSE),
-  merged_vs_combined = unlist(jaccard_indices_merged_vs_combined,
-                         use.names = FALSE)
+  neg_ctrl = unlist(jaccard_indices_neg_ctrl, use.names = FALSE),
+  same_threads = unlist(jaccard_indices_multithreading, use.names = FALSE),
+  scrambled = unlist(jaccard_indices_scrambled, use.names = FALSE),
+  merged_vs_combined = unlist(jaccard_indices_merged_vs_combined, use.names = FALSE)
 )
 
 jaccard_df

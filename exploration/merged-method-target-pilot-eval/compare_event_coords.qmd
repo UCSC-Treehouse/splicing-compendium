@@ -236,7 +236,7 @@ jaccard_indices_multithreading <- calculate_jaccard_indices_of_events(
 )
 
 # scrambled GTF order comparison (same threads)
-scrambled_order <- calculate_jaccard_indices_of_events(
+jaccard_indices_scambled <- calculate_jaccard_indices_of_events(
   multithread_rep1_list,
   scrambled_list
 )

@@ -18,8 +18,16 @@ option_list <-list(
   make_option(
     opt_str = "--experiment_file",
     type = "character",
+    default = "experiment.tsv",
     action = "store",
-    help = "Name of experiment.tsv file to scramble")
+    help = "Name of experiment.tsv file to scramble"),
+  
+  make_option(
+    opt_str = "--output",
+    type = "character",
+    default = "scrambled_experiment.tsv",
+    action = "store",
+    help = "Name of output scrambled experiment file")
 )
 
 # Parse options
@@ -38,7 +46,7 @@ splice_event_test_dir <- file.path(method_tests_dir, "shiba_gtf_to_event_pilot_t
 # target pilot experiment.tsv
 experiment_file <- file.path(splice_event_test_dir , opt$experiment_file)
 # output experiment.tsv with scrambled row (sample) order
-out_file <- file.path(splice_event_test_dir, "scrambled_experiment.tsv")
+out_file <- file.path(splice_event_test_dir, opt$output)
 
 # --- Read in files ---
 # set seed for reproducibility
@@ -47,7 +55,7 @@ set.seed(1)
 experiment_table <- readr::read_tsv(experiment_file, col_types = "c")
 
 # scramble order of rows in dataframe
-experiment_table <- experiment_table |> dplyr::slice_sample(n = 88)
+experiment_table <- experiment_table |> dplyr::slice_sample(n = Inf)
 
 # --- Write output ---
 readr::write_tsv(experiment_table, file = out_file)

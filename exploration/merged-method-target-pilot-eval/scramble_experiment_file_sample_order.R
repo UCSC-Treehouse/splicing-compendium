@@ -47,7 +47,7 @@ set.seed(1)
 experiment_table <- readr::read_tsv(experiment_file, col_types = "c")
 
 # scramble order of rows in dataframe
-experiment_table <- experiment_table |> dplyr::slice_sample(n = 88)
+experiment_table <- experiment_table |> dplyr::slice_sample(n = Inf)
 
 # --- Write output ---
 readr::write_tsv(experiment_table, file = out_file)

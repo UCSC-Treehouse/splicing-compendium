@@ -873,10 +873,16 @@ Figure 10
 
 </div>
 
-I mainly see that these missing values are present more in the
-unannotated events, where the event is only quantified in a small number
-of samples. In both
+Missing values are present in both annotated and unannotated events. The
+annotated events that are missed in the separate method are mainly in
+only a few ( n \< 5 ) samples. In contrast, almost all unannotated
+events that are dropped are present in over 75/88 samples. In both
 <a href="#fig-num_separate_table_na" class="quarto-xref">Figure 9</a>
 and <a href="#fig-num_separate_table_na_se"
 class="quarto-xref">Figure 10</a>, the events that are dropped are
 absent in most samples.
+
+Because of the extent of missing splice events in the separate method,
+the conclusion from this analysis is that we need to revise the method
+to allow for splice events that have only one transcript and events that
+are only found in one sample to be quantified in the final workflow.

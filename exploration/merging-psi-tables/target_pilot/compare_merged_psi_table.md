@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-05-24
+2026-07-06
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -804,7 +804,7 @@ all_events |>
 
 all_events |>
   dplyr::filter(event_type == "se") |>
-  number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in separate table") + plot_layout(guides = "collect")
+  number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
 
 <div id="fig-num_low_read_na_se">

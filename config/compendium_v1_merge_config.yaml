@@ -1,0 +1,12 @@
+# Purpose: For running splice compendium workflow on splice compendium v1 files (n = 2581, spanning TARGET and GTEx)
+# path to sample sheet (tsv format, columns: group, sample)
+sample_sheet: config/sample_sheet.tsv
+# shiba psi calculation parameters
+shiba_min_reads: 10 # default = 10
+# version name of splice analysis run (e.g. v1, v2, v3)
+version: splice_compendium_v1
+genome_id: gencode.v47.primary_assembly
+genome_assembly: GRCh38.primary_assembly.genome
+# shiba scripts dir is relative to conda prefix (preceded by conda prefix)
+shiba_scripts_path: share/shiba-0.8.1-0/src
+reference_gtf: references/gencode.v47.primary_assembly.annotation.gtf

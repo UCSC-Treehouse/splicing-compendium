@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-07-06
+2026-07-07
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -655,11 +655,13 @@ events_summary_min_separate_samples |>
 | ri         | annotated   |         9585 |                1675 |                   0 |
 | ri         | unannotated |         6692 |                1139 |                   0 |
 
-Observations: - Although most events are shared after applying this
-filter and we still have unannotated events, we also still have events
-only found in the separate table. These events are harder to deal with
-because they may be real events mislabeled by Shiba, or they may be
-unreal events (we cannot easily tell)
+Observations:
+
+- Although most events are shared after applying this filter and we
+  still have unannotated events, we also still have events only found in
+  the separate table. These events are harder to deal with because they
+  may be real events mislabeled by Shiba, or they may be unreal events
+  (we cannot easily tell)
 
 #### Plot event distributions of the filtered combined table
 
@@ -710,15 +712,18 @@ events_summary_min_combined_samples |>
 | ri         | unannotated |        23495 |                   0 |                9636 |
 | ri         | annotated   |        10010 |                   0 |                 130 |
 
-Observations: \* We can see that the filtered combined table results in
-more shared events that are unannotated, compared to the filtered
-separate table (by maybe 5x, looking at the Y axis scale). \* There are
-also a high number of combined_only events that are missed in the
-separate tables, even after filtering for combined events that are
-present in min_samples. There are ~5,000 skipped exon events only in the
-combined table that are in min_samples that are missed in the separate
-tables. That’s more than the total number of skipped exon events
-remaining in the min_samples filtered separate table.
+Observations:
+
+- We can see that the filtered combined table results in more shared
+  events that are unannotated, compared to the filtered separate table
+  (by maybe 5x, looking at the Y axis scale).
+
+- There are also a high number of combined_only events that are missed
+  in the separate tables, even after filtering for combined events that
+  are present in min_samples. There are ~5,000 skipped exon events only
+  in the combined table that are in min_samples that are missed in the
+  separate tables. That’s more than the total number of skipped exon
+  events remaining in the min_samples filtered separate table.
 
 ## How many of each splice event types are quantified?
 

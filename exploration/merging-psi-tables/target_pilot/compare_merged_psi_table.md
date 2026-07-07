@@ -1,6 +1,10 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-04-17
+2026-07-07
+
+**Question:** Does merging separate splice tables cause us to lose out
+on the trustworthiness of unannotated events to an extent that it
+impacts many samples?
 
 As part of our pipeline, we plan to merge Shiba tables created for
 individual samples to obtain a final PSI table of all samples. Before
@@ -16,12 +20,46 @@ with different negative values:
 
 - -2: NA values from merging the separate tables together (samples have
   a NA value after this step if there are genes dropped by Shiba for
-  those samples because there is only one transcript detected for that
-  gene)
+  those samples because there is only one transcript detected in the GTF
+  for that gene)
 
 - NA: NA values from merging the separate and combined tables. These NAs
   represent splice events that are only found in one analysis method
   (combined vs. separate)
+
+We are particularly interested in the impact merging separate tables has
+on unannotated event detection, since this is why we chose to use Shiba
+over other tools.
+
+**Targeted questions this notebook is trying to answer:**
+
+- What splice event types do we miss out on with the separate tables
+  method?
+- Of splice events with high numbers of NA values, how many of these
+  events only have a numeric PSI value in one (or a very low amount of)
+  samples?
+- How many NA values of different NA types are there in each type of
+  splice table? How are they distributed across events? I am more
+  concerned with the merge NAs (-2), as there is no good way to replace
+  them in the separate tables (they could either be 0 or 1). Another
+  concern is events that are only found in the combined table, or only
+  found in the separate table, as there is no easy way to correct for
+  those.
+- Can the number of NA values be reduced in the separate tables method
+  if we filter for events with numeric PSI values in a minimum number of
+  samples?
+- What is the relationship between PSI values and NAs in each splice
+  table type?
+- What is the relationship between PSI values and NAs in each splice
+  table type after filtering for events with numeric PSI values in a
+  minimum number of samples? Assuming the Shiba NAs (-1) are from low
+  read support, do the separate and combined tables always call the same
+  events as a Shiba NA? Merge NAs (-2) should arise from events dropped
+  by Shiba due to lack of alternative transcripts for a gene, so we
+  expect these NAs to be 0 or 1.
+- How well correlated are the number of NA values in each event type for
+  each PSI table type?
+- How well correlated are the PSI values of events that are shared?
 
 ## Set up
 
@@ -44,25 +82,9 @@ psi_distributions <- function(
           axis.text.x = element_text(angle =45))
 }
 
-# event summary plots of frequency of events in each category
-event_summary <- function(
-    long_df,
-    min_sample_value) {
-  # filter samples by complete PSI value in min number of samples
-  all_events_n_filtered <- long_df |>
-    dplyr::group_by(pos_id) |>
-    # count number of events are present in each shared status
-    dplyr::mutate(
-      combined_count = sum(method == "combined"),
-      separate_count = sum(method == "separate")
-    ) |>
-    # filter for events with complete PSI values for minimum number of samples
-    dplyr::filter(
-      combined_count >= min_sample_value,
-      separate_count >= min_sample_value
-    ) |>
-    dplyr::ungroup() |>
-    # create summary table for plotting
+# create summary table of events detected
+make_event_summary <- function (events_table) { 
+  events_table |>
     dplyr::summarise(
       .by = c(event_type, label),
       # count number of events in each event type and annotation category
@@ -72,8 +94,8 @@ event_summary <- function(
       separate_only_count = sum(separate_event) - shared_count,
       shared_percent = shared_count / total * 100,
       combined_only_percent = combined_only_count / total * 100,
-      separate_only_percent = separate_only_count / total * 100
-    )
+      separate_only_percent = separate_only_count / total * 100,
+  )
 }
 
 # plot event summary frequencies as percent and raw counts bar plots
@@ -127,6 +149,119 @@ plot_event_summary <- function(
   percent_plot /
     counts_plot
 
+}
+
+# Histogram of quantified events
+number_events_dist <- function(
+    df,
+    psi_type, title) {
+    # construct histogram
+    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
+    geom_histogram(binwidth = 1) +
+    facet_wrap(vars(label)) +
+    scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    # make facet labels bigger
+    theme(strip.text.x = element_text(size = global_size),
+          # rotate x axis labels so they don't overlap
+          axis.text.x = element_text(angle =45)) +
+    ggtitle(title)
+}
+
+## Sample-level functions
+
+# pivot event-level df long
+pivot_long <- function (wide_event_df) {
+  wide_event_df |>
+    dplyr::select(starts_with("SRR"), event_type, pos_id, label) |>
+    tidyr::pivot_longer(
+      cols = matches("_PSI_(combined|separate)$"),
+      names_to = c("sample", ".value"),
+      names_pattern = "(.*)_PSI_(combined|separate)"
+  )}
+
+# event summary plots of frequency of events in each category
+event_summary <- function(
+    long_df,
+    min_sample_value) {
+  # filter samples by complete PSI value in min number of samples
+  all_events_n_filtered <- long_df |>
+    dplyr::group_by(pos_id) |>
+    # count number of events are present in each shared status
+    dplyr::mutate(
+      combined_count = sum(method == "combined"),
+      separate_count = sum(method == "separate")
+    ) |>
+    # filter for events with complete PSI values for minimum number of samples
+    dplyr::filter(
+      combined_count >= min_sample_value,
+      separate_count >= min_sample_value
+    ) |>
+    dplyr::ungroup() |>
+    # create summary table for plotting
+    dplyr::summarise(
+      .by = c(event_type, label),
+      # count number of events in each event type and annotation category
+      total = dplyr::n(),
+      shared_count = sum(shared_event),
+      combined_only_count = sum(combined_event) - shared_count,
+      separate_only_count = sum(separate_event) - shared_count,
+      shared_percent = shared_count / total * 100,
+      combined_only_percent = combined_only_count / total * 100,
+      separate_only_percent = separate_only_count / total * 100
+    )
+}
+
+# Create summary table of number and percentage of events in each PSI-NA matchup category
+na_comparison_summary <- function(long_df) {
+  long_df |>
+    # try to get rid of the NA NAs here
+    tidyr::drop_na() |>
+    dplyr::mutate(
+      match_category =
+        dplyr::case_when(
+          separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
+          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+        )
+    ) |>
+    dplyr::summarise(
+      .by = c(match_category),
+      count = dplyr::n()
+    ) |>
+    dplyr::mutate(
+      total = sum(count),
+      percent = count / total * 100
+    )
+}
+
+# plot PSI distributions of events with numeric PSI values in combined tables but are dropped in separate tables
+psi_values_lost_in_separate <- function(na_comparison_df) {
+  na_comparison_df |>
+    # drop NAs from putting together the separate and combined tables
+    tidyr::drop_na() |>
+    # assign match categories
+    dplyr::mutate(
+      match_category =
+        dplyr::case_when(
+          separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
+          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+        )
+    ) |>
+    # plot only events in combined table with numeric PSIs that are dropped in the separate table
+    dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
+      ggplot(aes(combined, fill = event_type)) +
+      geom_histogram(bins = 20) +
+      facet_wrap(vars(event_type, label)) +
+    scale_fill_manual(values = cbPalette) +
+      plot_theme +
+      # make facet labels bigger
+      theme(strip.text.x = element_text(size = global_size),
+            # rotate x axis labels so they don't overlap
+            axis.text.x = element_text(angle =45))
 }
 ```
 
@@ -211,7 +346,7 @@ dim(combined_psi_table)
 There are 71,811 more splice events in the separate PSI table than the
 combined table.
 
-## Examine splice events that are consistently present in both combined and separate splice tables
+## What splice event types do we miss out on with the separate tables method?
 
 To help us prioritize what splice event types we may be the most
 confident in after merging separate Shiba PSI tables, we are interested
@@ -219,7 +354,10 @@ in seeing a breakdown of what event types are most represented in PSI
 tables constructed from different methods
 
 ``` r
-# obtain df of splice events that are shared between both combined and separate tables
+# create df of splice events that are shared between both combined and separate tables
+# This is an event-level dataframe (each row is one unique pos_id/event_id)
+# columns are each samples' PSI value (with -1/-2/NA values indicating different NA categories)
+# combined_event, separate_event, and shared_event columns label what tables the event is present in
 all_events <- dplyr::full_join(
   combined_psi_table,
   separate_psi_table,
@@ -230,7 +368,7 @@ all_events <- dplyr::full_join(
   dplyr::mutate(
     # combined events are counted if the values are not all NA
     combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
-    # separate events are counted if the values for the event are not all NA (indicating the splice event is only found in the combined or separate table)
+    # separate events are counted if the values for the event are not all NA (indicating the specific position ID is only found in the combined or separate table)
     separate_event = ! dplyr::if_all(ends_with("_separate"), is.na),
     shared_event = combined_event & separate_event
   )
@@ -239,6 +377,9 @@ all_events <- dplyr::full_join(
 Print summary of counts across each method, across all event types
 
 ``` r
+# number of total events shared or present only in the combined and separate tables
+# this table counts events with -1 and -2 PSI values
+
 all_methods_summary <- all_events |> dplyr::summarise(
     # count number of events in each event type and annotation category
     shared_count = sum(shared_event),
@@ -257,18 +398,8 @@ Print summary of counts and percentages across each method, broken down
 by event type
 
 ``` r
-all_events_summary <- all_events |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    combined_only_count = sum(combined_event) - shared_count,
-    separate_only_count = sum(separate_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    combined_only_percent = combined_only_count / total * 100,
-    separate_only_percent = separate_only_count / total * 100,
-)
-
+# event-level summary of the number of each splice event type in each splice table
+all_events_summary <- make_event_summary(all_events)
 all_events_summary
 ```
 
@@ -291,35 +422,11 @@ all_events_summary
 | ri | unannotated | 51635 | 26113 | 10031 | 15491 | 50.57229 | 19.4267454 | 30.000968 |
 | ri | annotated | 16349 | 13048 | 158 | 3143 | 79.80916 | 0.9664200 | 19.224417 |
 
-### Visualize breakdown of shared events with stacked bar plots
+Plot event-level (one count per unique event) summary of event frequency
+across methods and event types
 
 ``` r
-# pivot summary plot longer so we can make grouped bar plots of the percentages
-long_all_events_summary <- all_events_summary |>
-  tidyr::pivot_longer(
-    cols = c(
-      shared_count,
-      shared_percent,
-      combined_only_count,
-      combined_only_percent,
-      separate_only_count,
-      separate_only_percent),
-    # extract percents and counts as separate columns
-    names_to = c("category", ".value"),
-    names_pattern = "(.+)_(percent|count)"
-  )
-
-ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = percent)) +
-  geom_bar(position = "stack", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "% of splice events in combined, separate, or shared groups",
-    x = "Annotation status of event",
-    y = "Percentage of events"
-  ) +
-  facet_wrap(vars(label)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
+plot_event_summary(all_events_summary)
 ```
 
 <div id="fig-splice_events_breakdown">
@@ -332,447 +439,455 @@ Figure 1
 
 </div>
 
-Plot raw counts of number of events captured by each method
+The majority of annotated event types are shared between both tables,
+although there are more splice events unique to the separate table
+(green) than the combined table (red). Inflated values in the separate
+tables may be due to -2 NAs which arise in the Shiba processing of
+separate samples when when genes without multiple transcripts are
+dropped.
+
+### What specific event types are impacted (missed) by the separate tables method?
+
+These following plots answer the question for me better than the above
+summary plots.
 
 ``` r
-ggplot(long_all_events_summary, aes(fill = category, x = event_type, y = count)) +
-  geom_bar(position = "dodge", stat = "identity") +
-  plot_theme +
-  labs(
-    title = "Number of splice events only in combined, separate, or shared groups",
-    x = "Annotation status of event",
-    y = "Number of events"
-  ) +
-  facet_wrap(vars(label)) +
-  scale_x_discrete(guide = guide_axis(angle = 45)) +
-  plot_theme
+combined_only_summary <- all_events_summary |>
+  dplyr::select(event_type, label, combined_only_count, total, combined_only_percent)
+
+long_summary_df <- combined_only_summary |>
+    tidyr::pivot_longer(
+      cols = c(
+        combined_only_count,
+        combined_only_percent
+      ),
+      # extract percents and counts into separate columns
+      names_to = c("category", ".value"),
+      names_pattern = "(.+)_(percent|count)"
+    )
+
+# create raw counts grouped barplot
+counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = count)) +
+    geom_bar(stat = "identity") +
+      scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    labs(
+      title = "# annotated and unannotated splice events only in combined table",
+      x = "Event Type",
+      y = "Number of events"
+    ) +
+    facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    theme(strip.text = element_text(size = 15))
+
+# create percents grouped barplot
+percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = percent)) +
+    geom_bar(position = "dodge", stat = "identity") +
+      scale_fill_manual(values = cbPalette) +
+    plot_theme +
+    labs(
+      title = "% annotated and unannotated splice events only in combined table",
+      x = "Annotation status of event",
+      y = "Percent of all events"
+    ) +
+    facet_wrap(vars(label)) +
+    scale_x_discrete(guide = guide_axis(angle = 45)) +
+    theme(strip.text = element_text(size = 15))
+
+
+percents_plot /
+  counts_plot + plot_layout(guides = "collect")
 ```
 
-<div id="fig-splice_events_breakdown_counts">
+<div id="fig-combined_only_splice_events">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_counts-1.png"
-id="fig-splice_events_breakdown_counts" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-combined_only_splice_events-1.png"
+id="fig-combined_only_splice_events" />
 
 Figure 2
 
 </div>
 
-The majority of annotated event types are shared between both tables,
-although there are more splice events unique to the separate table than
-combined table. The capturing of unannotated event types suffers more
-from merging separate PSI tables. In particular, there are more ALE and
-MXE events only found in the separate PSI tables. For other unannotated
-events, there are 10-30% that are only found in the separate PSI.
+I think of these as “percent of each event category missed in the
+separate tables”. In the worst cases, 30% of unannotated events might be
+only in the combined table (FIVE events). Losing 30% of unannotated real
+events seems rough.
 
-### Check how similar PSI values of shared events are
+### How many events remain if we filter for events with PSI values in a minimum number of samples?
 
-Pivot longer for correlation calculations
+- Of splice events with high numbers of NA values, how many of these
+  events only have a numeric PSI value in one (or a very low amount of)
+  samples?
+
+Add summary columns to dataframe
 
 ``` r
-# Pivot all events df longer
-long_all_events <- all_events |>
-  tidyr::pivot_longer(
-    cols = matches("_combined|_separate"),
-    names_to = c("sample", "method"),
-    values_to = "PSI",
-    names_pattern = "(.*)_(combined|separate)"
-  ) |>
-  # drop NA values, including those coded as negative PSI
-  dplyr::filter(PSI >= 0)
-
-# pivot wider for correlation calculations
-all_events_by_method <- long_all_events |>
-  tidyr:: pivot_wider(
-    names_from = method,
-    values_from = PSI
+all_events <- all_events |>
+  dplyr::mutate(
+    ## count PSI value types in separate table ##
+    # count the number of PSI values that are not one of our NA types
+    n_quantified_separate = rowSums(
+      # select sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0, 
+      # ignore NA values (events only in separate or combined tables)
+      na.rm = TRUE),
+    # count the number of PSI values dropped due to insufficient reads
+    n_shiba_na_separate = rowSums(
+      # select sample PSI values that have -1 NA type
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) == -1,
+      na.rm = TRUE),
+    # count number of PSI values dropped due to lack of transcript diversity in single samples
+    n_dropped_separate = rowSums(
+      # elect sample PSI values that have -2 NA type
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) == -2
+    ),
+    ## count PSI value types in combined table ##    
+    # count the number of PSI values that are not one of our NA types
+    n_quantified_combined = rowSums(
+      # select sample PSI values that are not one of our NA types
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0, 
+      # ignore NA values (events only in separate or combined tables)
+      na.rm = TRUE),
+    # count the number of PSI values dropped due to insufficient reads
+    n_shiba_na_combined = rowSums(
+      # select sample PSI values that have -1 NA type
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) == -1,
+      na.rm = TRUE),
+    # count number of PSI values dropped due to lack of transcript diversity in single samples
+    n_dropped_combined = rowSums(
+      # elect sample PSI values that have -2 NA type
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) == -2
+    )
   )
+
+# check what summary looks like
+all_events |>
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
+  head()
 ```
 
-### Create table of correlation scores for shared event
+| pos_id | n_quantified_separate | n_shiba_na_separate | n_dropped_separate | n_quantified_combined | n_shiba_na_combined | n_dropped_combined |
+|:---|---:|---:|---:|---:|---:|---:|
+| SE@GL000008.2@129985-130583@85625-155430 | 2 | 24 | 62 | 2 | 86 | 0 |
+| SE@GL000008.2@135134-135173@85625-155430 | 1 | 19 | 68 | 1 | 87 | 0 |
+| SE@GL000008.2@154869-154964@154715-156667 | 2 | 30 | 56 | 2 | 86 | 0 |
+| SE@GL000008.2@155430-155531@135173-156721 | 3 | 24 | 61 | 3 | 85 | 0 |
+| SE@GL000008.2@156667-156758@154715-157528 | 1 | 25 | 62 | 1 | 87 | 0 |
+| SE@GL000008.2@156667-156761@154715-157528 | 1 | 28 | 59 | 1 | 87 | 0 |
+
+Filter for minimum samples with numeric PSI values in the separate table
+and check n_quantified. The resulting summaries of this filtered table
+will be incomplete, as it will not contain information of events in the
+combined table that are present in min_samples but are missed completely
+in the separate tables.
 
 ``` r
-correlation_df <- all_events_by_method |>
-  dplyr::summarize(
-    .by = event_type,
-    # correlation coefficients are overestimated here because we remove incomplete observations
-    pearson_r = cor(combined, separate, method = "pearson", use = "complete.obs"),
-    pearson_r2 = pearson_r ** 2,
-    spearman_rho = cor(combined, separate, method = "spearman", use = "complete.obs")
-  )
+# event-level summary of the number of each splice event type in each splice table
+all_events_min_samples <- all_events |>
+  # filter for events where there are numeric PSI values in at least 5 samples
+  dplyr::filter(n_quantified_separate >= min_samples | n_quantified_combined >= min_samples)
 
-# print correlation table
-correlation_df
+# check what summary columns look like
+all_events_min_samples  |>
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
+  dplyr::arrange((n_quantified_separate)) |>
+  head()
 ```
 
-| event_type | pearson_r | pearson_r2 | spearman_rho |
-|:-----------|----------:|-----------:|-------------:|
-| se         |         1 |          1 |            1 |
-| afe        |         1 |          1 |            1 |
-| ale        |         1 |          1 |            1 |
-| five       |         1 |          1 |            1 |
-| three      |         1 |          1 |            1 |
-| mse        |         1 |          1 |            1 |
-| mxe        |         1 |          1 |            1 |
-| ri         |         1 |          1 |            1 |
+| pos_id | n_quantified_separate | n_shiba_na_separate | n_dropped_separate | n_quantified_combined | n_shiba_na_combined | n_dropped_combined |
+|:---|---:|---:|---:|---:|---:|---:|
+| SE@GL000195.1@143417-149164@142240-151955 | 0 | 1 | 87 | 11 | 77 | 0 |
+| SE@GL000195.1@143417-149164@142240-154339 | 0 | 1 | 87 | 11 | 77 | 0 |
+| SE@GL000195.1@143417-149164@142240-172694 | 0 | 1 | 87 | 16 | 72 | 0 |
+| SE@GL000195.1@143417-149164@142240-157171 | 0 | 1 | 87 | 11 | 77 | 0 |
+| SE@GL000195.1@143417-149164@142240-149745 | 0 | 1 | 87 | 13 | 75 | 0 |
+| SE@GL000195.1@143417-149164@142240-164904 | 0 | 1 | 87 | 11 | 77 | 0 |
 
-Check whether shared events have the same PSI values
+#### Plot event distributions of the filtered separate table
 
 ``` r
-# omit NAs
-complete_all_events_by_method <- na.omit(all_events_by_method)
+# event-level summary of the number of each splice event type in min_sample filtered separate table
+events_summary_min_separate_samples <- all_events_min_samples |>
+  # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
+  # filter for events where min_samples are in separate table only
+  dplyr::filter(n_quantified_separate >= min_samples) |> 
+  make_event_summary()
 
-# check if shared events are equal
-all.equal(complete_all_events_by_method$combined, complete_all_events_by_method$separate)
+plot_event_summary(events_summary_min_separate_samples )
 ```
 
-    [1] TRUE
-
-All shared events have identical PSI values in tables created by the two
-methods.
-
-## Look at splice events present in min number of samples
-
-Filter splice events for those with complete PSI values in \>=
-min_samples samples per method
-
-min_samples = 0
-
-``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 0)
-sample_filtered_event_summary
-```
-
-| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|
-| se | annotated | 6007735 | 5912393 | 49988 | 45354 | 98.41301 | 0.8320607 | 0.7549268 |
-| se | unannotated | 1377003 | 1097878 | 270923 | 8202 | 79.72953 | 19.6748300 | 0.5956414 |
-| afe | unannotated | 2617985 | 1626403 | 945081 | 46501 | 62.12423 | 36.0995575 | 1.7762134 |
-| afe | annotated | 7463265 | 6841408 | 105194 | 516663 | 91.66776 | 1.4094904 | 6.9227476 |
-| ale | annotated | 4508499 | 3754027 | 51713 | 702759 | 83.26556 | 1.1470115 | 15.5874272 |
-| ale | unannotated | 1719648 | 971004 | 709177 | 39467 | 56.46528 | 41.2396607 | 2.2950627 |
-| five | annotated | 1727819 | 1654402 | 56628 | 16789 | 95.75089 | 3.2774266 | 0.9716874 |
-| five | unannotated | 520753 | 375140 | 141204 | 4409 | 72.03799 | 27.1153503 | 0.8466586 |
-| three | annotated | 2177317 | 2108199 | 46695 | 22423 | 96.82554 | 2.1446119 | 1.0298454 |
-| three | unannotated | 580015 | 432786 | 142573 | 4656 | 74.61635 | 24.5809160 | 0.8027379 |
-| mse | annotated | 4433462 | 4382708 | 38956 | 11798 | 98.85521 | 0.8786813 | 0.2661126 |
-| mse | unannotated | 917189 | 629304 | 283494 | 4391 | 68.61225 | 30.9090057 | 0.4787454 |
-| mxe | annotated | 42969 | 36642 | 246 | 6081 | 85.27543 | 0.5725058 | 14.1520631 |
-| mxe | unannotated | 8781 | 3754 | 4678 | 349 | 42.75140 | 53.2741146 | 3.9744904 |
-| ri | unannotated | 2067946 | 1575746 | 452780 | 39420 | 76.19860 | 21.8951559 | 1.9062393 |
-| ri | annotated | 1230532 | 1144768 | 8091 | 77673 | 93.03033 | 0.6575205 | 6.3121479 |
-
-``` r
-plot_event_summary(sample_filtered_event_summary)
-```
-
-<div id="fig-splice_events_breakdown_0">
+<div id="fig-splice_events_breakdown_5_samples_separate">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_0-1.png"
-id="fig-splice_events_breakdown_0" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_5_samples_separate-1.png"
+id="fig-splice_events_breakdown_5_samples_separate" />
 
 Figure 3
 
 </div>
 
-min_samples = 2
+Print table of splice event counts of filtered combined table
 
 ``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 2)
-sample_filtered_event_summary
+events_summary_min_separate_samples |>
+  dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)
 ```
 
-| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|
-| se | annotated | 5918275 | 5840820 | 34424 | 43031 | 98.69126 | 0.5816560 | 0.7270869 |
-| se | unannotated | 537624 | 504068 | 30639 | 2917 | 93.75846 | 5.6989643 | 0.5425725 |
-| afe | annotated | 6642014 | 6622315 | 9887 | 9812 | 99.70342 | 0.1488555 | 0.1477263 |
-| afe | unannotated | 425273 | 415914 | 8519 | 840 | 97.79930 | 2.0031838 | 0.1975202 |
-| ale | annotated | 3606801 | 3602347 | 2289 | 2165 | 99.87651 | 0.0634634 | 0.0600255 |
-| ale | unannotated | 252476 | 250695 | 1639 | 142 | 99.29459 | 0.6491706 | 0.0562430 |
-| five | annotated | 1539201 | 1514038 | 14484 | 10679 | 98.36519 | 0.9410077 | 0.6938015 |
-| five | unannotated | 160653 | 148298 | 11316 | 1039 | 92.30951 | 7.0437527 | 0.6467355 |
-| three | annotated | 2023809 | 1990059 | 16936 | 16814 | 98.33235 | 0.8368379 | 0.8308096 |
-| three | unannotated | 180472 | 166796 | 12198 | 1478 | 92.42209 | 6.7589432 | 0.8189636 |
-| mse | annotated | 4298007 | 4277781 | 10652 | 9574 | 99.52941 | 0.2478358 | 0.2227544 |
-| mse | unannotated | 235009 | 225559 | 8806 | 644 | 95.97888 | 3.7470905 | 0.2740321 |
-| mxe | annotated | 36158 | 36158 | 0 | 0 | 100.00000 | 0.0000000 | 0.0000000 |
-| mxe | unannotated | 1464 | 1278 | 174 | 12 | 87.29508 | 11.8852459 | 0.8196721 |
-| ri | unannotated | 1084979 | 1011589 | 59602 | 13788 | 93.23581 | 5.4933782 | 1.2708080 |
-| ri | annotated | 1211256 | 1133060 | 4737 | 73459 | 93.54422 | 0.3910817 | 6.0646965 |
+| event_type | label       | shared_count | separate_only_count | combined_only_count |
+|:-----------|:------------|-------------:|--------------------:|--------------------:|
+| se         | annotated   |        55020 |                 813 |                   0 |
+| se         | unannotated |         2820 |                 312 |                   0 |
+| afe        | annotated   |        70759 |               10601 |                   0 |
+| afe        | unannotated |         2148 |                1566 |                   0 |
+| ale        | annotated   |        43524 |               13828 |                   0 |
+| ale        | unannotated |         1123 |                1289 |                   0 |
+| five       | annotated   |        13783 |                 423 |                   0 |
+| five       | unannotated |          756 |                 145 |                   0 |
+| three      | annotated   |        18014 |                 472 |                   0 |
+| three      | unannotated |          941 |                 140 |                   0 |
+| mse        | annotated   |        38267 |                 229 |                   0 |
+| mse        | unannotated |         1064 |                 123 |                   0 |
+| mxe        | annotated   |          346 |                 115 |                   0 |
+| mxe        | unannotated |            8 |                   9 |                   0 |
+| ri         | annotated   |         9585 |                1675 |                   0 |
+| ri         | unannotated |         6692 |                1139 |                   0 |
+
+Observations:
+
+- Although most events are shared after applying this filter and we
+  still have unannotated events, we also still have events only found in
+  the separate table. These events are harder to deal with because they
+  may be real events mislabeled by Shiba, or they may be unreal events
+  (we cannot easily tell)
+
+#### Plot event distributions of the filtered combined table
 
 ``` r
-plot_event_summary(sample_filtered_event_summary)
+# event-level summary of the number of each splice event type in min_sample filtered combined table
+events_summary_min_combined_samples <- all_events_min_samples |>
+  # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
+  # filter for events where min_samples are in separate table only
+  dplyr::filter(n_quantified_combined >= min_samples) |> 
+  make_event_summary()
+
+plot_event_summary(events_summary_min_combined_samples)
 ```
 
-<div id="fig-splice_events_breakdown_2">
+<div id="fig-splice_events_breakdown_5_samples_combined">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_2-1.png"
-id="fig-splice_events_breakdown_2" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_5_samples_combined-1.png"
+id="fig-splice_events_breakdown_5_samples_combined" />
 
 Figure 4
 
 </div>
 
-min_samples = 5
+Print table of splice event counts of filtered combined table
 
 ``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 5)
-sample_filtered_event_summary
+events_summary_min_combined_samples |>
+  dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)
 ```
 
-| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|
-| se | annotated | 5844334 | 5768116 | 33274 | 42944 | 98.69587 | 0.5693378 | 0.7347972 |
-| se | unannotated | 228943 | 215037 | 11820 | 2086 | 93.92600 | 5.1628571 | 0.9111438 |
-| afe | annotated | 6461796 | 6443238 | 8809 | 9749 | 99.71280 | 0.1363243 | 0.1508714 |
-| afe | unannotated | 138061 | 134383 | 3119 | 559 | 97.33596 | 2.2591463 | 0.4048935 |
-| ale | annotated | 3486044 | 3481761 | 2129 | 2154 | 99.87714 | 0.0610721 | 0.0617892 |
-| ale | unannotated | 80112 | 79819 | 230 | 63 | 99.63426 | 0.2870981 | 0.0786399 |
-| five | annotated | 1434721 | 1414192 | 10058 | 10471 | 98.56913 | 0.7010422 | 0.7298283 |
-| five | unannotated | 59519 | 55230 | 3615 | 674 | 92.79390 | 6.0736908 | 1.1324115 |
-| three | annotated | 1935179 | 1905618 | 12958 | 16603 | 98.47244 | 0.6696021 | 0.8579568 |
-| three | unannotated | 73963 | 68880 | 3970 | 1113 | 93.12764 | 5.3675486 | 1.5048065 |
-| mse | annotated | 4223652 | 4205478 | 8668 | 9506 | 99.56971 | 0.2052252 | 0.2250659 |
-| mse | unannotated | 86070 | 82800 | 2867 | 403 | 96.20077 | 3.3310096 | 0.4682235 |
-| mxe | annotated | 35461 | 35461 | 0 | 0 | 100.00000 | 0.0000000 | 0.0000000 |
-| mxe | unannotated | 751 | 655 | 86 | 10 | 87.21704 | 11.4513981 | 1.3315579 |
-| ri | annotated | 1196773 | 1119240 | 4461 | 73072 | 93.52149 | 0.3727524 | 6.1057527 |
-| ri | unannotated | 721191 | 676115 | 32519 | 12557 | 93.74978 | 4.5090690 | 1.7411476 |
+| event_type | label       | shared_count | separate_only_count | combined_only_count |
+|:-----------|:------------|-------------:|--------------------:|--------------------:|
+| se         | annotated   |        56860 |                   0 |                 824 |
+| se         | unannotated |        18704 |                   0 |                5643 |
+| afe        | unannotated |        31078 |                   0 |               17502 |
+| afe        | annotated   |        76302 |                   0 |                1784 |
+| ale        | annotated   |        47278 |                   0 |                 919 |
+| ale        | unannotated |        17182 |                   0 |               11613 |
+| five       | annotated   |        17802 |                   0 |                1039 |
+| five       | unannotated |         6805 |                   0 |                3481 |
+| three      | annotated   |        21386 |                   0 |                 893 |
+| three      | unannotated |         7719 |                   0 |                3475 |
+| mse        | annotated   |        40865 |                   0 |                 626 |
+| mse        | unannotated |        10606 |                   0 |                4864 |
+| mxe        | annotated   |          360 |                   0 |                   6 |
+| mxe        | unannotated |           77 |                   0 |                 105 |
+| ri         | unannotated |        23495 |                   0 |                9636 |
+| ri         | annotated   |        10010 |                   0 |                 130 |
+
+Observations:
+
+- We can see that the filtered combined table results in more shared
+  events that are unannotated, compared to the filtered separate table
+  (by maybe 5x, looking at the Y axis scale).
+
+- There are also a high number of combined_only events that are missed
+  in the separate tables, even after filtering for combined events that
+  are present in min_samples. There are ~5,000 skipped exon events only
+  in the combined table that are in min_samples that are missed in the
+  separate tables. That’s more than the total number of skipped exon
+  events remaining in the min_samples filtered separate table.
+
+## How many of each splice event types are quantified?
+
+Histogram of quantified events
 
 ``` r
-plot_event_summary(sample_filtered_event_summary)
+number_events_dist(all_events, "n_quantified_separate", "Number of quantified PSI values in separate table") /
+
+number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
 
-<div id="fig-splice_events_breakdown_5">
+<div id="fig-num_quantified_psi">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_5-1.png"
-id="fig-splice_events_breakdown_5" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi-1.png"
+id="fig-num_quantified_psi" />
 
 Figure 5
 
 </div>
 
-min_samples = 10
+Check skipped exon quantified PSI histograms
 
 ``` r
-sample_filtered_event_summary <- event_summary(long_all_events, 10)
-sample_filtered_event_summary
+all_events |>
+  dplyr::filter(event_type == "se") |>
+  number_events_dist("n_quantified_separate", "Number of quantified PSI values in separate table") /
+
+all_events |>
+  dplyr::filter(event_type == "se") |>
+  number_events_dist("n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
 
-| event_type | label | total | shared_count | combined_only_count | separate_only_count | shared_percent | combined_only_percent | separate_only_percent |
-|:---|:---|---:|---:|---:|---:|---:|---:|---:|
-| se | annotated | 5761350 | 5685747 | 32815 | 42788 | 98.68776 | 0.5695714 | 0.7426732 |
-| se | unannotated | 102096 | 96319 | 4476 | 1301 | 94.34160 | 4.3841091 | 1.2742909 |
-| afe | annotated | 6303074 | 6284715 | 8710 | 9649 | 99.70873 | 0.1381865 | 0.1530840 |
-| afe | unannotated | 55489 | 54160 | 1043 | 286 | 97.60493 | 1.8796518 | 0.5154175 |
-| ale | annotated | 3343715 | 3339798 | 1826 | 2091 | 99.88285 | 0.0546099 | 0.0625352 |
-| ale | unannotated | 28570 | 28537 | 0 | 33 | 99.88449 | 0.0000000 | 0.1155058 |
-| five | annotated | 1381111 | 1362572 | 8290 | 10249 | 98.65767 | 0.6002414 | 0.7420837 |
-| five | unannotated | 24357 | 23139 | 896 | 322 | 94.99938 | 3.6786140 | 1.3220019 |
-| three | annotated | 1881068 | 1852341 | 12286 | 16441 | 98.47284 | 0.6531396 | 0.8740248 |
-| three | unannotated | 36321 | 33297 | 2177 | 847 | 91.67424 | 5.9937777 | 2.3319843 |
-| mse | annotated | 4162181 | 4144759 | 8018 | 9404 | 99.58142 | 0.1926394 | 0.2259392 |
-| mse | unannotated | 30095 | 28743 | 1139 | 213 | 95.50756 | 3.7846818 | 0.7077588 |
-| mxe | annotated | 34857 | 34857 | 0 | 0 | 100.00000 | 0.0000000 | 0.0000000 |
-| mxe | unannotated | 417 | 321 | 86 | 10 | 76.97842 | 20.6235012 | 2.3980815 |
-| ri | unannotated | 581215 | 547592 | 22137 | 11486 | 94.21505 | 3.8087455 | 1.9762050 |
-| ri | annotated | 1181222 | 1104553 | 4366 | 72303 | 93.50935 | 0.3696172 | 6.1210340 |
-
-``` r
-plot_event_summary(sample_filtered_event_summary)
-```
-
-<div id="fig-splice_events_breakdown_10">
+<div id="fig-num_quantified_psi_se">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-splice_events_breakdown_10-1.png"
-id="fig-splice_events_breakdown_10" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_quantified_psi_se-1.png"
+id="fig-num_quantified_psi_se" />
 
 Figure 6
 
 </div>
 
-Examine PSI distributions in combined table of events missed by the
-separate table, and then the reverse (is there a threshold of PSI where
-events become shared?)
+As expected, we have more observations of quantified unannotated PSI
+values in the combined table (higher bars at the end of the X axis).
+More critically, the unannotated observations in the combined table that
+we lose in the separate tables seem to be quantified in most of the
+TARGET pilot samples.
 
-### Plot PSI distributions of AFE events
+Histogram of events dropped by Shiba due to insufficient read counts
 
 ``` r
-# make dataframe of PSI values of splice events only in the combined or separate dataframes
-compare_psi_dist_df <- long_all_events |>
-  # label splice events by whether they are only in the combined or separate tables
-  dplyr::mutate(
-    event_status = dplyr::case_when(
-      combined_event == TRUE & separate_event == FALSE ~ "combined_only",
-      combined_event == FALSE & separate_event == TRUE ~ "separate_only",
-      combined_event == TRUE & separate_event == TRUE ~ "shared"
-    )
-  ) |>
-  # exclude NAs as their PSI values cannot be binned
-  na.omit()
+number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped due to insufficient read counts in separate table") /
 
-# plot AFE event distributions
-psi_distributions(compare_psi_dist_df, "afe")
+number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
 
-<div id="fig-psi_dist_afe">
+<div id="fig-num_low_read_na">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_afe-1.png"
-id="fig-psi_dist_afe" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na-1.png"
+id="fig-num_low_read_na" />
 
 Figure 7
 
 </div>
 
-### Plot PSI distributions of ALE events
+These histograms are now counting events that are lost (number of -1
+values). In the histogram of PSI values dropped due to low read counts
+in the combined table, most events that are dropped are dropped in
+almost all the samples. We see fewer events dropped due to low read
+counts in general in the separate tables, but this might be because the
+events that would have been dropped are missing from the separate are
+also missing due to the GTF (-2 NAs).
+
+Check PSI values dropped from insufficient read histograms for skipped
+exons
 
 ``` r
-# filter df for ALE events
-psi_distributions(compare_psi_dist_df, "ale")
+all_events |>
+  dplyr::filter(event_type == "se") |>
+  number_events_dist("n_shiba_na_separate", "Number of PSIs dropped due to insufficient read counts in separate table") /
+
+all_events |>
+  dplyr::filter(event_type == "se") |>
+  number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
 
-<div id="fig-psi_dist_ale">
+<div id="fig-num_low_read_na_se">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_ale-1.png"
-id="fig-psi_dist_ale" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_low_read_na_se-1.png"
+id="fig-num_low_read_na_se" />
 
 Figure 8
 
 </div>
 
-### Plot PSI distributions of SE events
+The same trend regarding unannotated events is seen here as in
+<a href="#fig-num_low_read_na" class="quarto-xref">Figure 7</a>. We also
+see a higher number of annotated events dropped in all samples in the
+combined tables. I suspect the reason for these two observations is
+because the combined tables have a larger dictionary of possible splice
+events due to the merged GTF. So all these splice events not found in
+the separate tables have the potential to have -1 values.
+
+Check histograms of events dropped in separate tables (-2 values). These
+histograms plot the number of splice events dropped in splice tables
+made form the separate Shiba runs method. These events should correspond
+to splice events that only have one transcript annotated in the sample’s
+GTF and so are dropped by Shiba.
 
 ``` r
-psi_distributions(compare_psi_dist_df, "se")
+number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
 ```
 
-<div id="fig-psi_dist_se">
+    Warning: Removed 79579 rows containing non-finite outside the scale range
+    (`stat_bin()`).
+
+``` r
+# I do not plot this for the combined table because they are all 0 (we only define what is dropped in the separate tables based off what is missing when individual separate tables are merged)
+```
+
+<div id="fig-num_separate_table_na">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_se-1.png"
-id="fig-psi_dist_se" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_separate_table_na-1.png"
+id="fig-num_separate_table_na" />
 
 Figure 9
 
 </div>
 
-### Plot PSI distributions of alternative 5’ splice site events
+Histogram of events missing in separate tables for skipped exon events
 
 ``` r
-psi_distributions(compare_psi_dist_df, "five")
+all_events |>
+  dplyr::filter(event_type == "se") |>
+  number_events_dist("n_dropped_separate", "# PSIs dropped in separate table")
 ```
 
-<div id="fig-psi_dist_five">
+    Warning: Removed 7791 rows containing non-finite outside the scale range
+    (`stat_bin()`).
+
+<div id="fig-num_separate_table_na_se">
 
 <img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_five-1.png"
-id="fig-psi_dist_five" />
+src="compare_merged_psi_table_files/figure-commonmark/fig-num_separate_table_na_se-1.png"
+id="fig-num_separate_table_na_se" />
 
 Figure 10
 
 </div>
 
-### Plot PSI distributions of alternative 3’ splice site events
+Missing values are present in both annotated and unannotated events. The
+annotated events that are missed in the separate method are mainly in
+only a few ( n \< 5 ) samples. In contrast, almost all unannotated
+events that are dropped are present in over 75/88 samples. In both
+<a href="#fig-num_separate_table_na" class="quarto-xref">Figure 9</a>
+and <a href="#fig-num_separate_table_na_se"
+class="quarto-xref">Figure 10</a>, the events that are dropped are
+absent in most samples.
 
-``` r
-psi_distributions(compare_psi_dist_df, "three")
-```
-
-<div id="fig-psi_dist_three">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_three-1.png"
-id="fig-psi_dist_three" />
-
-Figure 11
-
-</div>
-
-### Plot PSI distributions of MSE events
-
-``` r
-psi_distributions(compare_psi_dist_df, "mse")
-```
-
-<div id="fig-psi_dist_mse">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_mse-1.png"
-id="fig-psi_dist_mse" />
-
-Figure 12
-
-</div>
-
-### Plot PSI distributions of MXE events
-
-``` r
-psi_distributions(compare_psi_dist_df, "mxe")
-```
-
-<div id="fig-psi_dist_mxe">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_mxe-1.png"
-id="fig-psi_dist_mxe" />
-
-Figure 13
-
-</div>
-
-### Plot PSI distributions of RI events
-
-``` r
-psi_distributions(compare_psi_dist_df, "ri")
-```
-
-<div id="fig-psi_dist_ri">
-
-<img
-src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_ri-1.png"
-id="fig-psi_dist_ri" />
-
-Figure 14
-
-</div>
-
-### Takeaways so far
-
-- In the worst case scenario, about 40% of some splice event types
-  across all unique events found in both the combined and separate
-  (merged) tables are only found in the separate tables. This is
-  concerning if we assume all events found only in the separate tables
-  are false.
-
-- Most of the events found only in the separate tables are unannotated
-  events, which are the event types we are hoping to capture most in the
-  splice compendium
-
-- About 30% of unannotated splice events are only found in the combined
-  tables, meaning they are missed in the separate tables method
-
-- If we only look at splice events shared between both separate and
-  combined PSI tables, the PSI values are identical.
-
-- Unfortunately, PSI values of events only found in the combined or
-  separate tables span the entire PSI distribution (0-1) so there is no
-  easy way to set a filter to exclude values that are not found in the
-  combined table.
-
-A next step for this analysis will be to compare the number of NA values
-in each table and examine how many of each type of NA value are present
-in each method
-
-Another note here is that we assume the splice events in the combined
-table are the ground truth, but a separate kind of evaluation would be
-needed to truly ask how many “real” splice events are in each of the
-tables. For instance, we maybe would need to do this experiment on
-simulated reads where we know going in what all the transcripts are,
-which may be beyond the scope of this project.
+Because of the extent of missing splice events in the separate method,
+the conclusion from this analysis is that we need to revise the method
+to allow for splice events that have only one transcript and events that
+are only found in one sample to be quantified in the final workflow.

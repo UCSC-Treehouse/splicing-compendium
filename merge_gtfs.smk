@@ -55,32 +55,14 @@ rule merge_gtfs:
     input:
         # sample_gtfs are zipped
         sample_gtfs = SAMPLE_GTFS,
-        reference_gtf = config["reference_gtf"]
+        reference_gtf = config["reference_gtf"],
+        merge_list = pd.read_table(merge_list)
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
     shell:
         """
-        # instantiate manifest as a temp file
-        manifest=$(mktemp)
-
-        # unzip input gtfs for stringtie
-        for gz_gtf in {input.sample_gtfs}; do
-            # create the uncompressed file path
-            gtf="${{gz_gtf%.gz}}"
-            # decompress (leaving the original) explicitly - decompressed files are in the same directory as the compressed files
-            gunzip -c "$gz_gtf" > "$gtf"
-            # Add to the manifest
-            echo "$gtf" >> $manifest
-        done
-
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
-
-        # delete gtf files using the manifest
-        xargs rm < $manifest
-
-        # remove temporary manifest
-        rm $manifest
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} {input.merge_list}
         """

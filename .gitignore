@@ -9,6 +9,7 @@ reports/
 .snakemake/
 .rds
 references/
+metadata/
 results/*
 !results/.gitkeep
 
@@ -17,26 +18,7 @@ results/*
 ._.DS_Store
 data
 
-# exploration files for testing merging PSI tables only
 exploration/merging-psi-tables/target_pilot/merged_results/
 exploration/merging-psi-tables/target_pilot/shiba_combined/*
 !exploration/merging-psi-tables/target_pilot/shiba_combined/README.md
 !exploration/merging-psi-tables/target_pilot/shiba_combined/report.json
-
-# combined shiba run on 2 samples for testing merging GTFs and junctions
-exploration/merged_shiba_test/shiba_results/combined_run/*
-!exploration/merged_shiba_test/shiba_results/combined_run/experiment.tsv
-!exploration/merged_shiba_test/shiba_results/combined_run/report.json
-!exploration/merged_shiba_test/shiba_results/combined_run/shiba_config.yaml
-
-# merged method (GTFs and junctions) tested on 2 samples
-exploration/merged_shiba_test/shiba_results/merged_method
-
-# Files for testing sources of differences in merged results
-# n = 2 merged vs combined method tests
-exploration/merged_shiba_test/shiba_gtf_to_event_pilot_tests/
-# merged vs combined method tests on target pilot
-exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/*
-# Exclude experiment.tsv files to show before and after scrambling
-!exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/experiment_scratch.tsv
-!exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/scrambled_experiment.tsv

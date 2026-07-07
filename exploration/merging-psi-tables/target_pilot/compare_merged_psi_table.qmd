@@ -669,7 +669,7 @@ all_events |>
 
 all_events |>
   dplyr::filter(event_type == "se") |>
-  number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in separate table") + plot_layout(guides = "collect")
+  number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
 
 The same trend regarding unannotated events is seen here as in @fig-num_low_read_na.

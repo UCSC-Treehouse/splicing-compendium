@@ -702,6 +702,10 @@ all_events |>
   dplyr::filter(event_type == "se") |>
   number_events_dist("n_dropped_separate", "# PSIs dropped in separate table")
 ```
-
-I mainly see that these missing values are present more in the unannotated events, where the event is only quantified in a small number of samples.
+Missing values are present in both annotated and unannotated events. 
+The annotated events that are missed in the separate method are mainly in only a few ( n < 5 ) samples.
+In contrast, almost all unannotated events that are dropped are present in over 75/88 samples.
 In both @fig-num_separate_table_na and @fig-num_separate_table_na_se, the events that are dropped are absent in most samples.
+
+Because of the extent of missing splice events in the separate method, the conclusion from this analysis is that we need to revise the method to allow for splice events that have only one transcript 
+and events that are only found in one sample to be quantified in the final workflow.

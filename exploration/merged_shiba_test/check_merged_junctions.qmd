@@ -1,0 +1,179 @@
+---
+title: "Debug merge junctions warning"
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Files and directories
+
+```{r}
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+## define the data directories ##
+exploration_dir <- file.path(repo_root, "exploration")
+results_dir <- file.path(repo_root, "results", "merged_shiba", "test") # manually merged junction and gtf files and shiba results
+merged_test_dir <- file.path(exploration_dir, "merged_shiba_test")
+shiba_results_dir <- file.path(merged_test_dir, "shiba_results")
+
+## data files ##
+# combined run shiba results, junctions, and gtf ("control" results and files)
+combined_junctions_file <- file.path(shiba_results_dir, "combined_run", "junctions", "junctions.bed") 
+
+# junction bedfiles generated from separate shiba runs
+# the way the paths are read in could probably be optimized but I don't know if that's worth doing now
+# since we plan to read in paths from snakemake
+SRR4376025_bedfile <- file.path(repo_root, "results/target/shiba/SRR4376025/junctions/junctions.bed")
+SRR1559031_bedfile <- file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed")
+
+# Read in junctions bed paths into a vector
+junction_paths <- c(SRR4376025_bedfile, 
+                   SRR1559031_bedfile)
+
+```
+
+## Print problems in each of the junction files
+
+### Check separate junction bedfiles for problems
+
+Check SRR4376025 bedfile for problems:
+
+```{r}
+SRR4376025_problems <- vroom::vroom(SRR4376025_bedfile)
+
+vroom::problems(SRR4376025_problems) |> table()
+```
+No problems in the SRR4376025 bedfile, though we may want to set the default column type for numeric values as double (d), instead of integer (i)
+
+Check SRR1559031 bedfile for problems:
+
+```{r}
+SRR1559031_problems <- vroom::vroom(SRR1559031_bedfile)
+
+vroom::problems(SRR1559031_problems)
+```
+One source of the merging problem is in row 434393 in SRR1559031, where the position coordinates seem to be duplicated
+
+Check what line looks like in the bedfile:
+
+```{r}
+readLines(file.path(repo_root, "results/target/shiba/SRR1559031/junctions/junctions.bed"))[434393]
+```
+
+Check if problem junction also had a "correct" entry:
+```{r}
+SRR1559031_problems |>
+  dplyr::filter(start == "35660647",
+                end == "35660648")
+```
+No, when the junction is in incorrect bed format, there is no corresponding duplicate 'fixed' version.
+
+In the problem junction, the "chr" field also has duplicated values.
+This is event ID chr9:35660647-35660648, which has "chr9;chr9" for the chromosome
+```{r}
+SRR1559031_problems |> dplyr::slice(434391, 434392, 434393)
+```
+
+chr9:35660647-35660648, our problem junction, also has high read counts ( > 10 ) so it seems like an important junction to be able to keep.
+Maybe a workaround would be to manually fix the chr/start/end coordinates of these cases by extracting them from the ID field, 
+assuming these cases are always duplicates...
+
+## Check if the combined junctions.bed has this weird junction coordinate
+
+Check for problems in combined junctions.bed
+
+```{r}
+combined_jcn_problems <- vroom::vroom(combined_junctions_file) 
+
+vroom::problems(combined_jcn_problems) |> table()
+```
+The problem is not in the combined junction bedfile.
+
+Check for the specific junction in the combined junctions.bed
+```{r}
+combined_jcn_problems |>
+  dplyr::filter(ID == "chr9:35660647-35660648")
+```
+The event looks normal in the combined file.
+Importantly, the ID is the same: chr9:35660647-35660648
+
+## Check problem junction before fix
+```{r}
+# read in junctions.bed files created from separate Shiba runs
+merged_junctions <- purrr::map(junction_paths, \(file) {
+    readr::read_tsv(file,
+               # make sure columns are types that we expect
+               col_types = readr::cols(.default = "d", ID = "c", chr = "c", start = "c", end = "c"))
+  })|>
+    # merge junctions tables from multiple samples
+    # the resulting table separates junction counts from each sample by columns with the sample ID
+    purrr::reduce(\(x, y) dplyr::full_join(x, y, by = c("chr", "start", "end", "ID")))
+
+# check problem junction
+merged_junctions |>
+  dplyr::filter(ID == "chr9:35660647-35660648")
+
+```
+With how we currently merge junctions, the problem junction appears as two separate events that are missing values in the other samples
+
+## Proposed new junction merging method:
+
+Use ID to extract chr, start, and end fields in events with weird concatenated fields
+
+```{r}
+# read in junctions.bed files created from separate Shiba runs
+merged_junctions <- purrr::map(junction_paths, \(file) {
+  # read in separate bedfiles for each sample
+  junctions <- withCallingHandlers(
+  readr::read_tsv(
+    file,
+    # make sure columns are types that we expect
+    col_types = readr::cols(
+      .default = "d",
+      ID = "c",
+      chr = "c",
+      start = "d",
+      end = "d"
+    )
+  ),
+  # convert warnings in reading bedfiles into a failure and stop
+  # warnings here indicate there are still junctions remaining in invalid format (e.g. "12345;12345") 
+  warning = \(w) stop(w)
+  ) 
+  
+  # check for duplicate junction IDs and fail if any are found
+  dup_ids <- junctions$ID[duplicated(junctions$ID)]
+  
+    if (length(dup_ids) > 0) {
+      stop(paste0("Found duplicate junction ID: ", 
+                  file,
+                  " : ",
+                  paste(unique(dup_ids), collapse = ", ")))
+    }
+  
+  # return junctions object to merge
+  junctions
+
+  }) |>
+  # merge junctions tables from multiple samples
+  # the resulting table separates junction counts from each sample by columns with the sample ID
+  purrr::reduce(
+    \(x, y) dplyr::full_join(
+      x, y,
+      by = c("chr", "start", "end", "ID")
+    )
+  )
+```
+
+Check position ID of fixed chr/start/end entry
+```{r}
+merged_junctions |>
+  dplyr::filter(ID == "chr9:35660647-35660648")
+```
+In this case the junctions stay unmerged because the merging code stopped with a warning from the invalid entry

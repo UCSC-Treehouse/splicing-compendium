@@ -41,7 +41,10 @@ rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
     priority: 1
-    threads: 4
+    threads: 15
+    resources:
+        mem_mb: 200000
+        time: 900
     shell:
         """
         tempdir=$(mktemp -d)
@@ -82,8 +85,11 @@ rule merge_gtfs:
         reference_gtf = config["reference_gtf"]
     output:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
-    priority: 1
-    threads: 4
+    priority: 10
+    threads: 200
+    resources:
+        mem_mb: 50000
+        time: 30
     shell:
         """
         # instantiate manifest as a temp file
@@ -118,7 +124,10 @@ rule gtf_to_events:
     params:
         shiba_scripts = config["shiba_scripts_path"]
     priority: 1
-    threads: 10 # too many? I want it to run fast
+    threads: 15
+    resources:
+        mem_mb: 500000
+        time: 900
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
@@ -136,6 +145,9 @@ rule calculate_psi:
         min_reads = config["shiba_min_reads"]
     priority: 1
     threads: 15
+    resources:
+        mem_mb: 500000
+        time: 900
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}

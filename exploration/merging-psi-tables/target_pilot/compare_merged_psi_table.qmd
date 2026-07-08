@@ -504,11 +504,6 @@ all_events <- all_events |>
     )
   )
 
-# check what summary looks like
-all_events |>
-  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate,
-                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
-  head()
 ```
 
 Filter for minimum samples with numeric PSI values in the separate table and check n_quantified.
@@ -527,6 +522,8 @@ all_events_min_samples  |>
   dplyr::arrange((n_quantified_separate)) |>
   head()
 ```
+
+`n_quantified_separate` and `n_quantified_combined` columns have min values of 5, so filtering appears to be correct.
 
 Plot event distributions of the filtered table
 
@@ -575,6 +572,8 @@ Observations:
 
 ## How many of each splice event types are quantified?
 
+This section plots the distributions of splice events quantified in each method.
+
 ### Histogram of quantified events
 
 ```{r}
@@ -586,6 +585,8 @@ number_events_dist(all_events, "n_quantified_separate", "Number of quantified PS
 
 number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
+
+
 Check skipped exon quantified PSI histograms
 
 ```{r}
@@ -602,12 +603,11 @@ all_events |>
   number_events_dist("n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
 
-As expected, we have more observations of quantified unannotated PSI values in the combined table (higher bars at the end of the X axis).
+As expected, we have more observations of quantified unannotated PSI values in the combined table (higher bars at the end of the X axis) in both sets of histograms.
 More critically, the unannotated observations in the combined table that we lose in the separate tables seem to be quantified in most of the TARGET pilot samples.
 
-The following histograms show the counts of PSI values that are DROPPED in each method.
-
 ### Histogram of events dropped by Shiba due to insufficient read counts
+The following histograms show the counts of PSI values that are DROPPED in each method.
 
 ```{r}
 #| label: fig-num_low_read_na

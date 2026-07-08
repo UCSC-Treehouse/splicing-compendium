@@ -104,7 +104,7 @@ psi_distributions <- function(
 }
 
 # create summary table of events detected
-make_event_summary <- function (events_table) { 
+make_event_summary <- function (events_table) {
   events_table |>
     dplyr::summarise(
       .by = c(event_type, label),
@@ -436,8 +436,15 @@ all_events_summary <- all_events |> dplyr::summarise(
     separate_only_percent = separate_only_count / total * 100,
 )
 
-all_events_summary
+all_events_summary |> dplyr::select(
+  total,
+  shared_percent,
+  combined_only_percent,
+  separate_only_percent)
 ```
+
+Out of all the event types, annotated skipped exons and annotated multiple skipped exon types are the most shared between the two methods (above 90%).
+In contrast, unannotated events of these types are only shared at 65% and 58% respectively.
 
 Plot event-level (one count per unique event) summary of event frequency across methods and event types
 
@@ -451,66 +458,6 @@ plot_event_summary(all_events_summary)
 
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table (green) than the combined table (red).
 Inflated values in the separate tables may be due to -2 NAs which arise in the Shiba processing of separate samples when when genes without multiple transcripts are dropped.
-
-### What specific event types are impacted (missed) by the separate tables method?
-
-These following plots answer the question for me better than the above summary plots.
-
-```{r}
-#| label: fig-combined_only_splice_events
-#| fig-width: 11
-#| fig-height: 8
-
-combined_only_summary <- all_events_summary |>
-  dplyr::select(event_type, label, combined_only_count, total, combined_only_percent)
-
-long_summary_df <- combined_only_summary |>
-    tidyr::pivot_longer(
-      cols = c(
-        combined_only_count,
-        combined_only_percent
-      ),
-      # extract percents and counts into separate columns
-      names_to = c("category", ".value"),
-      names_pattern = "(.+)_(percent|count)"
-    )
-
-# create raw counts grouped barplot
-counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = count)) +
-    geom_bar(stat = "identity") +
-      scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    labs(
-      title = "# annotated and unannotated splice events only in combined table",
-      x = "Event Type",
-      y = "Number of events"
-    ) +
-    facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
-    theme(strip.text = element_text(size = 15))
-
-# create percents grouped barplot
-percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = percent)) +
-    geom_bar(position = "dodge", stat = "identity") +
-      scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    labs(
-      title = "% annotated and unannotated splice events only in combined table",
-      x = "Annotation status of event",
-      y = "Percent of all events"
-    ) +
-    facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
-    theme(strip.text = element_text(size = 15))
-
-
-percents_plot /
-  counts_plot + plot_layout(guides = "collect")
-```
-
-I think of these as "percent of each event category missed in the separate tables".
-In the worst cases, 30% of unannotated events might be only in the combined table (FIVE events).
-Losing 30% of unannotated real events seems rough.
 
 ### How many events remain if we filter for events with PSI values in a minimum number of samples?
 
@@ -587,7 +534,7 @@ Plot event distributions of the filtered table
 #| label: fig-splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
- 
+
 # event-level summary of the number of each splice event type in each splice table
 all_events_summary_min_samples <- all_events_min_samples |>
   # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
@@ -672,7 +619,7 @@ number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped du
 number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
 There appear to be more events dropped across more samples in the combined results compared to the separate results.
-However, I think this is because the combined method captures more "rare" (e.g. present in only one sample) splice events. 
+However, I think this is because the combined method captures more "rare" (e.g. present in only one sample) splice events.
 This would increase the overall pool of possible loci that could be sequenced so sparsely that they do not actually make it into PSI calculation.
 
 ### Histogram of events dropped due to genes being thrown out in separate method
@@ -767,9 +714,9 @@ na_comparison_summary(long_all_events) |>
 ```
 
 We care most about "PSI quantified in both", "NA in separate, quantified in combined", "NA in combined, quantified in separate", and "PSI quantified in combined, -2 in separate table" categories.
-\* Events we expect are real and are captured in both methods: PSI quantified in both 
-\* Events we expect are real and are missed or miscategorized in the separate method: NA in separate, quantified in combined 
-\* Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in separate 
+\* Events we expect are real and are captured in both methods: PSI quantified in both
+\* Events we expect are real and are missed or miscategorized in the separate method: NA in separate, quantified in combined
+\* Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in separate
 \* Events we expect are real but are missed in the separate method due to how events are defined in the GTF: PSI quantified in combined, -2 in separate table
 
 Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples

@@ -714,10 +714,11 @@ na_comparison_summary(long_all_events) |>
 ```
 
 We care most about "PSI quantified in both", "NA in separate, quantified in combined", "NA in combined, quantified in separate", and "PSI quantified in combined, -2 in separate table" categories.
-\* Events we expect are real and are captured in both methods: PSI quantified in both
-\* Events we expect are real and are missed or miscategorized in the separate method: NA in separate, quantified in combined
-\* Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in separate
-\* Events we expect are real but are missed in the separate method due to how events are defined in the GTF: PSI quantified in combined, -2 in separate table
+
+- Events we expect are real and are captured in both methods: PSI quantified in both
+- Events we expect are real and are missed or miscategorized in the separate method: NA in separate, quantified in combined
+- Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in separate
+- Events we expect are real but are missed in the separate method due to how events are defined in the GTF: PSI quantified in combined, -2 in separate table
 
 Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
 

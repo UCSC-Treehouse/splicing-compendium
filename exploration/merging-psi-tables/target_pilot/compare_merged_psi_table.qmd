@@ -687,7 +687,7 @@ Yes, PSI values of shared events in both methods are identical.
 Plot the different types of matchup categories
 
 ```{r}
-#| label: psi_na_matchup_categories
+#| label: fig-psi_na_matchup_categories
 #| fig-width: 11
 #| fig-height: 8
 

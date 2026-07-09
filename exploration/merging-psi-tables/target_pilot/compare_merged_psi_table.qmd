@@ -237,7 +237,7 @@ event_summary <- function(
 na_comparison_summary <- function(long_df) {
   long_df |>
     dplyr::mutate(
-      match_category
+      match_category =
         dplyr::case_when(
           separate == -1 & combined == -1 ~ "both Shiba NAs",
           separate == -1 & is.na(combined) ~ "no event in combined, Shiba NA in separate",
@@ -698,10 +698,16 @@ ggplot(long_all_events, aes(x = combined, y = separate)) +
 
 From this plot, I see four different categories of splice event matches between the separate and combined tables:
 
-- Upper dot: We have some splice events that are dropped by Shiba due to no alternative splicing in the separate tables (Y = -2) but are also dropped in the combined tables because there were too few reads anyway (X = -1).
+- Upper dot: We have some splice events that are dropped by Shiba due to no alternative splicing in the separate tables (y = -2) but are also dropped in the combined tables because there were too few reads anyway (x = -1).
 - Lower dot: We have some splice events that had too few reads for a numeric PSI in both tables (x = -1, y = -1)
 - Diagonal line: We also see events whose PSI values are numeric and have a linear relationship in both combined and separate methods (these are likley the events that were identical and found in both)
-- The most concerning case is the horizontal line at Y=-2, corresponding to splice events dropped in the separate tables due to lack of transcripts for a gene but was captured in the combined splice table. In this section, we can see that the PSI values calculated in the combined table span the full PSI value range from 0-1, so there is no easy way to replace the -2 NA values in the separate table.
+- The most concerning case is the horizontal line at y = -2, corresponding to splice events dropped in the separate tables due to lack of transcripts for a gene but was captured in the combined splice table.
+In this section, we can see that the PSI values calculated in the combined table span the full PSI value range from 0-1, so there is no easy way to replace the -2 NA values in the separate table.
+
+Check NAs in the table
+```{r}
+colSums(is.na(long_all_events))
+```
 
 Summarize how many of each of these match categories are present in the pilot tables
 
@@ -744,7 +750,7 @@ This plot shows the distribution of the "true" values of -2 ("gene dropped") NAs
 ##### Quantified PSI values dropped in separate tables due to lack of transcript diversity
 
 ```{r}
-#| label: psi_dist_of_combined_only_events
+#| label: fig-psi_dist_of_combined_only_events
 #| fig-width: 11
 #| fig-height: 8
 

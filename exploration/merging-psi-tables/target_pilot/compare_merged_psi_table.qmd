@@ -237,17 +237,17 @@ event_summary <- function(
 na_comparison_summary <- function(long_df) {
   long_df |>
     dplyr::mutate(
-      match_category =
+      match_category
         dplyr::case_when(
-          separate == -1 & combined == -1 ~ "-1 in both",
-          separate == -1 & is.na(combined) ~ "NA in combined, -1 in separate",
-          separate == -2 & combined == -1 ~ "-2 in separate, -1 in combined",
-          separate == -2 & combined >= 0 ~ "PSI quantified in combined, -2 in separate table",
-          is.na(separate) & combined >= 0 ~ "NA in separate, quantified in combined",
-          is.na(separate) & combined == -1 ~ "NA in separate, -1 in combined",
-          is.na(separate) & combined == -2 ~ "NA in separate, -2 in combined",
-          separate >= 0 & is.na(combined) ~ "NA in combined, quantified in separate",
-          separate == -2 & is.na(combined) ~ "NA in combined, -2 in separate",
+          separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -1 & is.na(combined) ~ "no event in combined, Shiba NA in separate",
+          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in combined table",
+          is.na(separate) & combined == -1 ~ "no event in separate, Shiba NA in combined",
+          is.na(separate) & combined == -2 ~ "no event in separate, dropped in combined",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in separate table",
+          separate == -2 & is.na(combined) ~ "no event in combined, dropped in separate",
           separate >= 0 & combined >= 0 ~ "PSI quantified in both"
         )
     ) |>
@@ -274,8 +274,8 @@ psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
           separate >= 0 & combined >= 0 ~ "PSI quantified in both",
           separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
-          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table",
-          separate >= 0 & is.na(combined) ~ "PSI only quantified in combined table"
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in combined table",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in separate table"
         )
     ) |>
     # plot only events in combined table with numeric PSIs that are dropped in the separate table

@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-07-08
+2026-07-09
 
 **Question:** Does merging separate splice tables cause us to lose out
 on the trustworthiness of unannotated events to an extent that it
@@ -218,15 +218,15 @@ na_comparison_summary <- function(long_df) {
     dplyr::mutate(
       match_category =
         dplyr::case_when(
-          separate == -1 & combined == -1 ~ "-1 in both",
-          separate == -1 & is.na(combined) ~ "NA in combined, -1 in separate",
-          separate == -2 & combined == -1 ~ "-2 in separate, -1 in combined",
-          separate == -2 & combined >= 0 ~ "PSI quantified in combined, -2 in separate table",
-          is.na(separate) & combined >= 0 ~ "NA in separate, quantified in combined",
-          is.na(separate) & combined == -1 ~ "NA in separate, -1 in combined",
-          is.na(separate) & combined == -2 ~ "NA in separate, -2 in combined",
-          separate >= 0 & is.na(combined) ~ "NA in combined, quantified in separate",
-          separate == -2 & is.na(combined) ~ "NA in combined, -2 in separate",
+          separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -1 & is.na(combined) ~ "no event in combined, Shiba NA in separate",
+          separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in combined table",
+          is.na(separate) & combined == -1 ~ "no event in separate, Shiba NA in combined",
+          is.na(separate) & combined == -2 ~ "no event in separate, dropped in combined",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in separate table",
+          separate == -2 & is.na(combined) ~ "no event in combined, dropped in separate",
           separate >= 0 & combined >= 0 ~ "PSI quantified in both"
         )
     ) |>
@@ -253,8 +253,8 @@ psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
           separate >= 0 & combined >= 0 ~ "PSI quantified in both",
           separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
-          is.na(separate) & combined >= 0 ~ "PSI only quantified in separate table",
-          separate >= 0 & is.na(combined) ~ "PSI only quantified in combined table"
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in combined table",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in separate table"
         )
     ) |>
     # plot only events in combined table with numeric PSIs that are dropped in the separate table
@@ -813,26 +813,43 @@ ggplot(long_all_events, aes(x = combined, y = separate)) +
     Warning: Removed 20325272 rows containing missing values or values outside the scale
     range (`geom_point()`).
 
-![](compare_merged_psi_table_files/figure-commonmark/psi_na_matchup_categories-1.png)
+<div id="fig-psi_na_matchup_categories">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_na_matchup_categories-1.png"
+id="fig-psi_na_matchup_categories" />
+
+Figure 7
+
+</div>
 
 From this plot, I see four different categories of splice event matches
 between the separate and combined tables:
 
 - Upper dot: We have some splice events that are dropped by Shiba due to
-  no alternative splicing in the separate tables (Y = -2) but are also
+  no alternative splicing in the separate tables (y = -2) but are also
   dropped in the combined tables because there were too few reads anyway
-  (X = -1).
+  (x = -1).
 - Lower dot: We have some splice events that had too few reads for a
   numeric PSI in both tables (x = -1, y = -1)
 - Diagonal line: We also see events whose PSI values are numeric and
   have a linear relationship in both combined and separate methods
   (these are likley the events that were identical and found in both)
-- The most concerning case is the horizontal line at Y=-2, corresponding
-  to splice events dropped in the separate tables due to lack of
-  transcripts for a gene but was captured in the combined splice table.
-  In this section, we can see that the PSI values calculated in the
-  combined table span the full PSI value range from 0-1, so there is no
-  easy way to replace the -2 NA values in the separate table.
+- The most concerning case is the horizontal line at y = -2,
+  corresponding to splice events dropped in the separate tables due to
+  lack of transcripts for a gene but was captured in the combined splice
+  table. In this section, we can see that the PSI values calculated in
+  the combined table span the full PSI value range from 0-1, so there is
+  no easy way to replace the -2 NA values in the separate table.
+
+Check NAs in the table
+
+``` r
+colSums(is.na(long_all_events))
+```
+
+    event_type     pos_id      label     sample   combined   separate 
+             0          0          0          0   13322320    7002952 
 
 Summarize how many of each of these match categories are present in the
 pilot tables
@@ -848,25 +865,28 @@ na_comparison_summary(long_all_events) |>
 | match_category | count | total | percent |
 |:---|---:|---:|---:|
 | PSI quantified in both | 12670697 | 79023208 | 16.034147 |
-| NA in separate, quantified in combined | 3307421 | 79023208 | 4.185379 |
-| NA in combined, quantified in separate | 1546935 | 79023208 | 1.957571 |
-| PSI quantified in combined, -2 in separate table | 7205168 | 79023208 | 9.117787 |
-| -2 in separate, -1 in combined | 27666041 | 79023208 | 35.010020 |
-| -1 in both | 11156030 | 79023208 | 14.117410 |
-| NA in separate, -1 in combined | 3695531 | 79023208 | 4.676514 |
-| NA in combined, -2 in separate | 10942532 | 79023208 | 13.847238 |
-| NA in combined, -1 in separate | 832853 | 79023208 | 1.053935 |
+| separate dropped, combined shiba NA | 27666041 | 79023208 | 35.010020 |
+| both Shiba NAs | 11156030 | 79023208 | 14.117410 |
+| PSI quantified in combined, dropped in separate table | 7205168 | 79023208 | 9.117787 |
+| no event in separate, Shiba NA in combined | 3695531 | 79023208 | 4.676514 |
+| PSI only quantified in combined table | 3307421 | 79023208 | 4.185379 |
+| PSI only quantified in separate table | 1546935 | 79023208 | 1.957571 |
+| no event in combined, dropped in separate | 10942532 | 79023208 | 13.847238 |
+| no event in combined, Shiba NA in separate | 832853 | 79023208 | 1.053935 |
 
 We care most about “PSI quantified in both”, “NA in separate, quantified
 in combined”, “NA in combined, quantified in separate”, and “PSI
-quantified in combined, -2 in separate table” categories. \* Events we
-expect are real and are captured in both methods: PSI quantified in both
-\* Events we expect are real and are missed or miscategorized in the
-separate method: NA in separate, quantified in combined \* Events that
-may be real and miscategorized (but are difficult to confirm): NA in
-combined, quantified in separate \* Events we expect are real but are
-missed in the separate method due to how events are defined in the GTF:
-PSI quantified in combined, -2 in separate table
+quantified in combined, -2 in separate table” categories.
+
+- Events we expect are real and are captured in both methods: PSI
+  quantified in both
+- Events we expect are real and are missed or miscategorized in the
+  separate method: NA in separate, quantified in combined
+- Events that may be real and miscategorized (but are difficult to
+  confirm): NA in combined, quantified in separate
+- Events we expect are real but are missed in the separate method due to
+  how events are defined in the GTF: PSI quantified in combined, -2 in
+  separate table
 
 Summarize how many of each of these match categories are present in the
 pilot tables, filtered for events with numeric PSI in min_samples
@@ -885,12 +905,12 @@ na_comparison_summary(long_min_sample_all_events) |>
 | match_category | count | total | percent |
 |:---|---:|---:|---:|
 | PSI quantified in both | 12363779 | 26200152 | 47.189722 |
-| NA in combined, quantified in separate | 1421478 | 26200152 | 5.425457 |
-| PSI quantified in combined, -2 in separate table | 884696 | 26200152 | 3.376683 |
-| -1 in both | 6284307 | 26200152 | 23.985765 |
-| -2 in separate, -1 in combined | 3774018 | 26200152 | 14.404565 |
-| NA in combined, -2 in separate | 909789 | 26200152 | 3.472457 |
-| NA in combined, -1 in separate | 562085 | 26200152 | 2.145350 |
+| both Shiba NAs | 6284307 | 26200152 | 23.985765 |
+| separate dropped, combined shiba NA | 3774018 | 26200152 | 14.404565 |
+| PSI quantified in combined, dropped in separate table | 884696 | 26200152 | 3.376683 |
+| PSI only quantified in separate table | 1421478 | 26200152 | 5.425457 |
+| no event in combined, dropped in separate | 909789 | 26200152 | 3.472457 |
+| no event in combined, Shiba NA in separate | 562085 | 26200152 | 2.145350 |
 
 In both tables, the majority of NAs are from low counts. There is a
 higher percentage of numeric PSIs that we lose out on in the separate
@@ -908,7 +928,15 @@ dropped”) NAs in the combined table.
 psi_values_lost_in_tables(long_all_events, "PSI quantified in combined, dropped in separate table")
 ```
 
-![](compare_merged_psi_table_files/figure-commonmark/psi_dist_of_combined_only_events-1.png)
+<div id="fig-psi_dist_of_combined_only_events">
+
+<img
+src="compare_merged_psi_table_files/figure-commonmark/fig-psi_dist_of_combined_only_events-1.png"
+id="fig-psi_dist_of_combined_only_events" />
+
+Figure 8
+
+</div>
 
 The PSI values of the “gene dropped” NAs span the full range of PSI
 values, so we miss out entirely on a wide range of values using the

@@ -47,7 +47,7 @@ rule bam2gtf:
             f"/star-output/{wildcard.sample}/Aligned.sortedByCoord.out.bam"
         )
     output: temp("<merged_gtf_results>/{sample}.gtf")
-    threads: 15
+    threads: 1
     log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
     shell:
         """
@@ -60,7 +60,7 @@ rule merge_gtfs:
         sample_gtfs =SAMPLE_GTFS
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
-    threads: 4
+    threads: 1
     log: "<merged_gtf_results>/logs/merge_gtfs.log"
     shell:
         """

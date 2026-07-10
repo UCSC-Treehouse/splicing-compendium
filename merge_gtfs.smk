@@ -17,10 +17,13 @@ merge_list: "exploration/merge_gtf_list.tsv"
 SAMPLES = pd.read_table(config["sample_sheet"])["sample"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
 
+# make a dictionary to map samples to groups so merged GTF output won't need group wildcards
+sample_to_group = dict(zip(SAMPLES, GROUPS))
+
 pathvars:
     merged_gtf_results = f"results/merged_gtf_tests/{config["version"]}"
 
-# path to sample gtfs from separate shiba runs
+# path to sample bams from separate shiba runs
 SAMPLE_BAMS = expand(
     "data/{group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
     group=GROUPS,
@@ -38,9 +41,14 @@ rule all:
         "<merged_gtf_results>/merged_gtf.gtf"
 
 rule bam2gtf:
-    input: SAMPLE_BAMS
-    output: temp(SAMPLE_GTFS)
+    input:
+        lambda wildcard: (
+            f"data/{sample_to_group[wildcard.sample]}"
+            f"/star-output/{wildcard.sample}/Aligned.sortedByCoord.out.bam"
+        )
+    output: temp("<merged_gtf_results>/{sample}.gtf")
     threads: 15
+    log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
     shell:
         """
         stringtie -p {threads} -G {input} -o {output} {input} >& {log}
@@ -49,21 +57,22 @@ rule bam2gtf:
 rule merge_gtfs:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs = SAMPLE_GTFs
+        sample_gtfs =SAMPLE_GTFS
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 4
+    log: "<merged_gtf_results>/logs/merge_gtfs.log"
     shell:
         """
         # instantiate manifest as a temp file
         manifest=$(mktemp)
 
-        # unzip input gtfs for stringtie
+        # add gtf to manifest for merging
         for gtf in {input.sample_gtfs}; do
             # Add to the manifest
             echo "$gtf" >> $manifest
         done
 
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
         """

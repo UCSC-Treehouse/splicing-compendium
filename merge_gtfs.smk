@@ -14,8 +14,9 @@ configfile: "config/merge_gtf_test_config.yaml"
 merge_list: "exploration/merge_gtf_list.tsv"
 
 # read in configfile values
-SAMPLES = pd.read_table(config["sample_sheet"])["sample"].tolist()
-GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
+sample_table = pd.read_table(config["sample_sheet"])
+SAMPLES = sample_table["sample"].tolist()
+GROUPS = sample_table["group"].tolist()
 REF_GTF = config["reference_gtf"]
 
 # make a dictionary to map samples to groups so merged GTF output won't need group wildcards

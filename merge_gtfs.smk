@@ -51,7 +51,7 @@ rule bam2gtf:
     log: "<merged_gtf_results>/logs/{JOBID}_{sample}_bam2gtf.log"
     shell:
         """
-        stringtie -p {threads} -G config["reference_gtf"] -o {output} {input} >& {log}
+        stringtie -p {threads} -G {config["reference_gtf"]} -o {output} {input} >& {log}
         """
 
 rule merge_gtfs:

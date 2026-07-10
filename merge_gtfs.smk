@@ -40,7 +40,7 @@ rule all:
 rule bam2gtf:
     input: SAMPLE_BAMS
     output: temp(SAMPLE_GTFS)
-    threads:
+    threads: 15
     shell:
         """
         stringtie -p {threads} -G {input} -o {output} {input} >& {log}

@@ -46,8 +46,13 @@ rule bam2gtf:
     input:
         ref_gtf = REF_GTF,
         bam = lambda wildcard: (
-            f"data/{sample_to_group[wildcard.sample]}"
-            f"/star-output/{wildcard.sample}/Aligned.sortedByCoord.out.bam"
+            os.path.join(
+                "data",
+                sample_to_group[wildcard.sample],
+                "star-output",
+                wildcard.sample,
+                "Aligned.sortedByCoord.out.bam"
+            )
         )
     output: temp("<merged_gtf_results>/{sample}.gtf")
     threads: 1

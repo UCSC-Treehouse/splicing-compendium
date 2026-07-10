@@ -27,7 +27,7 @@ SAMPLE_BAMS = expand(
     sample=SAMPLES
 )
 
-SAMPLE_GTFs =  expand(
+SAMPLE_GTFS =  expand(
     "<merged_gtf_results>/{sample}.gtf",
     sample = SAMPLES
 )
@@ -39,14 +39,11 @@ rule all:
 
 rule bam2gtf:
     input: SAMPLE_BAMS
-    output: temp("<merged_gtf_results>/{sample}.gtf") # may need expand statement
-    threads: 1
+    output: temp({SAMPLE_GTFS})
+    threads:
     shell:
         """
-        stringtie -p {threads} \
-        -G {input} \
-        -o {output} \
-        {input} >& {log}
+        stringtie -p {threads} -G {input} -o {output} {input} >& {log}
         """
 
 rule merge_gtfs:

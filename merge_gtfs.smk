@@ -48,10 +48,10 @@ rule bam2gtf:
         )
     output: temp("<merged_gtf_results>/{sample}.gtf")
     threads: 1
-    log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
+    log: "<merged_gtf_results>/logs/{JOBID}_{sample}_bam2gtf.log"
     shell:
         """
-        stringtie -p {threads} -G {input} -o {output} {input} >& {log}
+        stringtie -p {threads} -G config["reference_gtf"] -o {output} {input} >& {log}
         """
 
 rule merge_gtfs:
@@ -61,7 +61,7 @@ rule merge_gtfs:
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 1
-    log: "<merged_gtf_results>/logs/merge_gtfs.log"
+    log: "<merged_gtf_results>/logs/{JOBID}_merge_gtfs.log"
     shell:
         """
         # instantiate manifest as a temp file

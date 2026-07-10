@@ -16,6 +16,7 @@ merge_list: "exploration/merge_gtf_list.tsv"
 # read in configfile values
 SAMPLES = pd.read_table(config["sample_sheet"])["sample"].tolist()
 GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
+REF_GTF = config["reference_gtf"]
 
 # make a dictionary to map samples to groups so merged GTF output won't need group wildcards
 sample_to_group = dict(zip(SAMPLES, GROUPS))
@@ -42,26 +43,27 @@ rule all:
 
 rule bam2gtf:
     input:
-        lambda wildcard: (
+        ref_gtf = REF_GTF,
+        bam = lambda wildcard: (
             f"data/{sample_to_group[wildcard.sample]}"
             f"/star-output/{wildcard.sample}/Aligned.sortedByCoord.out.bam"
         )
     output: temp("<merged_gtf_results>/{sample}.gtf")
     threads: 1
-    log: "<merged_gtf_results>/logs/{JOBID}_{sample}_bam2gtf.log"
+    log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
     shell:
         """
-        stringtie -p {threads} -G {config["reference_gtf"]} -o {output} {input} >& {log}
+        stringtie -p {threads} -G {input.ref_gtf} -o {output} {input.bam} >& {log}
         """
 
 rule merge_gtfs:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs =SAMPLE_GTFS
+        sample_gtfs = SAMPLE_GTFS
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 1
-    log: "<merged_gtf_results>/logs/{JOBID}_merge_gtfs.log"
+    log: "<merged_gtf_results>/logs/merge_gtfs.log"
     shell:
         """
         # instantiate manifest as a temp file

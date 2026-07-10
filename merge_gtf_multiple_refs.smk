@@ -1,8 +1,8 @@
-# Snakefile for generating and merging GTFs from one sample at a time with the reference GTF, for a defined set of samples 
+# Snakefile for generating and merging GTFs from one sample at a time with the reference GTF, for a defined set of samples
 # This snakefile uses a sample sheet containing sample accessions and bam paths to identify files to act on
 # To generate test files to assess differences caused by merging the reference in multiple times,
-# this workflow will run on experiment.tsvs of one sample at a time to generate a GTF. 
-# Then, the GTFs generated for each sample awill be merged with the reference GTF, creating one merged GTF per sample. 
+# this workflow will run on experiment.tsvs of one sample at a time to generate a GTF.
+# Then, the GTFs generated for each sample awill be merged with the reference GTF, creating one merged GTF per sample.
 # Finally, the merged GTFs of all samples will be merged together with the reference again to mimic the workflow in merge_results.smk.
 
 # Run from project root: snakemake --snakefile merge_gtf_multiple_refs.smk --profile pheonix-profile
@@ -23,7 +23,7 @@ REF_GTF = config["reference_gtf"]
 sample_to_group = dict(zip(SAMPLES, GROUPS))
 
 pathvars:
-    merged_gtf_results = f"results/merged_gtf_tests/{config["version"]}"
+    merged_gtf_results = f"results/multiple_refs_merged_gtf_tests/{config["version"]}"
 
 # path to sample bams from separate shiba runs
 SAMPLE_BAMS = expand(
@@ -54,21 +54,42 @@ rule bam2gtf:
                 "Aligned.sortedByCoord.out.bam"
             )
         )
-    output: temp("<merged_gtf_results>/{sample}.gtf")
-    threads: 1
+    output: temp("<merged_gtf_results>/pre-merge/{sample}.gtf")
+    threads: 8
     log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
     shell:
         """
         stringtie -p {threads} -G {input.ref_gtf} -o {output} {input.bam} >& {log}
-
-        # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
         """
 
-rule merge_gtfs:
+rule first_ref_merge:
     input:
         reference_gtf = config["reference_gtf"],
         sample_gtfs = SAMPLE_GTFS
+    output: temp("<merged_gtf_results>/first_ref_merge/{sample}.gtf")
+    threads: 8
+    log: "<merged_gtf_results>/logs/{sample}_first_ref_merge.log"
+    shell:
+        """
+        # instantiate manifest as a temp file
+        manifest=$(mktemp)
+
+        for gtf in {input.sample_gtfs}; do
+            # Add gtf path to the manifest
+            echo "$gtf" >> $manifest
+        done
+
+        # merge gtfs with stringtie for splice analysis
+        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest
+
+        # remove temporary manifest
+        rm $manifest
+        """
+
+rule merge_all_gtfs:
+    input:
+        reference_gtf = config["reference_gtf"],
+        sample_gtfs = "<merged_gtf_results>/first_ref_merge/{sample}.gtf"
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 8
@@ -86,4 +107,7 @@ rule merge_gtfs:
 
         # merge gtfs with stringtie for splice analysis
         stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
+
+        # remove temporary manifest
+        rm $manifest
         """

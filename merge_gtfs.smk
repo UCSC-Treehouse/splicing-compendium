@@ -1,5 +1,9 @@
 # Snakefile for generating and merging GTFs of a defined set of samples
-# A sample sheet of all sample accessions with separate Shiba results, and their group, is given to the config file to identify files to run the workflow on
+# This snakefile uses a sample sheet (experiment.tsv) containing sample accessions and bam paths to identify files to act on
+# To generate test files to assess differences caused by merging the reference in multiple times, 
+# this workflow will run on experiment.tsvs of one sample at a time to generate a GTF.
+# Then, the GTFs generated and merged with references separately will be merged together by passing merge_gtf_list.tsv into the merge_gtf rule.
+
 # Run from project root: snakemake --snakefile merge_gtfs.smk --profile pheonix-profile
 
 import pandas as pd

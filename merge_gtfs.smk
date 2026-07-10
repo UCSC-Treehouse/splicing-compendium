@@ -39,7 +39,7 @@ rule all:
 
 rule bam2gtf:
     input: SAMPLE_BAMS
-    output: temp({SAMPLE_GTFS})
+    output: temp(SAMPLE_GTFS)
     threads:
     shell:
         """

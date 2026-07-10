@@ -33,7 +33,7 @@ SAMPLE_BAMS = expand(
 )
 
 SAMPLE_GTFS =  expand(
-    "<merged_gtf_results>/{sample}.gtf",
+    "<merged_gtf_results>/pre-merge/{sample}.gtf",
     sample = SAMPLES
 )
 

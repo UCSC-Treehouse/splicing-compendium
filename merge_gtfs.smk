@@ -68,7 +68,7 @@ rule merge_gtfs:
         sample_gtfs = SAMPLE_GTFS
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
-    threads: 1
+    threads: 8
     log: "<merged_gtf_results>/logs/merge_gtfs.log"
     shell:
         """

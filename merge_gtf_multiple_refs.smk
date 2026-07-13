@@ -56,7 +56,7 @@ rule bam2gtf:
         )
     output: temp("<merged_gtf_results>/pre-merge/{sample}.gtf")
     threads: 8
-    log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
+    log: "logs/$SLURM_JOB_ID_{sample}_bam2gtf.log"
     shell:
         """
         stringtie -p {threads} -G {input.ref_gtf} -o {output} {input.bam} >& {log}
@@ -68,7 +68,7 @@ rule first_ref_merge:
         sample_gtfs = SAMPLE_GTFS
     output: temp("<merged_gtf_results>/first_ref_merge/{sample}.gtf")
     threads: 8
-    log: "<merged_gtf_results>/logs/{sample}_first_ref_merge.log"
+    log: "logs/$SLURM_JOB_ID_{sample}_first_ref_merge.log"
     shell:
         """
         # instantiate manifest as a temp file
@@ -89,11 +89,17 @@ rule first_ref_merge:
 rule merge_all_gtfs:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs = "<merged_gtf_results>/first_ref_merge/{sample}.gtf"
+        sample_gtfs = lambda wildcard: (
+            os.path.join(
+                "<merged_gtf_results>",
+                "first_ref_merge",
+                {wildcard.sample}.gtf
+            )
+        )
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 8
-    log: "<merged_gtf_results>/logs/merge_gtfs.log"
+    log: "logs/$SLURM_JOB_ID_merge_gtfs.log"
     shell:
         """
         # instantiate manifest as a temp file

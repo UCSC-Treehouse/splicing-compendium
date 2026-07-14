@@ -66,10 +66,8 @@ rule first_ref_merge:
         # instantiate manifest as a temp file
         manifest=$(mktemp)
 
-        for gtf in {input.sample_gtfs}; do
-            # Add gtf path to the manifest
-            echo "$gtf" >> $manifest
-        done
+        # Add gtf path to the manifest
+        echo "{input.sample_gtf}" > $manifest
 
         # merge gtfs with stringtie for splice analysis
         stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest

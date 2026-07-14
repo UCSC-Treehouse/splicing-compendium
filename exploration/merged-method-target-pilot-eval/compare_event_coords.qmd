@@ -73,9 +73,24 @@ This notebook compares the similarity (Jaccard index) between splice event coord
     - Input GTF replicate 1 from Multiple Threads Test
     - Events files derived from input GTF replicate 1 from Multiple Threads Test
 
-- Merging in of reference GTF multiple times in the workflow: A remaining difference
+- **Merging in of reference GTF multiple times in the workflow:** Another difference between the merged and combined method workflows lies in how many times and how the reference GTF is merged in to the final GTF.
+  In the merged method, the reference GTF is merged in once per sample to make an intermediate GTF from each bam, then once again when all intermediate GTFs are merged together.
+  In contrast, the combined method creates a GTF from each sample's bam withput merging in the reference and only merges in the reference GTF once in the final merge step where all samples' GTFs are merged together.
+  To generate position IDs to test differences resulting from these two methods, the following code is run:
 
-- Merged vs. combined method: To what extent are event coordinates defined with the merged and combined methods different?
+  - **"Merge reference GTF once" test**
+
+    - **Input GTF 1:** `merge_gtfs.smk` is used to create a merged GTF from 88 pilot TARGET samples that should replicate the "combined" method of merging GTFs, where the reference is only merged in once.
+
+    - **Events files generated from input GTF 1:** `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` will be run on the resulting GTF to generate events files
+
+  - **"Merge reference GTF multiple times" test**
+
+    - **Input GTF 2:** `merge_gtf_multiple_refs.smk` is used to create GTF where the reference GTF is merged in multiple times (once, when the GTF is generated from a sample bam, and again when all sample GTFs are merged together)
+
+    - **Events files generated from input GTF 1:** `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py` will be run on the resulting GTF to generate events files
+
+- **Merged vs. combined method: To what extent are event coordinates defined with the merged and combined methods different?**
 
   - Merged method files and commands used to generate them:
 

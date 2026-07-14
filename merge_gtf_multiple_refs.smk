@@ -89,13 +89,10 @@ rule first_ref_merge:
 rule merge_all_gtfs:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs = lambda wildcard: (
-            os.path.join(
-                "<merged_gtf_results>",
-                "first_ref_merge",
-                {wildcard.sample}.gtf
+        sample_gtfs = expand(
+            "<merged_gtf_results>/first_ref_merge/{sample}.gtf",
+            sample=SAMPLES
             )
-        )
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 8

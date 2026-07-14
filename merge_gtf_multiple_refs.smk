@@ -47,7 +47,7 @@ rule bam2gtf:
     log: "logs/{sample}_bam2gtf.log"
     shell:
         """
-        stringtie -p {threads} -G {input.ref_gtf} -o {output} {input.bam} >& {log}
+        stringtie -v -p {threads} -G {input.ref_gtf} -o {output} {input.bam} >& {log}
         """
 
 rule first_ref_merge:
@@ -66,7 +66,7 @@ rule first_ref_merge:
         echo "{input.sample_gtf}" > $manifest
 
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest
+        stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
 
         # remove temporary manifest
         rm $manifest
@@ -95,7 +95,7 @@ rule merge_all_gtfs:
         done
 
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
+        stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
 
         # remove temporary manifest
         rm $manifest

@@ -25,13 +25,6 @@ sample_to_group = dict(zip(SAMPLES, GROUPS))
 pathvars:
     merged_gtf_results = f"results/multiple_refs_merged_gtf_tests/{config["version"]}"
 
-# path to sample bams from separate shiba runs
-SAMPLE_BAMS = expand(
-    "data/{group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-    group=GROUPS,
-    sample=SAMPLES
-)
-
 SAMPLE_GTFS =  expand(
     "<merged_gtf_results>/pre-merge/{sample}.gtf",
     sample = SAMPLES

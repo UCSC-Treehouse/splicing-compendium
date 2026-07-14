@@ -25,10 +25,6 @@ sample_to_group = dict(zip(SAMPLES, GROUPS))
 pathvars:
     merged_gtf_results = f"results/multiple_refs_merged_gtf_tests/{config["version"]}"
 
-SAMPLE_GTFS =  expand(
-    "<merged_gtf_results>/pre-merge/{sample}.gtf",
-    sample = SAMPLES
-)
 
 rule all:
     input:

@@ -57,7 +57,7 @@ rule bam2gtf:
 rule first_ref_merge:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs = SAMPLE_GTFS
+        sample_gtf = "<merged_gtf_results>/pre-merge/{sample}.gtf"
     output: temp("<merged_gtf_results>/first_ref_merge/{sample}.gtf")
     threads: 8
     log: "logs/{sample}_first_ref_merge.log"

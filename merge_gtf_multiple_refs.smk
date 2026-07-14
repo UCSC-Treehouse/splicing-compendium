@@ -37,7 +37,6 @@ SAMPLE_GTFS =  expand(
     sample = SAMPLES
 )
 
-# create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
         "<merged_gtf_results>/merged_gtf.gtf"

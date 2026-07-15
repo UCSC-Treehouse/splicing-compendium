@@ -11,7 +11,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
-configfile: "config/merge_gtf_test_config.yaml"
+configfile: "config/target_pilot_merge_gtf_test_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])

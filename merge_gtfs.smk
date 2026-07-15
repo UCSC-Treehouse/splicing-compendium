@@ -10,8 +10,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
-configfile: "config/merge_gtf_test_config.yaml"
-merge_list: "exploration/merge_gtf_list.tsv"
+configfile: "config/target_pilot_merge_gtf_test_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])
@@ -82,5 +81,5 @@ rule merge_gtfs:
         done
 
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
+        stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
         """

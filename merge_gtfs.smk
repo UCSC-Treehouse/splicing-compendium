@@ -41,7 +41,7 @@ rule bam2gtf:
                 "Aligned.sortedByCoord.out.bam"
             )
         )
-    output: temp("<merged_gtf_results>/pre-merge/{sample}.gtf")
+    output: "<merged_gtf_results>/pre-merge/{sample}.gtf"
     threads: 1
     log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
     shell:

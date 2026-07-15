@@ -24,18 +24,6 @@ sample_to_group = dict(zip(SAMPLES, GROUPS))
 pathvars:
     merged_gtf_results = f"results/merged_gtf_tests/{config["version"]}"
 
-# path to sample bams from separate shiba runs
-SAMPLE_BAMS = expand(
-    "data/{group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-    group=GROUPS,
-    sample=SAMPLES
-)
-
-SAMPLE_GTFS =  expand(
-    "<merged_gtf_results>/pre-merge/{sample}.gtf",
-    sample = SAMPLES
-)
-
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
@@ -64,7 +52,10 @@ rule bam2gtf:
 rule merge_gtfs:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs = SAMPLE_GTFS
+        sample_gtfs = expand(
+            "<merged_gtf_results>/pre-merge/{sample}.gtf",
+            sample = SAMPLES
+            )
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 8

@@ -1,6 +1,6 @@
 # Compare splice event coordinates between merged and combined Shiba runs
 Cindy Liang (celiang@ucsc.edu)
-2026-07-06
+2026-07-15
 
 ## Background
 
@@ -101,14 +101,46 @@ GTFs run with different StringTie conditions:
       scrambled experiment.tsv file using the following command:
       `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py -i scrambled_experiment.tsv -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf -p 15 -v`
     - **Events files generated from input GTF 1:**
-      `$CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o shiba_gtf_to_event_pilot_tests/15_threads_scrambled -p 10 -v`
+      `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o shiba_gtf_to_event_pilot_tests/15_threads_scrambled -p 10 -v`
   - “Control” merge order files:
     - Input GTF replicate 1 from Multiple Threads Test
     - Events files derived from input GTF replicate 1 from Multiple
       Threads Test
 
-- Merged vs. combined method: To what extent are event coordinates
-  defined with the merged and combined methods different?
+- **Merging in of reference GTF multiple times in the workflow:**
+  Another difference between the merged and combined method workflows
+  lies in how many times and how the reference GTF is merged in to the
+  final GTF. In the merged method, the reference GTF is merged in once
+  per sample to make an intermediate GTF from each bam, then once again
+  when all intermediate GTFs are merged together. In contrast, the
+  combined method creates a GTF from each sample’s bam withput merging
+  in the reference and only merges in the reference GTF once in the
+  final merge step where all samples’ GTFs are merged together. To
+  generate position IDs to test differences resulting from these two
+  methods, the following code is run:
+
+  - **“Merge reference GTF once” test**
+
+    - **Input GTF 1:** `merge_gtfs.smk` is used to create a merged GTF
+      from 88 pilot TARGET samples that should replicate the “combined”
+      method of merging GTFs, where the reference is only merged in
+      once.
+
+    - **Events files generated from input GTF 1:**
+      `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i /private/groups/treehouse/working-projects/celiang/splicing-compendium/results/merged_gtf_tests/target_pilot/merged_gtf.gtf -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o shiba_gtf_to_event_pilot_tests/merged_gtf_test_target_pilot -p 10 -v`
+
+  - **“Merge reference GTF multiple times” test**
+
+    - **Input GTF 2:** `merge_gtf_multiple_refs.smk` is used to create
+      GTF where the reference GTF is merged in multiple times (once,
+      when the GTF is generated from a sample bam, and again when all
+      sample GTFs are merged together)
+
+    - **Events files generated from input GTF 1:**
+      `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py -i /private/groups/treehouse/working-projects/celiang/splicing-compendium/results/multiple_refs_merged_gtf_tests/target_pilot/merged_gtf.gtf -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf -o shiba_gtf_to_event_pilot_tests/multiple_refs_merged_gtf_test_target_pilot -p 10 -v`
+
+- **Merged vs. combined method: To what extent are event coordinates
+  defined with the merged and combined methods different?**
 
   - Merged method files and commands used to generate them:
 
@@ -198,6 +230,12 @@ multithread_events_rep2 <- file.path(splice_event_results_dir, "15threads_events
 # scrambled merge order test event directory
 scrambled_merge_order_events <- file.path(splice_event_results_dir, "15_threads_scrambled")
 
+# merging reference GTF once
+merge_gtf_one_ref_events <- file.path(splice_event_results_dir, "merged_gtf_test_target_pilot")
+
+# merging reference GTF multiple times
+merge_gtf_multiple_refs_events <- file.path(splice_event_results_dir, "multiple_refs_merged_gtf_test_target_pilot")
+
 # merged vs. combined method shiba run events directories
 combined_events_dir <- file.path(combined_results_dir, "events")
 merged_events_dir <- file.path(merged_results_dir, "events")
@@ -235,6 +273,13 @@ names(multithread_rep2_paths) <- names(event_files)
 scrambled_merge_order_paths <- file.path(scrambled_merge_order_events, event_files)
 names(scrambled_merge_order_paths) <- names(event_files)
 
+# merging refs once vs. multiple times
+one_ref_merge_paths <- file.path(merge_gtf_one_ref_events, event_files)
+names(one_ref_merge_paths) <- names(event_files)
+
+multiple_refs_merge_paths <- file.path(merge_gtf_multiple_refs_events, event_files)
+names(multiple_refs_merge_paths) <- names(event_files)
+
 # merged vs. combined method 
 merged_events_paths <-file.path(merged_events_dir, event_files)
 names(merged_events_paths) <- names(event_files)
@@ -258,6 +303,10 @@ multithread_rep2_list <- read_in_events(multithread_rep2_paths)
 
 # scrambled gtf merge prder
 scrambled_list <- read_in_events(scrambled_merge_order_paths)
+
+# one ref vs multiple refs being merged
+one_ref_merge_list <- read_in_events(one_ref_merge_paths)
+multiple_refs_merge_list <- read_in_events(multiple_refs_merge_paths)
 
 # merged vs. combined method
 merged_events_list <- read_in_events(merged_events_paths)
@@ -287,6 +336,17 @@ jaccard_indices_scrambled <- calculate_jaccard_indices_of_events(
   scrambled_list
 )
 
+# merging reference gtfs multiple times
+jaccard_indices_multiple_refs <- calculate_jaccard_indices_of_events(
+  one_ref_merge_list,
+  multiple_refs_merge_list)
+
+# merging reference once vs. combined method
+jaccard_indices_one_ref <- calculate_jaccard_indices_of_events(
+  one_ref_merge_list,
+  combined_events_list
+)
+
 # merged vs. combined method
 jaccard_indices_merged_vs_combined <- calculate_jaccard_indices_of_events(
   merged_events_list,
@@ -302,6 +362,8 @@ jaccard_df <- data.frame(
   neg_ctrl = unlist(jaccard_indices_neg_ctrl, use.names = FALSE),
   same_threads = unlist(jaccard_indices_multithreading, use.names = FALSE),
   scrambled = unlist(jaccard_indices_scrambled, use.names = FALSE),
+  multiple_refs = unlist(jaccard_indices_multiple_refs, use.names = FALSE),
+  one_ref = unlist(jaccard_indices_one_ref, use.names = FALSE),
   merged_vs_combined = unlist(jaccard_indices_merged_vs_combined, use.names = FALSE)
 )
 
@@ -315,16 +377,16 @@ event type.
 
 <div class="cell-output-display">
 
-| event_type | neg_ctrl | same_threads | scrambled | merged_vs_combined |
-|:-----------|---------:|-------------:|----------:|-------------------:|
-| se         |        1 |            1 |         1 |          0.9480923 |
-| afe        |        1 |            1 |         1 |          0.8393962 |
-| ale        |        1 |            1 |         1 |          0.8365145 |
-| five       |        1 |            1 |         1 |          0.8570423 |
-| three      |        1 |            1 |         1 |          0.8871048 |
-| mse        |        1 |            1 |         1 |          0.9120187 |
-| mxe        |        1 |            1 |         1 |          0.8599684 |
-| ri         |        1 |            1 |         1 |          0.7510809 |
+| event_type | neg_ctrl | same_threads | scrambled | multiple_refs | one_ref | merged_vs_combined |
+|:---|---:|---:|---:|---:|---:|---:|
+| se | 1 | 1 | 1 | 0.9480923 | 1 | 0.9480923 |
+| afe | 1 | 1 | 1 | 0.8393962 | 1 | 0.8393962 |
+| ale | 1 | 1 | 1 | 0.8365145 | 1 | 0.8365145 |
+| five | 1 | 1 | 1 | 0.8570423 | 1 | 0.8570423 |
+| three | 1 | 1 | 1 | 0.8871048 | 1 | 0.8871048 |
+| mse | 1 | 1 | 1 | 0.9120187 | 1 | 0.9120187 |
+| mxe | 1 | 1 | 1 | 0.8599684 | 1 | 0.8599684 |
+| ri | 1 | 1 | 1 | 0.7510809 | 1 | 0.7510809 |
 
 </div>
 
@@ -345,8 +407,8 @@ event type.
   with the same merge order, with multithreading and the same merge
   order, and with different merge orders are the same.
 
-- Remaining sources of differences between the methods are: Merging in
-  the reference GTF multiple times due to GTFs being generated for each
-  sample by running the full `bam2gtf.py` script on one sample at a
-  time, or another unknown difference between the merged and combined
-  methods.
+- The source of differences lies in Merging in the reference GTF
+  multiple times in the merged method. When GTFs are merged with the
+  reference only once in a separate snakemake workflow, the event
+  coordinates are identical to those generated from the canonical Shiba
+  workflow.

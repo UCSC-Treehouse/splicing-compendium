@@ -17,3 +17,9 @@ shared-fs-usage:
   - software-deployment
   - sources
   - source-cache
+
+# keep slurm logs of successful jobs
+slurm-keep-successful-logs: TRUE
+
+# slurm partitions config path
+slurm-partition-config: config/partitions.yaml

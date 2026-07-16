@@ -16,8 +16,7 @@ From analyzing junction count files produced by the merged and combined Shiba me
 
 Junctions.bed file exon-intron junctions are counted from exon-intron boundaries defined by `EVENT_RI.txt`, produced from the GTF of all samples' transcripts by `gtf2event.py` in Shiba.
 Initial analysis of the GTFs produced by the merged and combined methods also revealed differences in the GTFs used to create the event coordinate files.
-We suspect these differences stem from differences in the order in which files were passed into `stringtie --merge`, the use of multithreading in merging, 
-or the fact that the reference GTF is merged into the final GTF multiple times in the "merged" compendium workflow (`Snakefile` + `merge_results.smk`).
+We suspect these differences stem from differences in the order in which files were passed into `stringtie --merge`, the use of multithreading in merging, or the fact that the reference GTF is merged into the final GTF multiple times in the "merged" compendium workflow (`Snakefile` + `merge_results.smk`).
 
 We next wanted to answer how much GTF differences impacted similarity in the coordinates of splice events in the event coordinate files (like `EVENT_RI.txt`).
 For instance, if only one event type's coordinates is disproportionately impacted by GTF differences, we may decide to not include quantification of that event type in the first release of the splice compendium.
@@ -40,27 +39,11 @@ This notebook compares the similarity (Jaccard index) between splice event coord
   - Two GTFs were generated with the unaltered Shiba v 0.8.1 `bam2gtf.py` script, with one thread, with the same commands
   - Events coordinates files for both GTFs were generated with unaltered `gtf2events.py` using 10 threads (the amount passed to this script in `merge_results.smk`) with the same commands. Position IDs from these coordinate files are compared for similarity with Jaccard indices in this notebook.
   - Replicate 1 files and commands used to generate them
-    - **Input GTF replicate 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py  
-    -i exploration/merging-psi-tables/target_pilot/experiment.tsv  
-    -r references/gencode.v47.primary_assembly.annotation.gtf  
-    -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf  
-    -p 1  -v`
-    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  
-    -i target_pilot_gtf_tests/one_thread_pilot_gtf.gtf  
-    -r references/gencode.v47.primary_assembly.annotation.gtf  
-    -o shiba_pilot_gtf_events  
-    -p 10  -v`
+    - **Input GTF replicate 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py   -i exploration/merging-psi-tables/target_pilot/experiment.tsv   -r references/gencode.v47.primary_assembly.annotation.gtf   -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf   -p 1  -v`
+    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py   -i target_pilot_gtf_tests/one_thread_pilot_gtf.gtf   -r references/gencode.v47.primary_assembly.annotation.gtf   -o shiba_pilot_gtf_events   -p 10  -v`
   - Replicate 2 files and commands used to generate them
-    - **Input GTF replicate 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py  
-    -i exploration/merging-psi-tables/target_pilot/experiment.tsv  
-    -r references/gencode.v47.primary_assembly.annotation.gtf  
-    -o results/merged_shiba/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf
-    -p 1  -v`
-    - **Events files generated from input GTF 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  
-    -i /scratch/celiang/target_pilot_gtfs/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf  
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  
-    -o /scratch/celiang/shiba_event_to_gtf_tests/shiba_pilot_gtf_events_rep2  
-    -p 10  -v`
+    - **Input GTF replicate 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py   -i exploration/merging-psi-tables/target_pilot/experiment.tsv   -r references/gencode.v47.primary_assembly.annotation.gtf   -o results/merged_shiba/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf -p 1  -v`
+    - **Events files generated from input GTF 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py   -i /scratch/celiang/target_pilot_gtfs/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf   -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf   -o /scratch/celiang/shiba_event_to_gtf_tests/shiba_pilot_gtf_events_rep2   -p 10  -v`
 
 - **Multiple threads test:** To what extent does using multiple threads change events coordinates defined by GTFs made with the same commands?
 
@@ -71,47 +54,21 @@ This notebook compares the similarity (Jaccard index) between splice event coord
 
   - Replicate 1 files and commands used to generate them:
 
-    - **Input GTF replicate 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py  
-    -i experiment_scratch.tsv  
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  
-    -o target_pilot_gtfs/15_threads_rep1/15_threads_pilot_gtf.gtf  
-    -p 15  -v`
+    - **Input GTF replicate 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py   -i experiment_scratch.tsv   -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf   -o target_pilot_gtfs/15_threads_rep1/15_threads_pilot_gtf.gtf   -p 15  -v`
 
-    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  
-    -i target_pilot_gtfs/15_threads_rep1/15_threads_pilot_gtf.gtf  
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  
-    -o shiba_gtf_to_event_pilot_tests/15threads_events_rep1  
-    -p 10  -v`
+    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py   -i target_pilot_gtfs/15_threads_rep1/15_threads_pilot_gtf.gtf   -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf   -o shiba_gtf_to_event_pilot_tests/15threads_events_rep1   -p 10  -v`
 
   - Replicate 2 files and commands used to generate them:
 
-    - **Input GTF replicate 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py  
-    -i experiment_scratch.tsv  
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  
-    -o target_pilot_gtfs/15_threads_rep2/15_threads_pilot_gtf.gtf  
-    -p 15  -v`
+    - **Input GTF replicate 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py   -i experiment_scratch.tsv   -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf   -o target_pilot_gtfs/15_threads_rep2/15_threads_pilot_gtf.gtf   -p 15  -v`
 
-    - **Events files generated from input GTF 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  
-    -i target_pilot_gtfs/15_threads_rep2/15_threads_pilot_gtf.gtf  
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  
-    -o shiba_gtf_to_event_pilot_tests/15threads_events_rep2  
-    -p 10  -v`
+    - **Events files generated from input GTF 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py   -i target_pilot_gtfs/15_threads_rep2/15_threads_pilot_gtf.gtf   -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf   -o shiba_gtf_to_event_pilot_tests/15threads_events_rep2   -p 10  -v`
 
 - **Different GTF merge order:** To what extent does merging GTFs in different orders (as defined by the sample order in `experiment.tsv`) change event coordinate definition?
 
   - Scrambled merge order files and commands used to generate them:
-    - **Input GTF 1 (scrambled merge order):** Was generated by first randomly scrambling the row order of `experiment.tsv` with
-    `exploration/merged-method-target-pilot-eval/scramble_experiment_file_sample_order.R` , 
-    then running the unaltered Shiba v 0.8.1 `bam2gtf.py` with the scrambled experiment.tsv file using the following command: `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py 
-    -i scrambled_experiment.tsv 
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
-    -o target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf 
-    -p 15 -v`
-    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
-    -i target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf 
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
-    -o shiba_gtf_to_event_pilot_tests/15_threads_scrambled 
-    -p 10 -v`
+    - **Input GTF 1 (scrambled merge order):** Was generated by first randomly scrambling the row order of `experiment.tsv` with `exploration/merged-method-target-pilot-eval/scramble_experiment_file_sample_order.R` , then running the unaltered Shiba v 0.8.1 `bam2gtf.py` with the scrambled experiment.tsv file using the following command: `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py  -i scrambled_experiment.tsv  -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  -o target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf  -p 15 -v`
+    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  -i target_pilot_gtfs/15_threads_scrambled/15_threads_scrambled_gtf.gtf  -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  -o shiba_gtf_to_event_pilot_tests/15_threads_scrambled  -p 10 -v`
   - "Control" merge order files:
     - Input GTF replicate 1 from Multiple Threads Test
     - Events files derived from input GTF replicate 1 from Multiple Threads Test
@@ -125,22 +82,13 @@ This notebook compares the similarity (Jaccard index) between splice event coord
 
     - **Input GTF 1:** `merge_gtfs.smk` is used to create a merged GTF from 88 pilot TARGET samples that should replicate the "combined" method of merging GTFs, where the reference is only merged in once.
 
-    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
-    -i /private/groups/treehouse/working-projects/celiang/splicing-compendium/results/main_merged_gtf_tests/target_pilot/merged_gtf.gtf 
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
-    -o shiba_gtf_to_event_pilot_tests/main_merged_gtf_test_target_pilot 
-    -p 10 -v`
+    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  -i /private/groups/treehouse/working-projects/celiang/splicing-compendium/results/main_merged_gtf_tests/target_pilot/merged_gtf.gtf  -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  -o shiba_gtf_to_event_pilot_tests/main_merged_gtf_test_target_pilot  -p 10 -v`
 
   - **"Merge reference GTF multiple times" test**
 
-    - **Input GTF 2:** `merge_gtf_multiple_refs.smk` is used to create GTF where the reference GTF is merged in multiple times 
-    (once, when the GTF is generated from a sample bam, and again when all sample GTFs are merged together)
+    - **Input GTF 2:** `merge_gtf_multiple_refs.smk` is used to create GTF where the reference GTF is merged in multiple times (once, when the GTF is generated from a sample bam, and again when all sample GTFs are merged together)
 
-    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py 
-    -i /private/groups/treehouse/working-projects/celiang/splicing-compendium/results/multiple_refs_merged_gtf_tests/target_pilot/merged_gtf.gtf 
-    -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf 
-    -o shiba_gtf_to_event_pilot_tests/multiple_refs_merged_gtf_test_target_pilot 
-    -p 10 -v`
+    - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py  -i /private/groups/treehouse/working-projects/celiang/splicing-compendium/results/multiple_refs_merged_gtf_tests/target_pilot/merged_gtf.gtf  -r /private/groups/treehouse/working-projects/celiang/splicing-compendium/references/gencode.v47.primary_assembly.annotation.gtf  -o shiba_gtf_to_event_pilot_tests/multiple_refs_merged_gtf_test_target_pilot  -p 10 -v`
 
 - **Merged vs. combined method: To what extent are event coordinates defined with the merged and combined methods different?**
 
@@ -222,7 +170,7 @@ multithread_events_rep2 <- file.path(splice_event_results_dir, "15threads_events
 scrambled_merge_order_events <- file.path(splice_event_results_dir, "15_threads_scrambled")
 
 # merging reference GTF once
-merge_gtf_one_ref_events <- file.path(splice_event_results_dir, "merged_gtf_test_target_pilot")
+merge_gtf_one_ref_events <- file.path(splice_event_results_dir, "main_merged_gtf_test_target_pilot")
 
 # merging reference GTF multiple times
 merge_gtf_multiple_refs_events <- file.path(splice_event_results_dir, "multiple_refs_merged_gtf_test_target_pilot")
@@ -356,8 +304,8 @@ jaccard_df <- data.frame(
   neg_ctrl = unlist(jaccard_indices_neg_ctrl, use.names = FALSE),
   same_threads = unlist(jaccard_indices_multithreading, use.names = FALSE),
   scrambled = unlist(jaccard_indices_scrambled, use.names = FALSE),
-  multiple_refs = unlist(jaccard_indices_multiple_refs, use.names = FALSE),
-  one_ref = unlist(jaccard_indices_one_ref, use.names = FALSE),
+  multiple_refs_vs_one_ref = unlist(jaccard_indices_multiple_refs, use.names = FALSE),
+  one_ref_merge_vs_combined = unlist(jaccard_indices_one_ref, use.names = FALSE),
   merged_vs_combined = unlist(jaccard_indices_merged_vs_combined, use.names = FALSE)
 )
 

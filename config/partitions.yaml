@@ -1,15 +1,15 @@
 partitions:
-  long:
+  short:
     max_mem_mb_per_cpu: 5729
-    max_nodes: 10
-    max_runtime: 14-00:00:00
+    max_runtime: 01:00:00
     max_threads: 256
   medium:
     max_mem_mb_per_cpu: 5729
     max_nodes: 15
     max_runtime: '12:00:00'
     max_threads: 256
-  short:
+  long:
     max_mem_mb_per_cpu: 5729
-    max_runtime: 01:00:00
+    max_nodes: 10
+    max_runtime: 14-00:00:00
     max_threads: 256

@@ -1,9 +1,4 @@
 partitions:
-  gpu:
-    max_mem_mb_per_cpu: 5729
-    max_nodes: 6
-    max_runtime: 7-00:00:00
-    max_threads: 256
   high_priority:
     max_mem_mb_per_cpu: 5729
     max_runtime: 7-00:00:00

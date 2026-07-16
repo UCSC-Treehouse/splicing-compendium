@@ -3,6 +3,7 @@
 
 # Load library
 library("optparse")
+library("duckplyr")
 
 # Set up options to Rscript with optparse
 option_list <-list(

@@ -10,8 +10,7 @@ import pandas as pd
 import os
 from datetime import datetime
 
-configfile: "config/merge_gtf_test_config.yaml"
-merge_list: "exploration/merge_gtf_list.tsv"
+configfile: "config/target_pilot_merge_gtf_test_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])
@@ -24,18 +23,6 @@ sample_to_group = dict(zip(SAMPLES, GROUPS))
 
 pathvars:
     merged_gtf_results = f"results/merged_gtf_tests/{config["version"]}"
-
-# path to sample bams from separate shiba runs
-SAMPLE_BAMS = expand(
-    "data/{group}/star-output/{sample}/Aligned.sortedByCoord.out.bam",
-    group=GROUPS,
-    sample=SAMPLES
-)
-
-SAMPLE_GTFS =  expand(
-    "<merged_gtf_results>/pre-merge/{sample}.gtf",
-    sample = SAMPLES
-)
 
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
@@ -54,7 +41,7 @@ rule bam2gtf:
                 "Aligned.sortedByCoord.out.bam"
             )
         )
-    output: temp("<merged_gtf_results>/{sample}.gtf")
+    output: "<merged_gtf_results>/pre-merge/{sample}.gtf"
     threads: 1
     log: "<merged_gtf_results>/logs/{sample}_bam2gtf.log"
     shell:
@@ -65,7 +52,10 @@ rule bam2gtf:
 rule merge_gtfs:
     input:
         reference_gtf = config["reference_gtf"],
-        sample_gtfs = SAMPLE_GTFS
+        sample_gtfs = expand(
+            "<merged_gtf_results>/pre-merge/{sample}.gtf",
+            sample = SAMPLES
+            )
     output: "<merged_gtf_results>/merged_gtf.gtf"
     priority: 1
     threads: 8
@@ -82,5 +72,5 @@ rule merge_gtfs:
         done
 
         # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
+        stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest >& {log}
         """

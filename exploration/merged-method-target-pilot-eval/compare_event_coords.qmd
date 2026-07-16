@@ -320,5 +320,5 @@ jaccard_df
 
 - Events coordinates derived from GTF files made without multithreading with the same merge order, with multithreading and the same merge order, and with different merge orders are the same.
 
-- The source of differences lies in Merging in the reference GTF multiple times in the merged method.
+- The source of differences lies in merging in the reference GTF multiple times in the merged method.
   When GTFs are merged with the reference only once in a separate snakemake workflow, the event coordinates are identical to those generated from the canonical Shiba workflow.

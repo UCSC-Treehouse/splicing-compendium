@@ -10,11 +10,15 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   use_cache: TRUE
+  min_samples: 5
 ---
+
+## Introduction
+This notebook 
 
 ## Set up
 ## load libraries
-```{r}
+```{r libraries_and_theme}
 # load libraries
 library(ggplot2)
 
@@ -42,10 +46,9 @@ plot_theme = list(
 )
 ```
 
-
 ## Directories and files
 
-```{r}
+```{r dirs_and_files}
 data_dir <- file.path("data")
 
 # target subset metadata
@@ -53,14 +56,13 @@ target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
 # target subset combined psi results
 combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
 
-
 # output
 wilcox_results_file <- file.path(data_dir, "wilcox_test_results.tsv")
 ```
 
 ## read in files
 
-```{r}
+```{r read_in_files}
 # read in TARGET sample metadata
 target_metadata <- readr::read_csv(target_metadata_file, col_types = c(.default = "c"))
 
@@ -69,14 +71,16 @@ psi_combined <- readRDS(combined_psi_file)
 ```
 
 ## Combine PSI table with TARGET metadata to associate samples with cancer type
-```{r}
-
-# We only care about body site and run fields in target metadata
+```{r combine_diff_events_psi_tables}
+# Filter for body site and run ID fields in target metadata
 filtered_target_metadata <- target_metadata |>
   dplyr::select(study_name, Run) |>
   dplyr::filter(grepl("TARGET", study_name))
 
-# we need to associate the body site with accession number, so first pivot the table longer (so that we are back to one column of just accession IDs)
+# Associate the body site with accession number
+# first pivot the table longer 
+# each row corresponds to PSI values for a single sample/accession ID 
+# columns correspond to PSI quantification for a specific splice event position for that accession ID
 cancer_type_psi_table <- psi_combined |>
   tidyr::pivot_longer(
     cols = contains("_PSI"),
@@ -95,13 +99,13 @@ cancer_type_psi_table <- psi_combined |>
     )
   )
 
+# Print column names of combined PSI table
+colnames(cancer_type_psi_table)
 ```
 
 Filter to positions where there are sufficient samples.
 
-```{r}
-min_samples <- 5
-
+```{r filter_min_observations}
 # require at least min_samples for each group to have non-NA PSI values
 cancer_type_psi_table_filtered <- cancer_type_psi_table |>
   tidyr::drop_na(PSI) |>
@@ -111,32 +115,30 @@ cancer_type_psi_table_filtered <- cancer_type_psi_table |>
     query_count = sum(group == "query")
   ) |>
   dplyr::filter(
-    ref_count >= min_samples, 
-    query_count >= min_samples
+    ref_count >= params$min_samples, 
+    query_count >= params$min_samples
   )|>
-  # filter where all PSI values are identical
+  # filter out events where all PSI values are identical (nothing different to compare)
   dplyr::filter(any(PSI != PSI[1])) |>
   dplyr::ungroup()
 
-
+# obtain list of unique position IDs in the table filtered for min_samples
 filtered_events <- unique(cancer_type_psi_table_filtered$pos_id)
 
+# subset PSI table for the first 1000 events to save memory
 cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
   dplyr::filter(pos_id %in% filtered_events[1:1000])
 
 ```
 
-
-
 Calculate Wilcoxon ranksum for PSI distributions
 
-
-```{r}
+```{r used_cached_wilcox}
 use_cached_wilcox <-file.exists(wilcox_results_file) && params$use_cache
 ```
 
 Run wilcoxon ranksum test
-```{r}
+```{r calculate_wilcox}
 if (use_cached_wilcox) {
   wilcox_test_events <- readr::read_tsv(wilcox_results_file)
 } else {
@@ -150,14 +152,14 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
   dplyr::mutate(
     p_adj = p.adjust(p, method = "BH")
   )
-
+  # write test results to output 
   readr::write_tsv(wilcox_test_events, wilcox_results_file)
 }
 ```
 
 Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions.
 Make a series of histograms faceted by pos_id
-```{r}
+```{r failed_wilcox_test_dist}
 #| label: fig-hist_fail_wilcox_test_dists
 #| fig-width: 11
 #| fig-height: 8
@@ -179,9 +181,10 @@ ggplot(fail_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
        x = "PSI value",
        y = "Number of samples") 
 ```
+
 These actually look fairly reasonable for a wilcox test to fail. 
 Check what it looks like when the wilcox test is successful
-```{r}
+```{r pass_wilcox_test_dist}
 #| label: fig-hist_sig_wilcox_test_dists
 #| fig-width: 11
 #| fig-height: 8
@@ -203,6 +206,4 @@ ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
        x = "PSI value",
        y = "Density") 
 ```
-I used ridgeplots because stacked histograms made it hard to figure out where the ref and query distributions were
-
 

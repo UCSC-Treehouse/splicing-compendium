@@ -67,7 +67,9 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
         by = c("chr", "start", "end", "ID")
       )
     }
-  )
+  ) |>
+  # materialize duckdb query into a tibble
+  as_tibble()
 
 # Check if junction IDs are duplicated
 if (any(duplicated(merged_junctions$ID))) {

@@ -1,0 +1,25 @@
+executor: slurm
+
+# Set the maximum number of concurrent jobs to execute or submit
+jobs: 50
+
+default-resources:
+  slurm_account: standard
+  slurm_partition: short # set to the partition they tell you us use
+  mem_mb: 700
+  runtime: 5 # minutes
+
+default-storage-provider: fs
+local-storage-prefix: "/data/tmp/$USER" # copy to tmp for fast reading in local node
+remote-job-local-storage-prefix: "/data/tmp/$USER/$SLURM_JOB_ID"
+shared-fs-usage:
+  - persistence
+  - software-deployment
+  - sources
+  - source-cache
+
+# keep slurm logs of successful jobs
+slurm-keep-successful-logs: TRUE
+
+# slurm partitions config path
+slurm-partition-config: config/partitions.yaml

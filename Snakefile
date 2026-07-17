@@ -1,16 +1,18 @@
 # snakefile for compendium shiba run
-# Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 16
-# Usage: snakemake --cores 16
+# Build reference indexes first if necessary: snakemake --snakefile build_references.smk --cores 15
+# A sample sheet generated from 01-fastq-download.sh is given to the config file to identify files to run the workflow on
+# Otherwise, this workflow will operate on all samples in the fastq directoru
+# Usage: snakemake --cores 15
 
 import os
+import pandas as pd
 
-configfile: "config.yaml"
-
+configfile: "config/config.yaml"
 
 GENOME_ID = config["genome_id"]
 SAMPLE_GROUP = config["sample_group"]
-if config.get("samples"):
-    SAMPLES = config["samples"]
+if config.get("sample_sheet"):
+    SAMPLES = pd.read_table(config["sample_sheet"])["samples"].tolist()
 else:
     SAMPLES, = glob_wildcards(os.path.join("data", SAMPLE_GROUP, "fastq", "{sample}_1.fastq.gz"))
 
@@ -38,9 +40,9 @@ rule trim_reads:
         fastp_json = "<reports>/{sample}_fastp.json"
     log:
         "<logs>/fastp/{sample}-fastp.log"
-    threads: 8
+    threads: 7
     resources:
-      mem_mb = 16000
+      mem_mb = 20000
     shell:
         """
         fastp \
@@ -63,14 +65,15 @@ rule align_reads:
     output:
         bam = "<data>/star-output/{sample}/Aligned.sortedByCoord.out.bam",
         sj = "<data>/star-output/{sample}/SJ.out.tab"
+    priority: 10
     log:
         "<logs>/star/{sample}-star.log"
-    threads: 16
+    threads: 7
     resources:
-      mem_mb = 48000
+      mem_mb = 60000
     params:
         star_dir = lambda wildcards, output: os.path.dirname(output.bam),
-        samtools_memory = lambda wildcards, resources, threads: int(resources.mem_mb / threads * 0.9)  # use 90% of available memory for samtools sorting
+        samtools_memory = lambda wildcards, resources, threads: int(resources.mem_mb / threads * 0.7)  # use 70% of available memory for samtools sorting
     shell:
         """
         STAR \
@@ -87,7 +90,12 @@ rule align_reads:
             > {log} 2>&1
 
         # sort separately to save memory
-        samtools sort -@ {threads}  -m {params.samtools_memory}M -o {output.bam} {params.star_dir}/Aligned.out.bam
+        samtools sort \
+          -@ {threads} \
+          -m {params.samtools_memory}M \
+          -o {output.bam} \
+          {params.star_dir}/Aligned.out.bam
+
         rm {params.star_dir}/Aligned.out.bam
 
         rm -rf "{params.star_dir}/_STARpass1"
@@ -100,8 +108,9 @@ rule index_bams:
         "{file}.bam"
     output:
         "{file}.bam.bai"
+    threads: 4
     shell:
-        "samtools index {input}"
+        "samtools index -@ {threads} {input}"
 
 # Fourth rule: run shiba on a single sample
 rule run_shiba:
@@ -112,13 +121,14 @@ rule run_shiba:
         config_template = "templates/shiba_config_template.yaml"
     output:
         shiba_out = directory("<results>/shiba/{sample}")
+    priority: 1
     log:
         "<logs>/shiba/{sample}-shiba.log"
     params:
         experiment_table = lambda wildcards, output: os.path.join(output.shiba_out, "experiment.tsv"),
         config_file = lambda wildcards, output: os.path.join(output.shiba_out, "shiba_config.yaml"),
         sample_group = SAMPLE_GROUP
-    threads: 2
+    threads: 4
     resources:
       mem_mb = 32000
     shell:

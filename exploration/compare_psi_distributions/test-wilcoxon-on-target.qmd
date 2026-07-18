@@ -14,7 +14,15 @@ params:
 ---
 
 ## Introduction
-This notebook 
+This notebook performs differential analysis on splice event usage (PSI) values generated from the splice compendium workflow. 
+The analysis included in this notebook consist of:
+
+1. Statistical test for differential splicing: A Wilcoxon ranksum test is used to compare the PSI value distributions for splice events used in a reference and query group of samples.
+P-values are corrected for multiple testing using the Benjamini-Hochberg method.
+
+2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
+
+3. Ranking 
 
 ## Set up
 ## load libraries
@@ -131,6 +139,8 @@ cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
 
 ```
 
+### Calculate significance of differential splicing 
+
 Calculate Wilcoxon ranksum for PSI distributions
 
 ```{r used_cached_wilcox}
@@ -157,6 +167,68 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
 }
 ```
 
+### Plot significant wilcox test distributions
+Plot PSI distributions of splice events with significantly different distributions between query and reference groups.
+```{r pass_wilcox_test_dist}
+#| label: fig-hist_sig_wilcox_test_dists
+#| fig-width: 11
+#| fig-height: 8
+
+pass_wilcox_test_events <- wilcox_test_events |>
+  dplyr::filter(p_adj <= 0.05) |>
+  # arbitrarily grab a couple to plot distributions
+ dplyr::slice_min(p_adj, n = 36)
+
+# pivot longer so distribution can be plotted
+pass_wilcox_psi <- cancer_type_psi_table|>
+  dplyr::filter(pos_id %in% pass_wilcox_test_events$pos_id) |>
+  tidyr::drop_na(PSI)
+
+ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
+  ggridges::geom_density_ridges(stat = "binline", bins = 20, alpha = 0.5) + 
+  facet_wrap(~ pos_id) + 
+  labs(title = "PSI distributions of wilcox ranksum smallest p_adjust events",
+       x = "PSI value",
+       y = "Density") 
+```
+
+### Calculate magnitude of differential splicing
+```{r calculated_dPSI}
+
+filtered_psi_table_wide <- cancer_type_psi_table_filtered |>
+  tidyr::pivot_wider(names_from = pos_id,
+                     values_from = PSI)
+  
+# 
+# dplyr::group_by(pos_id, group) |>
+#   dplyr::mutate(
+#     median_PSI =
+#       median(PSI),
+#     dPSI =
+#       dplyr::case_when(
+#         group == "ref" ~
+#           
+#       )
+#       median(ref) - median(query))
+#   rstatix::wilcox_test(
+#     PSI ~ group,
+#     ref.group = "ref"
+#   ) |>
+#   # add multiple testing adjustment
+#   dplyr::mutate(
+#     p_adj = p.adjust(p, method = "BH")
+#   )
+#   # write test results to output 
+#   readr::write_tsv(wilcox_test_events, wilcox_results_file)
+# }
+
+```
+
+
+## Supplemental
+
+### Failed Wilcox test distributions
+
 Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions.
 Make a series of histograms faceted by pos_id
 ```{r failed_wilcox_test_dist}
@@ -182,28 +254,4 @@ ggplot(fail_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
        y = "Number of samples") 
 ```
 
-These actually look fairly reasonable for a wilcox test to fail. 
-Check what it looks like when the wilcox test is successful
-```{r pass_wilcox_test_dist}
-#| label: fig-hist_sig_wilcox_test_dists
-#| fig-width: 11
-#| fig-height: 8
-
-pass_wilcox_test_events <- wilcox_test_events |>
-  dplyr::filter(p_adj <= 0.05) |>
-  # arbitrarily grab a couple to plot distributions
- dplyr::slice_min(p_adj, n = 36)
-
-# pivot longer so distribution can be plotted
-pass_wilcox_psi <- cancer_type_psi_table|>
-  dplyr::filter(pos_id %in% pass_wilcox_test_events$pos_id) |>
-  tidyr::drop_na(PSI)
-
-ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
-  ggridges::geom_density_ridges(stat = "binline", bins = 20, alpha = 0.5) + 
-  facet_wrap(~ pos_id) + 
-  labs(title = "PSI distributions of wilcox ranksum smallest p_adjust events",
-       x = "PSI value",
-       y = "Density") 
-```
-
+These distributions look like reasonable examples with no differential splicing

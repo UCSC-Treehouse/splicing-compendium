@@ -46,10 +46,10 @@ merged_junctions <- purrr::map(junction_paths, \(file) {
     options = list(
       delim = "\t",
       types = list(c(
-        ID = "VARCHAR",
         chr = "VARCHAR",
         start = "INTEGER",
-        end = "INTEGER"
+        end = "INTEGER",
+        ID = "VARCHAR"
       ))
     )
   )

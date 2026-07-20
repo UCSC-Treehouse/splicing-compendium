@@ -38,40 +38,30 @@ junction_paths <- list.files(
 )
 
 ## read in files and merge ##
-# read in junctions.bed files created from separate Shiba runs
-merged_junctions <- junction_paths |>
-  purrr::map(\(file) {
-    # read in separate bedfiles for each sample
-    junctions <- read_csv_duckdb(
-      file,
-      options = list(
-        delim = "\t",
-        types = list(c(
-          chr = "VARCHAR",
-          start = "INTEGER",
-          end = "INTEGER",
-          ID = "VARCHAR"
-        ))
-      )
-    )
+# have duckdb read all files into a single table
+raw <- read_csv_duckdb(
+  junction_paths,
+  options = list(
+    delim = "\t",
+    union_by_name = TRUE,
+    types = list(c(
+      chr = "VARCHAR",
+      start = "INTEGER",
+      end = "INTEGER",
+      ID = "VARCHAR"
+    ))
+  )
+)
 
-    # return junctions object as duckdplyr tibble
-    junctions
-  }) |>
-  # merge junctions tables from multiple samples
-  # the resulting table separates junction counts from each sample by columns with the sample ID
-  purrr::reduce(
-    \(x, y) {
-      result <- full_join(
-        x,
-        y,
-        by = c("chr", "start", "end", "ID")
-      ) |>
-        # compute results to make sure we don't get a huge query plan
-        duckplyr::compute()
+# get the value column names, which are already sample-specific
+value_cols <- setdiff(names(raw), c("chr", "start", "end", "ID"))
 
-      result
-    }
+# For each sample value, we will take the max for that column across all rows with the same junction ID.
+# after removing NAs, this will be unique!
+merged_junctions <- raw |>
+  summarise(
+    across(all_of(value_cols), \(x) max(x, na.rm = TRUE)),
+    .by = c(chr, start, end, ID)
   ) |>
   # materialize duckdb query into a tibble
   as_tibble()

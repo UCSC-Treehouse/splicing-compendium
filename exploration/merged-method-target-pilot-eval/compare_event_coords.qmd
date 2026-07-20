@@ -39,7 +39,14 @@ This notebook compares the similarity (Jaccard index) between splice event coord
   - Two GTFs were generated with the unaltered Shiba v 0.8.1 `bam2gtf.py` script, with one thread, with the same commands
   - Events coordinates files for both GTFs were generated with unaltered `gtf2events.py` using 10 threads (the amount passed to this script in `merge_results.smk`) with the same commands. Position IDs from these coordinate files are compared for similarity with Jaccard indices in this notebook.
   - Replicate 1 files and commands used to generate them
-    - **Input GTF replicate 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py   -i exploration/merging-psi-tables/target_pilot/experiment.tsv   -r references/gencode.v47.primary_assembly.annotation.gtf   -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf   -p 1  -v`
+    - **Input GTF replicate 1:** 
+    ``` 
+    python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py  \
+      -i exploration/merging-psi-tables/target_pilot/experiment.tsv  \
+      -r references/gencode.v47.primary_assembly.annotation.gtf  \
+      -o results/merged_shiba/target_pilot_gtf_tests/one_thread_pilot_gtf.gtf  \
+      -p 1  -v 
+    ```
     - **Events files generated from input GTF 1:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/gtf2event.py   -i target_pilot_gtf_tests/one_thread_pilot_gtf.gtf   -r references/gencode.v47.primary_assembly.annotation.gtf   -o shiba_pilot_gtf_events   -p 10  -v`
   - Replicate 2 files and commands used to generate them
     - **Input GTF replicate 2:** `python $CONDA_PREFIX/share/shiba-0.8.1-0/src/bam2gtf.py   -i exploration/merging-psi-tables/target_pilot/experiment.tsv   -r references/gencode.v47.primary_assembly.annotation.gtf   -o results/merged_shiba/target_pilot_gtf_tests_rep2/one_thread_pilot_gtf.gtf -p 1  -v`

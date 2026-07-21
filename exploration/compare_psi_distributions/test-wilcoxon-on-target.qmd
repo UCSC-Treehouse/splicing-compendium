@@ -139,9 +139,9 @@ cancer_type_psi_table_filtered <- cancer_type_psi_table |>
 # obtain list of unique position IDs in the table filtered for min_samples
 filtered_events <- unique(cancer_type_psi_table_filtered$pos_id)
 
-# subset PSI table for the first 1000 events to save memory
+# subset PSI table for the first 100 events to save memory
 cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
-  dplyr::filter(pos_id %in% filtered_events[1:1000])
+  dplyr::filter(pos_id %in% filtered_events[1:100])
 
 ```
 
@@ -211,27 +211,8 @@ dPSI_table <- cancer_type_psi_table_filtered |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
   dplyr::group_by(pos_id) |>
   dplyr::mutate(
-    dPSI = unique(median_PSI[group == "ref"]) - unique(median_PSI[group == "query"])
+    dPSI = unique(median_PSI[group == "query"]) - unique(median_PSI[group == "ref"])
   )
-```
-
-### Merge diff splicing test p values with dPSI table
-This is where code fails due to vector memory limits
-```{r merge_dPSI_with_padj}
-# Merge dPSI values with p values from wilcox differential splicing test
-p_dPSI_table <- wilcox_test_events |>
-  # select for informative columns from wilcox test
-  dplyr::select(pos_id, p, p_adj) |>
-  # merge wilcox test p values with dPSI table
-  dplyr::full_join(dPSI_table, by = "pos_id")
-```
-The above output should include all columns expected to be exported from splice compendium differential splice analysis.
-
-## Create volcano plots of splice events
-```{r all_events_volcano}
-#| label: fig-all_events_volcano_plot
-#| fig-width: 11
-#| fig-height: 8
 
 # select for just one dPSI and -log p 
 for_plot_p_dPSI_table <- p_dPSI_table |>
@@ -246,10 +227,61 @@ for_plot_p_dPSI_table <- p_dPSI_table |>
    
 # print columns and one row as an example of final table contents
 for_plot_p_dPSI_table |> head(n = 1)
+```
+
+### Merge diff splicing test p values with dPSI table
+This is where code fails due to vector memory limits
+```{r merge_dPSI_with_padj}
+# Merge dPSI values with p values from wilcox differential splicing test
+p_dPSI_table <- wilcox_test_events |>
+  # select for informative columns from wilcox test
+  dplyr::select(pos_id, p, p_adj) |>
+  # merge wilcox test p values with dPSI table
+  dplyr::full_join(dPSI_table, by = "pos_id")
+```
+```{r make_volcanoplot_df}
+# create dataframe of values for volcano plot
+for_plot_p_dPSI_table <- p_dPSI_table |>
+  # take the negative log of p_adj for volcano plot
+  dplyr::mutate(
+    minus_log_padj = -log10(p_adj)
+    ) |>
+   # select only relevant columns for plotting
+   dplyr::select(pos_id, dPSI, minus_log_padj) |>
+   # Filter for unique row values for plotting
+   dplyr::distinct() |>
+  # assign columns colors for volcano plot
+  dplyr::mutate(
+    colors = dplyr::case_when(
+      dPSI > params$dPSI & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_increase",
+      dPSI < -params$dPSI & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_decrease"
+    )
+  )
+   
+# print columns and one row as an example of final table contents
+for_plot_p_dPSI_table |> head(n = 1)
+```
+
+
+The above output should include all columns expected to be exported from splice compendium differential splice analysis.
+
+## Create volcano plots of splice events
+```{r all_events_volcano}
+#| label: fig-all_events_volcano_plot
+#| fig-width: 11
+#| fig-height: 8
 
 ggplot(for_plot_p_dPSI_table, aes(x = dPSI, y = minus_log_padj)) +
-  geom_vline(xintercept = params$dPSI, linetype = "dashed", colour = "grey") +
-  geom_hline(yintercept = -log10(params$padj), linetype = "dashed", colour = "grey") +
+  geom_point(aes(colour = as.factor(colors))) +
+        scale_color_manual(
+          values = c(
+            "sig_and_diff_increase" = "orange",
+            "sig_and_diff_decrease" = "blue"
+            )
+          ) +
+  geom_vline(xintercept = params$dPSI, linetype = "dashed", colour = "black") +
+  geom_vline(xintercept = -params$dPSI, linetype = "dashed", colour = "black") +
+  geom_hline(yintercept = -log10(params$padj), linetype = "dashed", colour = "black") +
   xlab("dPSI") +
   ylab("Adjusted P-value") +
   plot_theme

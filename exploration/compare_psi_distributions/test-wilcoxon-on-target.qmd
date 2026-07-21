@@ -141,6 +141,7 @@ filtered_events <- unique(cancer_type_psi_table_filtered$pos_id)
 
 # subset PSI table for the first 100 events to save memory
 cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
+  # I needed to lower this subset from 1:1000 to 1:100 due to memory limitations on my laptop
   dplyr::filter(pos_id %in% filtered_events[1:100])
 
 ```
@@ -213,24 +214,9 @@ dPSI_table <- cancer_type_psi_table_filtered |>
   dplyr::mutate(
     dPSI = unique(median_PSI[group == "query"]) - unique(median_PSI[group == "ref"])
   )
-
-# select for just one dPSI and -log p 
-for_plot_p_dPSI_table <- p_dPSI_table |>
-  # take the negative log of p_adj for volcano plot
-  dplyr::mutate(
-    minus_log_padj = -log10(p_adj)
-    ) |>
-   # select only relevant columns for plotting
-   dplyr::select(pos_id, dPSI, minus_log_padj) |>
-   # Filter for unique row values for plotting
-   dplyr::distinct()
-   
-# print columns and one row as an example of final table contents
-for_plot_p_dPSI_table |> head(n = 1)
 ```
 
 ### Merge diff splicing test p values with dPSI table
-This is where code fails due to vector memory limits
 ```{r merge_dPSI_with_padj}
 # Merge dPSI values with p values from wilcox differential splicing test
 p_dPSI_table <- wilcox_test_events |>
@@ -239,6 +225,8 @@ p_dPSI_table <- wilcox_test_events |>
   # merge wilcox test p values with dPSI table
   dplyr::full_join(dPSI_table, by = "pos_id")
 ```
+
+### Plot volcano plot of differentially spliced events
 ```{r make_volcanoplot_df}
 # create dataframe of values for volcano plot
 for_plot_p_dPSI_table <- p_dPSI_table |>
@@ -247,7 +235,7 @@ for_plot_p_dPSI_table <- p_dPSI_table |>
     minus_log_padj = -log10(p_adj)
     ) |>
    # select only relevant columns for plotting
-   dplyr::select(pos_id, dPSI, minus_log_padj) |>
+   dplyr::select(pos_id, dPSI, p_adj, minus_log_padj, gene_id) |>
    # Filter for unique row values for plotting
    dplyr::distinct() |>
   # assign columns colors for volcano plot
@@ -257,15 +245,29 @@ for_plot_p_dPSI_table <- p_dPSI_table |>
       dPSI < -params$dPSI & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_decrease"
     )
   )
-   
+
+# rank significantly differentially spliced genes by dPSI magnitude
+top_15_genes <- for_plot_p_dPSI_table |>
+  dplyr::filter(p_adj < params$padj) |>
+  dplyr::arrange(abs(dPSI)) |>
+  dplyr::slice(1:15)
+
+# add gene label column
+for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
+  dplyr::mutate(gene_label = ifelse(
+    gene_id %in% top_15_genes & 
+      colors %in% c("sig_and_diff_increase", "sig_and_diff_decrease"),
+    gene_id,
+    ""))
+
 # print columns and one row as an example of final table contents
 for_plot_p_dPSI_table |> head(n = 1)
 ```
 
-
 The above output should include all columns expected to be exported from splice compendium differential splice analysis.
 
 ## Create volcano plots of splice events
+Currently the code hangs here without printing (only occurs when I try to label gene IDs, is fine when I just plot the points)
 ```{r all_events_volcano}
 #| label: fig-all_events_volcano_plot
 #| fig-width: 11
@@ -279,6 +281,10 @@ ggplot(for_plot_p_dPSI_table, aes(x = dPSI, y = minus_log_padj)) +
             "sig_and_diff_decrease" = "blue"
             )
           ) +
+  # label top 15 significant genes with splice events of highest dPSI magnitide
+  ggrepel::geom_text_repel(aes(label = gene_id), max.overlaps = Inf, box.padding = 0.5) +
+  
+  # add boundary lines to mark dPSI and padj thresholds
   geom_vline(xintercept = params$dPSI, linetype = "dashed", colour = "black") +
   geom_vline(xintercept = -params$dPSI, linetype = "dashed", colour = "black") +
   geom_hline(yintercept = -log10(params$padj), linetype = "dashed", colour = "black") +

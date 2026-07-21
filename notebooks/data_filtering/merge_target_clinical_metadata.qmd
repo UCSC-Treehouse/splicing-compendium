@@ -10,7 +10,11 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Introduction
 
-This notebook adds clinical metadata to the TARGET accessions sheet. Clinical metadata is obtained from the UCSC Xena browser: https://xenabrowser.net/datapages/?hub=https://gdc.xenahubs.net:443
+This notebook adds clinical metadata to the TARGET accessions sheet. Clinical metadata is obtained from the [UCSC Xena browser metadata hub](https://xenabrowser.net/datapages/?hub=https://gdc.xenahubs.net:443). Metadata related to clinical attributes of the sample are split into two files for each TARGET cancer type in the linked page.
+
+- "Survival data" - Contains the survival information of each TARGET sample within the specified cancer type (e.g. overall survival, overall survival time)
+
+- "Phenotype" - Contains patient demographic information such as race, sex, age at diagnosis
 
 We plan to include the following metadata fields in the accessions sheet:
 
@@ -23,6 +27,8 @@ We plan to include the following metadata fields in the accessions sheet:
 - survival
 
 - Some columns with a single number or value per column (values that can be computed on easily)
+
+Prior to combining survival and phenotype metadata to existing TARGET accession metadata, the survival and phenotype information is filtered to meet the above criteria.
 
 ## Setup
 
@@ -116,9 +122,13 @@ The "sample" column in the survival and clinical metadata tables have entries th
 
 The "sample" column in the metadata table correspond to the "biospecimen_repository_sample_id" column in the target accessions table, which looks like: TARGET-10-PAMDRM-09A-01D
 
-"biospecimen_repository_sample_id" needs to be cleaned so the last substring separated by "-" is removed
+The sample IDs are harmonized in these metadata files by removing the last substring of "biospecimen_repository_sample_id" by "-".
 
-Combine metadata with accessions sheet and filter target SRA metadata for those corresponding to samples that were downloaded and processed
+Then, the TARGET accessions metadata is combined with the accessions sheet and the TARGET SRA metadata is filtered for accessions corresponding to samples that were downloaded and processed.
+
+## Combine TARGET clinical and survival metadata 
+
+Combine each TARGET cancer type's clinical and survival metadata and filter for accessions that are present in the compendium
 
 ```{r combine_metadata}
 
@@ -130,21 +140,14 @@ target_metadata <- dplyr::full_join(
   relationship = "one-to-one"
 )
 
-# make a list of target accessions that were downloaded and processed
+# make a list of target accessions that were downloaded and processed for the compendium
 target_downloaded <- compendium_samples |>
   dplyr::filter(group == "target") |>
   dplyr::pull(sample)
 
-# filter target accessions for accessions that are in the sample sheet
+# filter target accessions for accessions that are in the compendium sample sheet
 target_sra_metadata <- target_sra |>
   dplyr::filter(Run %in% target_downloaded) |>
-  # select for relevant columns
-  # dplyr::select(
-  #   Run, biospecimen_repository, `DATASTORE filetype`, body_site,
-  #   study_name, analyte_type, `Assay Type`, `SRA Study`,
-  #   BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`,
-  #   biospecimen_repository_sample_id
-  # ) |>
   # derive target sample ID from sample ID 
   dplyr::mutate(
     # remove the hyphen followed by characters that are not hyphens that are at the end of the string
@@ -156,14 +159,11 @@ colnames(target_sra_metadata)
 
 ```
 
-There are more fields in the metadata than we planned to include, so some discussion on what may or may not be useful as a group will be helpful. 
-For now, I focus on excluding fields that are duplicates of other columns, or fields I don't think are as useful for clinical analysis (like vital_status, program project name).
+There are more fields in the metadata than we planned to include, so some discussion on what may or may not be useful as a group will be helpful. For now, I focus on excluding fields that are duplicates of other columns, or fields I don't think are as useful for clinical analysis (like vital_status, program project name).
 
 ## Merge TARGET accessions with clinical metadata
 
-Row 2421 of the clinical metadata corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, 
-but only one entry in the clinical metadata.
-Some clinical metadata columns have a list of values for this sample, which I think indicates it contains information from different samples.
+Row 2421 of the clinical metadata corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, but only one entry in the clinical metadata. Some clinical metadata columns have a list of values for this sample, which I think indicates it contains information from different samples.
 
 ```{r}
 # print row of target_metadata that has multiple rows which match to target-sra_metadata
@@ -178,6 +178,7 @@ target_sra_metadata |> dplyr::filter(
 ```
 
 Check - are there sample-specific entries in the clinical metadata?
+
 ```{r}
 target_metadata |> dplyr::filter(sample == "TARGET-20-PARTXH-09A") |>
   dplyr::select(primary_site.project,
@@ -191,13 +192,11 @@ target_metadata |> dplyr::filter(sample == "TARGET-20-PARTXH-09A") |>
                 created_datetime.treatments.diagnoses
                 )
 ```
-There are, but there is no way to associate which items in the list-columns correspond to which samples.
-Additionally, some columns like treatment_or_therapy.treatments.diagnoses have five entries, 
-indicating they correspond to samples from the same patient not in the compendium.
-In this case, it makes sense to me to preserve both samples from the same patient and drop metadata columns that have these list values.
-So samples from the same patient will just have the same clinical metadata. 
+
+There are, but there is no way to associate which items in the list-columns correspond to which samples. Additionally, some columns like treatment_or_therapy.treatments.diagnoses have five entries, indicating they correspond to samples from the same patient not in the compendium. In this case, it makes sense to me to preserve both samples from the same patient and drop metadata columns that have these list values. So samples from the same patient will just have the same clinical metadata.
 
 ### Merge TARGET accessions with clinical metadata without assuming one-to-one relationship
+
 ```{r merge_accessions_with_metadata}
 # merge target accessions with clinical metadata 
 target_clinical_accessions <- dplyr::left_join(
@@ -211,7 +210,7 @@ target_clinical_accessions <- dplyr::left_join(
 colnames(target_clinical_accessions)
 ```
 
-## Filter merged TARGET clinical metadata 
+## Filter merged TARGET clinical metadata
 
 Below is a breakdown of columns that are excluded from the final clinical metadata:
 
@@ -232,66 +231,6 @@ target_clinical_accessions |>
   head()
 ```
 
-The following columns are excluded because they are redundant with the disease_type column
-
-```{r redundant_disease}
-target_clinical_accessions |>
-  dplyr::select(disease_type, 
-                disease_type.project) |>
-  head()
-```
-
-The following columns are excluded because they are redundant with the primary_site column
-
-```{r redundant_primary_site}
-target_clinical_accessions |>
-  dplyr::select(primary_site, 
-                primary_site.project) |>
-  head()
-```
-
-The following columns are excluded because they are redundant with the age_at_diagnosis.diagnoses column
-
-```{r}
-target_clinical_accessions |>
-  dplyr::select(age_at_diagnosis.diagnoses,
-                age_at_earliest_diagnosis.diagnoses.xena_derived) |>
-  head()
-```
-
-The following columns are excluded because they are redundant with the id column
-```{r}
-target_clinical_metadata |>
-  dplyr::select(id, case_id, entity_id.annotations, case_id.annotations) |>
-  head()
-```
-
-age_at_earliest_diagnosis_in_years.xena_derived is selected over age_at_index.demographic because it has non-rounded age in years
-```{r redundant_age_at_diag_years}
-target_clinical_accessions |>
-  dplyr::select(age_at_index.demographic, age_at_earliest_diagnosis_in_years.diagnoses.xena_derived) |>
-  head()
-```
-
-There are multiple age columns, so I select age_at_diagnosis.diagnoses
-```{r redundant_age}
-target_clinical_accessions |>
-  dplyr::select(age_at_earliest_diagnosis.diagnoses.xena_derived, age_at_diagnosis.diagnoses, age_at_index.demographic)
-```
-
-These fields are very similar, but contain slightly different information, so I decided to keep them
-
-```{r similar_fields}
-target_clinical_accessions |>
-  dplyr::select(disease_type, name.project, primary_diagnosis.diagnoses) |>
-  head()
-```
-
-### Columns excluded from the metadata because they contain uninformative and/or non-clinical information
-
-vital_status (values: Dead, Alive), name.program.project (value = TARGET),
-
-
 ## Combine target metadata with SRA sheet of samples that were downloaded
 
 ```{r combine_metadata_with_sra}
@@ -308,14 +247,12 @@ target_clinical_accessions <- target_clinical_accessions |>
     # the remaining columns are not repeated in the data frame and are selected for clinical relevance
     disease_type,
     primary_site,
-    cause_of_death.demographic,
     race.demographic,
     gender.demographic,
     ethnicity.demographic,
     project_id.project,
     name.project,
     tissue_or_organ_of_origin.diagnoses,
-    morphology.diagnoses,
     classification_of_tumor.diagnoses,
     icd_10_code.diagnoses,
     primary_diagnosis.diagnoses,
@@ -325,15 +262,6 @@ target_clinical_accessions <- target_clinical_accessions |>
     tumor_code_id.samples,
     sample_type.samples,
     tissue_type.samples,
-    inss_stage.diagnoses,
-    cog_neuroblastoma_risk_group.diagnoses,
-    mitosis_karyorrhexis_index.diagnoses,
-    inpc_grade.diagnoses,
-    pathology_detail_id.pathology_details.diagnoses,
-    necrosis_percent.pathology_details.diagnoses,
-    percent_tumor_nuclei.pathology_details.diagnoses,
-    pediatric_kidney_staging.diagnoses,
-    wilms_tumor_histologic_subtype.diagnoses,
     OS.time,
     OS,
     `_PATIENT`,
@@ -372,7 +300,6 @@ target_clinical_accessions |>
   head(n = 5)
 
 ```
-
 
 ## Write output
 

@@ -150,7 +150,7 @@ cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
 Calculate Wilcoxon ranksum for PSI distributions
 
 ```{r used_cached_wilcox}
-use_cached_wilcox <-file.exists(wilcox_results_file) && params$use_cache
+use_cached_wilcox <- file.exists(wilcox_results_file) && params$use_cache
 ```
 
 Run wilcoxon ranksum test
@@ -181,7 +181,7 @@ Plot PSI distributions of splice events with significantly different distributio
 #| fig-height: 8
 
 pass_wilcox_test_events <- wilcox_test_events |>
-  dplyr::filter(p_adj <= 0.05) |>
+  dplyr::filter(p_adj <= params$padj) |>
   # arbitrarily grab a couple to plot distributions
  dplyr::slice_min(p_adj, n = 36)
 
@@ -197,36 +197,21 @@ ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
        x = "PSI value",
        y = "Density") 
 ```
-
-### Calculate magnitude of differential splicing
+### Calculate magnitude of differential splicing (dPSI) values
 ```{r calculated_dPSI}
 
-filtered_psi_table_wide <- cancer_type_psi_table_filtered |>
-  tidyr::pivot_wider(names_from = pos_id,
-                     values_from = PSI)
-  
-# 
-# dplyr::group_by(pos_id, group) |>
-#   dplyr::mutate(
-#     median_PSI =
-#       median(PSI),
-#     dPSI =
-#       dplyr::case_when(
-#         group == "ref" ~
-#           
-#       )
-#       median(ref) - median(query))
-#   rstatix::wilcox_test(
-#     PSI ~ group,
-#     ref.group = "ref"
-#   ) |>
-#   # add multiple testing adjustment
-#   dplyr::mutate(
-#     p_adj = p.adjust(p, method = "BH")
-#   )
-#   # write test results to output 
-#   readr::write_tsv(wilcox_test_events, wilcox_results_file)
-# }
+median_PSI_table <- cancer_type_psi_table_filtered |>
+  dplyr::group_by(pos_id, group) |>
+  dplyr::mutate(
+    median_PSI =
+      median(PSI)
+      )
+
+dPSI_table <- median_PSI_table |>
+  dplyr::group_by(pos_id) |>
+  dplyr::mutate(
+    dPSI = unique(median_PSI[group == "ref"]) - unique(median_PSI[group == "query"])
+  )
 
 ```
 

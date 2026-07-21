@@ -197,25 +197,64 @@ ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
        x = "PSI value",
        y = "Density") 
 ```
+
 ### Calculate magnitude of differential splicing (dPSI) values
 ```{r calculated_dPSI}
 
-median_PSI_table <- cancer_type_psi_table_filtered |>
+# Calculate median PSIs for each splice event, per group
+dPSI_table <- cancer_type_psi_table_filtered |>
   dplyr::group_by(pos_id, group) |>
   dplyr::mutate(
     median_PSI =
       median(PSI)
-      )
-
-dPSI_table <- median_PSI_table |>
+      ) |>
+  # Calculate dPSI values by taking the difference between the ref and query group medians
   dplyr::group_by(pos_id) |>
   dplyr::mutate(
     dPSI = unique(median_PSI[group == "ref"]) - unique(median_PSI[group == "query"])
   )
-
 ```
 
+### Merge diff splicing test p values with dPSI table
+This is where code fails due to vector memory limits
+```{r merge_dPSI_with_padj}
+# Merge dPSI values with p values from wilcox differential splicing test
+p_dPSI_table <- wilcox_test_events |>
+  # select for informative columns from wilcox test
+  dplyr::select(pos_id, p, p_adj) |>
+  # merge wilcox test p values with dPSI table
+  dplyr::full_join(dPSI_table, by = "pos_id")
+```
+The above output should include all columns expected to be exported from splice compendium differential splice analysis.
 
+## Create volcano plots of splice events
+```{r all_events_volcano}
+#| label: fig-all_events_volcano_plot
+#| fig-width: 11
+#| fig-height: 8
+
+# select for just one dPSI and -log p 
+for_plot_p_dPSI_table <- p_dPSI_table |>
+  # take the negative log of p_adj for volcano plot
+  dplyr::mutate(
+    minus_log_padj = -log10(p_adj)
+    ) |>
+   # select only relevant columns for plotting
+   dplyr::select(pos_id, dPSI, minus_log_padj) |>
+   # Filter for unique row values for plotting
+   dplyr::distinct()
+   
+# print columns and one row as an example of final table contents
+for_plot_p_dPSI_table |> head(n = 1)
+
+ggplot(for_plot_p_dPSI_table, aes(x = dPSI, y = minus_log_padj)) +
+  geom_vline(xintercept = params$dPSI, linetype = "dashed", colour = "grey") +
+  geom_hline(yintercept = -log10(params$padj), linetype = "dashed", colour = "grey") +
+  xlab("dPSI") +
+  ylab("Adjusted P-value") +
+  plot_theme
+
+```
 ## Supplemental
 
 ### Failed Wilcox test distributions

@@ -234,15 +234,16 @@ for_plot_p_dPSI_table <- p_dPSI_table |>
   dplyr::mutate(
     minus_log_padj = -log10(p_adj)
     ) |>
-   # select only relevant columns for plotting
-   dplyr::select(pos_id, dPSI, p_adj, minus_log_padj, gene_id) |>
-   # Filter for unique row values for plotting
-   dplyr::distinct() |>
+  # select only relevant columns for plotting
+  dplyr::select(pos_id, dPSI, p_adj, minus_log_padj, gene_id) |>
+  # Filter for unique row values for plotting
+  # duplicates stem from the same dPSI and p values being present for a given pos_id 
+  dplyr::distinct() |>
   # assign columns colors for volcano plot
   dplyr::mutate(
     colors = dplyr::case_when(
-      dPSI > params$dPSI & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_increase",
-      dPSI < -params$dPSI & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_decrease"
+      dPSI > params$dPSI & p_adj < params$padj ~ "sig_and_diff_increase",
+      dPSI < -params$dPSI & p_adj < params$padj ~ "sig_and_diff_decrease"
     )
   )
 
@@ -252,12 +253,14 @@ top_15_genes <- for_plot_p_dPSI_table |>
   dplyr::arrange(abs(dPSI)) |>
   dplyr::slice(1:15)
 
-# add gene label column
+# add gene label column for volcano plot
 for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
   dplyr::mutate(gene_label = ifelse(
-    gene_id %in% top_15_genes & 
+    # genes are only labeled if it is significantly differentially spliced and in the top 15 most differentially spliced in magnitude
+    gene_id %in% top_15_genes$gene_id & 
       colors %in% c("sig_and_diff_increase", "sig_and_diff_decrease"),
     gene_id,
+    # if not in these criteria, leave label blank
     ""))
 
 # print columns and one row as an example of final table contents
@@ -314,7 +317,7 @@ fail_wilcox_psi <- cancer_type_psi_table |>
   dplyr::filter(pos_id %in% fail_wilcox_test_events$pos_id) |>
   tidyr::drop_na(PSI)
 
-ggplot(fail_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
+ggplot(fail_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
   ggridges::geom_ridgeline(stat = "binline", bins = 20, scale = 1, alpha = 0.5) + 
   facet_wrap(~ pos_id, ncol = 6) + 
   labs(title = "PSI distributions of wilcox ranksum p >= 0.05 events",

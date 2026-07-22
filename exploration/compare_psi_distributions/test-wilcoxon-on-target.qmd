@@ -260,8 +260,8 @@ for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
     gene_id %in% top_15_genes$gene_id & 
       colors %in% c("sig_and_diff_increase", "sig_and_diff_decrease"),
     gene_id,
-    # if not in these criteria, leave label blank
-    ""))
+    # if not in these criteria, leave label as NA for enhancedvolcano to skip
+    NA))
 
 # print columns and one row as an example of final table contents
 for_plot_p_dPSI_table |> head(n = 1)
@@ -276,26 +276,32 @@ Currently the code hangs here without printing (only occurs when I try to label 
 #| fig-width: 11
 #| fig-height: 8
 
-ggplot(for_plot_p_dPSI_table, aes(x = dPSI, y = minus_log_padj)) +
-  geom_point(aes(colour = as.factor(colors))) +
-        scale_color_manual(
-          values = c(
-            "sig_and_diff_increase" = "orange",
-            "sig_and_diff_decrease" = "blue"
-            )
-          ) +
-  # label top 15 significant genes with splice events of highest dPSI magnitide
-  ggrepel::geom_text_repel(aes(label = gene_id), max.overlaps = Inf, box.padding = 0.5) +
-  
-  # add boundary lines to mark dPSI and padj thresholds
-  geom_vline(xintercept = params$dPSI, linetype = "dashed", colour = "black") +
-  geom_vline(xintercept = -params$dPSI, linetype = "dashed", colour = "black") +
-  geom_hline(yintercept = -log10(params$padj), linetype = "dashed", colour = "black") +
-  xlab("dPSI") +
-  ylab("Adjusted P-value") +
-  plot_theme
+EnhancedVolcano::EnhancedVolcano(
+  for_plot_p_dPSI_table,
+  lab = for_plot_p_dPSI_table$gene_label,
+  x = "dPSI",
+  y = "p_adj",
+  title = "Volcano plot of reference and query group diff splicing",
+  subtitle = "",
+  legendLabels = c(
+    "NS", 
+    "deltaPSI > 10%", 
+    "FDR < 0.05", 
+    "deltaPSI > 10% and FDR < 0.05"),
+    pCutoff = params$padj,
+    pCutoffCol = "p_adj",
+    FCcutoff = params$dPSI,
+    pointSize = 1.0,
+    labSize = 6.0,
+    xlim = c(-1,1),
+    ylim = c(0,5),
+    drawConnectors = TRUE,
+    xlab = "deltaPSI",
+    ylab = "-Log(FDR)"
+    ) 
 
 ```
+
 ## Supplemental
 
 ### Failed Wilcox test distributions

@@ -16,22 +16,25 @@ params:
 ---
 
 ## Introduction
-This notebook performs differential analysis on splice event usage (PSI) values generated from the splice compendium workflow. 
+
+This notebook performs differential analysis on splice event usage (PSI) values generated from the splice compendium workflow.
 The analyses included in this notebook consist of:
 
-1. Statistical test for differential splicing: A Wilcoxon ranksum test is used to compare the PSI value distributions for splice events used in a reference and query group of samples.
-P-values are corrected for multiple testing using the Benjamini-Hochberg method.
+1.  Statistical test for differential splicing: A Wilcoxon ranksum test is used to compare the PSI value distributions for splice events used in a reference and query group of samples.
+    P-values are corrected for multiple testing using the Benjamini-Hochberg method.
 
-2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
+2.  Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
 
-3. Visualizing splice events by significance and magnitude of differential splicing: Volcano plots are created to plot the adjusted p-value and dPSI values of each splice event type between the query and reference groups.
-One Volcano plot is created for all splice event types, and separate volcano plots are provided to split splice event types by category.
+3.  Visualizing splice events by significance and magnitude of differential splicing: Volcano plots are created to plot the adjusted p-value and dPSI values of each splice event type between the query and reference groups.
+    One Volcano plot is created for all splice event types, and separate volcano plots are provided to split splice event types by category.
 
-4. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters. 
-These splice events are ranked in decreasing dPSI magnitude.
+4.  Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters.
+    These splice events are ranked in decreasing dPSI magnitude.
 
 ## Set up
+
 ## load libraries
+
 ```{r libraries_and_theme}
 # load libraries
 library(ggplot2)
@@ -85,6 +88,7 @@ psi_combined <- readRDS(combined_psi_file)
 ```
 
 ## Combine PSI table with TARGET metadata to associate samples with cancer type
+
 ```{r combine_diff_events_psi_tables}
 # Filter for body site and run ID fields in target metadata
 filtered_target_metadata <- target_metadata |>
@@ -146,7 +150,7 @@ cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
 
 ```
 
-### Calculate significance of differential splicing 
+### Calculate significance of differential splicing
 
 Calculate Wilcoxon ranksum for PSI distributions
 
@@ -155,6 +159,7 @@ use_cached_wilcox <- file.exists(wilcox_results_file) && params$use_cache
 ```
 
 Run wilcoxon ranksum test
+
 ```{r calculate_wilcox}
 if (use_cached_wilcox) {
   wilcox_test_events <- readr::read_tsv(wilcox_results_file)
@@ -175,7 +180,11 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
 ```
 
 ### Plot significant wilcox test distributions
+
 Plot PSI distributions of splice events with significantly different distributions between query and reference groups.
+
+Doesn't make sense to include these until we've resolved the redundant IDs
+
 ```{r pass_wilcox_test_dist}
 #| label: fig-hist_sig_wilcox_test_dists
 #| fig-width: 11
@@ -200,6 +209,7 @@ ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
 ```
 
 ### Calculate magnitude of differential splicing (dPSI) values
+
 ```{r calculated_dPSI}
 
 # Calculate median PSIs for each splice event, per group
@@ -217,6 +227,7 @@ dPSI_table <- cancer_type_psi_table_filtered |>
 ```
 
 ### Merge diff splicing test p values with dPSI table
+
 ```{r merge_dPSI_with_padj}
 # Merge dPSI values with p values from wilcox differential splicing test
 p_dPSI_table <- wilcox_test_events |>
@@ -227,6 +238,7 @@ p_dPSI_table <- wilcox_test_events |>
 ```
 
 ### Plot volcano plot of differentially spliced events
+
 ```{r make_volcanoplot_df}
 # create dataframe of values for volcano plot
 for_plot_p_dPSI_table <- p_dPSI_table |>
@@ -250,13 +262,13 @@ for_plot_p_dPSI_table <- p_dPSI_table |>
 # rank significantly differentially spliced genes by dPSI magnitude
 top_15_genes <- for_plot_p_dPSI_table |>
   dplyr::filter(p_adj < params$padj) |>
-  dplyr::arrange(abs(dPSI)) |>
+  dplyr::arrange(desc(abs(dPSI)), minus_log_padj) |>
   dplyr::slice(1:15)
 
 # add gene label column for volcano plot
 for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
   dplyr::mutate(gene_label = ifelse(
-    # genes are only labeled if it is significantly differentially spliced and in the top 15 most differentially spliced in magnitude
+    # genes are only labeled if they are significantly differentially spliced and in the top 15 most differentially spliced in magnitude
     gene_id %in% top_15_genes$gene_id & 
       colors %in% c("sig_and_diff_increase", "sig_and_diff_decrease"),
     gene_id,
@@ -267,10 +279,10 @@ for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
 for_plot_p_dPSI_table |> head(n = 1)
 ```
 
-The above output should include all columns expected to be exported from splice compendium differential splice analysis.
-
 ## Create volcano plots of splice events
+
 Currently the code hangs here without printing (only occurs when I try to label gene IDs, is fine when I just plot the points)
+
 ```{r all_events_volcano}
 #| label: fig-all_events_volcano_plot
 #| fig-width: 11
@@ -302,12 +314,21 @@ EnhancedVolcano::EnhancedVolcano(
 
 ```
 
+Notes of decisions:
+
+- Main plot for this notebook would be volcano plot
+
+- Need to convert gene IDs to HUGO IDs
+
+- For the biology vignette's next step, I would export pos_id, gene_id, dPSI, padj, columns of `for_plot_p_dPSI_table` for ORA
+
 ## Supplemental
 
 ### Failed Wilcox test distributions
 
 Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions.
 Make a series of histograms faceted by pos_id
+
 ```{r failed_wilcox_test_dist}
 #| label: fig-hist_fail_wilcox_test_dists
 #| fig-width: 11

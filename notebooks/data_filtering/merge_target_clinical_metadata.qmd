@@ -14,7 +14,7 @@ This notebook adds clinical metadata to the TARGET accessions sheet. Clinical me
 
 - "Survival data" - Contains the survival information of each TARGET sample within the specified cancer type (e.g. overall survival, overall survival time)
 
-- "Phenotype" - Contains patient demographic information such as race, sex, age at diagnosis
+- "Survival data" - Contains the survival information of each TARGET sample within the specified cancer type (e.g. overall survival, overall survival time)
 
 We plan to include the following metadata fields in the accessions sheet:
 

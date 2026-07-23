@@ -39,7 +39,7 @@ junction_paths <- list.files(
 # with file path as names
 sample_df <- junction_paths |>
   purrr::set_names() |>
-  purrr::map(\(path) {
+  purrr::map_chr(\(path) {
     colnames <- readr::read_tsv(
       path,
       n_max = 0,

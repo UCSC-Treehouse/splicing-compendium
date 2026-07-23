@@ -63,19 +63,23 @@ compendium_samples_path <- file.path(config_dir, "sample_sheet.tsv")
 target_clinical_files <- c(
   all_p1_clinical = "TARGET-ALL-P1.clinical.tsv",
   all_p2_clinical = "TARGET-ALL-P2.clinical.tsv",
+  all_p3_clinical = "TARGET-ALL-P3.clinical.tsv",
   aml_clinical = "TARGET-AML.clinical.tsv",
   nbl_clinical = "TARGET-NBL.clinical.tsv",
   rt_clinical = "TARGET-RT.clinical.tsv",
-  wt_clinical = "TARGET-WT.clinical.tsv"
+  wt_clinical = "TARGET-WT.clinical.tsv",
+  ccsk_clinical = "TARGET-CCSK.clinical.tsv"
 )
 
 target_survival_files <- c(
   all_p1_survival = "TARGET-ALL-P1.survival.tsv",
   all_p2_survival = "TARGET-ALL-P2.survival.tsv",
+  all_p3_survival = "TARGET-ALL-P3.survival.tsv",
   aml_survival = "TARGET-AML.survival.tsv",
   nbl_survival = "TARGET-NBL.survival.tsv",
   rt_survival = "TARGET-RT.survival.tsv",
-  wt_survival = "TARGET-WT.survival.tsv"
+  wt_survival = "TARGET-WT.survival.tsv",
+  ccsk_clinical = "TARGET-CCSK.survival.tsv"
 )
 
 # construct TARGET clinical metadata paths
@@ -86,7 +90,7 @@ names(target_survival_files) <- names(target_survival_files)
 
 ## Output ##
 # define path to output file
-target_accessions_with_clinical_metadata <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
+target_clinical_metadata_output <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
 ```
 
 Read in files
@@ -136,8 +140,7 @@ Combine each TARGET cancer type's clinical and survival metadata and filter for 
 target_metadata <- dplyr::full_join(
   target_clinical_metadata,
   target_survival_metadata,
-  by = "sample",
-  relationship = "one-to-one"
+  by = "sample"
 )
 
 # make a list of target accessions that were downloaded and processed for the compendium
@@ -157,7 +160,7 @@ target_sra_metadata <- target_sra |>
 
 There are some cases where more than one sample in the compendium that corresponds to one entry in the clinical metadata.
 In these cases, the sample comes from the same patient. 
-These cases are handled by duplicating the clinical metadata for the samples that come from the same patient.
+These cases are handled by duplicating the clinical metadata for the samples that come from the same patient (don't assume one-to-one relationship in merge).
 
 ## Merge TARGET accessions with clinical metadata
 
@@ -167,7 +170,8 @@ target_clinical_accessions <- dplyr::left_join(
   target_sra_metadata,
   target_metadata, 
   by = dplyr::join_by(
-    target_sample_id == sample)
+    target_sample_id == sample),
+  relationship = "many-to-many"
     )
 ```
 
@@ -215,7 +219,7 @@ target_clinical_accessions <- target_clinical_accessions |>
   target_sample_id
   ) |>
   # arrange most important columns to the front
-  dplyr::arrange(
+  dplyr::relocate(
     target_sample_id,
     Run, 
     age_at_diagnosis_days, 
@@ -226,9 +230,9 @@ target_clinical_accessions <- target_clinical_accessions |>
     OS.time)
 ```
 
-Check for samples without clinical metadata
+Check for samples without entries in any of the selected clinical metadata fields
 ```{r}
-missing_clinical <- target_clinical_accessions |>
+target_clinical_accessions |>
   dplyr::filter(
     if_all(c(
     age_at_diagnosis_days,
@@ -247,12 +251,21 @@ missing_clinical <- target_clinical_accessions |>
     OS,
     `_PATIENT`
   ), 
-  is.na))
+  is.na)) |>
+  
+  # summarize the studies samples with missing information come fro
+  dplyr::summarise(
+    .by = study_name,
+    n = dplyr::n()
+  )
+
 ```
 
+All samples in the compendium have clinical data accounted for.
+Some ALL expansion phase 2 samples appear to be in the Xena browsers [ALL Phase 3](https://xenabrowser.net/datapages/?host=https%3A%2F%2Fgdc.xenahubs.net&dataset=TARGET-ALL-P3.clinical.tsv&allSamples=true&removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu%3A443) metadata, instead of the phase 2 metadata as expected.
 
 ## Write output
 
 ```{r write_output}
-# holding off on this until the code has gone through review
+readr::write_tsv(target_clinical_accessions, target_clinical_metadata_output, col_names = TRUE)
 ```

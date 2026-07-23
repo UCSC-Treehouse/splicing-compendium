@@ -50,7 +50,7 @@ plot_theme = list(
 ## Define functions
 
 ```{r functions}
-# GTEx stacked sample summary plots
+## GTEx stacked sample summary plots ##
 gtex_sample_summary_plots <- function(df, fill_value, y_value, title_value) {
   frac_plot <- ggplot(df, aes(
     fill = .data[[fill_value]], 
@@ -95,8 +95,56 @@ gtex_sample_summary_plots <- function(df, fill_value, y_value, title_value) {
   # print plots side by side and use same x axes label, legend  
   combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
 }
-```
 
+## TARGET stacked sample summary plots ##
+target_sample_summary_plots <- function(df, fill_value, y_value, title_value){
+  
+  target_frac_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = study_name, 
+    y = .data[[y_value]])
+    ) +
+    geom_bar(position = "fill", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of TARGET sample",
+      y = "Fraction of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1),
+                     # wrap x axis labels because names are long
+                     labels = function(x){stringr::str_wrap(x, 40)}) 
+  
+  target_number_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = study_name, 
+    y = .data[[y_value]])
+    ) +
+    geom_bar(position = "stack", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of TARGET sample",
+      y = "Number of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1), 
+                     labels = function(x){stringr::str_wrap(x, 40)}
+                     ) 
+  
+  # Print plots together
+  target_combined_plot <- target_number_plot +
+  target_frac_plot +
+    plot_annotation(
+      title = title_value,
+      theme = theme(plot.title = element_text(size = 22),
+                    plot.margin = margin(t = 0, r = 10, b = 70, l = 140)
+    )
+    )
+    
+  target_combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+  }
+
+```
 
 ## Read in input and output paths
 
@@ -241,6 +289,7 @@ gtex_sex_summary
 gtex_sample_summary_plots(gtex_sex_summary, "SEX", "n", "Sex distribution of GTEX tissue types in compendium") 
 ```
 
+All GTEx tissue types have higher male representation than female representation.
 
 ### Table of sequencing center of origin for compendium GTEx samples
 
@@ -293,11 +342,13 @@ target_ages_summary <- target_compendium_df |>
 
 target_ages_summary
 ```
+
 Check why NA values are present in 4 ALL Phase 2 samples
 ```{r check_target_age_nas}
 target_compendium_df |>
   dplyr::filter(is.na(age_at_earliest_diagnosis_in_years.diagnoses.xena_derived))
 ```
+
 The NA values correspond to 4 TARGET ALL Phase 2 samples (mislabeled as phase 3 in Xena browser metadata) without age at diagnosis information.
 
 ### Plot of age distribution of TARGET samples in compendium
@@ -307,40 +358,7 @@ The NA values correspond to 4 TARGET ALL Phase 2 samples (mislabeled as phase 3 
 #| fig-width: 20
 #| fig-height: 8
 
-target_frac_age_plot <- ggplot(target_ages_summary, aes(fill = age_bin, x = study_name, y = age_count)) +
-  geom_bar(position = "fill", stat = "identity") +
-  scale_fill_brewer(palette = "Dark2") +
-  plot_theme +
-  labs(
-    x = "Tissue type of TARGET sample",
-    y = "Fraction of samples"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1),
-                   labels = function(x){stringr::str_wrap(x, 40)}) 
-
-target_number_age_plot <- ggplot(target_ages_summary, aes(fill = age_bin, x = study_name, y = age_count)) +
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_brewer(palette = "Dark2") +
-  plot_theme +
-  labs(
-    x = "Tissue type of TARGET sample",
-    y = "Number of samples"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1), 
-                   labels = function(x){stringr::str_wrap(x, 40)}
-                   ) 
-
-# Plot age distribution together
-target_combined_age_plot <- target_number_age_plot +
-target_frac_age_plot +
-  plot_annotation(
-    title = "Age distribution of TARGET cancer types in compendium",
-    theme = theme(plot.title = element_text(size = 22),
-                  plot.margin = margin(t = 0, r = 10, b = 70, l = 120)
-  )
-  )
-  
-target_combined_age_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+target_sample_summary_plots(target_ages_summary, "age_bin", "age_count", "Age distribution of TARGET cancer types in compendium")
 ```
 ### Table of sex distribution for the TARGET samples in the compendium
 
@@ -355,48 +373,17 @@ target_sex_summary <- target_compendium_df |>
 
 target_sex_summary
 ```
+
 ### Plots of sex distribution of TARGET samples in compendium
+
 ```{r}
 #| label: fig-compendium_target_sex_stacked_bar
 #| fig-width: 20
 #| fig-height: 8
 
-target_frac_sex_plot <- ggplot(target_sex_summary, aes(fill = gender.demographic, x = study_name, y = sex_count)) +
-  geom_bar(position = "fill", stat = "identity") +
-  scale_fill_brewer(palette = "Dark2") +
-  plot_theme +
-  labs(
-    x = "Tissue type of TARGET sample",
-    y = "Fraction of samples"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1),
-                   labels = function(x){stringr::str_wrap(x, 40)}) 
-
-target_number_sex_plot <- ggplot(target_sex_summary, aes(fill = gender.demographic, x = study_name, y = sex_count)) +
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_brewer(palette = "Dark2") +
-  plot_theme +
-  labs(
-    x = "Tissue type of TARGET sample",
-    y = "Number of samples"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1), 
-                   labels = function(x){stringr::str_wrap(x, 40)}
-                   ) 
-
-# Plot age distribution together
-target_combined_sex_plot <- target_number_sex_plot +
-target_frac_sex_plot +
-  plot_annotation(
-    title = "Sex distribution of TARGET cancer types in compendium",
-    theme = theme(plot.title = element_text(size = 22),
-                  plot.margin = margin(t = 0, r = 10, b = 70, l = 120)
-  )
-  )
-  
-target_combined_sex_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+target_sample_summary_plots(target_sex_summary, "gender.demographic", "sex_count", "Sex distribution of TARGET cancer types in compendium")
 ```
-CCSK samples in the compendiumae the most sex-imbalanced, being composed completely of male samples.
+CCSK samples in the compendium are the most sex-imbalanced, being composed completely of male samples.
 
 ### Table of sequencing center of origin for compendium TARGET samples
 ```{r target_sequencing_center}

@@ -47,6 +47,57 @@ plot_theme = list(
 )
 ```
 
+## Define functions
+
+```{r functions}
+# GTEx stacked sample summary plots
+gtex_sample_summary_plots <- function(df, fill_value, y_value, title_value) {
+  frac_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = body_site, 
+    y = .data[[y_value]])
+    ) +
+  geom_bar(position = "fill", stat = "identity") +
+  scale_fill_brewer(palette = "Dark2") +
+  plot_theme +
+  labs(
+    x = "Tissue type of GTEX sample",
+    y = "Fraction of samples"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45),
+                   labels = function(x){stringr::str_wrap(x, 30)}) 
+
+  number_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = body_site, 
+    y = .data[[y_value]]
+    )
+    ) +
+    geom_bar(position = "stack", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of GTEX sample",
+      y = "Number of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45), 
+                     labels = function(x){stringr::str_wrap(x, 30)}) 
+  
+  # Print plots together
+  combined_plot <- number_plot +
+    frac_plot +
+      plot_annotation(
+        title = title_value,
+        theme = theme(plot.title = element_text(size = 22),
+                      plot.margin = margin(t = 10, r = 10, b = 70, l = 50)
+      )
+      )
+  # print plots side by side and use same x axes label, legend  
+  combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+}
+```
+
+
 ## Read in input and output paths
 
 Read in directory and file paths
@@ -102,11 +153,11 @@ Not all samples filtered for downloading made it to the compendium due to `faste
 
 # obtain list of accessions in compendium for each group
 
-target_accessions_list <- compendium_samples |>
+target_accessions_list <- sample_df |>
   dplyr::filter(group == "target") |>
   dplyr::pull(sample)
 
-gtex_accessions_list <- compendium_samples |>
+gtex_accessions_list <- sample_df |>
   dplyr::filter(group == "gtex") |>
   dplyr::pull(sample)
 
@@ -159,40 +210,37 @@ A future addition of value for the compendium will be to include tissue samples 
 #| fig-width: 11
 #| fig-height: 8
 
-frac_age_plot <- ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
-  geom_bar(position = "fill", stat = "identity") +
-  scale_fill_brewer(palette = "Dark2") +
-  plot_theme +
-  labs(
-    x = "Tissue type of GTEX sample",
-    y = "Fraction of samples"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45),
-                   labels = function(x){stringr::str_wrap(x, 30)}) 
-
-number_age_plot <- ggplot(gtex_ages_summary, aes(fill = AGE, x = body_site, y = age_count)) +
-  geom_bar(position = "stack", stat = "identity") +
-  scale_fill_brewer(palette = "Dark2") +
-  plot_theme +
-  labs(
-    x = "Tissue type of GTEX sample",
-    y = "Number of samples"
-  ) +
-  scale_x_discrete(guide = guide_axis(angle = 45), 
-                   labels = function(x){stringr::str_wrap(x, 30)}) 
-
-# Plot age distribution together
-combined_age_plot <- number_age_plot +
-frac_age_plot +
-  plot_annotation(
-    title = "Age distribution of GTEX tissue types in compendium",
-    theme = theme(plot.title = element_text(size = 22),
-                  plot.margin = margin(t = 10, r = 10, b = 70, l = 50)
-  )
-  )
-  
-combined_age_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+gtex_sample_summary_plots(gtex_ages_summary, "AGE", "age_count", "Age distribution of GTEX tissue types in compendium") 
 ```
+
+### Table of sex distribution of compendium GTEx samples
+```{r}
+# summarize number of samples in each tissue type of a specific sex
+gtex_sex_summary <- gtex_compendium_df |>
+  # relabel sex column values according to what they represent
+  dplyr::mutate(SEX = 
+                  dplyr::case_when(
+                   SEX == 1 ~ "Male",
+                   SEX == 2 ~ "Female"
+                  )) |>
+  dplyr::group_by(body_site, SEX) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+
+gtex_sex_summary
+```
+
+### Plot of sex distribution of GTEx samples in compendium
+
+```{r}
+#| label: fig-compendium_gtex_sex_stacked_bar
+#| fig-width: 11
+#| fig-height: 8
+
+gtex_sample_summary_plots(gtex_sex_summary, "SEX", "n", "Sex distribution of GTEX tissue types in compendium") 
+```
+
 
 ### Table of sequencing center of origin for compendium GTEx samples
 

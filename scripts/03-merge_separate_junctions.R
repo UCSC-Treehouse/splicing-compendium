@@ -81,14 +81,25 @@ long_junctions <- read_csv_duckdb(
   select(!filename)
 
 
-merged_junctions <- long_junctions |>
-  as_tibble() |>
-  tidyr::pivot_wider(
-    names_from = sample,
-    values_from = count,
-    values_fill = 0
-  ) |>
-  arrange(chr, start, end)
+# get the table name and connection for direct dbplyr SQL query
+lj_tbl <- duckplyr::as_tbl(long_junctions)
+con <- dbplyr::remote_con(lj_tbl) # duckplyr's DuckDB connection
+nm <- as.character(dbplyr::remote_name(lj_tbl)) # the temp view's name
+
+# create the SQL query to pivot the long table within DuckDB
+pivot_sql <- glue::glue_sql(
+  '
+  PIVOT {`nm`}
+  ON sample
+  USING coalesce(first(count), 0)
+  GROUP BY chr, "start", "end", ID
+',
+  .con = con
+)
+
+merged_junctions <- tbl(con, sql(pivot_sql)) |>
+  arrange(chr, start, end) |>
+  as_tibble()
 
 # Check if junction IDs are duplicated
 if (any(duplicated(merged_junctions$ID))) {

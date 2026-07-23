@@ -126,7 +126,7 @@ gtex_compendium_df <- gtex_metadata |>
 Print a table summarizing number of samples in each tissue type in compendium
 
 ```{r gtex_num_tissue_types_summary_table}
-# summarize number of samples in each tissue type come from what sequencing center
+# summarize number of samples in each tissue type
 gtex_compendium_df |>
   dplyr::group_by(body_site) |>
   dplyr::summarise(
@@ -137,7 +137,7 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 
 ### Table of age distribution for the GTEx samples in the compendium
 
-Plot distribution of ages in the filtered GTEx samples as a percent stacked bar plot.
+Print a table of the age distribution breakdown of GTEx compendium samples 
 
 ```{r gtex_ages_summary_table}
 
@@ -213,6 +213,80 @@ All tissue types in the GTEx datasets come from the same sequencing center.
 
 ## Summarize sample composition of TARGET accessions in compendium
 
+### Table of number of samples in each cancer type
+
+Print a table summarizing number of samples in each tissue type in compendium
+```{r target_ages_summary_table}
+# summarize number of samples in each tissue type
+target_compendium_df |>
+  dplyr::group_by(study_name) |>
+  # the xena browser metadata's "name.project" has the cancer type in a prettier format 
+  # (no "TARGET:" prefix) 
+  # but since some ALL phase 2 samples were in ALL phase 3 xena metadata I am afraid to use the xena browser project name
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+### Table of age distribution for the TARGET samples in the compendium
+
+```{r target_ages_summary_table}
+# Summarize number of samples per tissue type in each age bracket
+target_ages_summary <- target_compendium_df |>
+  dplyr::mutate(
+    # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
+    age_bin = cut(
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+    breaks = seq(0, 100, by = 10)),
+    # remove TARGET prefix from study_name values
+    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+  dplyr::group_by(study_name, age_bin) |>
+  dplyr::summarise(age_count = dplyr::n())
+
+target_ages_summary
+```
+### Plot of age distribution of TARGET samples in compendium
+
+```{r}
+#| label: fig-compendium_target_age_stacked_bar
+#| fig-width: 20
+#| fig-height: 8
+
+target_frac_age_plot <- ggplot(target_ages_summary, aes(fill = age_bin, x = study_name, y = age_count)) +
+  geom_bar(position = "fill", stat = "identity") +
+  scale_fill_brewer(palette = "Dark2") +
+  plot_theme +
+  labs(
+    x = "Tissue type of TARGET sample",
+    y = "Fraction of samples"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1),
+                   labels = function(x){stringr::str_wrap(x, 40)}) 
+
+target_number_age_plot <- ggplot(target_ages_summary, aes(fill = age_bin, x = study_name, y = age_count)) +
+  geom_bar(position = "stack", stat = "identity") +
+  scale_fill_brewer(palette = "Dark2") +
+  plot_theme +
+  labs(
+    x = "Tissue type of TARGET sample",
+    y = "Number of samples"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1), 
+                   labels = function(x){stringr::str_wrap(x, 40)}
+                   ) 
+
+# Plot age distribution together
+target_combined_age_plot <- target_number_age_plot +
+target_frac_age_plot +
+  plot_annotation(
+    title = "Age distribution of TARGET cancer types in compendium",
+    theme = theme(plot.title = element_text(size = 22),
+                  plot.margin = margin(t = 0, r = 10, b = 70, l = 120)
+  )
+  )
+  
+target_combined_age_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+```
 
 ```{r}
 sessionInfo()

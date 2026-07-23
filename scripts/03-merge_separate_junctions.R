@@ -29,42 +29,65 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 ## File paths ##
-# Read in deduplicated junctions bed paths from temp dir into a vector
-# each element of list looks like tempdir/1_junctions.bed
 junction_paths <- list.files(
   path = opt$junctions,
   pattern = ".bed",
   full.names = TRUE
 )
 
+# Get sample names from junction file headers
+# with file path as names
+sample_df <- junction_paths |>
+  purrr::set_names() |>
+  purrr::map(\(path) {
+    colnames <- readr::read_tsv(
+      path,
+      n_max = 0,
+      col_types = c(.default = "c")
+    ) |>
+      names()
+    # get the last value
+    colnames[length(colnames)]
+  }) |>
+  tibble::enframe(
+    name = "path",
+    value = "sample"
+  )
+
+
 ## read in files and merge ##
-# have duckdb read all files into a single table
-raw <- read_csv_duckdb(
+# have duckdb read all files into a single long table
+long_junctions <- read_csv_duckdb(
   junction_paths,
   options = list(
     delim = "\t",
     union_by_name = TRUE,
+    header = TRUE,
+    # add a column with the filename for later pivot
+    filename = TRUE,
+    # override sample column name to "count" for consistent structure
+    names = list(c("chr", "start", "end", "ID", "count")),
     types = list(c(
       chr = "VARCHAR",
       start = "INTEGER",
       end = "INTEGER",
-      ID = "VARCHAR"
+      ID = "VARCHAR",
+      count = "INTEGER"
     ))
   )
-)
+) |>
+  # replace filename with sample name
+  left_join(sample_df, by = c("filename" = "path")) |>
+  select(!filename)
 
-# get the value column names, which are already sample-specific
-value_cols <- setdiff(names(raw), c("chr", "start", "end", "ID"))
 
-# For each sample value, we will take the max for that column across all rows with the same junction ID.
-# after removing NAs, this will be unique!
-merged_junctions <- raw |>
-  summarise(
-    across(all_of(value_cols), \(x) max(x, na.rm = TRUE)),
-    .by = c(chr, start, end, ID)
-  ) |>
-  # materialize duckdb query into a tibble
-  as_tibble()
+merged_junctions <- long_junctions |>
+  as_tibble() |>
+  tidyr::pivot_wider(
+    names_from = sample,
+    values_from = count,
+    values_fill = 0
+  )
 
 # Check if junction IDs are duplicated
 if (any(duplicated(merged_junctions$ID))) {
@@ -75,9 +98,6 @@ if (any(duplicated(merged_junctions$ID))) {
     readr::format_tsv(dup_rows)
   )
 }
-
-# convert junctions not found in a sample from NA to 0
-merged_junctions[is.na(merged_junctions)] <- 0
 
 ## Save merged junction counts as output
 readr::write_tsv(merged_junctions, opt$output)

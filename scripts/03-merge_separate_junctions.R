@@ -87,7 +87,8 @@ merged_junctions <- long_junctions |>
     names_from = sample,
     values_from = count,
     values_fill = 0
-  )
+  ) |>
+  arrange(chr, start, end)
 
 # Check if junction IDs are duplicated
 if (any(duplicated(merged_junctions$ID))) {

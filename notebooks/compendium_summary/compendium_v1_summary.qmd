@@ -99,11 +99,27 @@ Not all samples filtered for downloading made it to the compendium due to `faste
 
 ```{r filter_for_compendium_samples}
 
-# merge gtex and target metadata into one file for ease of filtering
+# obtain list of accessions in compendium for each group
+
+target_accessions_list <- compendium_samples |>
+  dplyr::filter(group == "target") |>
+  dplyr::pull(sample)
+
+gtex_accessions_list <- compendium_samples |>
+  dplyr::filter(group == "gtex") |>
+  dplyr::pull(sample)
+
+# filter gtex and target metadata for those corresponding to samples in compendium
+
+target_compendium_df <- target_metadata |>
+  dplyr::filter(Run %in% target_accessions_list)
+
+gtex_compendium_df <- gtex_metadata |>
+  dplyr::filter(Run %in% gtex_accessions_list)
 
 ```
 
-## Summarize samples in filtered GTEx set
+## Summarize compendium GTEx samples
 
 Check library selection method of GTEx samples that are paired:
 

@@ -18,15 +18,15 @@ This notebook adds clinical metadata to the TARGET accessions sheet. Clinical me
 
 We plan to include the following metadata fields in the accessions sheet:
 
-- age at dx
+- Age at dx
 
-- race/ethnicity
+- Race/ethnicity
 
-- sex
+- Sex
 
-- survival
+- Survival
 
-- Some columns with a single number or value per column (values that can be computed on easily)
+- Sequencing center
 
 Prior to combining survival and phenotype metadata to existing TARGET accession metadata, the survival and phenotype information is filtered to meet the above criteria.
 
@@ -126,7 +126,7 @@ The sample IDs are harmonized in these metadata files by removing the last subst
 
 Then, the TARGET accessions metadata is combined with the accessions sheet and the TARGET SRA metadata is filtered for accessions corresponding to samples that were downloaded and processed.
 
-## Combine TARGET clinical and survival metadata 
+## Combine TARGET clinical and survival metadata
 
 Combine each TARGET cancer type's clinical and survival metadata and filter for accessions that are present in the compendium
 
@@ -153,49 +153,13 @@ target_sra_metadata <- target_sra |>
     # remove the hyphen followed by characters that are not hyphens that are at the end of the string
     target_sample_id = sub("-[^-]+$", "", biospecimen_repository_sample_id)
   )
-
-# Check target metadata contents
-colnames(target_sra_metadata)
-
 ```
 
-There are more fields in the metadata than we planned to include, so some discussion on what may or may not be useful as a group will be helpful. For now, I focus on excluding fields that are duplicates of other columns, or fields I don't think are as useful for clinical analysis (like vital_status, program project name).
+There are some cases where more than one sample in the compendium that corresponds to one entry in the clinical metadata.
+In these cases, the sample comes from the same patient. 
+These cases are handled by duplicating the clinical metadata for the samples that come from the same patient.
 
 ## Merge TARGET accessions with clinical metadata
-
-Row 2421 of the clinical metadata corresponds to one AML patient with two RNA-seq samples in the TARGET dbGaP accessions metadata, but only one entry in the clinical metadata. Some clinical metadata columns have a list of values for this sample, which I think indicates it contains information from different samples.
-
-```{r}
-# print row of target_metadata that has multiple rows which match to target-sra_metadata
-target_metadata[2421,] # sample column value is "TARGET-20-PARTXH-09A"
-```
-
-```{r}
-# print rows corresponding to sample TARGET-20-PARTXH-09A in the target_sra_metadata sheet to check if multiple rows match to the clinical metadata for explainable reasons 
-target_sra_metadata |> dplyr::filter(
-  target_sample_id == "TARGET-20-PARTXH-09A"
-)
-```
-
-Check - are there sample-specific entries in the clinical metadata?
-
-```{r}
-target_metadata |> dplyr::filter(sample == "TARGET-20-PARTXH-09A") |>
-  dplyr::select(primary_site.project,
-                disease_type.project,
-                protocol_identifier.treatments.diagnoses,
-                updated_datetime.treatments.diagnoses,
-                treatment_id.treatments.diagnoses,
-                submitter_id.treatments.diagnoses,
-                state.treatments.diagnoses,
-                treatment_or_therapy.treatments.diagnoses,
-                created_datetime.treatments.diagnoses
-                )
-```
-
-There are, but there is no way to associate which items in the list-columns correspond to which samples. Additionally, some columns like treatment_or_therapy.treatments.diagnoses have five entries, indicating they correspond to samples from the same patient not in the compendium. In this case, it makes sense to me to preserve both samples from the same patient and drop metadata columns that have these list values. So samples from the same patient will just have the same clinical metadata.
-
-### Merge TARGET accessions with clinical metadata without assuming one-to-one relationship
 
 ```{r merge_accessions_with_metadata}
 # merge target accessions with clinical metadata 
@@ -205,36 +169,11 @@ target_clinical_accessions <- dplyr::left_join(
   by = dplyr::join_by(
     target_sample_id == sample)
     )
-
-# print columns
-colnames(target_clinical_accessions)
 ```
 
-## Filter merged TARGET clinical metadata
-
-Below is a breakdown of columns that are excluded from the final clinical metadata:
-
-### Columns excluded from the metadata because they contain redundant values found in other columns
-
-The following columns are excluded because they are redundant with the submitter_id column
-
-```{r}
-target_clinical_accessions |>
-  # showing ALL phase 1 because columns ending in "annotations" only have value for this cancer type
-  dplyr::filter(study_name == "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1") |>
-  dplyr::select(submitter_id, 
-                entity_submitter_id.annotations, 
-                case_submitter_id.annotations,
-                # submitter_id is redundant because it concatenates classification.annotations and case_submitter_id.annotations
-                submitter_id.annotations,
-                classification.annotations) |>
-  head()
-```
-
-## Combine target metadata with SRA sheet of samples that were downloaded
+## Combine target metadata with SRA metadata for downloaded samples and select columns to include
 
 ```{r combine_metadata_with_sra}
-
 # merge target accessions with clinical metadata 
 target_clinical_accessions <- target_clinical_accessions |>
   # select for columns that are relevant to clinical metadata
@@ -242,24 +181,16 @@ target_clinical_accessions <- target_clinical_accessions |>
     # these columns have the same values in other columns
     # I select for the most clearly named column of these, or rename the column with the most values for clarity
     age_at_diagnosis_days = age_at_diagnosis.diagnoses,
-    case_id,
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # selected over age_at_index.demographic due to having unrounded numbers
     # the remaining columns are not repeated in the data frame and are selected for clinical relevance
     disease_type,
-    primary_site,
     race.demographic,
     gender.demographic,
     ethnicity.demographic,
     project_id.project,
     name.project,
-    tissue_or_organ_of_origin.diagnoses,
     classification_of_tumor.diagnoses,
-    icd_10_code.diagnoses,
     primary_diagnosis.diagnoses,
-    sample_type_id.samples,
-    tumor_descriptor.samples,
-    sample_type.samples,
-    tumor_code_id.samples,
     sample_type.samples,
     tissue_type.samples,
     OS.time,
@@ -267,8 +198,6 @@ target_clinical_accessions <- target_clinical_accessions |>
     `_PATIENT`,
     # these columns are from the dbGaP SRA metadata
     Run,
-  analyte_type,
-  `Assay Type`,
   BioProject,
   BioSample,
   biospecimen_repository,
@@ -277,29 +206,50 @@ target_clinical_accessions <- target_clinical_accessions |>
   Experiment,
   `dbGaP accession`,
   Instrument,
-  `Library Name`,
-  LibraryLayout,
-  LibrarySelection,
-  LibrarySource,
-  Organism,
-  Platform,
   `Sample Name`,
   `SRA Study`,
-  study_design,
   study_name,
   submitted_subject_id,
-  Bases,
-  AvgSpotLen,
   histological_type,
-  body_site
-  )
-
-# print head to eyeball contents
-target_clinical_accessions |>
-  dplyr::slice_sample( n = 5) |>
-  head(n = 5)
-
+  body_site,
+  target_sample_id
+  ) |>
+  # arrange most important columns to the front
+  dplyr::arrange(
+    target_sample_id,
+    Run, 
+    age_at_diagnosis_days, 
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, 
+    race.demographic,
+    gender.demographic,
+    OS,
+    OS.time)
 ```
+
+Check for samples without clinical metadata
+```{r}
+missing_clinical <- target_clinical_accessions |>
+  dplyr::filter(
+    if_all(c(
+    age_at_diagnosis_days,
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+    disease_type,
+    race.demographic,
+    gender.demographic,
+    ethnicity.demographic,
+    project_id.project,
+    name.project,
+    classification_of_tumor.diagnoses,
+    primary_diagnosis.diagnoses,
+    sample_type.samples,
+    tissue_type.samples,
+    OS.time,
+    OS,
+    `_PATIENT`
+  ), 
+  is.na))
+```
+
 
 ## Write output
 

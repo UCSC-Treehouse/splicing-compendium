@@ -180,7 +180,7 @@ target_clinical_accessions <- dplyr::left_join(
 target_clinical_accessions <- target_clinical_accessions |>
   # select for columns that are relevant to clinical metadata
   dplyr::select(
-    target_sample_id,
+    target_sample_id, # from dbgap metadata, shared with clinical metadata
     Run, # from dbgap metadata
     age_at_diagnosis_days = age_at_diagnosis.diagnoses, 
     # selected over age_at_index.demographic due to having unrounded numbers

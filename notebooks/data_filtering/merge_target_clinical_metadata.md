@@ -1,6 +1,6 @@
 # Add clinical metadata to TARGET compendium v1 sample sheet
 Cindy Liang (celiang@ucsc.edu)
-2026-07-22
+2026-07-23
 
 ## Introduction
 
@@ -191,11 +191,15 @@ target_clinical_accessions <- dplyr::left_join(
 target_clinical_accessions <- target_clinical_accessions |>
   # select for columns that are relevant to clinical metadata
   dplyr::select(
-    # these columns have the same values in other columns
-    # I select for the most clearly named column of these, or rename the column with the most values for clarity
-    age_at_diagnosis_days = age_at_diagnosis.diagnoses,
-    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # selected over age_at_index.demographic due to having unrounded numbers
-    # the remaining columns are not repeated in the data frame and are selected for clinical relevance
+    target_sample_id, # from dbgap metadata, shared with clinical metadata
+    Run, # from dbgap metadata
+    age_at_diagnosis_days = age_at_diagnosis.diagnoses, 
+    # selected over age_at_index.demographic due to having unrounded numbers
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, 
+    race.demographic,
+    gender.demographic,
+    OS,
+    OS.time,
     disease_type,
     race.demographic,
     gender.demographic,
@@ -206,37 +210,23 @@ target_clinical_accessions <- target_clinical_accessions |>
     primary_diagnosis.diagnoses,
     sample_type.samples,
     tissue_type.samples,
-    OS.time,
-    OS,
     `_PATIENT`,
     # these columns are from the dbGaP SRA metadata
-    Run,
-  BioProject,
-  BioSample,
-  biospecimen_repository,
-  biospecimen_repository_sample_id,
-  `Center Name`,
-  Experiment,
-  `dbGaP accession`,
-  Instrument,
-  `Sample Name`,
-  `SRA Study`,
-  study_name,
-  submitted_subject_id,
-  histological_type,
-  body_site,
-  target_sample_id
-  ) |>
-  # arrange most important columns to the front
-  dplyr::relocate(
-    target_sample_id,
-    Run, 
-    age_at_diagnosis_days, 
-    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, 
-    race.demographic,
-    gender.demographic,
-    OS,
-    OS.time)
+    BioProject,
+    BioSample,
+    biospecimen_repository,
+    biospecimen_repository_sample_id,
+    `Center Name`,
+    Experiment,
+    `dbGaP accession`,
+    Instrument,
+    `Sample Name`,
+    `SRA Study`,
+    study_name,
+    submitted_subject_id,
+    histological_type,
+    body_site
+  ) 
 ```
 
 Check for samples without entries in any of the selected clinical

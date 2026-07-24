@@ -72,6 +72,54 @@ gtex_sample_summary_plots <- function(df, fill_value, y_value, title_value) {
   # print plots side by side and use same x axes label, legend  
   combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
 }
+
+## TARGET stacked sample summary plots ##
+target_sample_summary_plots <- function(df, fill_value, y_value, title_value){
+  
+  target_frac_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = study_name, 
+    y = .data[[y_value]])
+    ) +
+    geom_bar(position = "fill", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of TARGET sample",
+      y = "Fraction of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1),
+                     # wrap x axis labels because names are long
+                     labels = function(x){stringr::str_wrap(x, 40)}) 
+  
+  target_number_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = study_name, 
+    y = .data[[y_value]])
+    ) +
+    geom_bar(position = "stack", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of TARGET sample",
+      y = "Number of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1), 
+                     labels = function(x){stringr::str_wrap(x, 40)}
+                     ) 
+  
+  # Print plots together
+  target_combined_plot <- target_number_plot +
+  target_frac_plot +
+    plot_annotation(
+      title = title_value,
+      theme = theme(plot.title = element_text(size = 22),
+                    plot.margin = margin(t = 0, r = 10, b = 70, l = 140)
+    )
+    )
+    
+  target_combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+  }
 ```
 
 ## Read in input and output paths
@@ -367,6 +415,172 @@ target_compendium_df |>
 | Kidney, Rhabdoid Tumor (RT)                          |  81 |
 | Kidney, Wilms Tumor (WT)                             | 137 |
 | Neuroblastoma (NBL)                                  | 161 |
+
+### Table of age distribution for the TARGET samples in the compendium
+
+``` r
+# Summarize number of samples per tissue type in each age bracket
+target_ages_summary <- target_compendium_df |>
+  dplyr::mutate(
+    # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
+    age_bin = cut(
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+    breaks = seq(0, 100, by = 10))
+    ) |>
+  dplyr::group_by(study_name, age_bin) |>
+  dplyr::summarise(age_count = dplyr::n())
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by study_name and age_bin.
+    ℹ Output is grouped by study_name.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(study_name, age_bin))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
+
+``` r
+target_ages_summary
+```
+
+| study_name                                           | age_bin  | age_count |
+|:-----------------------------------------------------|:---------|----------:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | (0,10\]  |       205 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | (10,20\] |       101 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | (20,30\] |         3 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | NA       |         4 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | (0,10\]  |         1 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | (10,20\] |         2 |
+| Acute Myeloid Leukemia (AML)                         | (0,10\]  |       207 |
+| Acute Myeloid Leukemia (AML)                         | (10,20\] |       235 |
+| Acute Myeloid Leukemia (AML)                         | (20,30\] |         6 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | (0,10\]  |        13 |
+| Kidney, Rhabdoid Tumor (RT)                          | (0,10\]  |        80 |
+| Kidney, Rhabdoid Tumor (RT)                          | (10,20\] |         1 |
+| Kidney, Wilms Tumor (WT)                             | (0,10\]  |       130 |
+| Kidney, Wilms Tumor (WT)                             | (10,20\] |         7 |
+| Neuroblastoma (NBL)                                  | (0,10\]  |       156 |
+| Neuroblastoma (NBL)                                  | (10,20\] |         5 |
+
+Check why NA values are present in 4 ALL Phase 2 samples
+
+``` r
+target_compendium_df |>
+  dplyr::filter(is.na(age_at_earliest_diagnosis_in_years.diagnoses.xena_derived))
+```
+
+| target_sample_id | Run | age_at_diagnosis_days | age_at_earliest_diagnosis_in_years.diagnoses.xena_derived | race.demographic | gender.demographic | OS | OS.time | disease_type | ethnicity.demographic | project_id.project | name.project | classification_of_tumor.diagnoses | primary_diagnosis.diagnoses | sample_type.samples | tissue_type.samples | \_PATIENT | BioProject | BioSample | biospecimen_repository | biospecimen_repository_sample_id | Center Name | Experiment | dbGaP accession | Instrument | Sample Name | SRA Study | study_name | submitted_subject_id | histological_type | body_site |
+|:---|:---|:---|---:|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| TARGET-10-PASJJR-09A | SRR3162212 | NA | NA | white | male | NA | NA | Lymphoid Leukemias | not hispanic or latino | TARGET-ALL-P3 | Acute Lymphoblastic Leukemia - Phase III | NA | NA | Primary Blood Derived Cancer - Bone Marrow | Tumor | NA | PRJNA89529 | SAMN04486306 | NCI_TARGET | TARGET-10-PASJJR-09A-01R | STJUDE | SRX1571434 | phs000464 | Illumina HiSeq 2000 | TARGET-10-PASJJR-09A-01R | SRP011999 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | TARGET-10-PASJJR | ALL | Primary Blood Derived Cancer - Bone Marrow |
+| TARGET-10-PAPIGX-09A | SRR1791002 | NA | NA | black or african american | female | NA | NA | Lymphoid Leukemias | not hispanic or latino | TARGET-ALL-P3 | Acute Lymphoblastic Leukemia - Phase III | NA | NA | Primary Blood Derived Cancer - Bone Marrow | Tumor | NA | PRJNA89529 | SAMN02723121 | NCI_TARGET | TARGET-10-PAPIGX-09A-02R | BCCAGSC | SRX547673 | phs000464 | Illumina HiSeq 2000 | TARGET-10-PAPIGX-09A-02R | SRP011999 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | TARGET-10-PAPIGX | ALL | Primary Blood Derived Cancer - Bone Marrow |
+| TARGET-10-PAPHGD-09A | SRR1791034 | NA | NA | white | male | NA | NA | Lymphoid Leukemias | hispanic or latino | TARGET-ALL-P3 | Acute Lymphoblastic Leukemia - Phase III | NA | NA | Primary Blood Derived Cancer - Bone Marrow | Tumor | NA | PRJNA89529 | SAMN02385859 | NCI_TARGET | TARGET-10-PAPHGD-09A-01R | BCCAGSC | SRX547617 | phs000464 | Illumina HiSeq 2000 | TARGET-10-PAPHGD-09A-01R | SRP011999 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | TARGET-10-PAPHGD | ALL | Primary Blood Derived Cancer - Bone Marrow |
+| TARGET-10-PANKMB-09A | SRR1791087 | NA | NA | white | female | NA | NA | Lymphoid Leukemias | not hispanic or latino | TARGET-ALL-P3 | Acute Lymphoblastic Leukemia - Phase III | NA | NA | Primary Blood Derived Cancer - Bone Marrow | Tumor | NA | PRJNA89529 | SAMN02723415 | NCI_TARGET | TARGET-10-PANKMB-09A-02R | BCCAGSC | SRX547678 | phs000464 | Illumina HiSeq 2000 | TARGET-10-PANKMB-09A-02R | SRP011999 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | TARGET-10-PANKMB | ALL | Primary Blood Derived Cancer - Bone Marrow |
+
+The NA values correspond to 4 TARGET ALL Phase 2 samples (mislabeled as
+phase 3 in Xena browser metadata) without age at diagnosis information.
+
+### Plot of age distribution of TARGET samples in compendium
+
+``` r
+target_sample_summary_plots(target_ages_summary, "age_bin", "age_count", "Age distribution of TARGET cancer types in compendium")
+```
+
+<div id="fig-compendium_target_age_stacked_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-compendium_target_age_stacked_bar-1.png"
+id="fig-compendium_target_age_stacked_bar" />
+
+Figure 3
+
+</div>
+
+### Table of sex distribution for the TARGET samples in the compendium
+
+``` r
+# Summarize number of samples per tissue type in each age bracket
+target_sex_summary <- target_compendium_df |>
+  dplyr::group_by(study_name, gender.demographic) |>
+  dplyr::summarise(sex_count = dplyr::n())
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by study_name and gender.demographic.
+    ℹ Output is grouped by study_name.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(study_name, gender.demographic))` for per-operation
+      grouping (`?dplyr::dplyr_by`) instead.
+
+``` r
+target_sex_summary
+```
+
+| study_name | gender.demographic | sex_count |
+|:---|:---|---:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | female | 150 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | male | 163 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1 | female | 1 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1 | male | 2 |
+| Acute Myeloid Leukemia (AML) | female | 205 |
+| Acute Myeloid Leukemia (AML) | male | 243 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK) | male | 13 |
+| Kidney, Rhabdoid Tumor (RT) | female | 38 |
+| Kidney, Rhabdoid Tumor (RT) | male | 43 |
+| Kidney, Wilms Tumor (WT) | female | 77 |
+| Kidney, Wilms Tumor (WT) | male | 60 |
+| Neuroblastoma (NBL) | female | 67 |
+| Neuroblastoma (NBL) | male | 94 |
+
+### Plots of sex distribution of TARGET samples in compendium
+
+``` r
+target_sample_summary_plots(target_sex_summary, "gender.demographic", "sex_count", "Sex distribution of TARGET cancer types in compendium")
+```
+
+<div id="fig-compendium_target_sex_stacked_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-compendium_target_sex_stacked_bar-1.png"
+id="fig-compendium_target_sex_stacked_bar" />
+
+Figure 4
+
+</div>
+
+CCSK samples in the compendium are the most sex-imbalanced, being
+composed completely of male samples.
+
+### Table of sequencing center of origin for compendium TARGET samples
+
+``` r
+# summarize number of samples in each tissue type come from what sequencing center
+target_compendium_df |>
+  dplyr::group_by(study_name, `Center Name`) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by study_name and Center Name.
+    ℹ Output is grouped by study_name.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(study_name, Center Name))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
+
+| study_name                                           | Center Name |   n |
+|:-----------------------------------------------------|:------------|----:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC     | 307 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | STJUDE      |   6 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | STJUDE      |   3 |
+| Acute Myeloid Leukemia (AML)                         | BCCAGSC     | 382 |
+| Acute Myeloid Leukemia (AML)                         | HAIB        |  66 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | NCI-KHAN    |  13 |
+| Kidney, Rhabdoid Tumor (RT)                          | BCCAGSC     |  81 |
+| Kidney, Wilms Tumor (WT)                             | BCCAGSC     | 137 |
+| Neuroblastoma (NBL)                                  | NCI-KHAN    | 161 |
+
+TARGET AML samples come from two different sequencing centers, so may
+have batch effects associated with their sequences.
 
 ``` r
 sessionInfo()

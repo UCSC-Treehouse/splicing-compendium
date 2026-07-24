@@ -10,7 +10,8 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Introduction
 
-Splice compendium v1 contains data from TARGET and GTEx datasets. This notebook summarizes
+Splice compendium v1 contains data from TARGET and GTEx datasets. 
+This notebook summarizes the distribution of tissue types, age, sex, and sequencing center of origin information of samples analyzed in the compendium.
 
 Metadata used for this analysis are:
 

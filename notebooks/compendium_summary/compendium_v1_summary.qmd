@@ -14,9 +14,13 @@ Splice compendium v1 contains data from TARGET and GTEx datasets. This notebook 
 
 Metadata used for this analysis are:
 
-- [sample_sheet.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/config/sample_sheet.tsv): Accessions list of samples processed in splice compendium v1. Columns include accession ID ("sample") and dataset ("group").
-- [gtex_accessions.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/filter_target_gtex/gtex_accessions.tsv): metadata file of GTEX sample accession IDs, along with age of donor and tissue type of the sample.
-- [target_accessions_clinical.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/celiang/new-clinical-metadata/metadata/filter_target_gtex/target_accessions_clinical.tsv): metadata file of TARGET sample accession IDs, along with age of donor, cancer type of the sample, and sequencing center of origin of the sample.
+- [sample_sheet.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/config/sample_sheet.tsv): 
+Accessions list of samples processed in splice compendium v1. 
+Columns include accession ID ("sample") and dataset ("group").
+- [gtex_accessions.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/filter_target_gtex/gtex_accessions.tsv): 
+metadata file of GTEX sample accession IDs, along with age, sex of donor and tissue type of the sample.
+- [target_accessions_clinical.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/celiang/new-clinical-metadata/metadata/filter_target_gtex/target_accessions_clinical.tsv): 
+metadata file of TARGET sample accession IDs, along with age, sex of donor, cancer type of the sample, and sequencing center of origin of the sample.
 
 ## Setup
 
@@ -212,7 +216,14 @@ gtex_accessions_list <- sample_df |>
 # filter gtex and target metadata for those corresponding to samples in compendium
 
 target_compendium_df <- target_metadata |>
-  dplyr::filter(Run %in% target_accessions_list)
+  dplyr::filter(Run %in% target_accessions_list) |>
+  # the xena browser metadata's "name.project" has the cancer type in a prettier format 
+  # (no "TARGET:" prefix) 
+  # but since some ALL phase 2 samples were in ALL phase 3 xena metadata , use study_name column from dbGaP metadata
+  # Remove "TARGET:" prefix for ease of reading
+  dplyr::mutate(
+    # remove TARGET prefix from study_name values
+    study_name = stringr::str_remove(study_name, "TARGET: "))
 
 gtex_compendium_df <- gtex_metadata |>
   dplyr::filter(Run %in% gtex_accessions_list)
@@ -232,7 +243,7 @@ gtex_compendium_df |>
     n = dplyr::n()
     )
 ```
-Our curated GTEx compendium dataset is primarily composed of whole blood (for leukemia comparisons) and skeletal muscle (for soft tissue sarcoma comparison) samples.
+Our curated GTEx compendium dataset is primarily composed of whole blood (for leukemia comparisons) and skeletal muscle (for soft tissue comparison) samples.
 
 ### Table of age distribution for the GTEx samples in the compendium
 
@@ -289,7 +300,7 @@ gtex_sex_summary
 gtex_sample_summary_plots(gtex_sex_summary, "SEX", "n", "Sex distribution of GTEX tissue types in compendium") 
 ```
 
-All GTEx tissue types have higher male representation than female representation.
+All GTEx tissue types in the compendium have higher male representation than female representation.
 
 ### Table of sequencing center of origin for compendium GTEx samples
 
@@ -312,14 +323,11 @@ All tissue types in the GTEx datasets come from the same sequencing center.
 
 ### Table of number of samples in each cancer type
 
-Print a table summarizing number of samples in each tissue type in compendium
-```{r target_ages_summary_table}
+Print a table summarizing number of samples in each cancer type in compendium
+```{r target_cancer_type_summary_table}
 # summarize number of samples in each tissue type
 target_compendium_df |>
   dplyr::group_by(study_name) |>
-  # the xena browser metadata's "name.project" has the cancer type in a prettier format 
-  # (no "TARGET:" prefix) 
-  # but since some ALL phase 2 samples were in ALL phase 3 xena metadata I am afraid to use the xena browser project name
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -334,9 +342,8 @@ target_ages_summary <- target_compendium_df |>
     # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
     age_bin = cut(
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
-    breaks = seq(0, 100, by = 10)),
-    # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+    breaks = seq(0, 100, by = 10))
+    ) |>
   dplyr::group_by(study_name, age_bin) |>
   dplyr::summarise(age_count = dplyr::n())
 
@@ -365,9 +372,6 @@ target_sample_summary_plots(target_ages_summary, "age_bin", "age_count", "Age di
 ```{r target_sex_summary_table}
 # Summarize number of samples per tissue type in each age bracket
 target_sex_summary <- target_compendium_df |>
-  dplyr::mutate(
-    # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
   dplyr::group_by(study_name, gender.demographic) |>
   dplyr::summarise(sex_count = dplyr::n())
 

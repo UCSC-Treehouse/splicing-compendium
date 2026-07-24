@@ -31,7 +31,7 @@ opt <- parse_args(OptionParser(option_list = option_list))
 ## File paths ##
 junction_paths <- list.files(
   path = opt$junctions,
-  pattern = ".bed",
+  pattern = "\\.bed",
   full.names = TRUE
 )
 
@@ -99,11 +99,15 @@ pivot_sql <- glue::glue_sql(
 
 merged_junctions <- tbl(con, sql(pivot_sql)) |>
   arrange(chr, start, end) |>
-  as_tibble()
+  compute()
 
 # Check if junction IDs are duplicated
-if (any(duplicated(merged_junctions$ID))) {
-  dup_rows <- merged_junctions[duplicated(merged_junctions$ID), ]
+dup_rows <- merged_junctions |>
+  group_by(ID) |>
+  filter(n() > 1) |>
+  collect()
+
+if (nrow(dup_rows) > 0) {
   # quit and send error message about duplicates
   stop(
     paste0("Found duplicate junction ID: ", "\n"),
@@ -112,4 +116,9 @@ if (any(duplicated(merged_junctions$ID))) {
 }
 
 ## Save merged junction counts as output
-readr::write_tsv(merged_junctions, opt$output)
+merged_junctions |>
+  as_duckdb_tibble(prudence = "stingy") |>
+  duckplyr::compute_csv(
+    opt$output,
+    options = list(delim = "\t", header = TRUE)
+  )

@@ -189,26 +189,26 @@ target_clinical_accessions <- target_clinical_accessions |>
     gender.demographic,
     OS,
     OS.time,
-    disease_type,
+    disease_type, # e.g. neoplasms, lymphoid leukemias
     race.demographic,
     gender.demographic,
     ethnicity.demographic,
-    project_id.project,
-    name.project,
-    classification_of_tumor.diagnoses,
-    primary_diagnosis.diagnoses,
-    sample_type.samples,
-    tissue_type.samples,
-    `_PATIENT`,
+    project_id.project, # TARGET hyphenated by cancer type acronym (e.g. TARGET-CCSK)
+    name.project, # cancer type spelled out in long form (e.g. high-risk wilms tumor)
+    classification_of_tumor.diagnoses, # e.g. primary, not reported
+    primary_diagnosis.diagnoses, # cancer diagnosis of sample
+    sample_type.samples, # type of tumor (primary, recurrent)
+    tissue_type.samples, # tumor or normal
+    `_PATIENT`,  # patient id of sample
     # these columns are from the dbGaP SRA metadata
     BioProject,
     BioSample,
     biospecimen_repository,
     biospecimen_repository_sample_id,
-    `Center Name`,
+    `Center Name`, # not all samples are sequenced at the same centers
     Experiment,
     `dbGaP accession`,
-    Instrument,
+    Instrument, # not all samples are sequenced with same instrument
     `Sample Name`,
     `SRA Study`,
     study_name,

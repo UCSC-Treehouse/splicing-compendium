@@ -47,6 +47,104 @@ plot_theme = list(
 )
 ```
 
+## Define functions
+
+```{r functions}
+## GTEx stacked sample summary plots ##
+gtex_sample_summary_plots <- function(df, fill_value, y_value, title_value) {
+  frac_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = body_site, 
+    y = .data[[y_value]])
+    ) +
+  geom_bar(position = "fill", stat = "identity") +
+  scale_fill_brewer(palette = "Dark2") +
+  plot_theme +
+  labs(
+    x = "Tissue type of GTEX sample",
+    y = "Fraction of samples"
+  ) +
+  scale_x_discrete(guide = guide_axis(angle = 45),
+                   labels = function(x){stringr::str_wrap(x, 30)}) 
+
+  number_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = body_site, 
+    y = .data[[y_value]]
+    )
+    ) +
+    geom_bar(position = "stack", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of GTEX sample",
+      y = "Number of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45), 
+                     labels = function(x){stringr::str_wrap(x, 30)}) 
+  
+  # Print plots together
+  combined_plot <- number_plot +
+    frac_plot +
+      plot_annotation(
+        title = title_value,
+        theme = theme(plot.title = element_text(size = 22),
+                      plot.margin = margin(t = 10, r = 10, b = 70, l = 50)
+      )
+      )
+  # print plots side by side and use same x axes label, legend  
+  combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+}
+
+## TARGET stacked sample summary plots ##
+target_sample_summary_plots <- function(df, fill_value, y_value, title_value){
+  
+  target_frac_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = study_name, 
+    y = .data[[y_value]])
+    ) +
+    geom_bar(position = "fill", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of TARGET sample",
+      y = "Fraction of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1),
+                     # wrap x axis labels because names are long
+                     labels = function(x){stringr::str_wrap(x, 40)}) 
+  
+  target_number_plot <- ggplot(df, aes(
+    fill = .data[[fill_value]], 
+    x = study_name, 
+    y = .data[[y_value]])
+    ) +
+    geom_bar(position = "stack", stat = "identity") +
+    scale_fill_brewer(palette = "Dark2") +
+    plot_theme +
+    labs(
+      x = "Tissue type of TARGET sample",
+      y = "Number of samples"
+    ) +
+    scale_x_discrete(guide = guide_axis(angle = 45, n.dodge = 1), 
+                     labels = function(x){stringr::str_wrap(x, 40)}
+                     ) 
+  
+  # Print plots together
+  target_combined_plot <- target_number_plot +
+  target_frac_plot +
+    plot_annotation(
+      title = title_value,
+      theme = theme(plot.title = element_text(size = 22),
+                    plot.margin = margin(t = 0, r = 10, b = 70, l = 140)
+    )
+    )
+    
+  target_combined_plot + plot_layout(guides = "collect") + plot_layout(axes = "collect")
+  }
+
+```
 
 ## Read in input and output paths
 
@@ -230,9 +328,6 @@ merged_compendium_df <- dplyr::full_join(
     "sex",
     "center_name")
 )
-
-# print column names in merged df tom spot-check
-colnames(merged_compendium_df)
 ```
 
 ## Summaries of sample composition of GTEx and TARGET accessions
@@ -264,7 +359,169 @@ merged_compendium_df |>
     )
 ```
 
-## Print session info 
+
+
+### Table of age distributions for GTEx and TARGET samples in the compendium
+
+Print a table of the age distribution breakdown of GTEx compendium samples
+
+```{r gtex_ages_summary_table}
+
+# Summarize number of samples per tissue type in each age bracket
+gtex_ages_summary <- merged_compendium_df |>
+  dplyr::filter(dataset == "GTEx") |>
+  dplyr::group_by(gtex_body_site, age_in_years) |>
+  dplyr::summarise(age_count = dplyr::n())
+
+gtex_ages_summary
+```
+
+As expected, there is a small fraction of filtered GTEx samples under the PEDAYA (\< 30 years) category. A future addition of value for the compendium will be to include tissue samples from the developmental GTEx project.
+
+### Plot of age distribution of GTEx samples in compendium
+
+```{r}
+#| label: fig-compendium_gtex_age_stacked_bar
+#| fig-width: 11
+#| fig-height: 8
+
+gtex_sample_summary_plots(gtex_ages_summary, "AGE", "age_count", "Age distribution of GTEX tissue types in compendium") 
+```
+
+### Table of sex distribution of compendium GTEx samples
+
+```{r}
+# summarize number of samples in each tissue type of a specific sex
+gtex_sex_summary <- gtex_compendium_df |>
+  # relabel sex column values according to what they represent
+  dplyr::mutate(SEX = 
+                  dplyr::case_when(
+                   SEX == 1 ~ "Male",
+                   SEX == 2 ~ "Female"
+                  )) |>
+  dplyr::group_by(body_site, SEX) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+
+gtex_sex_summary
+```
+
+### Plot of sex distribution of GTEx samples in compendium
+
+```{r}
+#| label: fig-compendium_gtex_sex_stacked_bar
+#| fig-width: 11
+#| fig-height: 8
+
+gtex_sample_summary_plots(gtex_sex_summary, "SEX", "n", "Sex distribution of GTEX tissue types in compendium") 
+```
+
+All GTEx tissue types in the compendium have higher male representation than female representation.
+
+### Table of sequencing center of origin for compendium GTEx samples
+
+Print a table of the breakdown of what sequencing center the tissue types are sequenced from. This information is for checking what sorts of batch effects may be expected within tissue types.
+
+```{r gtex_sequencing_center}
+# summarize number of samples in each tissue type come from what sequencing center
+gtex_compendium_df |>
+  dplyr::group_by(body_site, `Center Name`) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+
+```
+
+All tissue types in the GTEx datasets come from the same sequencing center.
+
+## Summarize sample composition of TARGET accessions in compendium
+
+### Table of number of samples in each cancer type
+
+Print a table summarizing number of samples in each cancer type in compendium
+
+```{r target_cancer_type_summary_table}
+# summarize number of samples in each tissue type
+target_compendium_df |>
+  dplyr::group_by(study_name) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+### Table of age distribution for the TARGET samples in the compendium
+
+```{r target_ages_summary_table}
+# Summarize number of samples per tissue type in each age bracket
+target_ages_summary <- target_compendium_df |>
+  dplyr::mutate(
+    # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
+    age_bin = cut(
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+    breaks = seq(0, 100, by = 10))
+    ) |>
+  dplyr::group_by(study_name, age_bin) |>
+  dplyr::summarise(age_count = dplyr::n())
+
+target_ages_summary
+```
+
+Check why NA values are present in 4 ALL Phase 2 samples
+
+```{r check_target_age_nas}
+target_compendium_df |>
+  dplyr::filter(is.na(age_at_earliest_diagnosis_in_years.diagnoses.xena_derived))
+```
+
+The NA values correspond to 4 TARGET ALL Phase 2 samples (mislabeled as phase 3 in Xena browser metadata) without age at diagnosis information.
+
+### Plot of age distribution of TARGET samples in compendium
+
+```{r}
+#| label: fig-compendium_target_age_stacked_bar
+#| fig-width: 20
+#| fig-height: 8
+
+target_sample_summary_plots(target_ages_summary, "age_bin", "age_count", "Age distribution of TARGET cancer types in compendium")
+```
+
+### Table of sex distribution for the TARGET samples in the compendium
+
+```{r target_sex_summary_table}
+# Summarize number of samples per tissue type in each age bracket
+target_sex_summary <- target_compendium_df |>
+  dplyr::group_by(study_name, gender.demographic) |>
+  dplyr::summarise(sex_count = dplyr::n())
+
+target_sex_summary
+```
+
+### Plots of sex distribution of TARGET samples in compendium
+
+```{r}
+#| label: fig-compendium_target_sex_stacked_bar
+#| fig-width: 20
+#| fig-height: 8
+
+target_sample_summary_plots(target_sex_summary, "gender.demographic", "sex_count", "Sex distribution of TARGET cancer types in compendium")
+```
+
+CCSK samples in the compendium are the most sex-imbalanced, being composed completely of male samples.
+
+### Table of sequencing center of origin for compendium TARGET samples
+
+```{r target_sequencing_center}
+# summarize number of samples in each tissue type come from what sequencing center
+target_compendium_df |>
+  dplyr::group_by(study_name, `Center Name`) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+TARGET AML samples come from two different sequencing centers, so may have batch effects associated with their sequences.
+
 ```{r}
 sessionInfo()
 ```

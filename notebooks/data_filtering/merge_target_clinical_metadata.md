@@ -1,6 +1,6 @@
 # Add clinical metadata to TARGET compendium v1 sample sheet
 Cindy Liang (celiang@ucsc.edu)
-2026-07-23
+2026-07-27
 
 ## Introduction
 
@@ -14,8 +14,9 @@ files for each TARGET cancer type in the linked page.
   sample within the specified cancer type (e.g. overall survival,
   overall survival time)
 
-- “Phenotype” - Contains patient demographic information such as race,
-  sex, age at diagnosis
+- “Survival data” - Contains the survival information of each TARGET
+  sample within the specified cancer type (e.g. overall survival,
+  overall survival time)
 
 We plan to include the following metadata fields in the accessions
 sheet:
@@ -200,26 +201,26 @@ target_clinical_accessions <- target_clinical_accessions |>
     gender.demographic,
     OS,
     OS.time,
-    disease_type,
+    disease_type, # e.g. neoplasms, lymphoid leukemias
     race.demographic,
     gender.demographic,
     ethnicity.demographic,
-    project_id.project,
-    name.project,
-    classification_of_tumor.diagnoses,
-    primary_diagnosis.diagnoses,
-    sample_type.samples,
-    tissue_type.samples,
-    `_PATIENT`,
+    project_id.project, # TARGET hyphenated by cancer type acronym (e.g. TARGET-CCSK)
+    name.project, # cancer type spelled out in long form (e.g. high-risk wilms tumor)
+    classification_of_tumor.diagnoses, # e.g. primary, not reported
+    primary_diagnosis.diagnoses, # cancer diagnosis of sample
+    sample_type.samples, # type of tumor (primary, recurrent)
+    tissue_type.samples, # tumor or normal
+    `_PATIENT`,  # patient id of sample
     # these columns are from the dbGaP SRA metadata
     BioProject,
     BioSample,
     biospecimen_repository,
     biospecimen_repository_sample_id,
-    `Center Name`,
+    `Center Name`, # not all samples are sequenced at the same centers
     Experiment,
     `dbGaP accession`,
-    Instrument,
+    Instrument, # not all samples are sequenced with same instrument
     `Sample Name`,
     `SRA Study`,
     study_name,
@@ -233,26 +234,28 @@ Check for samples without entries in any of the selected clinical
 metadata fields
 
 ``` r
-target_clinical_accessions |>
-  dplyr::filter(
-    if_all(c(
-    age_at_diagnosis_days,
-    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
-    disease_type,
-    race.demographic,
-    gender.demographic,
-    ethnicity.demographic,
-    project_id.project,
-    name.project,
-    classification_of_tumor.diagnoses,
-    primary_diagnosis.diagnoses,
-    sample_type.samples,
-    tissue_type.samples,
-    OS.time,
-    OS,
-    `_PATIENT`
-  ), 
-  is.na)) |>
+target_clinical_accessions |> dplyr::filter(
+  if_all(
+      c(
+        age_at_diagnosis_days,
+        age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+        disease_type,
+        race.demographic,
+        gender.demographic,
+        ethnicity.demographic,
+        project_id.project,
+        name.project,
+        classification_of_tumor.diagnoses,
+        primary_diagnosis.diagnoses,
+        sample_type.samples,
+        tissue_type.samples,
+        OS.time,
+        OS,
+        `_PATIENT`
+      ),
+      is.na
+    )
+  ) |>
   
   # summarize the studies samples with missing information come fro
   dplyr::summarise(

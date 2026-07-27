@@ -221,11 +221,14 @@ target_compendium_df <- target_metadata |>
   # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata, 
   # we will use thee study_name column from dbGaP metadata
   dplyr::mutate(
+    # add dataset column to facet plots by
+    dataset = "TARGET",
     # remove TARGET prefix from study_name values
     study_name = stringr::str_remove(study_name, "TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with gtex metadata
+    dataset,
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
@@ -255,9 +258,14 @@ target_compendium_df <- target_metadata |>
 
 gtex_compendium_df <- gtex_metadata |>
   dplyr::filter(Run %in% gtex_accessions_list) |>
+  dplyr::mutate(
+    # add dataset column to facet plots by
+    dataset = "GTEx"
+  ) |>
   # clean up gtex metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with target metadata
+    dataset,
     Run, # accession ID
     BioSample, # sample-specific accession ID from dbgap
     age_in_years = AGE, # in 10-year bins (characters)
@@ -313,11 +321,12 @@ merged_compendium_df <- dplyr::full_join(
   cleaned_target_df,
   cleaned_gtex_df,
   by = c(
-  "Run",
-  "BioSample",
-  "age_in_years",
-  "sex",
-  "center_name")
+    "dataset",
+    "Run",
+    "BioSample",
+    "age_in_years",
+    "sex",
+    "center_name")
 )
 ```
 

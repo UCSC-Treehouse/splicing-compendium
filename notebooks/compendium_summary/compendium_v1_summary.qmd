@@ -1,0 +1,270 @@
+---
+title: Summary of samples on splice compendium v1
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+Splice compendium v1 contains data from TARGET and GTEx datasets. This notebook summarizes the distribution of tissue types, demographic information, and sequencing center of origin information of samples analyzed in the compendium.
+
+Metadata used for this analysis are:
+
+- [sample_sheet.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/config/sample_sheet.tsv): Accessions list of samples processed in splice compendium v1. Columns include accession ID ("sample") and dataset ("group").
+- [gtex_accessions.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/filter_target_gtex/gtex_accessions.tsv): metadata file of GTEX sample accession IDs, along with age, sex of donor and tissue type of the sample.
+- [target_accessions_clinical.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/celiang/new-clinical-metadata/metadata/filter_target_gtex/target_accessions_clinical.tsv): metadata file of TARGET sample accession IDs, along with age, sex of donor, cancer type of the sample, and sequencing center of origin of the sample.
+
+## Setup
+
+```{r, setup, include=FALSE}
+# load libraries
+library(ggplot2)
+library(patchwork)
+
+# define global size for plots
+global_size <- 20
+
+# define plot theme (size) presets
+plot_theme = list(
+ theme_bw(),
+ theme(
+   legend.position = "right",
+   axis.title = element_text(size = global_size),
+   plot.title = element_text(size = global_size),
+   axis.text = element_text(size = global_size),
+   axis.text.x = element_text(
+     hjust = 1,
+     margin = margin(t = 0, r = 80, b = 0, l = 0),
+     size = global_size
+   ),
+   legend.title = element_text(size=global_size),
+   legend.text=element_text(size=global_size - 8)
+ )
+)
+```
+
+
+## Read in input and output paths
+
+Read in directory and file paths
+
+```{r}
+# find the root-level repo directory so we can access the other files
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+# find the project directory (splicing-compendium)
+# working directory is in scripts
+base_dir <- here::here()
+
+## Directories ##
+# define metadata directory
+metadata_dir <- file.path(base_dir, "metadata")
+gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+
+# config directory of compendium
+config_dir <- file.path(repo_root, "config")
+
+### Files ##
+# gtex metadata with age info
+gtex_metadata_file <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
+# target metadata with age info
+target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
+# sample sheet of compendium files 
+compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
+
+## Read in files ##
+gtex_metadata <- readr::read_tsv(
+  gtex_metadata_file, 
+  col_types = readr::cols(Bytes = "d", 
+                          cumulative_tb = "d",
+                          .default = "c")
+)
+
+target_metadata <- readr::read_tsv(
+  target_metadata_file,
+  col_types = readr::cols(
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived = "d",
+    age_at_diagnosis_days = "d",
+    .default = "c")
+)
+
+sample_df <- readr::read_tsv(
+  compendium_sample_file,
+  col_types = readr::cols(.default = "c")
+)
+```
+
+## Filter TARGET and GTEx samples for what's in the compendium
+
+Not all samples filtered for downloading are processed as part of the compendium due to `fasterq-dump` download issues or the file size being too large to align in a timely manner.
+
+```{r filter_for_compendium_samples}
+
+# obtain list of accessions in compendium for each group
+
+target_accessions_list <- sample_df |>
+  dplyr::filter(group == "target") |>
+  dplyr::pull(sample)
+
+gtex_accessions_list <- sample_df |>
+  dplyr::filter(group == "gtex") |>
+  dplyr::pull(sample)
+
+# filter gtex and target metadata for those corresponding to samples in compendium
+
+target_compendium_df <- target_metadata |>
+  dplyr::filter(Run %in% target_accessions_list) |>
+  # the xena browser metadata's "name.project" has the cancer type in a prettier format 
+  # (no "TARGET:" prefix) 
+  # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata, 
+  # we will use thee study_name column from dbGaP metadata
+  dplyr::mutate(
+    # add dataset column to facet plots by
+    dataset = "TARGET",
+    # remove TARGET prefix from study_name values
+    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+  # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
+  dplyr::select(
+    # fields shared with gtex metadata
+    dataset,
+    Run, # accession ID, same format as GTEx,
+    BioSample, # sample-specific accession ID from dbgap
+    center_name = `Center Name`, # sequencing center of origin
+    age_in_years = age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
+    sex = gender.demographic, # in "male" / "female" values
+    # fields specific to target metadata
+    target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
+    # in cases where patient ID is missing, the ID can be derived from the biospecimen sample ID (first three fields separated by hyphens)
+    target_biospecimen_sample_id = biospecimen_repository_sample_id, # specific replicate ID for a sample
+    # additional demographic info only in target metadata
+    target_race = race.demographic,
+    target_ethnicity = ethnicity.demographic,
+    # clinical metadata specific to target samples
+    target_OS = OS,
+    target_OS_time = OS.time,
+    target_disease_type = disease_type,
+    target_project_id = project_id.project,
+    target_project_name = name.project,
+    target_tumor_class = classification_of_tumor.diagnoses,
+    target_primary_diagnosis = primary_diagnosis.diagnoses,
+    target_sample_type = sample_type.samples,
+    target_tissue_type = tissue_type.samples,
+    target_histological_type = histological_type,
+    target_body_site = body_site,
+    target_study_name = study_name
+  )
+
+gtex_compendium_df <- gtex_metadata |>
+  dplyr::filter(Run %in% gtex_accessions_list) |>
+  dplyr::mutate(
+    # add dataset column to facet plots by
+    dataset = "GTEx"
+  ) |>
+  # clean up gtex metadata by selecting clinically relevant and batch-relevant information
+  dplyr::select(
+    # fields shared with target metadata
+    dataset,
+    Run, # accession ID
+    BioSample, # sample-specific accession ID from dbgap
+    age_in_years = AGE, # in 10-year bins (characters)
+    sex = SEX, # coded as 1 or 2
+    center_name = `Center Name`,
+    # gtex-specific metadata fields
+    gtex_batch_id = batch_id,
+    gtex_version = version, # gtex version sample was added
+    gtex_subject_id = SUBJID, # ID of the individual the sample came from - some samples come from the same subject
+    gtex_body_site = body_site, # tissue of origin of sample
+  )
+
+```
+
+Merge GTEx and TARGET metadata tables for analysis and unify format of common column values. GTEx sex information is coded in values of 1 and 2, while TARGET values are in 'male' and 'female' format. According to `GTEx_Analysis_v10_Annotations_SampleAttributesDD.xlsx` on the [GTEx portal metadata download page](https://gtexportal.org/home/downloads/adult-gtex/metadata), 1 = Male and 2 = Female.
+
+```{r merge_metadata}
+# ensure shared column values are in a consistent format before merging
+cleaned_target_df <- target_compendium_df |>
+   dplyr::mutate(
+     # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
+     age_in_years = cut(
+       age_in_years,
+       breaks = seq(0, 100, by = 10),
+       left = TRUE,
+       right = FALSE,
+       labels = c(
+         "0-9",
+         "10-19",
+         "20-29",
+         "30-39",
+         "40-49",
+         "50-59",
+         "60-69",
+         "70-79",
+         "80-89",
+         "90-99"
+       )
+       )
+    )
+
+cleaned_gtex_df <- gtex_compendium_df |>
+  dplyr::mutate(
+    # relabel sex column values according to what they represent
+    sex =
+      dplyr::case_when(
+        sex == 1 ~ "male",
+        sex == 2 ~ "female"
+  )
+  )
+
+merged_compendium_df <- dplyr::full_join(
+  cleaned_target_df,
+  cleaned_gtex_df,
+  by = c(
+    "dataset",
+    "Run",
+    "BioSample",
+    "age_in_years",
+    "sex",
+    "center_name")
+)
+
+# print column names in merged df tom spot-check
+colnames(merged_compendium_df)
+```
+
+## Summaries of sample composition of GTEx and TARGET accessions
+
+### Table of number of samples in each GTEx tissue type
+
+Print a table summarizing number of samples in each tissue type in compendium
+
+```{r gtex_num_tissue_types_summary_table}
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "GTEx") |>
+  dplyr::group_by(gtex_body_site) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+Our curated GTEx compendium dataset is primarily composed of whole blood (for leukemia comparisons) and skeletal muscle (for soft tissue comparison) samples.
+
+### Table of number of samples in each TARGET cancer type
+```{r target_num_cancer_types_summary_table}
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "TARGET") |>
+  dplyr::group_by(target_study_name) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+## Print session info 
+```{r}
+sessionInfo()
+```

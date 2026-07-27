@@ -221,7 +221,7 @@ target_clinical_accessions <- target_clinical_accessions |>
 Check for samples without entries in any of the selected clinical metadata fields
 
 ```{r}
-target_clinical_accessions |>
+target_clinical_accessions |> dplyr::filter(
   if_all(
       c(
         age_at_diagnosis_days,
@@ -243,7 +243,6 @@ target_clinical_accessions |>
       is.na
     )
   ) |>
-  is.na)) |>
   
   # summarize the studies samples with missing information come fro
   dplyr::summarise(

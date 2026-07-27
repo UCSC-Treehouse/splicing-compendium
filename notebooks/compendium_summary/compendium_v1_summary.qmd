@@ -223,14 +223,37 @@ target_compendium_df <- target_metadata |>
   dplyr::filter(Run %in% target_accessions_list) |>
   # the xena browser metadata's "name.project" has the cancer type in a prettier format 
   # (no "TARGET:" prefix) 
-  # but since some ALL phase 2 samples were in ALL phase 3 xena metadata , use study_name column from dbGaP metadata
-  # Remove "TARGET:" prefix for ease of reading
+  # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata, 
+  # we will use thee study_name column from dbGaP metadata
   dplyr::mutate(
     # remove TARGET prefix from study_name values
     study_name = stringr::str_remove(study_name, "TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
-    
+    Run, # accession ID, same format as GTEx,
+    BioSample, # sample-specific accession ID from dbgap
+    target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
+    # in cases where patient ID is missing, the ID can be derived from the biospecimen sample ID (first three fields separated by hyphens)
+    target_biospecimen_sample_id = biospecimen_repository_sample_id, # specific replicate ID for a sample,
+    age_in_years = age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+    sex = gender.demographic, # in "male" / "female" values
+    # additional demographic info only in target metadata
+    target_race = race.demographic,
+    target_ethnicity = ethnicity.demographic,
+    # clinical metadata specific to target samples
+    target_OS = OS,
+    target_OS_time = OS.time,
+    target_disease_type = disease_type,
+    target_project_id = project_id.project,
+    target_project_name = name.project,
+    target_tumor_class = classification_of_tumor.diagnoses,
+    target_primary_diagnosis = primary_diagnosis.diagnoses,
+    target_sample_type = sample_type.samples,
+    target_tissue_type = tissue_type.samples,
+    target_histological_type = histological_type,
+    target_body_site = body_site,
+    # sequencing run metadata relevant to batch effects
+    center_name = `Center Name` # sequencing center of origin
   )
 
 gtex_compendium_df <- gtex_metadata |>
@@ -238,13 +261,15 @@ gtex_compendium_df <- gtex_metadata |>
   # clean up gtex metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     Run, # accession ID,
-    SUBJID, # ID of the individual the sample came from - some samples come from the same subject
-    AGE, # in 10-year bins
-    SEX, # coded as 1 or 2
-    body_site, # tissue of origin of sample
-    version, # gtex version sample was added
-    `Center Name`, # sequencing center of origin
-    batch_id
+    gtex_batch_id = batch_id,
+    gtex_version = version, # gtex version sample was added
+    gtex_subject_id = SUBJID, # ID of the individual the sample came from - some samples come from the same subject
+    BioSample, # sample-specific accession ID from dbgap
+    age_in_years = AGE, # in 10-year bins
+    sex = SEX, # coded as 1 or 2
+    gtex_body_site = body_site, # tissue of origin of sample
+    # sequencing run metadata relevant to batch effects
+    center_name = `Center Name`
   )
 
 ```

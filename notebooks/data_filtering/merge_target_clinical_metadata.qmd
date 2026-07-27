@@ -222,24 +222,27 @@ Check for samples without entries in any of the selected clinical metadata field
 
 ```{r}
 target_clinical_accessions |>
-  dplyr::filter(
-    if_all(c(
-    age_at_diagnosis_days,
-    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
-    disease_type,
-    race.demographic,
-    gender.demographic,
-    ethnicity.demographic,
-    project_id.project,
-    name.project,
-    classification_of_tumor.diagnoses,
-    primary_diagnosis.diagnoses,
-    sample_type.samples,
-    tissue_type.samples,
-    OS.time,
-    OS,
-    `_PATIENT`
-  ), 
+  if_all(
+      c(
+        age_at_diagnosis_days,
+        age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+        disease_type,
+        race.demographic,
+        gender.demographic,
+        ethnicity.demographic,
+        project_id.project,
+        name.project,
+        classification_of_tumor.diagnoses,
+        primary_diagnosis.diagnoses,
+        sample_type.samples,
+        tissue_type.samples,
+        OS.time,
+        OS,
+        `_PATIENT`
+      ),
+      is.na
+    )
+  ) |>
   is.na)) |>
   
   # summarize the studies samples with missing information come fro

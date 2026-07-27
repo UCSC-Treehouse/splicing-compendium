@@ -182,17 +182,12 @@ compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 ## Read in files ##
 gtex_metadata <- readr::read_tsv(
   gtex_metadata_file, 
-  col_types = readr::cols(Bytes = "d", 
-                          cumulative_tb = "d",
-                          .default = "c")
+  col_types = readr::cols(.default = "c")
 )
 
 target_metadata <- readr::read_tsv(
   target_metadata_file,
-  col_types = readr::cols(
-    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived = "d",
-    age_at_diagnosis_days = "d",
-    .default = "c")
+  col_types = readr::cols(.default = "c")
 )
 
 sample_df <- readr::read_tsv(
@@ -230,13 +225,16 @@ target_compendium_df <- target_metadata |>
     study_name = stringr::str_remove(study_name, "TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
+    # fields shared with gtex metadata
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
-    target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
-    # in cases where patient ID is missing, the ID can be derived from the biospecimen sample ID (first three fields separated by hyphens)
-    target_biospecimen_sample_id = biospecimen_repository_sample_id, # specific replicate ID for a sample,
+    center_name = `Center Name`, # sequencing center of origin
     age_in_years = age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
     sex = gender.demographic, # in "male" / "female" values
+    # fields specific to target metadata
+    target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
+    # in cases where patient ID is missing, the ID can be derived from the biospecimen sample ID (first three fields separated by hyphens)
+    target_biospecimen_sample_id = biospecimen_repository_sample_id, # specific replicate ID for a sample
     # additional demographic info only in target metadata
     target_race = race.demographic,
     target_ethnicity = ethnicity.demographic,
@@ -252,27 +250,42 @@ target_compendium_df <- target_metadata |>
     target_tissue_type = tissue_type.samples,
     target_histological_type = histological_type,
     target_body_site = body_site,
-    # sequencing run metadata relevant to batch effects
-    center_name = `Center Name` # sequencing center of origin
+    target_study_name = study_name
   )
 
 gtex_compendium_df <- gtex_metadata |>
   dplyr::filter(Run %in% gtex_accessions_list) |>
   # clean up gtex metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
-    Run, # accession ID,
-    gtex_batch_id = batch_id,
-    gtex_version = version, # gtex version sample was added
-    gtex_subject_id = SUBJID, # ID of the individual the sample came from - some samples come from the same subject
+    # fields shared with target metadata
+    Run, # accession ID
     BioSample, # sample-specific accession ID from dbgap
     age_in_years = AGE, # in 10-year bins
     sex = SEX, # coded as 1 or 2
+    center_name = `Center Name`,
+    # gtex-specific metadata fields
+    gtex_batch_id = batch_id,
+    gtex_version = version, # gtex version sample was added
+    gtex_subject_id = SUBJID, # ID of the individual the sample came from - some samples come from the same subject
     gtex_body_site = body_site, # tissue of origin of sample
-    # sequencing run metadata relevant to batch effects
-    center_name = `Center Name`
   )
 
 ```
+
+Merge GTEx and TARGET metadata tables for analysis
+```{r merge_metadata}
+merged_compendium_df <- dplyr::full_join(
+  target_compendium_df,
+  gtex_compendium_df,
+  by = c(
+  "Run",
+  "BioSample",
+  "age_in_years",
+  "sex",
+  "center_name")
+)
+```
+
 
 ## Summarize sample composition of GTEx accessions
 

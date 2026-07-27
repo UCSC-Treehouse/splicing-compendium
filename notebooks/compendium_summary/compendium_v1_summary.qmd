@@ -330,16 +330,17 @@ merged_compendium_df <- dplyr::full_join(
 )
 ```
 
-## Summarize sample composition of GTEx accessions
+## Summaries of sample composition of GTEx and TARGET accessions
 
-### Table of number of samples in each tissue type
+### Table of number of samples in each GTEx tissue type
 
 Print a table summarizing number of samples in each tissue type in compendium
 
 ```{r gtex_num_tissue_types_summary_table}
-# summarize number of samples in each tissue type
-gtex_compendium_df |>
-  dplyr::group_by(body_site) |>
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "GTEx") |>
+  dplyr::group_by(gtex_body_site) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -347,15 +348,29 @@ gtex_compendium_df |>
 
 Our curated GTEx compendium dataset is primarily composed of whole blood (for leukemia comparisons) and skeletal muscle (for soft tissue comparison) samples.
 
-### Table of age distribution for the GTEx samples in the compendium
+### Table of number of samples in each TARGET cancer type
+```{r target_num_cancer_types_summary_table}
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "TARGET") |>
+  dplyr::group_by(target_study_name) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+
+
+### Table of age distributions for GTEx and TARGET samples in the compendium
 
 Print a table of the age distribution breakdown of GTEx compendium samples
 
 ```{r gtex_ages_summary_table}
 
 # Summarize number of samples per tissue type in each age bracket
-gtex_ages_summary <- gtex_compendium_df |>
-  dplyr::group_by(body_site, AGE) |>
+gtex_ages_summary <- merged_compendium_df |>
+  dplyr::filter(dataset == "GTEx") |>
+  dplyr::group_by(gtex_body_site, age_in_years) |>
   dplyr::summarise(age_count = dplyr::n())
 
 gtex_ages_summary

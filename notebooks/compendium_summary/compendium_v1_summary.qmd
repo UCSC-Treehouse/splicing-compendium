@@ -183,13 +183,16 @@ compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 gtex_metadata <- readr::read_tsv(
   gtex_metadata_file, 
   col_types = readr::cols(Bytes = "d", 
+                          cumulative_tb = "d",
                           .default = "c")
 )
 
 target_metadata <- readr::read_tsv(
   target_metadata_file,
-  col_types = readr::cols(age_at_earliest_diagnosis_in_years.diagnoses.xena_derived = "d",
-  .default = "c")
+  col_types = readr::cols(
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived = "d",
+    age_at_diagnosis_days = "d",
+    .default = "c")
 )
 
 sample_df <- readr::read_tsv(
@@ -200,7 +203,7 @@ sample_df <- readr::read_tsv(
 
 ## Filter TARGET and GTEx samples for what's in the compendium
 
-Not all samples filtered for downloading made it to the compendium due to `fasterq-dump` download issues or the file size being too large to align in a timely manner.
+Not all samples filtered for downloading are processed as part of the compendium due to `fasterq-dump` download issues or the file size being too large to align in a timely manner.
 
 ```{r filter_for_compendium_samples}
 
@@ -224,10 +227,25 @@ target_compendium_df <- target_metadata |>
   # Remove "TARGET:" prefix for ease of reading
   dplyr::mutate(
     # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "TARGET: "))
+    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+  # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
+  dplyr::select(
+    
+  )
 
 gtex_compendium_df <- gtex_metadata |>
-  dplyr::filter(Run %in% gtex_accessions_list)
+  dplyr::filter(Run %in% gtex_accessions_list) |>
+  # clean up gtex metadata by selecting clinically relevant and batch-relevant information
+  dplyr::select(
+    Run, # accession ID,
+    SUBJID, # ID of the individual the sample came from - some samples come from the same subject
+    AGE, # in 10-year bins
+    SEX, # coded as 1 or 2
+    body_site, # tissue of origin of sample
+    version, # gtex version sample was added
+    `Center Name`, # sequencing center of origin
+    batch_id
+  )
 
 ```
 

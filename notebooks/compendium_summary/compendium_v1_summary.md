@@ -24,6 +24,57 @@ Metadata used for this analysis are:
 
 ## Setup
 
+## Define functions
+
+``` r
+# faceted geom_bar plots of each dataset's sample demographics
+facet_plot_samples <- function(
+    df, 
+    x_value,
+    colors,
+    title,
+    xtitle,
+    ylim_upper) {
+      ggplot(df, aes(x = .data[[x_value]], fill = .data[[x_value]])) +
+  geom_bar() +
+  labs(title = title, 
+       x = xtitle, 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, ylim_upper) +
+  plot_theme +
+  facet_grid(vars(.data[["dataset"]]), vars(.data[["tissue_type"]]),
+             labeller = label_wrap_gen(width = 10)) +
+  theme(
+    # make facet labels bigger
+    strip.text.x = element_text(size = global_size - 2),
+    strip.text.y = element_text(size = global_size),
+    # make legend text bigger
+    legend.text = element_text(size = global_size),
+    axis.text.x = if (x_value != "age_in_years") {
+      # if not, can omit x axis labels because legend is sufficient
+      element_blank() } else {
+        # if we are plotting age in years, need x axis labels because bars are too short to tell color
+        axis.text.x = element_text(angle = 45)
+      }
+    ) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    vjust = -0.5,
+    size = global_size - 14
+  ) +
+    # if named color palette is provided, use manual scale fill
+    if (is.vector(colors) & length(colors) > 1) {
+  scale_fill_manual(values = colors)
+      } else {
+    scale_fill_brewer(palette = colors) 
+    }
+  }
+```
+
 ## Read in input and output paths
 
 Read in directory and file paths
@@ -207,37 +258,32 @@ merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
 )
-
-# print column names in merged df tom spot-check
-colnames(merged_compendium_df)
 ```
 
-     [1] "dataset"                                                  
-     [2] "Run"                                                      
-     [3] "BioSample"                                                
-     [4] "center_name"                                              
-     [5] "sex"                                                      
-     [6] "tissue_type"                                              
-     [7] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
-     [8] "target_patient_id"                                        
-     [9] "target_biospecimen_sample_id"                             
-    [10] "target_race"                                              
-    [11] "target_ethnicity"                                         
-    [12] "target_OS"                                                
-    [13] "target_OS_time"                                           
-    [14] "target_disease_type"                                      
-    [15] "target_project_id"                                        
-    [16] "target_project_name"                                      
-    [17] "target_tumor_class"                                       
-    [18] "target_primary_diagnosis"                                 
-    [19] "target_sample_type"                                       
-    [20] "target_tissue_type"                                       
-    [21] "target_histological_type"                                 
-    [22] "target_body_site"                                         
-    [23] "age_in_years"                                             
-    [24] "gtex_batch_id"                                            
-    [25] "gtex_version"                                             
-    [26] "gtex_subject_id"                                          
+## clean up merged df for plotting
+
+``` r
+# clean up weirdly formatted names
+for_plot_merged_compendium_df <- merged_compendium_df |>
+  # remove slashes from target kidney tissue types
+  dplyr::mutate(
+    tissue_type = dplyr::replace_when(
+      tissue_type,
+      tissue_type == 
+      "Kidney\\, Clear Cell Sarcoma of the Kidney (CCSK)"   ~ "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)",
+      tissue_type == "Kidney\\, Rhabdoid Tumor (RT)"    ~ "Kidney, Rhabdoid Tumor (RT)" ,
+      tissue_type == "Kidney\\, Wilms Tumor (WT)" ~ "Kidney, Wilms Tumor (WT)"
+    )
+  )
+
+# filter for gtex samples
+gtex_plot_df <- for_plot_merged_compendium_df |>
+  dplyr::filter(dataset == "gtex")
+
+# filter for target samples
+target_plot_df <- for_plot_merged_compendium_df |>
+  dplyr::filter(dataset == "target")
+```
 
 ## Summaries of sample composition of GTEx and TARGET accessions
 
@@ -248,8 +294,7 @@ compendium
 
 ``` r
 # summarize number of samples in each GTEx tissue type
-merged_compendium_df |>
-  dplyr::filter(dataset == "gtex") |>
+gtex_plot_df |>
   dplyr::group_by(tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -271,8 +316,7 @@ comparison) samples.
 
 ``` r
 # summarize number of samples in each TARGET tissue type
-merged_compendium_df |>
-  dplyr::filter(dataset == "target") |>
+target_plot_df |>
   dplyr::group_by(tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -289,15 +333,59 @@ merged_compendium_df |>
 | Kidney, Wilms Tumor (WT)                             | 137 |
 | Neuroblastoma (NBL)                                  | 161 |
 
-Print a table summarizing number of samples in each age bin in
-compendium
+### Plot sample distribution in each dataset
+
+``` r
+ggplot(for_plot_merged_compendium_df, aes(x = tissue_type, fill = tissue_type)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Paired") +
+  labs(title = "Tissue types of samples in splice compendium", 
+       x = "Tissue type", 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 500) +
+  plot_theme +
+  facet_wrap(~ dataset,
+             ncol = 1) +
+  theme(
+    # make facet labels bigger
+    strip.text.x = element_text(size = global_size),
+    # remove x axis tick labels (spell out in legend instead)
+    axis.text.x = element_blank(),
+    # make legend text bigger
+    legend.text = element_text(size = global_size)) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    vjust = -0.5,
+    size = global_size - 14
+  )
+```
+
+<div id="fig-sample_dist_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-sample_dist_bar-1.png"
+id="fig-sample_dist_bar" />
+
+Figure 1
+
+</div>
+
+**?@fig-sample_dist_stacked_bar** looks ok so it makes sense to me to
+facet the plots this way. Faceting the plots by dataset and tissue type
+for the sex/age distribution plots becomes horrible, so instead I make a
+new dataframe per dataset
+
+Print tables summarizing number of samples in each age bin in compendium
 
 ### Table of ages in GTEx dataset
 
 ``` r
 # summarize number of samples in each GTEx tissue type
-merged_compendium_df |>
-  dplyr::filter(dataset == "gtex") |>
+gtex_plot_df |>
   dplyr::group_by(tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -335,10 +423,11 @@ merged_compendium_df |>
 | Whole Blood                         | 60-69        | 144 |
 | Whole Blood                         | 70-79        |   6 |
 
+### Table of ages in TARGET dataset
+
 ``` r
 # summarize number of samples in each GTEx tissue type
-merged_compendium_df |>
-  dplyr::filter(dataset == "target") |>
+target_plot_df |>
   dplyr::group_by(tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -374,6 +463,197 @@ merged_compendium_df |>
 4 ALL Phase 2 samples have missing age metadata, but other clinical
 metadata fields are present.
 
+### Plot age distribution of tissues in TARGET and GTEx dataset
+
+``` r
+gtex_age_plot <- facet_plot_samples(
+    gtex_plot_df, 
+    "age_in_years", 
+    age_palette,
+    "Age distribution of GTEx tissue types",
+    "Age bin in years",
+    260) 
+
+target_age_plot <- facet_plot_samples(
+    target_plot_df, 
+    "age_in_years", 
+    age_palette,
+    "Age distribution of TARGET tissue types",
+    "Age bin in years",
+    290) 
+
+# print plots together
+gtex_age_plot / target_age_plot +
+  plot_layout(
+    guides = "collect",
+    axis_titles = "collect")
+```
+
+<div id="fig-sample_age_dist_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-sample_age_dist_bar-1.png"
+id="fig-sample_age_dist_bar" />
+
+Figure 2
+
+</div>
+
+This is kind of bad but is the best I can do to meet the “geom bar +
+facet” plan we discussed
+
+### Table of sex distribution in GTEx dataset
+
+``` r
+# summarize number of samples in each GTEx tissue type
+gtex_plot_df |>
+  dplyr::group_by(tissue_type, sex) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by tissue_type and sex.
+    ℹ Output is grouped by tissue_type.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(tissue_type, sex))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
+
+| tissue_type                         | sex    |   n |
+|:------------------------------------|:-------|----:|
+| Cells - EBV-transformed lymphocytes | female |  53 |
+| Cells - EBV-transformed lymphocytes | male   |  91 |
+| Kidney - Cortex                     | female |   5 |
+| Kidney - Cortex                     | male   |  24 |
+| Muscle - Skeletal                   | female | 169 |
+| Muscle - Skeletal                   | male   | 286 |
+| Whole Blood                         | female | 162 |
+| Whole Blood                         | male   | 287 |
+
+### Table of sex distribution in TARGET dataset
+
+``` r
+# summarize number of samples in each GTEx tissue type
+target_plot_df |>
+  dplyr::group_by(tissue_type, sex) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by tissue_type and sex.
+    ℹ Output is grouped by tissue_type.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(tissue_type, sex))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
+
+| tissue_type                                          | sex    |   n |
+|:-----------------------------------------------------|:-------|----:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | female | 150 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | male   | 163 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | female |   1 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | male   |   2 |
+| Acute Myeloid Leukemia (AML)                         | female | 205 |
+| Acute Myeloid Leukemia (AML)                         | male   | 243 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | male   |  13 |
+| Kidney, Rhabdoid Tumor (RT)                          | female |  38 |
+| Kidney, Rhabdoid Tumor (RT)                          | male   |  43 |
+| Kidney, Wilms Tumor (WT)                             | female |  77 |
+| Kidney, Wilms Tumor (WT)                             | male   |  60 |
+| Neuroblastoma (NBL)                                  | female |  67 |
+| Neuroblastoma (NBL)                                  | male   |  94 |
+
+### Plot sex distribution of tissues in TARGET and GTEx dataset
+
+``` r
+facet_plot_samples (
+    for_plot_merged_compendium_df, 
+    "sex", 
+    "Dark2",
+    "Tissue types of samples in splice compendium",
+    "Sex",
+    400)
+```
+
+<div id="fig-sample_sex_dist_stacked_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-sample_sex_dist_stacked_bar-1.png"
+id="fig-sample_sex_dist_stacked_bar" />
+
+Figure 3
+
+</div>
+
+CCSK samples in the compendium are the most sex-imbalanced, being
+composed completely of male samples.
+
+This plot is more OK to me because there are fewer max number of columns
+per facet, making it more readable.
+
+### Table of sequencing center of origin for compendium TARGET samples
+
+``` r
+# summarize number of samples in each tissue type come from what sequencing center
+gtex_plot_df |>
+  dplyr::group_by(tissue_type, center_name) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by tissue_type and center_name.
+    ℹ Output is grouped by tissue_type.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(tissue_type, center_name))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
+
+| tissue_type                         | center_name     |   n |
+|:------------------------------------|:----------------|----:|
+| Cells - EBV-transformed lymphocytes | BI              | 136 |
+| Cells - EBV-transformed lymphocytes | Broad Institute |   8 |
+| Kidney - Cortex                     | BI              |  29 |
+| Muscle - Skeletal                   | BI              | 453 |
+| Muscle - Skeletal                   | Broad Institute |   2 |
+| Whole Blood                         | BI              | 439 |
+| Whole Blood                         | Broad Institute |  10 |
+
+GTEx samples all come from the same sequencing center.
+
+``` r
+# summarize number of samples in each tissue type come from what sequencing center
+target_plot_df |>
+  dplyr::group_by(tissue_type, center_name) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by tissue_type and center_name.
+    ℹ Output is grouped by tissue_type.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(tissue_type, center_name))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
+
+| tissue_type                                          | center_name |   n |
+|:-----------------------------------------------------|:------------|----:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC     | 307 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | STJUDE      |   6 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | STJUDE      |   3 |
+| Acute Myeloid Leukemia (AML)                         | BCCAGSC     | 382 |
+| Acute Myeloid Leukemia (AML)                         | HAIB        |  66 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | NCI-KHAN    |  13 |
+| Kidney, Rhabdoid Tumor (RT)                          | BCCAGSC     |  81 |
+| Kidney, Wilms Tumor (WT)                             | BCCAGSC     | 137 |
+| Neuroblastoma (NBL)                                  | NCI-KHAN    | 161 |
+
+TARGET AML samples come from two different sequencing centers, so may
+have batch effects associated with their sequences.
+
 ## Print session info
 
 ``` r
@@ -404,12 +684,12 @@ sessionInfo()
      [1] bit_4.6.0          gtable_0.3.6       jsonlite_2.0.0     crayon_1.5.3      
      [5] dplyr_1.2.1        compiler_4.4.3     tidyselect_1.2.1   stringr_1.6.0     
      [9] parallel_4.4.3     scales_1.4.0       yaml_2.3.12        fastmap_1.2.0     
-    [13] here_1.0.2         readr_2.2.0        R6_2.6.1           generics_0.1.4    
-    [17] knitr_1.51         tibble_3.3.1       rprojroot_2.1.1    pillar_1.11.1     
-    [21] RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.3.0        stringi_1.8.7     
-    [25] xfun_0.60          S7_0.2.2           bit64_4.8.2        otel_0.2.0        
-    [29] cli_3.6.6          withr_3.0.3        magrittr_2.0.5     digest_0.6.39     
-    [33] grid_4.4.3         vroom_1.7.1        rstudioapi_0.18.0  hms_1.1.4         
-    [37] lifecycle_1.0.5    vctrs_0.7.3        evaluate_1.0.5     glue_1.8.1        
-    [41] farver_2.1.2       rmarkdown_2.31     tools_4.4.3        pkgconfig_2.0.3   
-    [45] htmltools_0.5.9   
+    [13] here_1.0.2         readr_2.2.0        R6_2.6.1           labeling_0.4.3    
+    [17] generics_0.1.4     knitr_1.51         tibble_3.3.1       rprojroot_2.1.1   
+    [21] pillar_1.11.1      RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.3.0       
+    [25] stringi_1.8.7      xfun_0.60          S7_0.2.2           bit64_4.8.2       
+    [29] otel_0.2.0         cli_3.6.6          withr_3.0.3        magrittr_2.0.5    
+    [33] digest_0.6.39      grid_4.4.3         vroom_1.7.1        rstudioapi_0.18.0 
+    [37] hms_1.1.4          lifecycle_1.0.5    vctrs_0.7.3        evaluate_1.0.5    
+    [41] glue_1.8.1         farver_2.1.2       rmarkdown_2.31     tools_4.4.3       
+    [45] pkgconfig_2.0.3    htmltools_0.5.9   

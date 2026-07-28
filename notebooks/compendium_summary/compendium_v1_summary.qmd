@@ -128,7 +128,7 @@ target_compendium_df <- target_metadata |>
     # add dataset column to facet plots by
     dataset = "TARGET",
     # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+    study_name = stringr::str_remove(study_name, "^TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with gtex metadata

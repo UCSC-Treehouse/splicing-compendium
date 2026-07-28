@@ -157,7 +157,7 @@ target_compendium_df <- target_metadata |>
     target_sample_type = sample_type.samples,
     target_tissue_type = tissue_type.samples,
     target_histological_type = histological_type,
-    target_body_site = body_site
+    body_site
   )
 
 gtex_compendium_df <- gtex_metadata |>
@@ -175,7 +175,7 @@ gtex_compendium_df <- gtex_metadata |>
     age_in_years = AGE, # in 10-year bins (characters)
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
-    tissue_type = body_site, # tissue type of sample
+    body_site, # tissue type of sample
     # gtex-specific metadata fields
     gtex_batch_id = batch_id,
     gtex_version = version, # gtex version sample was added

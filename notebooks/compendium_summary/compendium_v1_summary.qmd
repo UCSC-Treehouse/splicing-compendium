@@ -42,7 +42,8 @@ plot_theme = list(
      size = global_size
    ),
    legend.title = element_text(size=global_size),
-   legend.text=element_text(size=global_size - 8)
+   legend.text=element_text(size=global_size - 8),
+   panel.grid = element_blank()
  )
 )
 ```
@@ -356,14 +357,38 @@ merged_compendium_df |>
 
 ### Plot sample distribution in each dataset
 ```{r sample_type_dist}
+#| label: fig-sample_dist_stacked_bar
+#| fig-width: 15
+#| fig-height: 8
 
-ggplot(merged_compendium_df, aes(x = class)) +
-  geom_bar(fill = "steelblue", color = "black") +
-  labs(title = "Counts by Vehicle Class", x = "Vehicle Class", y = "Count") +
-  theme_minimal()
+ggplot(merged_compendium_df, aes(x = tissue_type, fill = tissue_type)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "Paired") +
+  labs(title = "Tissue types of samples in splice compendium", 
+       x = "Tissue type", 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 500) +
+  plot_theme +
+  facet_wrap(~ dataset,
+             ncol = 1) +
+  theme(
+    # make facet labels bigger
+    strip.text.x = element_text(size = global_size),
+    # remove x axis tick labels (spell out in legend instead)
+    axis.text.x = element_blank(),
+    # make legend text bigger
+    legend.text = element_text(size = global_size)) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    vjust = -0.5,
+    size = global_size - 14
+  )
 
 ```
-
 
 Print tables summarizing number of samples in each age bin in compendium
 

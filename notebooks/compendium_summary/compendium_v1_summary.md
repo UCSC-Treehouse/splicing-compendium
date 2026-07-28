@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-07-27
+2026-07-28
 
 ## Introduction
 
@@ -103,6 +103,9 @@ target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_c
 # sample sheet of compendium files 
 compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 
+# output metadata file 
+output_combined_metadata_file <- file.path(metadata_dir, "combined_compendium_metadata.tsv")
+
 ## Read in files ##
 gtex_metadata <- readr::read_tsv(
   gtex_metadata_file, 
@@ -165,7 +168,7 @@ target_compendium_df <- target_metadata |>
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
     sex = gender.demographic, # in "male" / "female" values,
-    tissue_type = study_name, # cancer type of sample
+    target_study_name = study_name, # cancer type of sample, to be used in combining columns
     # fields specific to target metadata
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -185,7 +188,7 @@ target_compendium_df <- target_metadata |>
     target_sample_type = sample_type.samples,
     target_tissue_type = tissue_type.samples,
     target_histological_type = histological_type,
-    target_body_site = body_site
+    body_site
   )
 
 gtex_compendium_df <- gtex_metadata |>
@@ -203,7 +206,7 @@ gtex_compendium_df <- gtex_metadata |>
     age_in_years = AGE, # in 10-year bins (characters)
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
-    tissue_type = body_site, # tissue type of sample
+    body_site, # tissue type of sample, to be used in combining columns
     # gtex-specific metadata fields
     gtex_batch_id = batch_id,
     gtex_version = version, # gtex version sample was added
@@ -257,8 +260,10 @@ cleaned_gtex_df <- gtex_compendium_df |>
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-)
-```
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  
 
 ## clean up merged df for plotting
 
@@ -284,6 +289,34 @@ gtex_plot_df <- for_plot_merged_compendium_df |>
 target_plot_df <- for_plot_merged_compendium_df |>
   dplyr::filter(dataset == "target")
 ```
+
+     [1] "dataset"                                                  
+     [2] "Run"                                                      
+     [3] "BioSample"                                                
+     [4] "center_name"                                              
+     [5] "sex"                                                      
+     [6] "target_study_name"                                        
+     [7] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
+     [8] "target_patient_id"                                        
+     [9] "target_biospecimen_sample_id"                             
+    [10] "target_race"                                              
+    [11] "target_ethnicity"                                         
+    [12] "target_OS"                                                
+    [13] "target_OS_time"                                           
+    [14] "target_disease_type"                                      
+    [15] "target_project_id"                                        
+    [16] "target_project_name"                                      
+    [17] "target_tumor_class"                                       
+    [18] "target_primary_diagnosis"                                 
+    [19] "target_sample_type"                                       
+    [20] "target_tissue_type"                                       
+    [21] "target_histological_type"                                 
+    [22] "body_site"                                                
+    [23] "age_in_years"                                             
+    [24] "gtex_batch_id"                                            
+    [25] "gtex_version"                                             
+    [26] "gtex_subject_id"                                          
+    [27] "tissue_type"                                              
 
 ## Summaries of sample composition of GTEx and TARGET accessions
 
@@ -463,196 +496,11 @@ target_plot_df |>
 4 ALL Phase 2 samples have missing age metadata, but other clinical
 metadata fields are present.
 
-### Plot age distribution of tissues in TARGET and GTEx dataset
+## Write output
 
 ``` r
-gtex_age_plot <- facet_plot_samples(
-    gtex_plot_df, 
-    "age_in_years", 
-    age_palette,
-    "Age distribution of GTEx tissue types",
-    "Age bin in years",
-    260) 
-
-target_age_plot <- facet_plot_samples(
-    target_plot_df, 
-    "age_in_years", 
-    age_palette,
-    "Age distribution of TARGET tissue types",
-    "Age bin in years",
-    290) 
-
-# print plots together
-gtex_age_plot / target_age_plot +
-  plot_layout(
-    guides = "collect",
-    axis_titles = "collect")
+readr::write_tsv(merged_compendium_df, output_combined_metadata_file)
 ```
-
-<div id="fig-sample_age_dist_bar">
-
-<img
-src="compendium_v1_summary_files/figure-commonmark/fig-sample_age_dist_bar-1.png"
-id="fig-sample_age_dist_bar" />
-
-Figure 2
-
-</div>
-
-This is kind of bad but is the best I can do to meet the “geom bar +
-facet” plan we discussed
-
-### Table of sex distribution in GTEx dataset
-
-``` r
-# summarize number of samples in each GTEx tissue type
-gtex_plot_df |>
-  dplyr::group_by(tissue_type, sex) |>
-  dplyr::summarise(
-    n = dplyr::n()
-    )
-```
-
-    `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by tissue_type and sex.
-    ℹ Output is grouped by tissue_type.
-    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(tissue_type, sex))` for per-operation grouping
-      (`?dplyr::dplyr_by`) instead.
-
-| tissue_type                         | sex    |   n |
-|:------------------------------------|:-------|----:|
-| Cells - EBV-transformed lymphocytes | female |  53 |
-| Cells - EBV-transformed lymphocytes | male   |  91 |
-| Kidney - Cortex                     | female |   5 |
-| Kidney - Cortex                     | male   |  24 |
-| Muscle - Skeletal                   | female | 169 |
-| Muscle - Skeletal                   | male   | 286 |
-| Whole Blood                         | female | 162 |
-| Whole Blood                         | male   | 287 |
-
-### Table of sex distribution in TARGET dataset
-
-``` r
-# summarize number of samples in each GTEx tissue type
-target_plot_df |>
-  dplyr::group_by(tissue_type, sex) |>
-  dplyr::summarise(
-    n = dplyr::n()
-    )
-```
-
-    `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by tissue_type and sex.
-    ℹ Output is grouped by tissue_type.
-    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(tissue_type, sex))` for per-operation grouping
-      (`?dplyr::dplyr_by`) instead.
-
-| tissue_type                                          | sex    |   n |
-|:-----------------------------------------------------|:-------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | female | 150 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | male   | 163 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | female |   1 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | male   |   2 |
-| Acute Myeloid Leukemia (AML)                         | female | 205 |
-| Acute Myeloid Leukemia (AML)                         | male   | 243 |
-| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | male   |  13 |
-| Kidney, Rhabdoid Tumor (RT)                          | female |  38 |
-| Kidney, Rhabdoid Tumor (RT)                          | male   |  43 |
-| Kidney, Wilms Tumor (WT)                             | female |  77 |
-| Kidney, Wilms Tumor (WT)                             | male   |  60 |
-| Neuroblastoma (NBL)                                  | female |  67 |
-| Neuroblastoma (NBL)                                  | male   |  94 |
-
-### Plot sex distribution of tissues in TARGET and GTEx dataset
-
-``` r
-facet_plot_samples (
-    for_plot_merged_compendium_df, 
-    "sex", 
-    "Dark2",
-    "Tissue types of samples in splice compendium",
-    "Sex",
-    400)
-```
-
-<div id="fig-sample_sex_dist_stacked_bar">
-
-<img
-src="compendium_v1_summary_files/figure-commonmark/fig-sample_sex_dist_stacked_bar-1.png"
-id="fig-sample_sex_dist_stacked_bar" />
-
-Figure 3
-
-</div>
-
-CCSK samples in the compendium are the most sex-imbalanced, being
-composed completely of male samples.
-
-This plot is more OK to me because there are fewer max number of columns
-per facet, making it more readable.
-
-### Table of sequencing center of origin for compendium TARGET samples
-
-``` r
-# summarize number of samples in each tissue type come from what sequencing center
-gtex_plot_df |>
-  dplyr::group_by(tissue_type, center_name) |>
-  dplyr::summarise(
-    n = dplyr::n()
-    )
-```
-
-    `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by tissue_type and center_name.
-    ℹ Output is grouped by tissue_type.
-    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(tissue_type, center_name))` for per-operation grouping
-      (`?dplyr::dplyr_by`) instead.
-
-| tissue_type                         | center_name     |   n |
-|:------------------------------------|:----------------|----:|
-| Cells - EBV-transformed lymphocytes | BI              | 136 |
-| Cells - EBV-transformed lymphocytes | Broad Institute |   8 |
-| Kidney - Cortex                     | BI              |  29 |
-| Muscle - Skeletal                   | BI              | 453 |
-| Muscle - Skeletal                   | Broad Institute |   2 |
-| Whole Blood                         | BI              | 439 |
-| Whole Blood                         | Broad Institute |  10 |
-
-GTEx samples all come from the same sequencing center.
-
-``` r
-# summarize number of samples in each tissue type come from what sequencing center
-target_plot_df |>
-  dplyr::group_by(tissue_type, center_name) |>
-  dplyr::summarise(
-    n = dplyr::n()
-    )
-```
-
-    `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by tissue_type and center_name.
-    ℹ Output is grouped by tissue_type.
-    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(tissue_type, center_name))` for per-operation grouping
-      (`?dplyr::dplyr_by`) instead.
-
-| tissue_type                                          | center_name |   n |
-|:-----------------------------------------------------|:------------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC     | 307 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | STJUDE      |   6 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | STJUDE      |   3 |
-| Acute Myeloid Leukemia (AML)                         | BCCAGSC     | 382 |
-| Acute Myeloid Leukemia (AML)                         | HAIB        |  66 |
-| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | NCI-KHAN    |  13 |
-| Kidney, Rhabdoid Tumor (RT)                          | BCCAGSC     |  81 |
-| Kidney, Wilms Tumor (WT)                             | BCCAGSC     | 137 |
-| Neuroblastoma (NBL)                                  | NCI-KHAN    | 161 |
-
-TARGET AML samples come from two different sequencing centers, so may
-have batch effects associated with their sequences.
 
 ## Print session info
 

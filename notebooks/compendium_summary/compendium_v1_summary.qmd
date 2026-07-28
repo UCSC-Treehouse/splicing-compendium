@@ -126,7 +126,7 @@ target_compendium_df <- target_metadata |>
   # we will use thee study_name column from dbGaP metadata
   dplyr::mutate(
     # add dataset column to facet plots by
-    dataset = "TARGET",
+    dataset = "target",
     # remove TARGET prefix from study_name values
     study_name = stringr::str_remove(study_name, "TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
@@ -136,7 +136,7 @@ target_compendium_df <- target_metadata |>
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
-    age_in_years = age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
     sex = gender.demographic, # in "male" / "female" values
     # fields specific to target metadata
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -164,7 +164,7 @@ gtex_compendium_df <- gtex_metadata |>
   dplyr::filter(Run %in% gtex_accessions_list) |>
   dplyr::mutate(
     # add dataset column to facet plots by
-    dataset = "GTEx"
+    dataset = "gtex"
   ) |>
   # clean up gtex metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
@@ -192,7 +192,7 @@ cleaned_target_df <- target_compendium_df |>
    dplyr::mutate(
      # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
      age_in_years = cut(
-       age_in_years,
+       age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
        breaks = seq(0, 100, by = 10),
        left = TRUE,
        right = FALSE,

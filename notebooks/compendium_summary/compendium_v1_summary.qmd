@@ -403,6 +403,7 @@ merged_compendium_df |>
     n = dplyr::n()
     )
 ```
+
 ```{r target_age_table}
 # summarize number of samples in each GTEx tissue type
 merged_compendium_df |>
@@ -412,7 +413,49 @@ merged_compendium_df |>
     n = dplyr::n()
     )
 ```
+
 4 ALL Phase 2 samples have missing age metadata, but other clinical metadata fields are present.
+
+### Plot age distribution of
+
+```{r sample_type_age_dist}
+#| label: fig-sample_age_dist_stacked_bar
+#| fig-width: 20
+#| fig-height: 8
+
+ggplot(merged_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+  geom_bar(
+    position = position_dodge(0.0001)
+    ) +
+  scale_fill_brewer(palette = "Dark2") +
+  labs(title = "Tissue types of samples in splice compendium", 
+       x = "Tissue type", 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 170) +
+  plot_theme +
+  facet_grid(vars(dataset), vars(tissue_type),
+             labeller = label_wrap_gen(width = 10)) +
+  theme(
+    # make facet labels bigger
+    strip.text.x = element_text(size = global_size),
+    strip.text.y = element_text(size = global_size),
+    # remove x axis tick labels (spell out in legend instead)
+    axis.text.x = element_blank(),
+    # make legend text bigger
+    legend.text = element_text(size = global_size)) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    vjust = -0.5,
+    size = global_size - 14
+  )
+
+```
+
+
 
 ## Print session info 
 ```{r}

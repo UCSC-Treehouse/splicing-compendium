@@ -113,9 +113,10 @@ target_compendium_df <- target_metadata |>
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
-    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
-    sex = gender.demographic, # in "male" / "female" values
+    sex = gender.demographic, # in "male" / "female" values,
+    tissue_type = study_name, # cancer type of sample
     # fields specific to target metadata
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
     # in cases where patient ID is missing, the ID can be derived from the biospecimen sample ID (first three fields separated by hyphens)
     target_biospecimen_sample_id = biospecimen_repository_sample_id, # specific replicate ID for a sample
@@ -133,8 +134,7 @@ target_compendium_df <- target_metadata |>
     target_sample_type = sample_type.samples,
     target_tissue_type = tissue_type.samples,
     target_histological_type = histological_type,
-    target_body_site = body_site,
-    target_study_name = study_name
+    target_body_site = body_site
   )
 
 gtex_compendium_df <- gtex_metadata |>
@@ -150,13 +150,13 @@ gtex_compendium_df <- gtex_metadata |>
     Run, # accession ID
     BioSample, # sample-specific accession ID from dbgap
     age_in_years = AGE, # in 10-year bins (characters)
-    sex = SEX, # coded as 1 or 2
+    sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
+    tissue_type = body_site, # tissue type of sample
     # gtex-specific metadata fields
     gtex_batch_id = batch_id,
     gtex_version = version, # gtex version sample was added
-    gtex_subject_id = SUBJID, # ID of the individual the sample came from - some samples come from the same subject
-    gtex_body_site = body_site, # tissue of origin of sample
+    gtex_subject_id = SUBJID # ID of the individual the sample came from - some samples come from the same subject
   )
 ```
 
@@ -216,29 +216,28 @@ colnames(merged_compendium_df)
      [2] "Run"                                                      
      [3] "BioSample"                                                
      [4] "center_name"                                              
-     [5] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
-     [6] "sex"                                                      
-     [7] "target_patient_id"                                        
-     [8] "target_biospecimen_sample_id"                             
-     [9] "target_race"                                              
-    [10] "target_ethnicity"                                         
-    [11] "target_OS"                                                
-    [12] "target_OS_time"                                           
-    [13] "target_disease_type"                                      
-    [14] "target_project_id"                                        
-    [15] "target_project_name"                                      
-    [16] "target_tumor_class"                                       
-    [17] "target_primary_diagnosis"                                 
-    [18] "target_sample_type"                                       
-    [19] "target_tissue_type"                                       
-    [20] "target_histological_type"                                 
-    [21] "target_body_site"                                         
-    [22] "target_study_name"                                        
+     [5] "sex"                                                      
+     [6] "tissue_type"                                              
+     [7] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
+     [8] "target_patient_id"                                        
+     [9] "target_biospecimen_sample_id"                             
+    [10] "target_race"                                              
+    [11] "target_ethnicity"                                         
+    [12] "target_OS"                                                
+    [13] "target_OS_time"                                           
+    [14] "target_disease_type"                                      
+    [15] "target_project_id"                                        
+    [16] "target_project_name"                                      
+    [17] "target_tumor_class"                                       
+    [18] "target_primary_diagnosis"                                 
+    [19] "target_sample_type"                                       
+    [20] "target_tissue_type"                                       
+    [21] "target_histological_type"                                 
+    [22] "target_body_site"                                         
     [23] "age_in_years"                                             
     [24] "gtex_batch_id"                                            
     [25] "gtex_version"                                             
     [26] "gtex_subject_id"                                          
-    [27] "gtex_body_site"                                           
 
 ## Summaries of sample composition of GTEx and TARGET accessions
 
@@ -251,13 +250,13 @@ compendium
 # summarize number of samples in each GTEx tissue type
 merged_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(gtex_body_site) |>
+  dplyr::group_by(tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
-| gtex_body_site                      |   n |
+| tissue_type                         |   n |
 |:------------------------------------|----:|
 | Cells - EBV-transformed lymphocytes | 144 |
 | Kidney - Cortex                     |  29 |
@@ -274,13 +273,13 @@ comparison) samples.
 # summarize number of samples in each TARGET tissue type
 merged_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(target_study_name) |>
+  dplyr::group_by(tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
-| target_study_name                                    |   n |
+| tissue_type                                          |   n |
 |:-----------------------------------------------------|----:|
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 313 |
 | Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     |   3 |
@@ -299,20 +298,20 @@ compendium
 # summarize number of samples in each GTEx tissue type
 merged_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(gtex_body_site, age_in_years) |>
+  dplyr::group_by(tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
     `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by gtex_body_site and age_in_years.
-    ℹ Output is grouped by gtex_body_site.
+    ℹ Summaries were computed grouped by tissue_type and age_in_years.
+    ℹ Output is grouped by tissue_type.
     ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(gtex_body_site, age_in_years))` for per-operation
+    ℹ Use `summarise(.by = c(tissue_type, age_in_years))` for per-operation
       grouping (`?dplyr::dplyr_by`) instead.
 
-| gtex_body_site                      | age_in_years |   n |
+| tissue_type                         | age_in_years |   n |
 |:------------------------------------|:-------------|----:|
 | Cells - EBV-transformed lymphocytes | 20-29        |  19 |
 | Cells - EBV-transformed lymphocytes | 30-39        |  11 |
@@ -340,20 +339,20 @@ merged_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 merged_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(target_study_name, age_in_years) |>
+  dplyr::group_by(tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
     `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by target_study_name and age_in_years.
-    ℹ Output is grouped by target_study_name.
+    ℹ Summaries were computed grouped by tissue_type and age_in_years.
+    ℹ Output is grouped by tissue_type.
     ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(target_study_name, age_in_years))` for per-operation
+    ℹ Use `summarise(.by = c(tissue_type, age_in_years))` for per-operation
       grouping (`?dplyr::dplyr_by`) instead.
 
-| target_study_name                                    | age_in_years |   n |
+| tissue_type                                          | age_in_years |   n |
 |:-----------------------------------------------------|:-------------|----:|
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 0-9          | 205 |
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 10-19        | 101 |

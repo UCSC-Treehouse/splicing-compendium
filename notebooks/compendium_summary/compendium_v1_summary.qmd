@@ -137,7 +137,7 @@ target_compendium_df <- target_metadata |>
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
     sex = gender.demographic, # in "male" / "female" values,
-    tissue_type = study_name, # cancer type of sample
+    target_study_name = study_name, # cancer type of sample, to be used in combining columns
     # fields specific to target metadata
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -175,7 +175,7 @@ gtex_compendium_df <- gtex_metadata |>
     age_in_years = AGE, # in 10-year bins (characters)
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
-    body_site, # tissue type of sample
+    body_site, # tissue type of sample, to be used in combining columns
     # gtex-specific metadata fields
     gtex_batch_id = batch_id,
     gtex_version = version, # gtex version sample was added
@@ -224,7 +224,10 @@ cleaned_gtex_df <- gtex_compendium_df |>
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-)
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  
 
 # print column names in merged df tom spot-check
 colnames(merged_compendium_df)

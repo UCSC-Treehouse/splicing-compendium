@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-07-27
+2026-07-28
 
 ## Introduction
 
@@ -114,7 +114,7 @@ target_compendium_df <- target_metadata |>
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
     sex = gender.demographic, # in "male" / "female" values,
-    tissue_type = study_name, # cancer type of sample
+    target_study_name = study_name, # cancer type of sample, to be used in combining columns
     # fields specific to target metadata
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -134,7 +134,7 @@ target_compendium_df <- target_metadata |>
     target_sample_type = sample_type.samples,
     target_tissue_type = tissue_type.samples,
     target_histological_type = histological_type,
-    target_body_site = body_site
+    body_site
   )
 
 gtex_compendium_df <- gtex_metadata |>
@@ -152,7 +152,7 @@ gtex_compendium_df <- gtex_metadata |>
     age_in_years = AGE, # in 10-year bins (characters)
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
-    tissue_type = body_site, # tissue type of sample
+    body_site, # tissue type of sample, to be used in combining columns
     # gtex-specific metadata fields
     gtex_batch_id = batch_id,
     gtex_version = version, # gtex version sample was added
@@ -206,7 +206,10 @@ cleaned_gtex_df <- gtex_compendium_df |>
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-)
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  
 
 # print column names in merged df tom spot-check
 colnames(merged_compendium_df)
@@ -217,7 +220,7 @@ colnames(merged_compendium_df)
      [3] "BioSample"                                                
      [4] "center_name"                                              
      [5] "sex"                                                      
-     [6] "tissue_type"                                              
+     [6] "target_study_name"                                        
      [7] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
      [8] "target_patient_id"                                        
      [9] "target_biospecimen_sample_id"                             
@@ -233,11 +236,12 @@ colnames(merged_compendium_df)
     [19] "target_sample_type"                                       
     [20] "target_tissue_type"                                       
     [21] "target_histological_type"                                 
-    [22] "target_body_site"                                         
+    [22] "body_site"                                                
     [23] "age_in_years"                                             
     [24] "gtex_batch_id"                                            
     [25] "gtex_version"                                             
     [26] "gtex_subject_id"                                          
+    [27] "tissue_type"                                              
 
 ## Summaries of sample composition of GTEx and TARGET accessions
 

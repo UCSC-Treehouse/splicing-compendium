@@ -177,9 +177,11 @@ compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 ## Read in files ##
 gtex_metadata <- readr::read_tsv(
   gtex_metadata_file, 
-  col_types = readr::cols(Bytes = "d", 
-                          cumulative_tb = "d",
-                          .default = "c")
+  col_types = readr::cols(
+    Bytes = "d", 
+    cumulative_tb = "d",
+    .default = "c"
+  )
 )
 
 target_metadata <- readr::read_tsv(
@@ -222,9 +224,9 @@ target_compendium_df <- target_metadata |>
   # we will use thee study_name column from dbGaP metadata
   dplyr::mutate(
     # add dataset column to facet plots by
-    dataset = "TARGET",
+    dataset = "target",
     # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+    study_name = stringr::str_remove(study_name, "^TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with gtex metadata
@@ -232,7 +234,7 @@ target_compendium_df <- target_metadata |>
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
-    age_in_years = age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
     sex = gender.demographic, # in "male" / "female" values
     # fields specific to target metadata
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -260,7 +262,7 @@ gtex_compendium_df <- gtex_metadata |>
   dplyr::filter(Run %in% gtex_accessions_list) |>
   dplyr::mutate(
     # add dataset column to facet plots by
-    dataset = "GTEx"
+    dataset = "gtex"
   ) |>
   # clean up gtex metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
@@ -288,7 +290,7 @@ cleaned_target_df <- target_compendium_df |>
    dplyr::mutate(
      # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
      age_in_years = cut(
-       age_in_years,
+       age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
        breaks = seq(0, 100, by = 10),
        left = TRUE,
        right = FALSE,
@@ -317,16 +319,9 @@ cleaned_gtex_df <- gtex_compendium_df |>
   )
   )
 
-merged_compendium_df <- dplyr::full_join(
+merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
-  cleaned_gtex_df,
-  by = c(
-    "dataset",
-    "Run",
-    "BioSample",
-    "age_in_years",
-    "sex",
-    "center_name")
+  cleaned_gtex_df
 )
 ```
 
@@ -339,7 +334,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 ```{r gtex_num_tissue_types_summary_table}
 # summarize number of samples in each GTEx tissue type
 merged_compendium_df |>
-  dplyr::filter(dataset == "GTEx") |>
+  dplyr::filter(dataset == "gtex") |>
   dplyr::group_by(gtex_body_site) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -350,36 +345,40 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 
 ### Table of number of samples in each TARGET cancer type
 ```{r target_num_cancer_types_summary_table}
-# summarize number of samples in each GTEx tissue type
+# summarize number of samples in each TARGET tissue type
 merged_compendium_df |>
-  dplyr::filter(dataset == "TARGET") |>
+  dplyr::filter(dataset == "target") |>
   dplyr::group_by(target_study_name) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
+Print a table summarizing number of samples in each age bin in compendium
 
+### Table of ages in GTEx dataset
 
-### Table of age distributions for GTEx and TARGET samples in the compendium
-
-Print a table of the age distribution breakdown of GTEx compendium samples
-
-```{r gtex_ages_summary_table}
-
-# Summarize number of samples per tissue type in each age bracket
-gtex_ages_summary <- merged_compendium_df |>
-  dplyr::filter(dataset == "GTEx") |>
+```{r gtex_age_table}
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "gtex") |>
   dplyr::group_by(gtex_body_site, age_in_years) |>
-  dplyr::summarise(age_count = dplyr::n())
-
-gtex_ages_summary
+  dplyr::summarise(
+    n = dplyr::n()
+    )
 ```
+```{r target_age_table}
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "target") |>
+  dplyr::group_by(target_study_name, age_in_years) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+4 ALL Phase 2 samples have missing age metadata, but other clinical metadata fields are present.
 
-As expected, there is a small fraction of filtered GTEx samples under the PEDAYA (\< 30 years) category. A future addition of value for the compendium will be to include tissue samples from the developmental GTEx project.
-
-### Plot of age distribution of GTEx samples in compendium
-
+## Print session info 
 ```{r}
 #| label: fig-compendium_gtex_age_stacked_bar
 #| fig-width: 11

@@ -221,16 +221,9 @@ cleaned_gtex_df <- gtex_compendium_df |>
   )
   )
 
-merged_compendium_df <- dplyr::full_join(
+merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
-  cleaned_gtex_df,
-  by = c(
-    "dataset",
-    "Run",
-    "BioSample",
-    "age_in_years",
-    "sex",
-    "center_name")
+  cleaned_gtex_df
 )
 
 # print column names in merged df tom spot-check

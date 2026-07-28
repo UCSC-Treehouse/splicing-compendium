@@ -55,9 +55,11 @@ compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 ## Read in files ##
 gtex_metadata <- readr::read_tsv(
   gtex_metadata_file, 
-  col_types = readr::cols(Bytes = "d", 
-                          cumulative_tb = "d",
-                          .default = "c")
+  col_types = readr::cols(
+    Bytes = "d", 
+    cumulative_tb = "d",
+    .default = "c"
+  )
 )
 
 target_metadata <- readr::read_tsv(
@@ -101,9 +103,9 @@ target_compendium_df <- target_metadata |>
   # we will use thee study_name column from dbGaP metadata
   dplyr::mutate(
     # add dataset column to facet plots by
-    dataset = "TARGET",
+    dataset = "target",
     # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "TARGET: ")) |>
+    study_name = stringr::str_remove(study_name, "^TARGET: ")) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with gtex metadata
@@ -111,7 +113,7 @@ target_compendium_df <- target_metadata |>
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
-    age_in_years = age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers
     sex = gender.demographic, # in "male" / "female" values
     # fields specific to target metadata
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -139,7 +141,7 @@ gtex_compendium_df <- gtex_metadata |>
   dplyr::filter(Run %in% gtex_accessions_list) |>
   dplyr::mutate(
     # add dataset column to facet plots by
-    dataset = "GTEx"
+    dataset = "gtex"
   ) |>
   # clean up gtex metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
@@ -172,7 +174,7 @@ cleaned_target_df <- target_compendium_df |>
    dplyr::mutate(
      # bin TARGET sample age in years into 10 year blocks to make data closer to GTEx representation
      age_in_years = cut(
-       age_in_years,
+       age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
        breaks = seq(0, 100, by = 10),
        left = TRUE,
        right = FALSE,
@@ -201,35 +203,42 @@ cleaned_gtex_df <- gtex_compendium_df |>
   )
   )
 
-merged_compendium_df <- dplyr::full_join(
+merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
-  cleaned_gtex_df,
-  by = c(
-    "dataset",
-    "Run",
-    "BioSample",
-    "age_in_years",
-    "sex",
-    "center_name")
+  cleaned_gtex_df
 )
 
 # print column names in merged df tom spot-check
 colnames(merged_compendium_df)
 ```
 
-     [1] "dataset"                      "Run"                         
-     [3] "BioSample"                    "center_name"                 
-     [5] "age_in_years"                 "sex"                         
-     [7] "target_patient_id"            "target_biospecimen_sample_id"
-     [9] "target_race"                  "target_ethnicity"            
-    [11] "target_OS"                    "target_OS_time"              
-    [13] "target_disease_type"          "target_project_id"           
-    [15] "target_project_name"          "target_tumor_class"          
-    [17] "target_primary_diagnosis"     "target_sample_type"          
-    [19] "target_tissue_type"           "target_histological_type"    
-    [21] "target_body_site"             "target_study_name"           
-    [23] "gtex_batch_id"                "gtex_version"                
-    [25] "gtex_subject_id"              "gtex_body_site"              
+     [1] "dataset"                                                  
+     [2] "Run"                                                      
+     [3] "BioSample"                                                
+     [4] "center_name"                                              
+     [5] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
+     [6] "sex"                                                      
+     [7] "target_patient_id"                                        
+     [8] "target_biospecimen_sample_id"                             
+     [9] "target_race"                                              
+    [10] "target_ethnicity"                                         
+    [11] "target_OS"                                                
+    [12] "target_OS_time"                                           
+    [13] "target_disease_type"                                      
+    [14] "target_project_id"                                        
+    [15] "target_project_name"                                      
+    [16] "target_tumor_class"                                       
+    [17] "target_primary_diagnosis"                                 
+    [18] "target_sample_type"                                       
+    [19] "target_tissue_type"                                       
+    [20] "target_histological_type"                                 
+    [21] "target_body_site"                                         
+    [22] "target_study_name"                                        
+    [23] "age_in_years"                                             
+    [24] "gtex_batch_id"                                            
+    [25] "gtex_version"                                             
+    [26] "gtex_subject_id"                                          
+    [27] "gtex_body_site"                                           
 
 ## Summaries of sample composition of GTEx and TARGET accessions
 
@@ -241,7 +250,7 @@ compendium
 ``` r
 # summarize number of samples in each GTEx tissue type
 merged_compendium_df |>
-  dplyr::filter(dataset == "GTEx") |>
+  dplyr::filter(dataset == "gtex") |>
   dplyr::group_by(gtex_body_site) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -262,9 +271,9 @@ comparison) samples.
 ### Table of number of samples in each TARGET cancer type
 
 ``` r
-# summarize number of samples in each GTEx tissue type
+# summarize number of samples in each TARGET tissue type
 merged_compendium_df |>
-  dplyr::filter(dataset == "TARGET") |>
+  dplyr::filter(dataset == "target") |>
   dplyr::group_by(target_study_name) |>
   dplyr::summarise(
     n = dplyr::n()
@@ -280,6 +289,91 @@ merged_compendium_df |>
 | Kidney, Rhabdoid Tumor (RT)                          |  81 |
 | Kidney, Wilms Tumor (WT)                             | 137 |
 | Neuroblastoma (NBL)                                  | 161 |
+
+Print a table summarizing number of samples in each age bin in
+compendium
+
+### Table of ages in GTEx dataset
+
+``` r
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "gtex") |>
+  dplyr::group_by(gtex_body_site, age_in_years) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by gtex_body_site and age_in_years.
+    ℹ Output is grouped by gtex_body_site.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(gtex_body_site, age_in_years))` for per-operation
+      grouping (`?dplyr::dplyr_by`) instead.
+
+| gtex_body_site                      | age_in_years |   n |
+|:------------------------------------|:-------------|----:|
+| Cells - EBV-transformed lymphocytes | 20-29        |  19 |
+| Cells - EBV-transformed lymphocytes | 30-39        |  11 |
+| Cells - EBV-transformed lymphocytes | 40-49        |  33 |
+| Cells - EBV-transformed lymphocytes | 50-59        |  43 |
+| Cells - EBV-transformed lymphocytes | 60-69        |  36 |
+| Cells - EBV-transformed lymphocytes | 70-79        |   2 |
+| Kidney - Cortex                     | 40-49        |   4 |
+| Kidney - Cortex                     | 50-59        |  11 |
+| Kidney - Cortex                     | 60-69        |  14 |
+| Muscle - Skeletal                   | 20-29        |  37 |
+| Muscle - Skeletal                   | 30-39        |  35 |
+| Muscle - Skeletal                   | 40-49        |  73 |
+| Muscle - Skeletal                   | 50-59        | 153 |
+| Muscle - Skeletal                   | 60-69        | 149 |
+| Muscle - Skeletal                   | 70-79        |   8 |
+| Whole Blood                         | 20-29        |  34 |
+| Whole Blood                         | 30-39        |  33 |
+| Whole Blood                         | 40-49        |  86 |
+| Whole Blood                         | 50-59        | 146 |
+| Whole Blood                         | 60-69        | 144 |
+| Whole Blood                         | 70-79        |   6 |
+
+``` r
+# summarize number of samples in each GTEx tissue type
+merged_compendium_df |>
+  dplyr::filter(dataset == "target") |>
+  dplyr::group_by(target_study_name, age_in_years) |>
+  dplyr::summarise(
+    n = dplyr::n()
+    )
+```
+
+    `summarise()` has regrouped the output.
+    ℹ Summaries were computed grouped by target_study_name and age_in_years.
+    ℹ Output is grouped by target_study_name.
+    ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+    ℹ Use `summarise(.by = c(target_study_name, age_in_years))` for per-operation
+      grouping (`?dplyr::dplyr_by`) instead.
+
+| target_study_name                                    | age_in_years |   n |
+|:-----------------------------------------------------|:-------------|----:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 0-9          | 205 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 10-19        | 101 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 20-29        |   3 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | NA           |   4 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 0-9          |   1 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 10-19        |   2 |
+| Acute Myeloid Leukemia (AML)                         | 0-9          | 207 |
+| Acute Myeloid Leukemia (AML)                         | 10-19        | 235 |
+| Acute Myeloid Leukemia (AML)                         | 20-29        |   6 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | 0-9          |  13 |
+| Kidney, Rhabdoid Tumor (RT)                          | 0-9          |  80 |
+| Kidney, Rhabdoid Tumor (RT)                          | 10-19        |   1 |
+| Kidney, Wilms Tumor (WT)                             | 0-9          | 130 |
+| Kidney, Wilms Tumor (WT)                             | 10-19        |   7 |
+| Neuroblastoma (NBL)                                  | 0-9          | 156 |
+| Neuroblastoma (NBL)                                  | 10-19        |   5 |
+
+4 ALL Phase 2 samples have missing age metadata, but other clinical
+metadata fields are present.
 
 ## Print session info
 

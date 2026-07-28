@@ -354,7 +354,18 @@ merged_compendium_df |>
     )
 ```
 
-Print a table summarizing number of samples in each age bin in compendium
+### Plot sample distribution in each dataset
+```{r sample_type_dist}
+
+ggplot(merged_compendium_df, aes(x = class)) +
+  geom_bar(fill = "steelblue", color = "black") +
+  labs(title = "Counts by Vehicle Class", x = "Vehicle Class", y = "Count") +
+  theme_minimal()
+
+```
+
+
+Print tables summarizing number of samples in each age bin in compendium
 
 ### Table of ages in GTEx dataset
 

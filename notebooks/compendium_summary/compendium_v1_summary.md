@@ -52,6 +52,9 @@ target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_c
 # sample sheet of compendium files 
 compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 
+# output metadata file 
+output_combined_metadata_file <- file.path(metadata_dir, "combined_compendium_metadata.tsv")
+
 ## Read in files ##
 gtex_metadata <- readr::read_tsv(
   gtex_metadata_file, 
@@ -377,6 +380,12 @@ merged_compendium_df |>
 
 4 ALL Phase 2 samples have missing age metadata, but other clinical
 metadata fields are present.
+
+## Write output
+
+``` r
+readr::write_tsv(merged_compendium_df, output_combined_metadata_file)
+```
 
 ## Print session info
 

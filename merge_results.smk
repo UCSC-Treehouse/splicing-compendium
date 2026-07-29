@@ -1,16 +1,22 @@
 # Snakefile for merging GTF and junction counts bed files produced by separate shiba runs and running Shiba on the merged files
 # A sample sheet of all sample accessions with separate Shiba results, and their group, is given to the config file to identify files to run the workflow on
+
 # Run from project root: snakemake --snakefile merge_results.smk --profile pheonix-profile
 
 import os
 import pandas as pd
 from datetime import datetime
 
-configfile: "config/merge_shiba_config.yaml"
+configfile: "config/test_merge_config.yaml"
 
 # read in configfile values
-SAMPLES = pd.read_table(config["sample_sheet"])["sample"].tolist()
-GROUPS = pd.read_table(config["sample_sheet"])["group"].tolist()
+sample_table = pd.read_table(config["sample_sheet"])
+SAMPLES = sample_table["sample"].tolist()
+GROUPS = sample_table["group"].tolist()
+REF_GTF = config["reference_gtf"]
+
+# make a dictionary to map samples to groups so merged GTF output won't need group wildcards
+sample_to_group = dict(zip(SAMPLES, GROUPS))
 
 pathvars:
     merged_shiba_results = f"results/merged_shiba/{config["version"]}"
@@ -24,24 +30,62 @@ JUNCTION_BEDS = expand(
     sample=SAMPLES
 )
 
-# path to sample gtfs from separate shiba runs
-SAMPLE_GTFS = expand(
-    "results/{group}/shiba/{sample}/annotation/assembled_annotation.gtf.gz",
-    zip,
-    group=GROUPS,
-    sample=SAMPLES
-)
-
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
         "<merged_shiba_results>/psi"
 
+rule bam2gtf:
+    input:
+        ref_gtf = REF_GTF,
+        bam = lambda wildcard: (
+            os.path.join(
+                "data",
+                sample_to_group[wildcard.sample],
+                "star-output",
+                wildcard.sample,
+                "Aligned.sortedByCoord.out.bam"
+            )
+        )
+    output: "<merged_shiba_results>/pre-merge/{sample}.gtf"
+    threads: 8
+    log: "logs/{sample}_bam2gtf.log"
+    shell:
+        """
+        stringtie -v -p {threads} -G {input.ref_gtf} -o {output} {input.bam} > {log} 2>&1
+        """
+
+rule merge_gtfs:
+    input:
+        reference_gtf = config["reference_gtf"],
+        sample_gtfs = expand(
+            "<merged_shiba_results>/pre-merge/{sample}.gtf",
+            sample = SAMPLES
+            )
+    output: "<merged_shiba_results>/merged_gtf.gtf"
+    priority: 1
+    threads: 8
+    log: "logs/merge_gtfs.log"
+    shell:
+        """
+        # instantiate manifest as a temp file
+        manifest=$(mktemp)
+
+        # add gtf to manifest for merging
+        for gtf in {input.sample_gtfs}; do
+            # Add to the manifest
+            echo "$gtf" >> $manifest
+        done
+
+        # merge gtfs with stringtie for splice analysis
+        stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest > {log} 2>&1
+        """
+
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
     priority: 1
-    threads: 4
+    threads: 15
     shell:
         """
         tempdir=$(mktemp -d)
@@ -75,40 +119,6 @@ rule merge_junctions:
         rm -rf $tempdir
         """
 
-rule merge_gtfs:
-    input:
-        # sample_gtfs are zipped
-        sample_gtfs = SAMPLE_GTFS,
-        reference_gtf = config["reference_gtf"]
-    output:
-        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf"
-    priority: 1
-    threads: 4
-    shell:
-        """
-        # instantiate manifest as a temp file
-        manifest=$(mktemp)
-
-        # unzip input gtfs for stringtie
-        for gz_gtf in {input.sample_gtfs}; do
-            # create the uncompressed file path
-            gtf="${{gz_gtf%.gz}}"
-            # decompress (leaving the original) explicitly - decompressed files are in the same directory as the compressed files
-            gunzip -c "$gz_gtf" > "$gtf"
-            # Add to the manifest
-            echo "$gtf" >> $manifest
-        done
-
-        # merge gtfs with stringtie for splice analysis
-        stringtie --merge -p {threads} -G {input.reference_gtf} -o {output.merged_gtf} $manifest
-
-        # delete gtf files using the manifest
-        xargs rm < $manifest
-
-        # remove temporary manifest
-        rm $manifest
-        """
-
 rule gtf_to_events:
     input:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
@@ -118,7 +128,7 @@ rule gtf_to_events:
     params:
         shiba_scripts = config["shiba_scripts_path"]
     priority: 1
-    threads: 10 # too many? I want it to run fast
+    threads: 10
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
@@ -136,6 +146,9 @@ rule calculate_psi:
         min_reads = config["shiba_min_reads"]
     priority: 1
     threads: 15
+    resources:
+        mem_mb = 2000000,
+        time = 180
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}

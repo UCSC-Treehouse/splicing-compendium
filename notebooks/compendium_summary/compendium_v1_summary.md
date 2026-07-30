@@ -201,6 +201,34 @@ gtex_compendium_df <- gtex_sra_ages_df |>
   )
 ```
 
+Check for duplicates in TARGET metadata
+
+``` r
+dup_accessions <- target_compendium_df$Run[duplicated(target_compendium_df$Run)]
+
+target_compendium_df |>
+  dplyr::filter(Run %in% dup_accessions) |>
+  dplyr::select(
+    Run, 
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+    center_name,
+    sex)
+```
+
+| Run | age_at_earliest_diagnosis_in_years.diagnoses.xena_derived | center_name | sex |
+|:---|---:|:---|:---|
+| SRR3162212 | 14.290411 | STJUDE | male |
+| SRR3162212 | NA | STJUDE | male |
+| SRR1791002 | 14.331507 | BCCAGSC | female |
+| SRR1791002 | NA | BCCAGSC | female |
+| SRR1791034 | 1.783562 | BCCAGSC | male |
+| SRR1791034 | NA | BCCAGSC | male |
+| SRR1791087 | 8.219178 | BCCAGSC | female |
+| SRR1791087 | NA | BCCAGSC | female |
+
+TARGET duplicated accessions are 4 ALL phase 2 samples that are present
+in the xena phase 3 metadata, but have no age demographic info.
+
 Merge GTEx and TARGET metadata tables for analysis and unify format of
 common column values. GTEx sex information is coded in values of 1 and
 2, while TARGET values are in ‘male’ and ‘female’ format. According to

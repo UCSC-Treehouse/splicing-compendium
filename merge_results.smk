@@ -51,7 +51,7 @@ rule bam2gtf:
     threads: 8
     resources:
         mem_mb = 5000,
-        time = 180
+        runtime = 180
     log: "logs/{sample}_bam2gtf.log"
     shell:
         """
@@ -70,7 +70,7 @@ rule merge_gtfs:
     threads: 8
     resources:
         mem_mb = 1000,
-        time = 180
+        runtime = 180
     log: "logs/merge_gtfs.log"
     shell:
         """
@@ -97,7 +97,7 @@ rule merge_junctions:
     threads: 15
     resources:
         mem_mb = 1500000,
-        time = 400
+        runtime = 400
     shell:
         """
         tempdir=$(mktemp -d)
@@ -143,7 +143,7 @@ rule gtf_to_events:
     threads: 10
     resources:
         mem_mb = 2000000,
-        time = 400
+        runtime = 400
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
@@ -163,7 +163,7 @@ rule calculate_psi:
     threads: 15
     resources:
         mem_mb = 2000000,
-        time = 400
+        runtime = 400
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}

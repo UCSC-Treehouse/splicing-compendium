@@ -38,12 +38,12 @@ rule all:
 rule bam2gtf:
     input:
         ref_gtf = REF_GTF,
-        bam = lambda wildcard: (
+        bam = lambda wildcards: (
             os.path.join(
                 "data",
-                sample_to_group[wildcard.sample],
+                sample_to_group[wildcards.sample],
                 "star-output",
-                wildcard.sample,
+                wildcards.sample,
                 "Aligned.sortedByCoord.out.bam"
             )
         )
@@ -79,6 +79,9 @@ rule merge_gtfs:
 
         # merge gtfs with stringtie for splice analysis
         stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest > {log} 2>&1
+        
+        # remove temp manifest file
+        rm $manifest
         """
 
 rule merge_junctions:

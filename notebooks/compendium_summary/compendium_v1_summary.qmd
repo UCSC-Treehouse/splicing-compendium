@@ -371,7 +371,7 @@ for_summary_compendium_df |>
     )
 ```
 
-4 ALL Phase 2 samples have missing age metadata, but other clinical metadata fields are present.
+All TARGET samples have age metadata and are composed primarily of \< 30 year old samples
 
 ## Write output
 

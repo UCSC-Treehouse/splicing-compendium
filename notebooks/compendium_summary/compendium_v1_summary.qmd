@@ -47,7 +47,6 @@ plot_theme = list(
 )
 ```
 
-
 ## Read in input and output paths
 
 Read in directory and file paths
@@ -64,27 +63,42 @@ base_dir <- here::here()
 # define metadata directory
 metadata_dir <- file.path(base_dir, "metadata")
 gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+# pilot sample metadata dir
+pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
 
 # config directory of compendium
 config_dir <- file.path(repo_root, "config")
 
 ### Files ##
-# gtex metadata with age info
-gtex_metadata_file <- file.path(gtex_target_metadata_dir, "gtex_accessions.tsv")
+# gtex dbgap and demographic metadata
+gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
+# metadata containing ages of gtex samples
+gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
+
 # target metadata with age info
 target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
 # sample sheet of compendium files 
 compendium_sample_file <- file.path(config_dir, "sample_sheet.tsv")
 
+# pilot gtex accessions to exclude from summary plots
+pilot_gtex_file <- file.path(pilot_dir, "gtex_accessions.tsv")
+
 # output metadata file 
 output_combined_metadata_file <- file.path(metadata_dir, "combined_compendium_metadata.tsv")
 
 ## Read in files ##
-gtex_metadata <- readr::read_tsv(
-  gtex_metadata_file, 
+gtex_sra_metadata <- readr::read_csv(
+  gtex_sra_file, 
   col_types = readr::cols(
-    Bytes = "d", 
-    cumulative_tb = "d",
+    .default = "c"
+  )
+) |>
+  # ensure subject id column is name the same as demographic metadata
+  dplyr::rename(SUBJID = submitted_subject_id)
+
+gtex_demographic_metadata <- readr::read_tsv(
+  gtex_ages_file,
+  col_types = readr::cols(
     .default = "c"
   )
 )
@@ -101,6 +115,8 @@ sample_df <- readr::read_tsv(
   compendium_sample_file,
   col_types = readr::cols(.default = "c")
 )
+
+gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default = "c"))
 ```
 
 ## Filter TARGET and GTEx samples for what's in the compendium
@@ -118,6 +134,17 @@ target_accessions_list <- sample_df |>
 gtex_accessions_list <- sample_df |>
   dplyr::filter(group == "gtex") |>
   dplyr::pull(sample)
+
+# merge GTEx SRA with demographic metadata by accession ID
+gtex_sra_ages_df <- gtex_sra_metadata |>
+  dplyr::left_join(gtex_demographic_metadata, by = "SUBJID") |>
+  dplyr::filter(
+    analyte_type == "RNA:Total RNA",
+    # filter for paired-end samples
+    LibraryLayout == "PAIRED",
+    # filter for accessions with fastqs
+    stringr::str_detect(`DATASTORE filetype`, "sra")
+  )
 
 # filter gtex and target metadata for those corresponding to samples in compendium
 
@@ -163,7 +190,7 @@ target_compendium_df <- target_metadata |>
     body_site
   )
 
-gtex_compendium_df <- gtex_metadata |>
+gtex_compendium_df <- gtex_sra_ages_df |>
   dplyr::filter(Run %in% gtex_accessions_list) |>
   dplyr::mutate(
     # add dataset column to facet plots by
@@ -180,11 +207,9 @@ gtex_compendium_df <- gtex_metadata |>
     center_name = `Center Name`,
     body_site, # tissue type of sample, to be used in combining columns
     # gtex-specific metadata fields
-    gtex_batch_id = batch_id,
     gtex_version = version, # gtex version sample was added
     gtex_subject_id = SUBJID # ID of the individual the sample came from - some samples come from the same subject
   )
-
 ```
 
 Merge GTEx and TARGET metadata tables for analysis and unify format of common column values. GTEx sex information is coded in values of 1 and 2, while TARGET values are in 'male' and 'female' format. According to `GTEx_Analysis_v10_Annotations_SampleAttributesDD.xlsx` on the [GTEx portal metadata download page](https://gtexportal.org/home/downloads/adult-gtex/metadata), 1 = Male and 2 = Female.
@@ -231,9 +256,24 @@ merged_compendium_df <- dplyr::bind_rows(
   # add a tissue_type column for faceting
   dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
   
+# check number of rows
+nrow(merged_compendium_df)
 
 # print column names in merged df tom spot-check
 colnames(merged_compendium_df)
+```
+
+Exclude GTEx pilot samples for compendium summary, as these consist of a random subset of all GTEx tissue types (not just select comparator tissue types)
+
+```{r exclude_gtex_pilot_for_summary}
+
+for_summary_compendium_df <- merged_compendium_df |>
+  dplyr::filter(
+    !Run %in% gtex_pilot$Run
+  )
+
+# check number of samples
+nrow(for_summary_compendium_df)
 ```
 
 ## Summaries of sample composition of GTEx and TARGET accessions
@@ -244,7 +284,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 
 ```{r gtex_num_tissue_types_summary_table}
 # summarize number of samples in each GTEx tissue type
-merged_compendium_df |>
+for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::group_by(tissue_type) |>
   dplyr::summarise(
@@ -255,9 +295,10 @@ merged_compendium_df |>
 Our curated GTEx compendium dataset is primarily composed of whole blood (for leukemia comparisons) and skeletal muscle (for soft tissue comparison) samples.
 
 ### Table of number of samples in each TARGET cancer type
+
 ```{r target_num_cancer_types_summary_table}
 # summarize number of samples in each TARGET tissue type
-merged_compendium_df |>
+for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::group_by(tissue_type) |>
   dplyr::summarise(
@@ -271,31 +312,34 @@ Print a table summarizing number of samples in each age bin in compendium
 
 ```{r gtex_age_table}
 # summarize number of samples in each GTEx tissue type
-merged_compendium_df |>
+for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::group_by(tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
+
 ```{r target_age_table}
 # summarize number of samples in each GTEx tissue type
-merged_compendium_df |>
+for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::group_by(tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
+
 4 ALL Phase 2 samples have missing age metadata, but other clinical metadata fields are present.
 
 ## Write output
+
 ```{r write_output}
 readr::write_tsv(merged_compendium_df, output_combined_metadata_file)
 ```
 
+## Print session info
 
-## Print session info 
 ```{r}
 sessionInfo()
 ```

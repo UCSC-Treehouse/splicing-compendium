@@ -121,6 +121,14 @@ gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default 
 
 ## Filter TARGET and GTEx samples for what's in the compendium
 
+Check number of expected samples in metadata
+
+```{r count_compendium_samples}
+nrow(sample_df)
+```
+
+2581 samples should be in the final metadata file.
+
 Not all samples filtered for downloading are processed as part of the compendium due to `fasterq-dump` download issues or the file size being too large to align in a timely manner.
 
 ```{r filter_for_compendium_samples}
@@ -191,6 +199,7 @@ target_compendium_df <- target_metadata |>
   )
 
 gtex_compendium_df <- gtex_sra_ages_df |>
+  # gtex compendium df contains pilot samples (subset of all tissues) and compendium samples from select tissue types
   dplyr::filter(Run %in% gtex_accessions_list) |>
   dplyr::mutate(
     # add dataset column to facet plots by
@@ -237,7 +246,13 @@ cleaned_target_df <- target_compendium_df |>
          "90-99"
        )
        )
-    )
+    ) |>
+  # there are 4 TARGET ALL phase 2 samples duplicated as ALL phase 3 with no age information
+  # all other TARGET accessions have age info
+  # remove these duplicate rows
+  dplyr::filter(
+    !is.na(age_at_earliest_diagnosis_in_years.diagnoses.xena_derived)
+  )
 
 cleaned_gtex_df <- gtex_compendium_df |>
   dplyr::mutate(
@@ -263,17 +278,43 @@ nrow(merged_compendium_df)
 colnames(merged_compendium_df)
 ```
 
-Exclude GTEx pilot samples for compendium summary, as these consist of a random subset of all GTEx tissue types (not just select comparator tissue types)
+Check for duplicates in Run
+
+```{r check_duplicates}
+duplicated(merged_compendium_df$Run) |> unique()
+```
+
+No duplicate accession IDs remain in the metadata. Additionally, metadata rows match the number of samples in the sample sheet (2581).
+
+Pilot GTEx samples consist of a random subset of all GTEx tissue types (not just select comparator tissue types). Filter for only GTEx samples from comparator groups for summary tables and plots.
 
 ```{r exclude_gtex_pilot_for_summary}
 
-for_summary_compendium_df <- merged_compendium_df |>
-  dplyr::filter(
-    !Run %in% gtex_pilot$Run
-  )
+# define tissue types within GTEx dataset for TARGET comparators 
+tissue_types <- c(
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood",
+  "Cells - EBV-transformed lymphocytes"
+)
 
-# check number of samples
-nrow(for_summary_compendium_df)
+for_summary_gtex_df <- cleaned_gtex_df |>
+  dplyr::filter(
+    body_site %in% tissue_types
+      )
+
+for_summary_compendium_df <- dplyr::bind_rows(
+  cleaned_target_df,
+  for_summary_gtex_df
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+
+for_summary_compendium_df |>
+  dplyr::summarise(
+    .by = dataset,
+    n = dplyr:: n()
+  )
 ```
 
 ## Summaries of sample composition of GTEx and TARGET accessions

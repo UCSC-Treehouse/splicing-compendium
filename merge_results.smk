@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-configfile: "config/test_merge_config.yaml"
+configfile: "config/compendium_v1_merge_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])
@@ -50,8 +50,8 @@ rule bam2gtf:
     output: "<merged_shiba_results>/pre-merge/{sample}.gtf"
     threads: 8
     resources:
-        mem_mb = 5000,
-        runtime = 180
+        mem_mb = 5500,
+        runtime = 360
     log: "logs/{sample}_bam2gtf.log"
     shell:
         """
@@ -69,8 +69,8 @@ rule merge_gtfs:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 1000,
-        runtime = 180
+        mem_mb = 1500,
+        runtime = 360
     log: "logs/merge_gtfs.log"
     shell:
         """
@@ -96,7 +96,7 @@ rule merge_junctions:
     priority: 1
     threads: 15
     resources:
-        mem_mb = 1500000,
+        mem_mb = 1600000,
         runtime = 400
     shell:
         """
@@ -142,8 +142,8 @@ rule gtf_to_events:
     priority: 1
     threads: 10
     resources:
-        mem_mb = 2000000,
-        runtime = 400
+        mem_mb = 4000,
+        runtime = 60
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
@@ -163,7 +163,7 @@ rule calculate_psi:
     threads: 15
     resources:
         mem_mb = 2000000,
-        runtime = 400
+        runtime = 720
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}

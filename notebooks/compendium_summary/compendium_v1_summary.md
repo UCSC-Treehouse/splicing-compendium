@@ -98,6 +98,16 @@ gtex_pilot <- readr::read_tsv(pilot_gtex_file, col_types = readr::cols(.default 
 
 ## Filter TARGET and GTEx samples for what’s in the compendium
 
+Check number of expected samples in metadata
+
+``` r
+nrow(sample_df)
+```
+
+    [1] 2581
+
+2581 samples should be in the final metadata file.
+
 Not all samples filtered for downloading are processed as part of the
 compendium due to `fasterq-dump` download issues or the file size being
 too large to align in a timely manner.
@@ -169,6 +179,7 @@ target_compendium_df <- target_metadata |>
   )
 
 gtex_compendium_df <- gtex_sra_ages_df |>
+  # gtex compendium df contains pilot samples (subset of all tissues) and compendium samples from select tissue types
   dplyr::filter(Run %in% gtex_accessions_list) |>
   dplyr::mutate(
     # add dataset column to facet plots by
@@ -221,7 +232,13 @@ cleaned_target_df <- target_compendium_df |>
          "90-99"
        )
        )
-    )
+    ) |>
+  # there are 4 TARGET ALL phase 2 samples duplicated as ALL phase 3 with no age information
+  # all other TARGET accessions have age info
+  # remove these duplicate rows
+  dplyr::filter(
+    !is.na(age_at_earliest_diagnosis_in_years.diagnoses.xena_derived)
+  )
 
 cleaned_gtex_df <- gtex_compendium_df |>
   dplyr::mutate(
@@ -244,7 +261,7 @@ merged_compendium_df <- dplyr::bind_rows(
 nrow(merged_compendium_df)
 ```
 
-    [1] 2585
+    [1] 2581
 
 ``` r
 # print column names in merged df tom spot-check
@@ -278,21 +295,53 @@ colnames(merged_compendium_df)
     [25] "gtex_subject_id"                                          
     [26] "tissue_type"                                              
 
-Exclude GTEx pilot samples for compendium summary, as these consist of a
-random subset of all GTEx tissue types (not just select comparator
-tissue types)
+Check for duplicates in Run
 
 ``` r
-for_summary_compendium_df <- merged_compendium_df |>
-  dplyr::filter(
-    !Run %in% gtex_pilot$Run
-  )
-
-# check number of samples
-nrow(for_summary_compendium_df)
+duplicated(merged_compendium_df$Run) |> unique()
 ```
 
-    [1] 2233
+    [1] FALSE
+
+No duplicate accession IDs remain in the metadata. Additionally,
+metadata rows match the number of samples in the sample sheet (2581).
+
+Pilot GTEx samples consist of a random subset of all GTEx tissue types
+(not just select comparator tissue types). Filter for only GTEx samples
+from comparator groups for summary tables and plots.
+
+``` r
+# define tissue types within GTEx dataset for TARGET comparators 
+tissue_types <- c(
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood",
+  "Cells - EBV-transformed lymphocytes"
+)
+
+for_summary_gtex_df <- cleaned_gtex_df |>
+  dplyr::filter(
+    body_site %in% tissue_types
+      )
+
+for_summary_compendium_df <- dplyr::bind_rows(
+  cleaned_target_df,
+  for_summary_gtex_df
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+
+for_summary_compendium_df |>
+  dplyr::summarise(
+    .by = dataset,
+    n = dplyr:: n()
+  )
+```
+
+| dataset |    n |
+|:--------|-----:|
+| target  | 1152 |
+| gtex    | 1098 |
 
 ## Summaries of sample composition of GTEx and TARGET accessions
 
@@ -314,9 +363,9 @@ for_summary_compendium_df |>
 | tissue_type                         |   n |
 |:------------------------------------|----:|
 | Cells - EBV-transformed lymphocytes | 144 |
-| Kidney - Cortex                     |  29 |
-| Muscle - Skeletal                   | 455 |
-| Whole Blood                         | 449 |
+| Kidney - Cortex                     |  36 |
+| Muscle - Skeletal                   | 462 |
+| Whole Blood                         | 456 |
 
 Our curated GTEx compendium dataset is primarily composed of whole blood
 (for leukemia comparisons) and skeletal muscle (for soft tissue
@@ -336,7 +385,7 @@ for_summary_compendium_df |>
 
 | tissue_type                                          |   n |
 |:-----------------------------------------------------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 313 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 309 |
 | Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     |   3 |
 | Acute Myeloid Leukemia (AML)                         | 448 |
 | Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      |  13 |
@@ -374,16 +423,18 @@ for_summary_compendium_df |>
 | Cells - EBV-transformed lymphocytes | 50-59        |  43 |
 | Cells - EBV-transformed lymphocytes | 60-69        |  36 |
 | Cells - EBV-transformed lymphocytes | 70-79        |   2 |
-| Kidney - Cortex                     | 40-49        |   4 |
+| Kidney - Cortex                     | 20-29        |   2 |
+| Kidney - Cortex                     | 30-39        |   4 |
+| Kidney - Cortex                     | 40-49        |   5 |
 | Kidney - Cortex                     | 50-59        |  11 |
 | Kidney - Cortex                     | 60-69        |  14 |
-| Muscle - Skeletal                   | 20-29        |  37 |
+| Muscle - Skeletal                   | 20-29        |  44 |
 | Muscle - Skeletal                   | 30-39        |  35 |
 | Muscle - Skeletal                   | 40-49        |  73 |
 | Muscle - Skeletal                   | 50-59        | 153 |
 | Muscle - Skeletal                   | 60-69        | 149 |
 | Muscle - Skeletal                   | 70-79        |   8 |
-| Whole Blood                         | 20-29        |  34 |
+| Whole Blood                         | 20-29        |  41 |
 | Whole Blood                         | 30-39        |  33 |
 | Whole Blood                         | 40-49        |  86 |
 | Whole Blood                         | 50-59        | 146 |
@@ -412,7 +463,6 @@ for_summary_compendium_df |>
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 0-9          | 205 |
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 10-19        | 101 |
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 20-29        |   3 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | NA           |   4 |
 | Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 0-9          |   1 |
 | Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 10-19        |   2 |
 | Acute Myeloid Leukemia (AML)                         | 0-9          | 207 |
@@ -426,8 +476,8 @@ for_summary_compendium_df |>
 | Neuroblastoma (NBL)                                  | 0-9          | 156 |
 | Neuroblastoma (NBL)                                  | 10-19        |   5 |
 
-4 ALL Phase 2 samples have missing age metadata, but other clinical
-metadata fields are present.
+All TARGET samples have age metadata and are composed primarily of \< 30
+year old samples
 
 ## Write output
 

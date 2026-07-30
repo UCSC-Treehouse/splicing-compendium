@@ -3,6 +3,9 @@ executor: slurm
 # Set the maximum number of concurrent jobs to execute or submit
 jobs: 50
 
+default-resources:
+  slurm_account: standard
+
 default-storage-provider: fs
 local-storage-prefix: "/data/tmp/$USER" # copy to tmp for fast reading in local node
 remote-job-local-storage-prefix: "/data/tmp/$USER/$SLURM_JOB_ID"

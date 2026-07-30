@@ -79,6 +79,9 @@ rule merge_gtfs:
 
         # merge gtfs with stringtie for splice analysis
         stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest > {log} 2>&1
+        
+        # remove temp manifest file
+        rm $manifest
         """
 
 rule merge_junctions:

@@ -48,7 +48,7 @@ rule bam2gtf:
             )
         )
     output: "<merged_shiba_results>/pre-merge/{sample}.gtf"
-    threads: 8
+    threads: 40
     resources:
         mem_mb = 5500,
         runtime = 360
@@ -93,7 +93,7 @@ rule merge_gtfs:
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
-    priority: 1
+    priority: 10
     threads: 15
     resources:
         mem_mb = 1600000,

@@ -13,6 +13,7 @@ params:
   min_samples: 5
   padj: 0.05
   dPSI: 0.15
+  event_type: "se"
 ---
 
 ## Introduction
@@ -69,6 +70,7 @@ plot_theme = list(
 data_dir <- file.path("data")
 
 # target subset metadata
+# todo: load latest combined metadata file
 target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
 # target subset combined psi results
 combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
@@ -100,6 +102,7 @@ filtered_target_metadata <- target_metadata |>
 # each row corresponds to PSI values for a single sample/accession ID 
 # columns correspond to PSI quantification for a specific splice event position for that accession ID
 cancer_type_psi_table <- psi_combined |>
+  dplyr::filter(event_type == params$event_type) |>
   tidyr::pivot_longer(
     cols = contains("_PSI"),
     names_pattern = "(.*)_PSI",
@@ -317,6 +320,8 @@ EnhancedVolcano::EnhancedVolcano(
 Notes of decisions:
 
 - Main plot for this notebook would be volcano plot
+
+- Just do for skipped exon events (let people filter for favorite splice event)
 
 - Need to convert gene IDs to HUGO IDs
 

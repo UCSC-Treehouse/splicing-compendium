@@ -1,7 +1,7 @@
 executor: slurm
 
 # Set the maximum number of concurrent jobs to execute or submit
-jobs: 50
+jobs: 500
 
 default-resources:
   slurm_account: standard

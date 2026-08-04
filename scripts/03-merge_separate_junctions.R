@@ -1,81 +1,124 @@
 ### merge junctions.bed files produced by separate shiba runs ###
 # usage: Rscript 03-merge_separate_junctions.R
 
-# Load library
-library("optparse")
-library("duckplyr")
+# avoid dplyr warnings
+options(conflicts.policy = list(warn = FALSE))
+
+# Load Packages
+library(optparse)
+library(dplyr)
+library(duckplyr)
 
 # Set up options to Rscript with optparse
-option_list <-list(
+option_list <- list(
   make_option(
     opt_str = "--junctions",
     type = "character",
     action = "store",
-    help = "Input directory of deduplicated junction bedfiles"),
+    help = "Input directory of deduplicated junction bedfiles"
+  ),
 
   make_option(
     opt_str = "--output",
     type = "character",
-    help = "Specify output path for merged junction counts bedfile.")
+    help = "Specify output path for merged junction counts bedfile."
   )
+)
 
 # Parse options
 opt <- parse_args(OptionParser(option_list = option_list))
 
 ## File paths ##
-# Read in deduplicated junctions bed paths from temp dir into a vector
-# each element of list looks like tempdir/1_junctions.bed
-junction_paths <- list.files(path = opt$junctions, pattern = ".bed", full.names = TRUE)
+junction_paths <- list.files(
+  path = opt$junctions,
+  pattern = "\\.bed",
+  full.names = TRUE
+)
+
+# Get sample names from junction file headers
+# with file path as names
+sample_df <- junction_paths |>
+  purrr::set_names() |>
+  purrr::map_chr(\(path) {
+    colnames <- readr::read_tsv(
+      path,
+      n_max = 0,
+      col_types = c(.default = "c")
+    ) |>
+      names()
+    # get the last value
+    colnames[length(colnames)]
+  }) |>
+  tibble::enframe(
+    name = "path",
+    value = "sample"
+  )
+
 
 ## read in files and merge ##
-# read in junctions.bed files created from separate Shiba runs
-merged_junctions <- purrr::map(junction_paths, \(file) {
-  # read in separate bedfiles for each sample
-  junctions <- readr::read_tsv(
-    file,
-    # make sure columns are types that we expect
-    col_types = readr::cols(
-      .default = "d",
-      ID = "c",
-      chr = "c",
-      start = "d",
-      end = "d"
-    )
+# have duckdb read all files into a single long table
+long_junctions <- read_csv_duckdb(
+  junction_paths,
+  options = list(
+    delim = "\t",
+    union_by_name = TRUE,
+    header = TRUE,
+    # add a column with the filename for later pivot
+    filename = TRUE,
+    # override sample column name to "count" for consistent structure
+    names = list(c("chr", "start", "end", "ID", "count")),
+    types = list(c(
+      chr = "VARCHAR",
+      start = "INTEGER",
+      end = "INTEGER",
+      ID = "VARCHAR",
+      count = "INTEGER"
+    ))
   )
-  # check if there are NAs in bedfile and print rows with NAs
-  if (anyNA(junctions)) {
-    # select rows in bedfile with NAs for printing
-    na_bed_rows <- junctions[!complete.cases(junctions), ]
-    stop(
-      paste0("NAs found in bedfile", "\n"),
-      readr::format_tsv(a_bed_rows)
-    )
-  }
+) |>
+  # replace filename with sample name
+  left_join(sample_df, by = c("filename" = "path")) |>
+  select(!filename)
 
-  # return junctions object to merge
-  junctions
 
-  }) |>
-  # merge junctions tables from multiple samples
-  # the resulting table separates junction counts from each sample by columns with the sample ID
-  purrr::reduce(
-    \(x, y) duckplyr::full_join(
-      x, y,
-      by = c("chr", "start", "end", "ID")
-    )
-  )
+# get the table name and connection for direct dbplyr SQL query
+lj_tbl <- duckplyr::as_tbl(long_junctions)
+con <- dbplyr::remote_con(lj_tbl) # duckplyr's DuckDB connection
+nm <- as.character(dbplyr::remote_name(lj_tbl)) # the temp view's name
+
+# create the SQL query to pivot the long table within DuckDB
+pivot_sql <- glue::glue_sql(
+  '
+  PIVOT {`nm`}
+  ON sample
+  USING coalesce(first(count), 0)
+  GROUP BY chr, "start", "end", ID
+',
+  .con = con
+)
+
+merged_junctions <- tbl(con, sql(pivot_sql)) |>
+  arrange(chr, start, end) |>
+  compute()
 
 # Check if junction IDs are duplicated
-if (any(duplicated(merged_junctions$ID))) {
-  dup_rows <- merged_junctions[duplicated(merged_junctions$ID),]
-  # quit and send error message about duplicates
-  stop(paste0("Found duplicate junction ID: ", "\n"),
-       readr::format_tsv(dup_rows)
-       )
-    }
+dup_rows <- merged_junctions |>
+  group_by(ID) |>
+  filter(n() > 1) |>
+  collect()
 
-# convert junctions not found in a sample from NA to 0
-merged_junctions[is.na(merged_junctions)] <- 0
+if (nrow(dup_rows) > 0) {
+  # quit and send error message about duplicates
+  stop(
+    paste0("Found duplicate junction ID: ", "\n"),
+    readr::format_tsv(dup_rows)
+  )
+}
 
 ## Save merged junction counts as output
-readr::write_tsv(merged_junctions, opt$output)
+merged_junctions |>
+  as_duckdb_tibble(prudence = "stingy") |>
+  duckplyr::compute_csv(
+    opt$output,
+    options = list(delim = "\t", header = TRUE)
+  )

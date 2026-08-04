@@ -1,6 +1,6 @@
 # Filtering GTEX samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-05-01
+2026-07-23
 
 ## Introduction
 
@@ -104,13 +104,19 @@ gtex_tissues <- gtex_sra_ages |>
     # calculate cumulative sum of Bytes column
     cumulative_tb = cumsum(Bytes) / 1e12
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
+  dplyr::select(AGE, SEX, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
 
 # check how many samples (rows) in select tissue types
 dim(gtex_tissues)
 ```
 
-    [1] 952  16
+    [1] 952  17
+
+GTEx sex information of donors is coded in values of 1 and 2. According
+to `GTEx_Analysis_v10_Annotations_SampleAttributesDD.xlsx` on the [GTEx
+portal metadata download
+page](https://gtexportal.org/home/downloads/adult-gtex/metadata), 1 =
+Male and 2 = Female.
 
 ### Divide GTEx accessions into 10 groups of samples
 
@@ -145,13 +151,13 @@ gtex_lymphocyte_ages <- gtex_sra_ages |>
     # calculate cumulative sum of Bytes column
     cumulative_tb = cumsum(Bytes) / 1e12
   ) |>
-  dplyr::select(AGE, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
+  dplyr::select(AGE, SEX, Run, body_site, Bytes, SUBJID, BioProject, BioSample, `SRA Study`, LibraryLayout, version, create_date, ReleaseDate, `DATASTORE filetype`, LibrarySelection, `Center Name`, cumulative_tb)
 
 # check how many EBV lymphocyte samples (rows) pass the filters
 dim(gtex_lymphocyte_ages)
 ```
 
-    [1] 146  16
+    [1] 146  17
 
 The EBV-transformed lymphocytes will fit in one huge OpenStack instance.
 
@@ -173,7 +179,7 @@ gtex_select <- gtex_tissue_batched |>
 dim(gtex_select)
 ```
 
-    [1] 1098   17
+    [1] 1098   18
 
 ## Summarize samples in filtered GTEx set
 
@@ -376,7 +382,7 @@ sessionInfo()
 
     R version 4.4.3 (2025-02-28)
     Platform: aarch64-apple-darwin20
-    Running under: macOS 26.4.1
+    Running under: macOS 26.5.2
 
     Matrix products: default
     BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 
@@ -392,18 +398,18 @@ sessionInfo()
     [1] stats     graphics  grDevices utils     datasets  methods   base     
 
     other attached packages:
-    [1] ggplot2_4.0.2
+    [1] ggplot2_4.0.3
 
     loaded via a namespace (and not attached):
      [1] bit_4.6.0          gtable_0.3.6       jsonlite_2.0.0     crayon_1.5.3      
-     [5] dplyr_1.2.0        compiler_4.4.3     tidyselect_1.2.1   stringr_1.6.0     
+     [5] dplyr_1.2.1        compiler_4.4.3     tidyselect_1.2.1   stringr_1.6.0     
      [9] parallel_4.4.3     scales_1.4.0       yaml_2.3.12        fastmap_1.2.0     
     [13] here_1.0.2         readr_2.2.0        R6_2.6.1           labeling_0.4.3    
     [17] generics_0.1.4     knitr_1.51         tibble_3.3.1       rprojroot_2.1.1   
-    [21] pillar_1.11.1      RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.1.7       
-    [25] stringi_1.8.7      xfun_0.57          S7_0.2.1           bit64_4.6.0-1     
-    [29] otel_0.2.0         cli_3.6.5          withr_3.0.2        magrittr_2.0.4    
-    [33] digest_0.6.39      grid_4.4.3         vroom_1.7.0        rstudioapi_0.18.0 
-    [37] hms_1.1.4          lifecycle_1.0.5    vctrs_0.7.2        evaluate_1.0.5    
-    [41] glue_1.8.0         farver_2.1.2       rmarkdown_2.31     tools_4.4.3       
+    [21] pillar_1.11.1      RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.3.0       
+    [25] stringi_1.8.7      xfun_0.60          S7_0.2.2           bit64_4.8.2       
+    [29] otel_0.2.0         cli_3.6.6          withr_3.0.3        magrittr_2.0.5    
+    [33] digest_0.6.39      grid_4.4.3         vroom_1.7.1        rstudioapi_0.18.0 
+    [37] hms_1.1.4          lifecycle_1.0.5    vctrs_0.7.3        evaluate_1.0.5    
+    [41] glue_1.8.1         farver_2.1.2       rmarkdown_2.31     tools_4.4.3       
     [45] pkgconfig_2.0.3    htmltools_0.5.9   

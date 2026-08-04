@@ -1,13 +1,10 @@
 executor: slurm
 
 # Set the maximum number of concurrent jobs to execute or submit
-jobs: 50
+jobs: 500
 
 default-resources:
   slurm_account: standard
-  slurm_partition: short # set to the partition they tell you us use
-  mem_mb: 700
-  runtime: 5 # minutes
 
 default-storage-provider: fs
 local-storage-prefix: "/data/tmp/$USER" # copy to tmp for fast reading in local node

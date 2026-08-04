@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-configfile: "config/test_merge_config.yaml"
+configfile: "config/compendium_v1_merge_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])
@@ -49,6 +49,9 @@ rule bam2gtf:
         )
     output: "<merged_shiba_results>/pre-merge/{sample}.gtf"
     threads: 8
+    resources:
+        mem_mb = 5500,
+        runtime = 360
     log: "logs/{sample}_bam2gtf.log"
     shell:
         """
@@ -65,6 +68,9 @@ rule merge_gtfs:
     output: "<merged_shiba_results>/merged_gtf.gtf"
     priority: 1
     threads: 8
+    resources:
+        mem_mb = 1500,
+        runtime = 360
     log: "logs/merge_gtfs.log"
     shell:
         """
@@ -79,7 +85,7 @@ rule merge_gtfs:
 
         # merge gtfs with stringtie for splice analysis
         stringtie -v --merge -p {threads} -G {input.reference_gtf} -o {output} $manifest > {log} 2>&1
-        
+
         # remove temp manifest file
         rm $manifest
         """
@@ -87,8 +93,11 @@ rule merge_gtfs:
 rule merge_junctions:
     input: JUNCTION_BEDS
     output: "<merged_shiba_results>/merged_junctions.bed"
-    priority: 1
+    priority: 10
     threads: 15
+    resources:
+        mem_mb = 1600000,
+        runtime = 400
     shell:
         """
         tempdir=$(mktemp -d)
@@ -132,6 +141,9 @@ rule gtf_to_events:
         shiba_scripts = config["shiba_scripts_path"]
     priority: 1
     threads: 10
+    resources:
+        mem_mb = 4000,
+        runtime = 60
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
@@ -151,7 +163,7 @@ rule calculate_psi:
     threads: 15
     resources:
         mem_mb = 2000000,
-        time = 180
+        runtime = 720
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}

@@ -48,7 +48,7 @@ rule bam2gtf:
             )
         )
     output: "<merged_shiba_results>/pre-merge/{sample}.gtf"
-    threads: 40
+    threads: 8
     resources:
         mem_mb = 5500,
         runtime = 360

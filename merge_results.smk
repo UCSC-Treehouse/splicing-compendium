@@ -142,7 +142,7 @@ rule gtf_to_events:
     priority: 1
     threads: 10
     resources:
-        mem_mb = 9000,
+        mem_mb = 60000,
         runtime = 60
     shell:
         """

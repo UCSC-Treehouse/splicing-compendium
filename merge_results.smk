@@ -69,7 +69,7 @@ rule merge_gtfs:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 30000,
+        mem_mb = 300000,
         runtime = 360
     log: "logs/merge_gtfs.log"
     shell:

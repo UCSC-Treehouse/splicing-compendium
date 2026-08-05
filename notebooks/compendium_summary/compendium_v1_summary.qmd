@@ -107,6 +107,13 @@ gtex_demographic_metadata <- readr::read_tsv(
   )
 )
 
+target_sra_metadata <- readr::read_csv(
+  target_sra_file,
+  col_types = readr::cols(
+    .default = "c"
+  )
+)
+
 target_metadata <- readr::read_tsv(
   target_metadata_file,
   col_types = readr::cols(
@@ -146,6 +153,9 @@ target_accessions_list <- sample_df |>
 gtex_accessions_list <- sample_df |>
   dplyr::filter(group == "gtex") |>
   dplyr::pull(sample)
+
+# Filter target SRA/dbgap metadata to obtain ReleaseDate and version columns
+
 
 # merge GTEx SRA with demographic metadata by accession ID
 gtex_sra_ages_df <- gtex_sra_metadata |>

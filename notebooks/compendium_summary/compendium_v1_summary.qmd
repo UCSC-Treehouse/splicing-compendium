@@ -15,6 +15,8 @@ Splice compendium v1 contains data from TARGET and GTEx datasets. This notebook 
 Metadata used for this analysis are:
 
 - [sample_sheet.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/config/sample_sheet.tsv): Accessions list of samples processed in splice compendium v1. Columns include accession ID ("sample") and dataset ("group").
+- `GTEX_SraRunTable.csv`: metadata file of dbGaP accession IDs containing GTEX samples.
+- `SraRunTable-TARGET.csv`: metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
 - [gtex_accessions.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/filter_target_gtex/gtex_accessions.tsv): metadata file of GTEX sample accession IDs, along with age, sex of donor and tissue type of the sample.
 - [target_accessions_clinical.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/celiang/new-clinical-metadata/metadata/filter_target_gtex/target_accessions_clinical.tsv): metadata file of TARGET sample accession IDs, along with age, sex of donor, cancer type of the sample, and sequencing center of origin of the sample.
 
@@ -75,6 +77,8 @@ gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
 # metadata containing ages of gtex samples
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
 
+# target dbgap metadata
+target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
 # target metadata with age info
 target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
 # sample sheet of compendium files 

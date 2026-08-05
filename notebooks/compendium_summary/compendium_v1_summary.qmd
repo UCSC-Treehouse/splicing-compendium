@@ -451,11 +451,13 @@ In particular, ALL Phase 2 and AML samples come from two different sequencing ce
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, version, ReleaseDate),
+    .by = c(tissue_type, version),
     n = dplyr::n()
   )
 
 ```
+
+All GTEx tissue types in the compendium come from multiple versions.
 
 ### Table of versions and release dates in TARGET dataset
 
@@ -463,11 +465,13 @@ for_summary_compendium_df |>
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, version, ReleaseDate),
+    .by = c(tissue_type, version),
     n = dplyr::n()
   )
 
 ```
+
+ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versions.
 
 ## Write output
 

@@ -461,7 +461,7 @@ All GTEx tissue types in the compendium come from multiple versions.
 
 ### Table of versions and release dates in TARGET dataset
 
-```{r gtex_version_releasedate_table}
+```{r target_version_releasedate_table}
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(

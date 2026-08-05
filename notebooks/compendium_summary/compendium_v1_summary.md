@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-07-30
+2026-08-04
 
 ## Introduction
 
@@ -14,6 +14,12 @@ Metadata used for this analysis are:
 - [sample_sheet.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/config/sample_sheet.tsv):
   Accessions list of samples processed in splice compendium v1. Columns
   include accession ID (“sample”) and dataset (“group”).
+- `GTEX_SraRunTable.csv`: metadata file of dbGaP accession IDs
+  containing GTEX samples.
+- `SraRunTable-TARGET.csv`: metadata file of accession IDs for dbGaP
+  samples with the TARGET dataset. Created by downloading the SRA run
+  table on dbGaP, with the “phs000218” filter (parent phs ID for TARGET
+  dataset)
 - [gtex_accessions.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/filter_target_gtex/gtex_accessions.tsv):
   metadata file of GTEX sample accession IDs, along with age, sex of
   donor and tissue type of the sample.
@@ -52,6 +58,8 @@ gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
 # metadata containing ages of gtex samples
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
 
+# target dbgap metadata
+target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
 # target metadata with age info
 target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
 # sample sheet of compendium files 
@@ -75,6 +83,13 @@ gtex_sra_metadata <- readr::read_csv(
 
 gtex_demographic_metadata <- readr::read_tsv(
   gtex_ages_file,
+  col_types = readr::cols(
+    .default = "c"
+  )
+)
+
+target_sra_metadata <- readr::read_csv(
+  target_sra_file,
   col_types = readr::cols(
     .default = "c"
   )
@@ -123,6 +138,20 @@ gtex_accessions_list <- sample_df |>
   dplyr::filter(group == "gtex") |>
   dplyr::pull(sample)
 
+# Filter target SRA/dbgap metadata to obtain ReleaseDate and version columns
+target_sra_cleaned_metadata <- target_sra_metadata |>
+  dplyr::select(Run, version, ReleaseDate)
+
+# merge target metadata with cleaned sra metadata columns
+target_metadata_with_version <- dplyr::left_join(
+  target_sra_cleaned_metadata,
+  target_metadata
+)
+```
+
+    Joining with `by = join_by(Run)`
+
+``` r
 # merge GTEx SRA with demographic metadata by accession ID
 gtex_sra_ages_df <- gtex_sra_metadata |>
   dplyr::left_join(gtex_demographic_metadata, by = "SUBJID") |>
@@ -136,7 +165,7 @@ gtex_sra_ages_df <- gtex_sra_metadata |>
 
 # filter gtex and target metadata for those corresponding to samples in compendium
 
-target_compendium_df <- target_metadata |>
+target_compendium_df <- target_metadata_with_version |>
   dplyr::filter(Run %in% target_accessions_list) |>
   # the xena browser metadata's "name.project" has the cancer type in a prettier format 
   # (no "TARGET:" prefix) 
@@ -151,6 +180,8 @@ target_compendium_df <- target_metadata |>
   dplyr::select(
     # fields shared with gtex metadata
     dataset,
+    version,
+    ReleaseDate,
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
@@ -195,8 +226,9 @@ gtex_compendium_df <- gtex_sra_ages_df |>
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
     body_site, # tissue type of sample, to be used in combining columns
+    version = version, # gtex version of the sample
+    ReleaseDate, # release date of sample
     # gtex-specific metadata fields
-    gtex_version = version, # gtex version sample was added
     gtex_subject_id = SUBJID # ID of the individual the sample came from - some samples come from the same subject
   )
 ```
@@ -297,31 +329,32 @@ colnames(merged_compendium_df)
 ```
 
      [1] "dataset"                                                  
-     [2] "Run"                                                      
-     [3] "BioSample"                                                
-     [4] "center_name"                                              
-     [5] "sex"                                                      
-     [6] "target_study_name"                                        
-     [7] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
-     [8] "target_patient_id"                                        
-     [9] "target_biospecimen_sample_id"                             
-    [10] "target_race"                                              
-    [11] "target_ethnicity"                                         
-    [12] "target_OS"                                                
-    [13] "target_OS_time"                                           
-    [14] "target_disease_type"                                      
-    [15] "target_project_id"                                        
-    [16] "target_project_name"                                      
-    [17] "target_tumor_class"                                       
-    [18] "target_primary_diagnosis"                                 
-    [19] "target_sample_type"                                       
-    [20] "target_tissue_type"                                       
-    [21] "target_histological_type"                                 
-    [22] "body_site"                                                
-    [23] "age_in_years"                                             
-    [24] "gtex_version"                                             
-    [25] "gtex_subject_id"                                          
-    [26] "tissue_type"                                              
+     [2] "version"                                                  
+     [3] "ReleaseDate"                                              
+     [4] "Run"                                                      
+     [5] "BioSample"                                                
+     [6] "center_name"                                              
+     [7] "sex"                                                      
+     [8] "target_study_name"                                        
+     [9] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
+    [10] "target_patient_id"                                        
+    [11] "target_biospecimen_sample_id"                             
+    [12] "target_race"                                              
+    [13] "target_ethnicity"                                         
+    [14] "target_OS"                                                
+    [15] "target_OS_time"                                           
+    [16] "target_disease_type"                                      
+    [17] "target_project_id"                                        
+    [18] "target_project_name"                                      
+    [19] "target_tumor_class"                                       
+    [20] "target_primary_diagnosis"                                 
+    [21] "target_sample_type"                                       
+    [22] "target_tissue_type"                                       
+    [23] "target_histological_type"                                 
+    [24] "body_site"                                                
+    [25] "age_in_years"                                             
+    [26] "gtex_subject_id"                                          
+    [27] "tissue_type"                                              
 
 Check for duplicates in Run
 
@@ -469,6 +502,8 @@ for_summary_compendium_df |>
 | Whole Blood                         | 60-69        | 144 |
 | Whole Blood                         | 70-79        |   6 |
 
+### Table of ages in TARGET dataset
+
 ``` r
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
@@ -506,6 +541,111 @@ for_summary_compendium_df |>
 
 All TARGET samples have age metadata and are composed primarily of \< 30
 year old samples
+
+### Table of sequencing center of origin of GTEx dataset
+
+``` r
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "gtex") |>
+  dplyr::summarise(
+    .by = c(tissue_type, center_name),
+    n = dplyr::n()
+  )
+```
+
+| tissue_type                         | center_name     |   n |
+|:------------------------------------|:----------------|----:|
+| Muscle - Skeletal                   | BI              | 460 |
+| Whole Blood                         | BI              | 446 |
+| Cells - EBV-transformed lymphocytes | BI              | 136 |
+| Kidney - Cortex                     | BI              |  36 |
+| Whole Blood                         | Broad Institute |  10 |
+| Cells - EBV-transformed lymphocytes | Broad Institute |   8 |
+| Muscle - Skeletal                   | Broad Institute |   2 |
+
+“BI” stands for Broad Institute; all GTEx samples originate from the
+same sequencing center.
+
+### Table of sequencing center of origin of TARGET dataset
+
+``` r
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "target") |>
+  dplyr::summarise(
+    .by = c(tissue_type, center_name),
+    n = dplyr::n()
+  )
+```
+
+| tissue_type                                          | center_name |   n |
+|:-----------------------------------------------------|:------------|----:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC     | 304 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | STJUDE      |   5 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | STJUDE      |   3 |
+| Acute Myeloid Leukemia (AML)                         | HAIB        |  66 |
+| Acute Myeloid Leukemia (AML)                         | BCCAGSC     | 382 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | NCI-KHAN    |  13 |
+| Kidney, Wilms Tumor (WT)                             | BCCAGSC     | 137 |
+| Kidney, Rhabdoid Tumor (RT)                          | BCCAGSC     |  81 |
+| Neuroblastoma (NBL)                                  | NCI-KHAN    | 161 |
+
+TARGET samples come from multiple different sequencing centers. In
+particular, ALL Phase 2 and AML samples come from two different
+sequencing centers.
+
+### Table of versions and release dates in GTEx dataset
+
+``` r
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "gtex") |>
+  dplyr::summarise(
+    .by = c(tissue_type, version),
+    n = dplyr::n()
+  )
+```
+
+| tissue_type                         | version |   n |
+|:------------------------------------|:--------|----:|
+| Muscle - Skeletal                   | 2       | 449 |
+| Whole Blood                         | 2       | 429 |
+| Cells - EBV-transformed lymphocytes | 2       | 131 |
+| Kidney - Cortex                     | 3       |   2 |
+| Kidney - Cortex                     | 2       |  34 |
+| Whole Blood                         | 3       |  17 |
+| Cells - EBV-transformed lymphocytes | 3       |   5 |
+| Muscle - Skeletal                   | 3       |  11 |
+| Whole Blood                         | 1       |  10 |
+| Cells - EBV-transformed lymphocytes | 1       |   8 |
+| Muscle - Skeletal                   | 1       |   2 |
+
+All GTEx tissue types in the compendium come from multiple versions.
+
+### Table of versions and release dates in TARGET dataset
+
+``` r
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "target") |>
+  dplyr::summarise(
+    .by = c(tissue_type, version),
+    n = dplyr::n()
+  )
+```
+
+| tissue_type                                          | version |   n |
+|:-----------------------------------------------------|:--------|----:|
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 1       | 307 |
+| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 2       |   2 |
+| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 1       |   3 |
+| Acute Myeloid Leukemia (AML)                         | 1       | 448 |
+| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | 1       |  13 |
+| Kidney, Wilms Tumor (WT)                             | 1       | 137 |
+| Kidney, Rhabdoid Tumor (RT)                          | 1       |  81 |
+| Neuroblastoma (NBL)                                  | 3       |  32 |
+| Neuroblastoma (NBL)                                  | 1       | 128 |
+| Neuroblastoma (NBL)                                  | 2       |   1 |
+
+ALL Phase 2 and neuroblastoma samples in the compendium come from
+multiple versions.
 
 ## Write output
 

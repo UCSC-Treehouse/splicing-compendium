@@ -69,7 +69,7 @@ rule merge_gtfs:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 300000,
+        mem_mb = 200000,
         runtime = 360
     log: "logs/merge_gtfs.log"
     shell:
@@ -143,7 +143,7 @@ rule gtf_to_events:
     threads: 10
     resources:
         mem_mb = 60000,
-        runtime = 60
+        runtime = 360
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v

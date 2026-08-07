@@ -160,10 +160,10 @@ rule calculate_psi:
         shiba_scripts = config["shiba_scripts_path"],
         min_reads = config["shiba_min_reads"]
     priority: 1
-    threads: 15
+    threads: 6
     resources:
-        mem_mb = 2000000,
-        runtime = 720
+        mem_mb = 2200000,
+        runtime = 20160
     shell:
         """
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi {input.merged_junctions} {input.events_dir} {output.shiba_psi_out}

@@ -241,13 +241,10 @@ na_comparison_summary <- function(long_df) {
         dplyr::case_when(
           v1 == -1 & combined == -1 ~ "both Shiba NAs",
           v1 == -1 & is.na(combined) ~ "no event in combined, Shiba NA in v1",
-          v1 == -2 & combined == -1 ~ "v1 dropped, combined shiba NA",
-          v1 == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in v1 table",
           is.na(v1) & combined >= 0 ~ "PSI only quantified in combined table",
           is.na(v1) & combined == -1 ~ "no event in v1, Shiba NA in combined",
-          is.na(v1) & combined == -2 ~ "no event in v1, dropped in combined",
+          is.na(v1) & is.na(combined) ~ "both NA",
           v1 >= 0 & is.na(combined) ~ "PSI only quantified in v1 table",
-          v1 == -2 & is.na(combined) ~ "no event in combined, dropped in v1",
           v1 >= 0 & combined >= 0 ~ "PSI quantified in both"
         )
     ) |>
@@ -271,9 +268,9 @@ psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
       match_category =
         dplyr::case_when(
           v1 == -1 & combined == -1 ~ "both Shiba NAs",
-          v1 == -2 & combined == -1 ~ "v1 dropped, combined shiba NA",
+          v1 == -1 & combined >=0 ~ "v1 Shiba NA",
+          v1 >= 0 & combined == -1 ~ "combined Shiba NA",
           v1 >= 0 & combined >= 0 ~ "PSI quantified in both",
-          v1 == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in v1 table",
           is.na(v1) & combined >= 0 ~ "PSI only quantified in combined table",
           v1 >= 0 & is.na(combined) ~ "PSI only quantified in v1 table"
         )
@@ -283,7 +280,7 @@ psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
       facet_wrap(vars(label)) +
-    scale_fill_manual(values = cbPalette) +
+      scale_fill_manual(values = cbPalette) +
       plot_theme +
       # make facet labels bigger
       theme(strip.text.x = element_text(size = global_size),
@@ -719,9 +716,7 @@ important_categories <- c(
   "NA in combined, quantified in v1",
   "PSI quantified in combined, dropped in v1 table")
 
-na_comparison_summary(long_all_events) |>
-  # arrange most important categories to the front
-  dplyr::arrange(match(match_category, important_categories))
+na_comparison_summary(long_all_events)
 ```
 
 We care most about "PSI quantified in both", "NA in v1, quantified in combined", "NA in combined, quantified in v1", and "PSI quantified in combined, dropped in v1 table" categories.
@@ -769,8 +764,32 @@ This plot shows the distribution of the "true" values of -2 ("gene dropped") NAs
 #| fig-width: 11
 #| fig-height: 8
 
-# plot PSI distributions of events in combined dataframe
-psi_values_lost_in_tables(long_all_events, "PSI quantified in combined, dropped in v1 table")
+long_min_sample_all_events |>
+    # drop NAs from putting together the v1 and combined tables
+    tidyr::drop_na() |>
+    # assign match categories
+    dplyr::mutate(
+      match_category =
+        dplyr::case_when(
+          v1 == -1 & combined == -1 ~ "both Shiba NAs",
+          v1 == -1 & combined >=0 ~ "v1 Shiba NA",
+          v1 >= 0 & combined == -1 ~ "combined Shiba NA",
+          v1 >= 0 & combined >= 0 ~ "PSI quantified in both",
+          is.na(v1) & combined >= 0 ~ "PSI only quantified in combined table",
+          v1 >= 0 & is.na(combined) ~ "PSI only quantified in v1 table"
+        )
+    ) |>
+    # plot only events in combined table with numeric PSIs that are dropped in the v1 table
+    dplyr::filter(match_category == "PSI only quantified in v1 table") |>
+      ggplot(aes(combined, fill = event_type)) +
+      geom_histogram(bins = 20) +
+      # facet_wrap(vars(label)) +
+      scale_fill_manual(values = cbPalette) +
+      plot_theme +
+      # make facet labels bigger
+      theme(strip.text.x = element_text(size = global_size),
+            # rotate x axis labels so they don't overlap
+            axis.text.x = element_text(angle =45))
 ```
 
 The PSI values of the "gene dropped" NAs span the full range of PSI values, so we miss out entirely on a wide range of values using the v1 method.

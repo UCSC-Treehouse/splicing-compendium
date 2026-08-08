@@ -43,3 +43,4 @@ exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/*
 
 # v1 target pilot results
 exploration/v1_workflow_target_pilot_results/
+exploration/v1_psi_tables/long_psi_df.rd

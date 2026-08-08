@@ -12,6 +12,16 @@ params:
   use_cache: TRUE
 ---
 
+## Introduction
+
+Compendium workflow v1 (workflow with updated GTF generation and merging rules) has been run on the TARGET pilot samples.
+To understand what differences remain between PSI results generated from this workflow and the canonical Shiba run, 
+a portion of the `compared_merged_psi_table` notebook is run on the PSI tables generated from the v1 workflow and the unaltered Shiba scripts.
+
+**v1**: Refers to PSI results generated from the most recent compendium workflow method
+**Combined**: Refers to PSI results generated from the unaltered Shiba script.
+
+
 **Question:** Does merging v1 splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
 
 As part of our pipeline, we plan to merge Shiba tables created for individual samples to obtain a final PSI table of all samples.

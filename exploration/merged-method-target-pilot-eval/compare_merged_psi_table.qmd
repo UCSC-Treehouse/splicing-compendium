@@ -476,16 +476,6 @@ all_events_summary |> dplyr::select(
 Out of all the event types, annotated skipped exons and annotated multiple skipped exon types are the most shared between the two methods (above 90%).
 In contrast, unannotated events of these types are only shared at 65% and 58% respectively.
 
-Plot event-level (one count per unique event) summary of event frequency across methods and event types
-
-```{r}
-#| label: fig-splice_events_breakdown
-#| fig-width: 11
-#| fig-height: 8
-
-plot_event_summary(all_events_summary)
-```
-
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the v1 table (green) than the combined table (red).
 Inflated values in the v1 tables may be due to -2 NAs which arise in the Shiba processing of v1 samples when when genes without multiple transcripts are dropped.
 
@@ -555,30 +545,6 @@ all_events_min_samples  |>
 
 `n_quantified_v1` and `n_quantified_combined` columns have min values of 5, so filtering appears to be correct.
 
-Plot event distributions of the filtered table
-
-```{r}
-#| label: fig-splice_events_breakdown_5_samples
-#| fig-width: 11
-#| fig-height: 8
-
-# event-level summary of the number of each splice event type in each splice table
-all_events_summary_min_samples <- all_events_min_samples |>
-  # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
-  dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    combined_only_count = sum(combined_event) - shared_count,
-    v1_only_count = sum(v1_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    combined_only_percent = combined_only_count / total * 100,
-    v1_only_percent = v1_only_count / total * 100,
-)
-
-plot_event_summary(all_events_summary_min_samples)
-```
 
 Observations:
 
@@ -587,12 +553,6 @@ Observations:
 
 - Additionally, we still see that most unannotated events are no longer present after this filtering.
 
-Print table of splice event counts of filtered table
-
-```{r}
-all_events_summary_min_samples |>
-  dplyr::select(event_type, label, shared_count, v1_only_count, combined_only_count)
-```
 
 Observations:
 
@@ -744,24 +704,6 @@ This category is not concerning, as these events would not appear in the "canoni
 The most concerning mismatch types in this table are "PSI quantified in combined, dropped in v1 table" (9%) and "PSI only quantified in combined table" (4%),
 as these represent missing splice events due to differences between each method.
 Although the overall percent appears small, only 16% of PSI values are quantified in both tables, so we are missing about as many events as we can detect with this method.
-
-Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
-
-### Make filtered df long
-
-```{r}
-
-long_min_sample_all_events <- pivot_long(all_events_min_samples)
-
-# create summary table of match categories
-na_comparison_summary(long_min_sample_all_events) |>
-  # arrange most important categories to the front
-  dplyr::arrange(match(match_category, important_categories))
-```
-
-When we apply the min_samples filter, there is a smaller ratio of concerning mismatches in PSI values between the methods.
-47% of PSIs are shared, compared to 3% of "PSI quantified in combined, dropped in v1 table".
-There are no splice events in this filtered dataframe in the "PSI only quantified in combined table" category.
 
 #### Plot PSI distribution of PSI values lost in each method
 

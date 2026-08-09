@@ -15,12 +15,27 @@ params:
 ## Introduction
 
 Compendium workflow v1 (workflow with updated GTF generation and merging rules) has been run on the TARGET pilot samples.
-To understand what differences remain between PSI results generated from this workflow and the canonical Shiba run, 
-a portion of the `compared_merged_psi_table` notebook is run on the PSI tables generated from the v1 workflow and the unaltered Shiba scripts.
+To understand what differences remain between PSI results generated from this workflow and the canonical Shiba run, a portion of the `compared_merged_psi_table` notebook is run on the PSI tables generated from the v1 workflow and the unaltered Shiba scripts.
 
 **v1**: Refers to PSI results generated from the most recent compendium workflow method
+
 **Combined**: Refers to PSI results generated from the unaltered Shiba script.
 
+**Combined_dedup**: PSI valiues generated from running only the Shiba PSI.py script on the following inputs and command:
+
+- event coordinates files generated from the Combined method
+
+- Junctions.bed files generated from Combined, then duplicated with the deduplication commands used in the v1 workflow
+
+```         
+python $CONDA_PREFIX/share/shiba-0.8.1-0/src/psi.py -m \
+10 -p \
+30 -v \
+--onlypsi \
+/private/groups/treehouse/working-projects/celiang/splicing-compendium/exploration/merging-psi-tables/target_pilot/shiba_combined/junctions/deduplicated_junctions.bed \
+/private/groups/treehouse/working-projects/celiang/splicing-compendium/exploration/merging-psi-tables/target_pilot/shiba_combined/events \
+v1_dedup_target_pilot_combined
+```
 
 **Question:** Does merging v1 splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
 
@@ -30,8 +45,6 @@ Before doing so, we use this notebook to test that merging PSI tables from v1 ru
 As part of tracking differences between the two tables, we have labeled NA values introduced at various steps of the data processing pipeline with different negative values:
 
 - -1: NA values assigned by Shiba (splice events with low coverage)
-
-- -2: NA values from merging the v1 tables together (samples have a NA value after this step if there are genes dropped by Shiba for those samples because there is only one transcript detected in the GTF for that gene)
 
 - NA: NA values from merging the v1 and combined tables.
   These NAs represent splice events that are only found in one analysis method (combined vs. v1)
@@ -402,7 +415,7 @@ dim(v1_psi_table)
 dim(combined_psi_table)
 ```
 
-There are ~400 more splice events in the combined PSI table than the v1 table.
+There are \~400 more splice events in the combined PSI table than the v1 table.
 
 ## What splice event types do we miss out on with the v1 tables method?
 
@@ -545,14 +558,12 @@ all_events_min_samples  |>
 
 `n_quantified_v1` and `n_quantified_combined` columns have min values of 5, so filtering appears to be correct.
 
-
 Observations:
 
 - Although most events are shared after applying this filter and we still have unannotated events, we also still have events only found in the v1 table.
   These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
 - Additionally, we still see that most unannotated events are no longer present after this filtering.
-
 
 Observations:
 
@@ -576,7 +587,6 @@ number_events_dist(all_events, "n_quantified_v1", "Number of quantified PSI valu
 number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
 
-
 Check skipped exon quantified PSI histograms
 
 ```{r}
@@ -597,6 +607,7 @@ As expected, we have more observations of quantified unannotated PSI values in t
 More critically, the unannotated observations in the combined table that we lose in the v1 tables seem to be quantified in most of the TARGET pilot samples.
 
 ### Histogram of events dropped by Shiba due to insufficient read counts
+
 The following histograms show the counts of PSI values that are DROPPED in each method.
 
 ```{r}
@@ -608,6 +619,7 @@ number_events_dist(all_events, "n_shiba_na_v1", "Number of PSIs dropped due to i
 
 number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
+
 There appear to be more events dropped across more samples in the combined results compared to the v1 results.
 However, I think this is because the combined method captures more "rare" (e.g. present in only one sample) splice events.
 This would increase the overall pool of possible loci that could be sequenced so sparsely that they do not actually make it into PSI calculation.
@@ -623,6 +635,7 @@ I do not plot this for the combined table because they are all 0 (we only define
 
 number_events_dist(all_events, "n_dropped_v1", "# PSIs dropped due to gene being thrown out in v1 table")
 ```
+
 This category of missing values are inflated in unannotated events in the v1 table.
 
 ## How many of each splice event types are quantified?
@@ -670,12 +683,12 @@ saveRDS(long_all_events, file = long_df_output)
 long_psi_in_both_df <- long_all_events |> dplyr::filter(combined > 0 & v1 > 0)
 identical(long_psi_in_both_df$combined, long_psi_in_both_df$combined)
 ```
+
 Yes, PSI values of shared events in both methods are identical.
 
 #### How well correlated are the PSI values and NAs in each splice table type?
 
-To better understand patterns behind what PSI values are missing in each method, this notebook categorizes PSI values into "match categories",
-based on what the value (or NA type) for that position is in each method's PSI table.
+To better understand patterns behind what PSI values are missing in each method, this notebook categorizes PSI values into "match categories", based on what the value (or NA type) for that position is in each method's PSI table.
 
 Summarize how many of each of these match categories are present in the pilot tables
 
@@ -697,12 +710,10 @@ These categories of match types have explanations for why PSI values may be miss
 - Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in v1
 - Events we expect are real but are missed in the v1 method due to how events are defined in the GTF: PSI quantified in combined, dropped in v1 table
 
-In this table, most mismatches (35%) stem from cases where the splice event is dropped in the v1 table due to only one gene being detected in the GTF,
-but there are too few junction counts for a splice event in that gene for the event to be assigned a PSI value in the combined table.
+In this table, most mismatches (35%) stem from cases where the splice event is dropped in the v1 table due to only one gene being detected in the GTF, but there are too few junction counts for a splice event in that gene for the event to be assigned a PSI value in the combined table.
 This category is not concerning, as these events would not appear in the "canonical" Shiba method.
 
-The most concerning mismatch types in this table are "PSI quantified in combined, dropped in v1 table" (9%) and "PSI only quantified in combined table" (4%),
-as these represent missing splice events due to differences between each method.
+The most concerning mismatch types in this table are "PSI quantified in combined, dropped in v1 table" (9%) and "PSI only quantified in combined table" (4%), as these represent missing splice events due to differences between each method.
 Although the overall percent appears small, only 16% of PSI values are quantified in both tables, so we are missing about as many events as we can detect with this method.
 
 #### Plot PSI distribution of PSI values lost in each method

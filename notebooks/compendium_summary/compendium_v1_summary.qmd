@@ -561,7 +561,7 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
     vjust = -0.5,
     size = global_size - 14
   ) +
-  scale_fill_brewer(palette = "Greens")
+  scale_fill_brewer(palette = "YlOrBr")
 ```
 
 ## Write output

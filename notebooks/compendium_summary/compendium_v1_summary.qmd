@@ -161,7 +161,8 @@ target_sra_cleaned_metadata <- target_sra_metadata |>
 # merge target metadata with cleaned sra metadata columns
 target_metadata_with_version <- dplyr::left_join(
   target_sra_cleaned_metadata,
-  target_metadata
+  target_metadata,
+  by = dplyr::join_by(Run)
 )
 
 # merge GTEx SRA with demographic metadata by accession ID

@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-09
+2026-08-10
 
 ## Introduction
 
@@ -174,8 +174,11 @@ target_compendium_df <- target_metadata_with_version |>
   dplyr::mutate(
     # add dataset column to facet plots by
     dataset = "target",
-    # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "^TARGET: ")) |>
+    # remove slash characters and TARGET prefix from study_name values
+    target_study_name = study_name |> 
+      stringr::str_replace_all(stringr::fixed("\\"), "") |> 
+      stringr::str_remove("^TARGET: "),
+    tissue_type = study_name) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with gtex metadata
@@ -186,7 +189,7 @@ target_compendium_df <- target_metadata_with_version |>
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
     sex = gender.demographic, # in "male" / "female" values,
-    tissue_type = study_name, # cancer type of sample, to be used in combining columns
+    target_study_name, # cancer type of sample, to be used in combining columns
     # fields specific to target metadata
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -225,7 +228,7 @@ gtex_compendium_df <- gtex_sra_ages_df |>
     age_in_years = AGE, # in 10-year bins (characters)
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
-    tissue_type = body_site, # tissue type of sample, to be used in combining columns
+    body_site, # tissue type of sample, to be used in combining columns
     version = version, # gtex version of the sample
     ReleaseDate, # release date of sample
     # gtex-specific metadata fields
@@ -291,8 +294,7 @@ cleaned_target_df <- target_compendium_df |>
          "80-89",
          "90-99"
        )
-       ),
-     tissue_type = stringr::str_replace_all(tissue_type, stringr::fixed("\\"), "")
+       )
     ) |>
   # there are 4 TARGET ALL phase 2 samples duplicated as ALL phase 3 with no age information
   # all other TARGET accessions have age info
@@ -314,7 +316,9 @@ cleaned_gtex_df <- gtex_compendium_df |>
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-)
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -334,7 +338,7 @@ colnames(merged_compendium_df)
      [5] "BioSample"                                                
      [6] "center_name"                                              
      [7] "sex"                                                      
-     [8] "tissue_type"                                              
+     [8] "target_study_name"                                        
      [9] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
     [10] "target_patient_id"                                        
     [11] "target_biospecimen_sample_id"                             
@@ -353,6 +357,7 @@ colnames(merged_compendium_df)
     [24] "body_site"                                                
     [25] "age_in_years"                                             
     [26] "gtex_subject_id"                                          
+    [27] "tissue_type"                                              
 
 Check for duplicates in Run
 
@@ -380,13 +385,15 @@ tissue_types <- c(
 
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
-    tissue_type %in% tissue_types
+    body_site %in% tissue_types
       )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
-)
+) |>
+  # add a tissue_type column for faceting
+  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -653,14 +660,14 @@ Additionally, create shorter tissue type names for plotting
 for_plot_target_df <- cleaned_target_df |>
   dplyr::mutate(
     plot_tissue_type = dplyr::case_when(
-      tissue_type == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" | 
-        tissue_type == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
+      target_study_name == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" | 
+        target_study_name == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
         "ALL",
-      tissue_type == "Acute Myeloid Leukemia (AML)" ~ "AML",
-      tissue_type == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
-      tissue_type == "Kidney, Wilms Tumor (WT)" ~ "WT",
-      tissue_type == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
-      tissue_type == "Neuroblastoma (NBL)" ~ "NBL"
+      target_study_name == "Acute Myeloid Leukemia (AML)" ~ "AML",
+      target_study_name == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
+      target_study_name == "Kidney, Wilms Tumor (WT)" ~ "WT",
+      target_study_name == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
+      target_study_name == "Neuroblastoma (NBL)" ~ "NBL"
     )
   )
 ```

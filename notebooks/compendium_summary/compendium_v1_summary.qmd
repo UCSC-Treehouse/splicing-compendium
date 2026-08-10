@@ -532,6 +532,34 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   scale_fill_brewer(palette = "YlOrBr")
 ```
 
+### GTEx sample distribution plot
+
+```{r}
+#| label: fig-gtex_sample_dist_bar
+#| fig-width: 15
+#| fig-height: 8
+
+# make bar plot of gtex sample distribution
+ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
+  geom_bar() +
+  labs(title = "GTEx tissue type composition of splice compendium v1", 
+       y = "Tissue type", 
+       x = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.5,
+    vjust = -0.5,
+    size = global_size - 14
+  ) +
+  scale_fill_brewer(palette = "Greens")
+```
+
 ## Write output
 
 ```{r write_output}

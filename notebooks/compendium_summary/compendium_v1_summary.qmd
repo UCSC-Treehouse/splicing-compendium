@@ -338,7 +338,7 @@ merged_compendium_df <- dplyr::bind_rows(
   cleaned_gtex_df
 ) |>
   # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -378,7 +378,7 @@ for_summary_compendium_df <- dplyr::bind_rows(
 ) |>
   dplyr::mutate(
     # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(target_study_name, body_site)
+    tissue_type = dplyr::coalesce(plot_tissue_type, body_site)
   )
 
 for_summary_compendium_df |>
@@ -398,7 +398,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(body_site) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -412,7 +412,7 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(target_study_name) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -426,7 +426,7 @@ Print a table summarizing number of samples in each age bin in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(body_site, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -438,7 +438,7 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(target_study_name, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -453,7 +453,7 @@ All TARGET samples have age metadata and are composed primarily of \< 30 year ol
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(body_site, center_name),
     n = dplyr::n()
   )
 
@@ -467,7 +467,7 @@ for_summary_compendium_df |>
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(target_study_name, center_name),
     n = dplyr::n()
   )
 ```
@@ -480,7 +480,7 @@ TARGET samples come from multiple different sequencing centers. In particular, A
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(body_site, version),
     n = dplyr::n()
   )
 
@@ -494,7 +494,7 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(target_study_name, version),
     n = dplyr::n()
   )
 
@@ -558,6 +558,36 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
     size = global_size - 14
   ) +
   scale_fill_brewer(palette = "Greens")
+```
+
+### Compendium age distribution plot
+
+```{r}
+#| label: fig-age_dist_bar
+#| fig-width: 15
+#| fig-height: 8
+
+# make bar plot of target sample distribution
+ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+  geom_bar() +
+  labs(title = "TARGET age bin composition of splice compendium v1", 
+       x = "Age in 10-year bins", 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 400) +
+  plot_theme +
+  facet_grid(vars(tissue_type, dataset),
+             labeller = label_wrap_gen(width = 10)) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.5,
+    vjust = -0.5,
+    size = global_size - 14
+  ) +
+  scale_fill_brewer(palette = "YlOrBr")
 ```
 
 ## Write output

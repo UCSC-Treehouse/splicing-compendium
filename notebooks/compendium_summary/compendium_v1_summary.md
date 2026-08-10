@@ -683,21 +683,14 @@ ggplot(for_plot_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
-  theme(
-    # make facet labels bigger
-    strip.text.x = element_text(size = global_size - 2),
-    strip.text.y = element_text(size = global_size),
-    axis.text.x = element_text(angle = 45),
-    legend.position = "none"
-    ) +
-    # add N observations to bars
-    geom_text(
-      # count number of observations in each tissue type
-      stat = "count",
-      aes(label = paste0(after_stat(count))), 
-      hjust = -0.5,
-      vjust = -0.5,
-      size = global_size - 14
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.5,
+    vjust = -0.5,
+    size = global_size - 14
     ) +
   scale_fill_brewer(palette = "YlOrBr")
 ```

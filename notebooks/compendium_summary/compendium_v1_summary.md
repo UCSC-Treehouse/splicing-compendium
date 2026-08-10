@@ -326,7 +326,7 @@ merged_compendium_df <- dplyr::bind_rows(
   cleaned_gtex_df
 ) |>
   # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -728,6 +728,49 @@ src="compendium_v1_summary_files/figure-commonmark/fig-gtex_sample_dist_bar-1.pn
 id="fig-gtex_sample_dist_bar" />
 
 Figure 2
+
+</div>
+
+### Compendium age distribution plot
+
+``` r
+# make bar plot of target sample distribution
+ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+  geom_bar() +
+  labs(title = "Age bin composition of Treehouse splice compendium v1", 
+       x = "Age in 10-year bins", 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 400) +
+  plot_theme +
+  # rotate x axis labels
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  # make facet labels bigger
+  theme(strip.text = element_text(size = global_size - 2)) +
+  facet_wrap(
+    ~ dataset + tissue_type,
+    ncol = 4,
+    labeller = label_wrap_gen(width = 20)) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = 0,
+    vjust = -0.5,
+    size = global_size - 14,
+    angle = 45
+  ) +
+  scale_fill_manual(values = rep("black", 8))
+```
+
+<div id="fig-age_dist_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-age_dist_bar-1.png"
+id="fig-age_dist_bar" />
+
+Figure 3
 
 </div>
 

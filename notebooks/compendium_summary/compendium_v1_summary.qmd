@@ -15,6 +15,8 @@ Splice compendium v1 contains data from TARGET and GTEx datasets. This notebook 
 Metadata used for this analysis are:
 
 - [sample_sheet.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/config/sample_sheet.tsv): Accessions list of samples processed in splice compendium v1. Columns include accession ID ("sample") and dataset ("group").
+- `GTEX_SraRunTable.csv`: metadata file of dbGaP accession IDs containing GTEX samples.
+- `SraRunTable-TARGET.csv`: metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
 - [gtex_accessions.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/filter_target_gtex/gtex_accessions.tsv): metadata file of GTEX sample accession IDs, along with age, sex of donor and tissue type of the sample.
 - [target_accessions_clinical.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/celiang/new-clinical-metadata/metadata/filter_target_gtex/target_accessions_clinical.tsv): metadata file of TARGET sample accession IDs, along with age, sex of donor, cancer type of the sample, and sequencing center of origin of the sample.
 
@@ -75,6 +77,8 @@ gtex_sra_file <- file.path(gtex_target_metadata_dir, "GTEX_SraRunTable.csv")
 # metadata containing ages of gtex samples
 gtex_ages_file <- file.path(gtex_target_metadata_dir, "GTEx_Analysis_v10_Annotations_SubjectPhenotypesDS.txt")
 
+# target dbgap metadata
+target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
 # target metadata with age info
 target_metadata_file <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
 # sample sheet of compendium files 
@@ -98,6 +102,13 @@ gtex_sra_metadata <- readr::read_csv(
 
 gtex_demographic_metadata <- readr::read_tsv(
   gtex_ages_file,
+  col_types = readr::cols(
+    .default = "c"
+  )
+)
+
+target_sra_metadata <- readr::read_csv(
+  target_sra_file,
   col_types = readr::cols(
     .default = "c"
   )
@@ -143,6 +154,17 @@ gtex_accessions_list <- sample_df |>
   dplyr::filter(group == "gtex") |>
   dplyr::pull(sample)
 
+# Filter target SRA/dbgap metadata to obtain ReleaseDate and version columns
+target_sra_cleaned_metadata <- target_sra_metadata |>
+  dplyr::select(Run, version, ReleaseDate)
+
+# merge target metadata with cleaned sra metadata columns
+target_metadata_with_version <- dplyr::left_join(
+  target_sra_cleaned_metadata,
+  target_metadata,
+  by = dplyr::join_by(Run)
+)
+
 # merge GTEx SRA with demographic metadata by accession ID
 gtex_sra_ages_df <- gtex_sra_metadata |>
   dplyr::left_join(gtex_demographic_metadata, by = "SUBJID") |>
@@ -156,7 +178,7 @@ gtex_sra_ages_df <- gtex_sra_metadata |>
 
 # filter gtex and target metadata for those corresponding to samples in compendium
 
-target_compendium_df <- target_metadata |>
+target_compendium_df <- target_metadata_with_version |>
   dplyr::filter(Run %in% target_accessions_list) |>
   # the xena browser metadata's "name.project" has the cancer type in a prettier format 
   # (no "TARGET:" prefix) 
@@ -171,6 +193,8 @@ target_compendium_df <- target_metadata |>
   dplyr::select(
     # fields shared with gtex metadata
     dataset,
+    version,
+    ReleaseDate,
     Run, # accession ID, same format as GTEx,
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
@@ -215,8 +239,9 @@ gtex_compendium_df <- gtex_sra_ages_df |>
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
     body_site, # tissue type of sample, to be used in combining columns
+    version = version, # gtex version of the sample
+    ReleaseDate, # release date of sample
     # gtex-specific metadata fields
-    gtex_version = version, # gtex version sample was added
     gtex_subject_id = SUBJID # ID of the individual the sample came from - some samples come from the same subject
   )
 ```
@@ -378,6 +403,8 @@ for_summary_compendium_df |>
     )
 ```
 
+### Table of ages in TARGET dataset
+
 ```{r target_age_table}
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
@@ -389,6 +416,63 @@ for_summary_compendium_df |>
 ```
 
 All TARGET samples have age metadata and are composed primarily of \< 30 year old samples
+
+### Table of sequencing center of origin of GTEx dataset
+
+```{r gtex_sequencing_center_table}
+
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "gtex") |>
+  dplyr::summarise(
+    .by = c(tissue_type, center_name),
+    n = dplyr::n()
+  )
+
+```
+
+"BI" stands for Broad Institute; all GTEx samples originate from the same sequencing center.
+
+### Table of sequencing center of origin of TARGET dataset
+
+```{r target_sequencing_center_table}
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "target") |>
+  dplyr::summarise(
+    .by = c(tissue_type, center_name),
+    n = dplyr::n()
+  )
+```
+
+TARGET samples come from multiple different sequencing centers. 
+In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
+
+### Table of versions and release dates in GTEx dataset
+
+```{r gtex_version_releasedate_table}
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "gtex") |>
+  dplyr::summarise(
+    .by = c(tissue_type, version),
+    n = dplyr::n()
+  )
+
+```
+
+All GTEx tissue types in the compendium come from multiple versions.
+
+### Table of versions and release dates in TARGET dataset
+
+```{r target_version_releasedate_table}
+for_summary_compendium_df |>
+  dplyr::filter(dataset == "target") |>
+  dplyr::summarise(
+    .by = c(tissue_type, version),
+    n = dplyr::n()
+  )
+
+```
+
+ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versions.
 
 ## Write output
 

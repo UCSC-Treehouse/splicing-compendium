@@ -69,7 +69,7 @@ rule merge_gtfs:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 1500,
+        mem_mb = 10000,
         runtime = 360
     log: "logs/merge_gtfs.log"
     shell:
@@ -142,7 +142,7 @@ rule gtf_to_events:
     priority: 1
     threads: 10
     resources:
-        mem_mb = 4000,
+        mem_mb = 60000,
         runtime = 60
     shell:
         """

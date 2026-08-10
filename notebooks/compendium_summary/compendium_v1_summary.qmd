@@ -511,34 +511,67 @@ for_plot_target_df <- cleaned_target_df |>
 ## Plot sample composition of v1 compendium
 
 ```{r}
-#| label: fig-sample_dist_bar
+#| label: fig-target_sample_dist_bar
 #| fig-width: 15
 #| fig-height: 8
 
-ggplot(for_plot_target_df, aes(x = plot_tissue_type, fill = tissue_type)) +
+ggplot(for_plot_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
   labs(title = "TARGET tissue type composition of splice compendium v1", 
-        x = "Tissue type", 
-        y = "Count") +
+        y = "Tissue type", 
+        x = "Count") +
   # manually add to ylim so that there is space for over-bar labels
-  ylim(0, 500) +
+  xlim(0, 500) +
   plot_theme +
   theme(
     # make facet labels bigger
     strip.text.x = element_text(size = global_size - 2),
     strip.text.y = element_text(size = global_size),
-    axis.text.x = element_text(angle = 45)
+    axis.text.x = element_text(angle = 45),
+    legend.position = "none"
     ) +
     # add N observations to bars
     geom_text(
       # count number of observations in each tissue type
       stat = "count",
       aes(label = paste0(after_stat(count))), 
+      hjust = -0.5,
       vjust = -0.5,
       size = global_size - 14
     ) +
-  scale_fill_brewer(palette = "Dark2")
+  scale_fill_brewer(palette = "YlOrBr")
+```
 
+```{r}
+#| label: fig-gtex_sample_dist_bar
+#| fig-width: 15
+#| fig-height: 8
+
+ggplot(for_summary_gtex_df, aes(y = tissue_type, fill = tissue_type)) +
+  geom_bar() +
+  labs(title = "GTEx tissue type composition of splice compendium v1", 
+       y = "Tissue type", 
+       x = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  theme(
+    # make facet labels bigger
+    strip.text.x = element_text(size = global_size - 2),
+    strip.text.y = element_text(size = global_size),
+    axis.text.x = element_text(angle = 45),
+    legend.position = "none"
+  ) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    vjust = -0.5,
+    hjust = -0.5,
+    size = global_size - 14
+  ) +
+  scale_fill_brewer(palette = "Greens")
 ```
 
 ## Write output

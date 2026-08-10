@@ -700,40 +700,6 @@ Figure 1
 
 </div>
 
-### GTEx sample distribution plot
-
-``` r
-# make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
-  geom_bar() +
-  labs(title = "GTEx tissue type composition of splice compendium v1", 
-       y = "Tissue type", 
-       x = "Count") +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
-  # add N observations to bars
-  geom_text(
-    # count number of observations in each tissue type
-    stat = "count",
-    aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
-    size = global_size - 14
-  ) +
-  scale_fill_brewer(palette = "YlOrBr")
-```
-
-<div id="fig-gtex_sample_dist_bar">
-
-<img
-src="compendium_v1_summary_files/figure-commonmark/fig-gtex_sample_dist_bar-1.png"
-id="fig-gtex_sample_dist_bar" />
-
-Figure 2
-
-</div>
-
 ## Write output
 
 ``` r

@@ -294,7 +294,18 @@ cleaned_target_df <- target_compendium_df |>
          "80-89",
          "90-99"
        )
-       )
+       ),
+     # clean target tissue type labels for printing in a plot
+     plot_tissue_type = dplyr::case_when(
+       target_study_name == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" |
+         target_study_name == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
+         "ALL",
+       target_study_name == "Acute Myeloid Leukemia (AML)" ~ "AML",
+       target_study_name == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
+       target_study_name == "Kidney, Wilms Tumor (WT)" ~ "WT",
+       target_study_name == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
+       target_study_name == "Neuroblastoma (NBL)" ~ "NBL"
+     )
     ) |>
   # there are 4 TARGET ALL phase 2 samples duplicated as ALL phase 3 with no age information
   # all other TARGET accessions have age info
@@ -356,8 +367,9 @@ colnames(merged_compendium_df)
     [23] "target_histological_type"                                 
     [24] "body_site"                                                
     [25] "age_in_years"                                             
-    [26] "gtex_subject_id"                                          
-    [27] "tissue_type"                                              
+    [26] "plot_tissue_type"                                         
+    [27] "gtex_subject_id"                                          
+    [28] "tissue_type"                                              
 
 Check for duplicates in Run
 
@@ -394,18 +406,7 @@ for_summary_compendium_df <- dplyr::bind_rows(
 ) |>
   dplyr::mutate(
     # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(target_study_name, body_site),
-    # clean target tissue type labels for printing in a plot
-    plot_tissue_type = dplyr::case_when(
-      target_study_name == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" |
-        target_study_name == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
-        "ALL",
-      target_study_name == "Acute Myeloid Leukemia (AML)" ~ "AML",
-      target_study_name == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
-      target_study_name == "Kidney, Wilms Tumor (WT)" ~ "WT",
-      target_study_name == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
-      target_study_name == "Neuroblastoma (NBL)" ~ "NBL"
-    )
+    tissue_type = dplyr::coalesce(target_study_name, body_site)
   )
 
 for_summary_compendium_df |>
@@ -668,12 +669,8 @@ multiple versions.
 ### TARGET sample distribution plot
 
 ``` r
-# filter summary df for target samples only
-target_plot_df <- for_summary_compendium_df |>
-  dplyr::filter(dataset == "target")
-
 # make bar plot of target sample distribution
-ggplot(target_plot_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
   labs(title = "TARGET tissue type composition of splice compendium v1", 
         y = "Tissue type", 

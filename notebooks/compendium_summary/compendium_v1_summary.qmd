@@ -564,7 +564,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
 ```{r}
 #| label: fig-gtex_sample_dist_bar
 #| fig-width: 15
-#| fig-height: 8
+#| fig-height: 11
 
 # make bar plot of gtex sample distribution
 ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +

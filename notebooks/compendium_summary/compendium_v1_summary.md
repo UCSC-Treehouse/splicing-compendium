@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-04
+2026-08-09
 
 ## Introduction
 
@@ -186,7 +186,7 @@ target_compendium_df <- target_metadata_with_version |>
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
     sex = gender.demographic, # in "male" / "female" values,
-    target_study_name = study_name, # cancer type of sample, to be used in combining columns
+    tissue_type = study_name, # cancer type of sample, to be used in combining columns
     # fields specific to target metadata
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -225,7 +225,7 @@ gtex_compendium_df <- gtex_sra_ages_df |>
     age_in_years = AGE, # in 10-year bins (characters)
     sex = SEX, # coded as 1 or 2, to be converted to 'male' and 'female'
     center_name = `Center Name`,
-    body_site, # tissue type of sample, to be used in combining columns
+    tissue_type = body_site, # tissue type of sample, to be used in combining columns
     version = version, # gtex version of the sample
     ReleaseDate, # release date of sample
     # gtex-specific metadata fields
@@ -291,7 +291,8 @@ cleaned_target_df <- target_compendium_df |>
          "80-89",
          "90-99"
        )
-       )
+       ),
+     tissue_type = stringr::str_replace_all(tissue_type, stringr::fixed("\\"), "")
     ) |>
   # there are 4 TARGET ALL phase 2 samples duplicated as ALL phase 3 with no age information
   # all other TARGET accessions have age info
@@ -313,9 +314,7 @@ cleaned_gtex_df <- gtex_compendium_df |>
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-) |>
-  # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+)
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -335,7 +334,7 @@ colnames(merged_compendium_df)
      [5] "BioSample"                                                
      [6] "center_name"                                              
      [7] "sex"                                                      
-     [8] "target_study_name"                                        
+     [8] "tissue_type"                                              
      [9] "age_at_earliest_diagnosis_in_years.diagnoses.xena_derived"
     [10] "target_patient_id"                                        
     [11] "target_biospecimen_sample_id"                             
@@ -354,7 +353,6 @@ colnames(merged_compendium_df)
     [24] "body_site"                                                
     [25] "age_in_years"                                             
     [26] "gtex_subject_id"                                          
-    [27] "tissue_type"                                              
 
 Check for duplicates in Run
 
@@ -382,15 +380,13 @@ tissue_types <- c(
 
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
-    body_site %in% tissue_types
+    tissue_type %in% tissue_types
       )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
-) |>
-  # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+)
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -647,6 +643,68 @@ for_summary_compendium_df |>
 ALL Phase 2 and neuroblastoma samples in the compendium come from
 multiple versions.
 
+## Prep TARGET dataframe for plot
+
+Combine ALL phase 1 and 2 categories for plotting
+
+Additionally, create shorter tissue type names for plotting
+
+``` r
+for_plot_target_df <- cleaned_target_df |>
+  dplyr::mutate(
+    plot_tissue_type = dplyr::case_when(
+      tissue_type == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" | 
+        tissue_type == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
+        "ALL",
+      tissue_type == "Acute Myeloid Leukemia (AML)" ~ "AML",
+      tissue_type == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
+      tissue_type == "Kidney, Wilms Tumor (WT)" ~ "WT",
+      tissue_type == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
+      tissue_type == "Neuroblastoma (NBL)" ~ "NBL"
+    )
+  )
+```
+
+## Plot sample composition of v1 compendium
+
+``` r
+ggplot(for_plot_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+  geom_bar() +
+  labs(title = "TARGET tissue type composition of splice compendium v1", 
+        y = "Tissue type", 
+        x = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  theme(
+    # make facet labels bigger
+    strip.text.x = element_text(size = global_size - 2),
+    strip.text.y = element_text(size = global_size),
+    axis.text.x = element_text(angle = 45),
+    legend.position = "none"
+    ) +
+    # add N observations to bars
+    geom_text(
+      # count number of observations in each tissue type
+      stat = "count",
+      aes(label = paste0(after_stat(count))), 
+      hjust = -0.5,
+      vjust = -0.5,
+      size = global_size - 14
+    ) +
+  scale_fill_brewer(palette = "YlOrBr")
+```
+
+<div id="fig-target_sample_dist_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-target_sample_dist_bar-1.png"
+id="fig-target_sample_dist_bar" />
+
+Figure 1
+
+</div>
+
 ## Write output
 
 ``` r
@@ -683,12 +741,12 @@ sessionInfo()
      [1] bit_4.6.0          gtable_0.3.6       jsonlite_2.0.0     crayon_1.5.3      
      [5] dplyr_1.2.1        compiler_4.4.3     tidyselect_1.2.1   stringr_1.6.0     
      [9] parallel_4.4.3     scales_1.4.0       yaml_2.3.12        fastmap_1.2.0     
-    [13] here_1.0.2         readr_2.2.0        R6_2.6.1           generics_0.1.4    
-    [17] knitr_1.51         tibble_3.3.1       rprojroot_2.1.1    pillar_1.11.1     
-    [21] RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.3.0        stringi_1.8.7     
-    [25] xfun_0.60          S7_0.2.2           bit64_4.8.2        otel_0.2.0        
-    [29] cli_3.6.6          withr_3.0.3        magrittr_2.0.5     digest_0.6.39     
-    [33] grid_4.4.3         vroom_1.7.1        rstudioapi_0.18.0  hms_1.1.4         
-    [37] lifecycle_1.0.5    vctrs_0.7.3        evaluate_1.0.5     glue_1.8.1        
-    [41] farver_2.1.2       rmarkdown_2.31     tools_4.4.3        pkgconfig_2.0.3   
-    [45] htmltools_0.5.9   
+    [13] here_1.0.2         readr_2.2.0        R6_2.6.1           labeling_0.4.3    
+    [17] generics_0.1.4     knitr_1.51         tibble_3.3.1       rprojroot_2.1.1   
+    [21] pillar_1.11.1      RColorBrewer_1.1-3 tzdb_0.5.0         rlang_1.3.0       
+    [25] stringi_1.8.7      xfun_0.60          S7_0.2.2           bit64_4.8.2       
+    [29] otel_0.2.0         cli_3.6.6          withr_3.0.3        magrittr_2.0.5    
+    [33] digest_0.6.39      grid_4.4.3         vroom_1.7.1        rstudioapi_0.18.0 
+    [37] hms_1.1.4          lifecycle_1.0.5    vctrs_0.7.3        evaluate_1.0.5    
+    [41] glue_1.8.1         farver_2.1.2       rmarkdown_2.31     tools_4.4.3       
+    [45] pkgconfig_2.0.3    htmltools_0.5.9   

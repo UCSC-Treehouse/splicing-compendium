@@ -329,7 +329,7 @@ merged_compendium_df <- dplyr::bind_rows(
   cleaned_gtex_df
 ) |>
   # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
   
 # check number of rows
 nrow(merged_compendium_df)

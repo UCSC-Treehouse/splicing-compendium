@@ -484,6 +484,30 @@ for_summary_compendium_df |>
 
 ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versions.
 
+## Prep TARGET dataframe for plot
+
+Combine ALL phase 1 and 2 categories for plotting
+
+Additionally, create shorter tissue type names for plotting
+
+```{r for_plot_target_df}
+
+for_plot_target_df <- cleaned_target_df |>
+  dplyr::mutate(
+    plot_tissue_type = dplyr::case_when(
+      tissue_type == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" | 
+        tissue_type == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
+        "ALL",
+      tissue_type == "Acute Myeloid Leukemia (AML)" ~ "AML",
+      tissue_type == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
+      tissue_type == "Kidney, Wilms Tumor (WT)" ~ "WT",
+      tissue_type == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
+      tissue_type == "Neuroblastoma (NBL)" ~ "NBL"
+    )
+  )
+
+```
+
 ## Plot sample composition of v1 compendium
 
 ```{r}
@@ -491,22 +515,18 @@ ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versi
 #| fig-width: 15
 #| fig-height: 8
 
-ggplot(cleaned_target_df, aes(x = tissue_type, fill = tissue_type)) +
+ggplot(for_plot_target_df, aes(x = plot_tissue_type, fill = tissue_type)) +
   geom_bar() +
-  labs(title = "Tissue type composition of splice compendium v1", 
+  labs(title = "TARGET tissue type composition of splice compendium v1", 
         x = "Tissue type", 
         y = "Count") +
   # manually add to ylim so that there is space for over-bar labels
   ylim(0, 500) +
   plot_theme +
-  facet_grid(vars(tissue_type),
-              labeller = label_wrap_gen(width = 10)) +
   theme(
     # make facet labels bigger
     strip.text.x = element_text(size = global_size - 2),
     strip.text.y = element_text(size = global_size),
-    # make legend text bigger
-    legend.text = element_text(size = global_size),
     axis.text.x = element_text(angle = 45)
     ) +
     # add N observations to bars
@@ -517,8 +537,7 @@ ggplot(cleaned_target_df, aes(x = tissue_type, fill = tissue_type)) +
       vjust = -0.5,
       size = global_size - 14
     ) +
-  scale_fill_manual(values = colors)
-
+  scale_fill_brewer(palette = "Dark2")
 
 ```
 

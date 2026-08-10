@@ -329,7 +329,7 @@ merged_compendium_df <- dplyr::bind_rows(
   cleaned_gtex_df
 ) |>
   # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -406,7 +406,7 @@ for_summary_compendium_df <- dplyr::bind_rows(
 ) |>
   dplyr::mutate(
     # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(target_study_name, body_site)
+    tissue_type = dplyr::coalesce(plot_tissue_type, body_site)
   )
 
 for_summary_compendium_df |>
@@ -432,13 +432,13 @@ compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(body_site) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
-| tissue_type                         |   n |
+| body_site                           |   n |
 |:------------------------------------|----:|
 | Cells - EBV-transformed lymphocytes | 144 |
 | Kidney - Cortex                     |  36 |
@@ -455,13 +455,13 @@ comparison) samples.
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(target_study_name) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
-| tissue_type                                          |   n |
+| target_study_name                                    |   n |
 |:-----------------------------------------------------|----:|
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 309 |
 | Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     |   3 |
@@ -480,20 +480,20 @@ compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(body_site, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
     `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by tissue_type and age_in_years.
-    ℹ Output is grouped by tissue_type.
+    ℹ Summaries were computed grouped by body_site and age_in_years.
+    ℹ Output is grouped by body_site.
     ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(tissue_type, age_in_years))` for per-operation
-      grouping (`?dplyr::dplyr_by`) instead.
+    ℹ Use `summarise(.by = c(body_site, age_in_years))` for per-operation grouping
+      (`?dplyr::dplyr_by`) instead.
 
-| tissue_type                         | age_in_years |   n |
+| body_site                           | age_in_years |   n |
 |:------------------------------------|:-------------|----:|
 | Cells - EBV-transformed lymphocytes | 20-29        |  19 |
 | Cells - EBV-transformed lymphocytes | 30-39        |  11 |
@@ -525,20 +525,20 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(target_study_name, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
     `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by tissue_type and age_in_years.
-    ℹ Output is grouped by tissue_type.
+    ℹ Summaries were computed grouped by target_study_name and age_in_years.
+    ℹ Output is grouped by target_study_name.
     ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(tissue_type, age_in_years))` for per-operation
+    ℹ Use `summarise(.by = c(target_study_name, age_in_years))` for per-operation
       grouping (`?dplyr::dplyr_by`) instead.
 
-| tissue_type                                          | age_in_years |   n |
+| target_study_name                                    | age_in_years |   n |
 |:-----------------------------------------------------|:-------------|----:|
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 0-9          | 205 |
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 10-19        | 101 |
@@ -565,12 +565,12 @@ year old samples
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(body_site, center_name),
     n = dplyr::n()
   )
 ```
 
-| tissue_type                         | center_name     |   n |
+| body_site                           | center_name     |   n |
 |:------------------------------------|:----------------|----:|
 | Muscle - Skeletal                   | BI              | 460 |
 | Whole Blood                         | BI              | 446 |
@@ -589,12 +589,12 @@ same sequencing center.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(target_study_name, center_name),
     n = dplyr::n()
   )
 ```
 
-| tissue_type                                          | center_name |   n |
+| target_study_name                                    | center_name |   n |
 |:-----------------------------------------------------|:------------|----:|
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC     | 304 |
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | STJUDE      |   5 |
@@ -616,12 +616,12 @@ sequencing centers.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(body_site, version),
     n = dplyr::n()
   )
 ```
 
-| tissue_type                         | version |   n |
+| body_site                           | version |   n |
 |:------------------------------------|:--------|----:|
 | Muscle - Skeletal                   | 2       | 449 |
 | Whole Blood                         | 2       | 429 |
@@ -643,12 +643,12 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(target_study_name, version),
     n = dplyr::n()
   )
 ```
 
-| tissue_type                                          | version |   n |
+| target_study_name                                    | version |   n |
 |:-----------------------------------------------------|:--------|----:|
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 1       | 307 |
 | Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 2       |   2 |
@@ -731,6 +731,49 @@ src="compendium_v1_summary_files/figure-commonmark/fig-gtex_sample_dist_bar-1.pn
 id="fig-gtex_sample_dist_bar" />
 
 Figure 2
+
+</div>
+
+### Compendium age distribution plot
+
+``` r
+# make bar plot of target sample distribution
+ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+  geom_bar() +
+  labs(title = "Age bin composition of Treehouse splice compendium v1", 
+       x = "Age in 10-year bins", 
+       y = "Count") +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 400) +
+  plot_theme +
+  # rotate x axis labels
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  # make facet labels bigger
+  theme(strip.text = element_text(size = global_size - 2)) +
+  facet_wrap(
+    ~ dataset + tissue_type,
+    ncol = 4,
+    labeller = label_wrap_gen(width = 20)) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = 0,
+    vjust = -0.5,
+    size = global_size - 14,
+    angle = 45
+  ) +
+  scale_fill_manual(values = rep("black", 8))
+```
+
+<div id="fig-age_dist_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-age_dist_bar-1.png"
+id="fig-age_dist_bar" />
+
+Figure 3
 
 </div>
 

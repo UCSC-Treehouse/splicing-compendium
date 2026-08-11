@@ -418,17 +418,18 @@ for_summary_gtex_df <- cleaned_gtex_df |>
       body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
       body_site == "Whole Blood" ~ "Whole Blood",
       body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
-    ),
-    # set tissue order as a factor so it can be applied to plots
-    plot_tissue_type = factor(
-      plot_tissue_type, 
-      levels = tissue_order)
     )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
-)
+) |>
+  dplyr::mutate(
+    # set tissue order as a factor so it can be applied to plots
+    plot_tissue_type = factor(
+      plot_tissue_type, 
+      levels = tissue_order))
 
 for_summary_compendium_df |>
   dplyr::summarise(

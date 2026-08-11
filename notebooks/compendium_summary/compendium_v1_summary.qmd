@@ -356,6 +356,21 @@ tissue_types <- c(
   "Cells - EBV-transformed lymphocytes"
 )
 
+
+# define custom tissue type order, with gtex appearing first
+tissue_order <- c(
+  "EBV lymphocytes",
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood",
+  "ALL",
+  "AML",
+  "CCSK",
+  "NBL",
+  "RT",
+  "WT"
+)
+
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
@@ -365,8 +380,12 @@ for_summary_gtex_df <- cleaned_gtex_df |>
     plot_tissue_type = dplyr::case_when(
       body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
       .default = body_site
+    ),
+    # set tissue order as a factor so it can be applied to plots
+    plot_tissue_type = factor(
+      plot_tissue_type, 
+      levels = tissue_order)
     )
-  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
@@ -563,7 +582,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
 #| label: fig-age_dist_bar
 #| fig-width: 12
 #| fig-height: 6
-
+ 
 # make bar plot of target sample distribution
 ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
   geom_bar() +
@@ -579,7 +598,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
   # make facet labels bigger
   theme(strip.text = element_text(size = global_size - 2)) +
   facet_wrap(
-    ~ dataset + plot_tissue_type,
+    ~ plot_tissue_type,
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
   # add N observations to bars

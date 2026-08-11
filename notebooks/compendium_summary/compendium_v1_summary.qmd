@@ -669,7 +669,9 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
     angle = 0,
     position = position_stack(vjust = 0.5)
   ) +
-  scale_fill_manual(values = c("salmon", "lightblue"))
+  scale_fill_manual(values = c("salmon", "lightblue")) +
+  # allow tissue types to be plotted in same order as age distribution plots
+  scale_y_discrete(limits = rev(tissue_order))
 
 ```
 

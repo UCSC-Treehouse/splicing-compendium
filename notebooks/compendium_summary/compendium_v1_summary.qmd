@@ -514,8 +514,8 @@ ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versi
 
 ```{r}
 #| label: fig-target_sample_dist_bar
-#| fig-width: 12
-#| fig-height: 6
+#| fig-width: 8
+#| fig-height: 4
 
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
@@ -533,7 +533,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     stat = "count",
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
-    vjust = 0,
+    vjust = 0.5,
     size = global_size - 14
     ) +
   scale_fill_manual(values = tissue_palette)
@@ -543,8 +543,8 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
 
 ```{r}
 #| label: fig-gtex_sample_dist_bar
-#| fig-width: 12
-#| fig-height: 6
+#| fig-width: 8
+#| fig-height: 4
 
 # make bar plot of gtex sample distribution
 ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
@@ -562,7 +562,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
     stat = "count",
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
-    vjust = 0,
+    vjust = 0.5,
     size = global_size - 14
   ) +
   scale_fill_manual(values = tissue_palette)

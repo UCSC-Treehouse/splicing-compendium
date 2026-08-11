@@ -321,7 +321,14 @@ cleaned_gtex_df <- gtex_compendium_df |>
       dplyr::case_when(
         sex == 1 ~ "male",
         sex == 2 ~ "female"
-  )
+  ),
+  # give ebv lymphocyte samples a shorter name for plots
+  plot_tissue_type = dplyr::case_when(
+    body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
+    body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
+    body_site == "Whole Blood" ~ "Whole Blood",
+    body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+    )
   )
 
 merged_compendium_df <- dplyr::bind_rows(
@@ -410,15 +417,6 @@ tissue_order <- c(
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
-      ) |>
-  # give ebv lymphocyte samples a shorter name for plots
-  dplyr::mutate(
-    plot_tissue_type = dplyr::case_when(
-      body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
-      body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
-      body_site == "Whole Blood" ~ "Whole Blood",
-      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
-    )
   )
 
 for_summary_compendium_df <- dplyr::bind_rows(

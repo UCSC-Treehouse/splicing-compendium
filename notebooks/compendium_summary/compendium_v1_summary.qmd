@@ -370,16 +370,21 @@ tissue_types <- c(
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
-      )
+      ) |>
+  # give ebv lymphocyte samples a shorter name for plots
+  dplyr::mutate(
+    plot_tissue_type = dplyr::case_when(
+      body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
+      body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
+      body_site == "Whole Blood" ~ "Whole Blood",
+      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+    )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
-) |>
-  dplyr::mutate(
-    # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(target_study_name, body_site)
-  )
+)
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -398,7 +403,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -412,7 +417,7 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -426,7 +431,7 @@ Print a table summarizing number of samples in each age bin in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -438,7 +443,7 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -453,7 +458,7 @@ All TARGET samples have age metadata and are composed primarily of \< 30 year ol
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 
@@ -467,7 +472,7 @@ for_summary_compendium_df |>
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 ```
@@ -481,7 +486,7 @@ In particular, ALL Phase 2 and AML samples come from two different sequencing ce
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -495,7 +500,7 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -542,7 +547,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
 #| fig-height: 6
 
 # make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
   geom_bar() +
   labs(
     y = "Tissue type",

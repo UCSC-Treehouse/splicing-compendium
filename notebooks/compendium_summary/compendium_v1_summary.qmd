@@ -49,18 +49,17 @@ plot_theme = list(
 
 # define palette for tissue types
 tissue_palette <- c(
-  "0-9" = "#1B9E77FF", 
-  "10-19" = "#D95F02FF", 
-  "20-29" = "#7570B3FF", 
-  "30-39" = "#E7298AFF", 
-  "40-49" = "#2A363BFF", 
-  "50-59" = "#E6AB02FF", 
-  "60-69" = "#A8D0E8FF", 
-  "70-79" = "#666666FF",
-  "80-89" = "#FECEA8FF",
-  "90-99" = "#225BB2FF"
+  "ALL" = "#1B9E77FF", 
+  "AML" = "#803E75", 
+  "CCSK" = "#D6DE12", 
+  "WT" = "#E7298AFF", 
+  "RT" = "black", 
+  "NBL" = "#E6AB02FF", 
+  "Kidney - Cortex" = "#BCA3D8",
+  "Muscle - Skeletal" = "#FECEA8FF",
+  "Whole Blood" = "#225BB2FF",
+  "EBV lymphocytes" = "#A8D0E8FF"
 )
-
 ```
 
 ## Read in input and output paths
@@ -330,15 +329,20 @@ cleaned_gtex_df <- gtex_compendium_df |>
       dplyr::case_when(
         sex == 1 ~ "male",
         sex == 2 ~ "female"
-  )
+  ),
+  # give ebv lymphocyte samples a shorter name for plots
+  plot_tissue_type = dplyr::case_when(
+    body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
+    body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
+    body_site == "Whole Blood" ~ "Whole Blood",
+    body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+    )
   )
 
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-) |>
-  # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
+)
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -367,19 +371,35 @@ tissue_types <- c(
   "Cells - EBV-transformed lymphocytes"
 )
 
+
+# define custom tissue type order, with gtex appearing first
+tissue_order <- c(
+  "EBV lymphocytes",
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood",
+  "ALL",
+  "AML",
+  "CCSK",
+  "NBL",
+  "RT",
+  "WT"
+)
+
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
-      )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
 ) |>
   dplyr::mutate(
-    # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(plot_tissue_type, body_site)
-  )
+    # set tissue order as a factor so it can be applied to plots
+    plot_tissue_type = factor(
+      plot_tissue_type, 
+      levels = tissue_order))
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -398,7 +418,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(body_site) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -412,7 +432,7 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(target_study_name) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -426,7 +446,7 @@ Print a table summarizing number of samples in each age bin in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(body_site, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -438,7 +458,7 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(target_study_name, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -453,7 +473,7 @@ All TARGET samples have age metadata and are composed primarily of \< 30 year ol
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(body_site, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 
@@ -467,7 +487,7 @@ for_summary_compendium_df |>
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(target_study_name, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 ```
@@ -480,7 +500,7 @@ TARGET samples come from multiple different sequencing centers. In particular, A
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(body_site, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -494,7 +514,7 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(target_study_name, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -508,15 +528,16 @@ ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versi
 
 ```{r}
 #| label: fig-target_sample_dist_bar
-#| fig-width: 15
-#| fig-height: 8
+#| fig-width: 8
+#| fig-height: 4
 
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(title = "TARGET tissue type composition of splice compendium v1", 
-        y = "Tissue type", 
-        x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -525,26 +546,27 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0.5,
     size = global_size - 14
     ) +
-  scale_fill_brewer(palette = "YlOrBr")
+  scale_fill_manual(values = tissue_palette)
 ```
 
 ### GTEx sample distribution plot
 
 ```{r}
 #| label: fig-gtex_sample_dist_bar
-#| fig-width: 15
-#| fig-height: 8
+#| fig-width: 8
+#| fig-height: 4
 
 # make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
   geom_bar() +
-  labs(title = "GTEx tissue type composition of splice compendium v1", 
-       y = "Tissue type", 
-       x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -553,26 +575,27 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0.5,
     size = global_size - 14
   ) +
-  scale_fill_brewer(palette = "Greens")
+  scale_fill_manual(values = tissue_palette)
 ```
 
 ### Compendium age distribution plot
 
 ```{r}
 #| label: fig-age_dist_bar
-#| fig-width: 15
-#| fig-height: 11
-
+#| fig-width: 13
+#| fig-height: 6
+ 
 # make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
   geom_bar() +
-  labs(title = "Age bin composition of Treehouse splice compendium v1", 
-       x = "Age in 10-year bins", 
-       y = "Count") +
+  labs(
+    x = "Age in 10-year bins", 
+    y = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   ylim(0, 400) +
   plot_theme +
@@ -581,7 +604,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
   # make facet labels bigger
   theme(strip.text = element_text(size = global_size - 2)) +
   facet_wrap(
-    ~ dataset + tissue_type,
+    ~ plot_tissue_type,
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
   # add N observations to bars
@@ -593,8 +616,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
     vjust = -0.5,
     size = global_size - 14,
     angle = 45
-  ) +
-  scale_fill_manual(values = rep("black", 8))
+  ) 
 
 ```
 

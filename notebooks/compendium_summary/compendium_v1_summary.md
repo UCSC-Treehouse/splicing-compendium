@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-10
+2026-08-11
 
 ## Introduction
 
@@ -321,15 +321,20 @@ cleaned_gtex_df <- gtex_compendium_df |>
       dplyr::case_when(
         sex == 1 ~ "male",
         sex == 2 ~ "female"
-  )
+  ),
+  # give ebv lymphocyte samples a shorter name for plots
+  plot_tissue_type = dplyr::case_when(
+    body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
+    body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
+    body_site == "Whole Blood" ~ "Whole Blood",
+    body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+    )
   )
 
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-) |>
-  # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
+)
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -369,7 +374,6 @@ colnames(merged_compendium_df)
     [25] "age_in_years"                                             
     [26] "plot_tissue_type"                                         
     [27] "gtex_subject_id"                                          
-    [28] "tissue_type"                                              
 
 Check for duplicates in Run
 
@@ -395,19 +399,35 @@ tissue_types <- c(
   "Cells - EBV-transformed lymphocytes"
 )
 
+
+# define custom tissue type order, with gtex appearing first
+tissue_order <- c(
+  "EBV lymphocytes",
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood",
+  "ALL",
+  "AML",
+  "CCSK",
+  "NBL",
+  "RT",
+  "WT"
+)
+
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
-      )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
 ) |>
   dplyr::mutate(
-    # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(plot_tissue_type, body_site)
-  )
+    # set tissue order as a factor so it can be applied to plots
+    plot_tissue_type = factor(
+      plot_tissue_type, 
+      levels = tissue_order))
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -432,18 +452,18 @@ compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(body_site) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
-| body_site                           |   n |
-|:------------------------------------|----:|
-| Cells - EBV-transformed lymphocytes | 144 |
-| Kidney - Cortex                     |  36 |
-| Muscle - Skeletal                   | 462 |
-| Whole Blood                         | 456 |
+| plot_tissue_type  |   n |
+|:------------------|----:|
+| EBV lymphocytes   | 144 |
+| Kidney - Cortex   |  36 |
+| Muscle - Skeletal | 462 |
+| Whole Blood       | 456 |
 
 Our curated GTEx compendium dataset is primarily composed of whole blood
 (for leukemia comparisons) and skeletal muscle (for soft tissue
@@ -455,21 +475,20 @@ comparison) samples.
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(target_study_name) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
-| target_study_name                                    |   n |
-|:-----------------------------------------------------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 309 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     |   3 |
-| Acute Myeloid Leukemia (AML)                         | 448 |
-| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      |  13 |
-| Kidney, Rhabdoid Tumor (RT)                          |  81 |
-| Kidney, Wilms Tumor (WT)                             | 137 |
-| Neuroblastoma (NBL)                                  | 161 |
+| plot_tissue_type |   n |
+|:-----------------|----:|
+| ALL              | 312 |
+| AML              | 448 |
+| CCSK             |  13 |
+| NBL              | 161 |
+| RT               |  81 |
+| WT               | 137 |
 
 Print a table summarizing number of samples in each age bin in
 compendium
@@ -480,44 +499,44 @@ compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(body_site, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
     `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by body_site and age_in_years.
-    ℹ Output is grouped by body_site.
+    ℹ Summaries were computed grouped by plot_tissue_type and age_in_years.
+    ℹ Output is grouped by plot_tissue_type.
     ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(body_site, age_in_years))` for per-operation grouping
-      (`?dplyr::dplyr_by`) instead.
+    ℹ Use `summarise(.by = c(plot_tissue_type, age_in_years))` for per-operation
+      grouping (`?dplyr::dplyr_by`) instead.
 
-| body_site                           | age_in_years |   n |
-|:------------------------------------|:-------------|----:|
-| Cells - EBV-transformed lymphocytes | 20-29        |  19 |
-| Cells - EBV-transformed lymphocytes | 30-39        |  11 |
-| Cells - EBV-transformed lymphocytes | 40-49        |  33 |
-| Cells - EBV-transformed lymphocytes | 50-59        |  43 |
-| Cells - EBV-transformed lymphocytes | 60-69        |  36 |
-| Cells - EBV-transformed lymphocytes | 70-79        |   2 |
-| Kidney - Cortex                     | 20-29        |   2 |
-| Kidney - Cortex                     | 30-39        |   4 |
-| Kidney - Cortex                     | 40-49        |   5 |
-| Kidney - Cortex                     | 50-59        |  11 |
-| Kidney - Cortex                     | 60-69        |  14 |
-| Muscle - Skeletal                   | 20-29        |  44 |
-| Muscle - Skeletal                   | 30-39        |  35 |
-| Muscle - Skeletal                   | 40-49        |  73 |
-| Muscle - Skeletal                   | 50-59        | 153 |
-| Muscle - Skeletal                   | 60-69        | 149 |
-| Muscle - Skeletal                   | 70-79        |   8 |
-| Whole Blood                         | 20-29        |  41 |
-| Whole Blood                         | 30-39        |  33 |
-| Whole Blood                         | 40-49        |  86 |
-| Whole Blood                         | 50-59        | 146 |
-| Whole Blood                         | 60-69        | 144 |
-| Whole Blood                         | 70-79        |   6 |
+| plot_tissue_type  | age_in_years |   n |
+|:------------------|:-------------|----:|
+| EBV lymphocytes   | 20-29        |  19 |
+| EBV lymphocytes   | 30-39        |  11 |
+| EBV lymphocytes   | 40-49        |  33 |
+| EBV lymphocytes   | 50-59        |  43 |
+| EBV lymphocytes   | 60-69        |  36 |
+| EBV lymphocytes   | 70-79        |   2 |
+| Kidney - Cortex   | 20-29        |   2 |
+| Kidney - Cortex   | 30-39        |   4 |
+| Kidney - Cortex   | 40-49        |   5 |
+| Kidney - Cortex   | 50-59        |  11 |
+| Kidney - Cortex   | 60-69        |  14 |
+| Muscle - Skeletal | 20-29        |  44 |
+| Muscle - Skeletal | 30-39        |  35 |
+| Muscle - Skeletal | 40-49        |  73 |
+| Muscle - Skeletal | 50-59        | 153 |
+| Muscle - Skeletal | 60-69        | 149 |
+| Muscle - Skeletal | 70-79        |   8 |
+| Whole Blood       | 20-29        |  41 |
+| Whole Blood       | 30-39        |  33 |
+| Whole Blood       | 40-49        |  86 |
+| Whole Blood       | 50-59        | 146 |
+| Whole Blood       | 60-69        | 144 |
+| Whole Blood       | 70-79        |   6 |
 
 ### Table of ages in TARGET dataset
 
@@ -525,36 +544,34 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(target_study_name, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
 ```
 
     `summarise()` has regrouped the output.
-    ℹ Summaries were computed grouped by target_study_name and age_in_years.
-    ℹ Output is grouped by target_study_name.
+    ℹ Summaries were computed grouped by plot_tissue_type and age_in_years.
+    ℹ Output is grouped by plot_tissue_type.
     ℹ Use `summarise(.groups = "drop_last")` to silence this message.
-    ℹ Use `summarise(.by = c(target_study_name, age_in_years))` for per-operation
+    ℹ Use `summarise(.by = c(plot_tissue_type, age_in_years))` for per-operation
       grouping (`?dplyr::dplyr_by`) instead.
 
-| target_study_name                                    | age_in_years |   n |
-|:-----------------------------------------------------|:-------------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 0-9          | 205 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 10-19        | 101 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 20-29        |   3 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 0-9          |   1 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 10-19        |   2 |
-| Acute Myeloid Leukemia (AML)                         | 0-9          | 207 |
-| Acute Myeloid Leukemia (AML)                         | 10-19        | 235 |
-| Acute Myeloid Leukemia (AML)                         | 20-29        |   6 |
-| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | 0-9          |  13 |
-| Kidney, Rhabdoid Tumor (RT)                          | 0-9          |  80 |
-| Kidney, Rhabdoid Tumor (RT)                          | 10-19        |   1 |
-| Kidney, Wilms Tumor (WT)                             | 0-9          | 130 |
-| Kidney, Wilms Tumor (WT)                             | 10-19        |   7 |
-| Neuroblastoma (NBL)                                  | 0-9          | 156 |
-| Neuroblastoma (NBL)                                  | 10-19        |   5 |
+| plot_tissue_type | age_in_years |   n |
+|:-----------------|:-------------|----:|
+| ALL              | 0-9          | 206 |
+| ALL              | 10-19        | 103 |
+| ALL              | 20-29        |   3 |
+| AML              | 0-9          | 207 |
+| AML              | 10-19        | 235 |
+| AML              | 20-29        |   6 |
+| CCSK             | 0-9          |  13 |
+| NBL              | 0-9          | 156 |
+| NBL              | 10-19        |   5 |
+| RT               | 0-9          |  80 |
+| RT               | 10-19        |   1 |
+| WT               | 0-9          | 130 |
+| WT               | 10-19        |   7 |
 
 All TARGET samples have age metadata and are composed primarily of \< 30
 year old samples
@@ -565,20 +582,20 @@ year old samples
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(body_site, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 ```
 
-| body_site                           | center_name     |   n |
-|:------------------------------------|:----------------|----:|
-| Muscle - Skeletal                   | BI              | 460 |
-| Whole Blood                         | BI              | 446 |
-| Cells - EBV-transformed lymphocytes | BI              | 136 |
-| Kidney - Cortex                     | BI              |  36 |
-| Whole Blood                         | Broad Institute |  10 |
-| Cells - EBV-transformed lymphocytes | Broad Institute |   8 |
-| Muscle - Skeletal                   | Broad Institute |   2 |
+| plot_tissue_type  | center_name     |   n |
+|:------------------|:----------------|----:|
+| Muscle - Skeletal | BI              | 460 |
+| Whole Blood       | BI              | 446 |
+| EBV lymphocytes   | BI              | 136 |
+| Kidney - Cortex   | BI              |  36 |
+| Whole Blood       | Broad Institute |  10 |
+| EBV lymphocytes   | Broad Institute |   8 |
+| Muscle - Skeletal | Broad Institute |   2 |
 
 “BI” stands for Broad Institute; all GTEx samples originate from the
 same sequencing center.
@@ -589,22 +606,21 @@ same sequencing center.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(target_study_name, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 ```
 
-| target_study_name                                    | center_name |   n |
-|:-----------------------------------------------------|:------------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC     | 304 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | STJUDE      |   5 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | STJUDE      |   3 |
-| Acute Myeloid Leukemia (AML)                         | HAIB        |  66 |
-| Acute Myeloid Leukemia (AML)                         | BCCAGSC     | 382 |
-| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | NCI-KHAN    |  13 |
-| Kidney, Wilms Tumor (WT)                             | BCCAGSC     | 137 |
-| Kidney, Rhabdoid Tumor (RT)                          | BCCAGSC     |  81 |
-| Neuroblastoma (NBL)                                  | NCI-KHAN    | 161 |
+| plot_tissue_type | center_name |   n |
+|:-----------------|:------------|----:|
+| ALL              | BCCAGSC     | 304 |
+| ALL              | STJUDE      |   8 |
+| AML              | HAIB        |  66 |
+| AML              | BCCAGSC     | 382 |
+| CCSK             | NCI-KHAN    |  13 |
+| WT               | BCCAGSC     | 137 |
+| RT               | BCCAGSC     |  81 |
+| NBL              | NCI-KHAN    | 161 |
 
 TARGET samples come from multiple different sequencing centers. In
 particular, ALL Phase 2 and AML samples come from two different
@@ -616,24 +632,24 @@ sequencing centers.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(body_site, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 ```
 
-| body_site                           | version |   n |
-|:------------------------------------|:--------|----:|
-| Muscle - Skeletal                   | 2       | 449 |
-| Whole Blood                         | 2       | 429 |
-| Cells - EBV-transformed lymphocytes | 2       | 131 |
-| Kidney - Cortex                     | 3       |   2 |
-| Kidney - Cortex                     | 2       |  34 |
-| Whole Blood                         | 3       |  17 |
-| Cells - EBV-transformed lymphocytes | 3       |   5 |
-| Muscle - Skeletal                   | 3       |  11 |
-| Whole Blood                         | 1       |  10 |
-| Cells - EBV-transformed lymphocytes | 1       |   8 |
-| Muscle - Skeletal                   | 1       |   2 |
+| plot_tissue_type  | version |   n |
+|:------------------|:--------|----:|
+| Muscle - Skeletal | 2       | 449 |
+| Whole Blood       | 2       | 429 |
+| EBV lymphocytes   | 2       | 131 |
+| Kidney - Cortex   | 3       |   2 |
+| Kidney - Cortex   | 2       |  34 |
+| Whole Blood       | 3       |  17 |
+| EBV lymphocytes   | 3       |   5 |
+| Muscle - Skeletal | 3       |  11 |
+| Whole Blood       | 1       |  10 |
+| EBV lymphocytes   | 1       |   8 |
+| Muscle - Skeletal | 1       |   2 |
 
 All GTEx tissue types in the compendium come from multiple versions.
 
@@ -643,23 +659,22 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(target_study_name, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 ```
 
-| target_study_name                                    | version |   n |
-|:-----------------------------------------------------|:--------|----:|
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 1       | 307 |
-| Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | 2       |   2 |
-| Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1     | 1       |   3 |
-| Acute Myeloid Leukemia (AML)                         | 1       | 448 |
-| Kidney, Clear Cell Sarcoma of the Kidney (CCSK)      | 1       |  13 |
-| Kidney, Wilms Tumor (WT)                             | 1       | 137 |
-| Kidney, Rhabdoid Tumor (RT)                          | 1       |  81 |
-| Neuroblastoma (NBL)                                  | 3       |  32 |
-| Neuroblastoma (NBL)                                  | 1       | 128 |
-| Neuroblastoma (NBL)                                  | 2       |   1 |
+| plot_tissue_type | version |   n |
+|:-----------------|:--------|----:|
+| ALL              | 1       | 310 |
+| ALL              | 2       |   2 |
+| AML              | 1       | 448 |
+| CCSK             | 1       |  13 |
+| WT               | 1       | 137 |
+| RT               | 1       |  81 |
+| NBL              | 3       |  32 |
+| NBL              | 1       | 128 |
+| NBL              | 2       |   1 |
 
 ALL Phase 2 and neuroblastoma samples in the compendium come from
 multiple versions.
@@ -672,9 +687,10 @@ multiple versions.
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(title = "TARGET tissue type composition of splice compendium v1", 
-        y = "Tissue type", 
-        x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -683,11 +699,11 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0.5,
     size = global_size - 14
     ) +
-  scale_fill_brewer(palette = "YlOrBr")
+  scale_fill_manual(values = tissue_palette)
 ```
 
 <div id="fig-target_sample_dist_bar">
@@ -704,11 +720,12 @@ Figure 1
 
 ``` r
 # make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
   geom_bar() +
-  labs(title = "GTEx tissue type composition of splice compendium v1", 
-       y = "Tissue type", 
-       x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -717,11 +734,11 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0.5,
     size = global_size - 14
   ) +
-  scale_fill_brewer(palette = "Greens")
+  scale_fill_manual(values = tissue_palette)
 ```
 
 <div id="fig-gtex_sample_dist_bar">
@@ -738,11 +755,12 @@ Figure 2
 
 ``` r
 # make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
   geom_bar() +
-  labs(title = "Age bin composition of Treehouse splice compendium v1", 
-       x = "Age in 10-year bins", 
-       y = "Count") +
+  labs(
+    x = "Age in 10-year bins", 
+    y = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   ylim(0, 400) +
   plot_theme +
@@ -751,7 +769,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
   # make facet labels bigger
   theme(strip.text = element_text(size = global_size - 2)) +
   facet_wrap(
-    ~ dataset + tissue_type,
+    ~ plot_tissue_type,
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
   # add N observations to bars
@@ -763,8 +781,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
     vjust = -0.5,
     size = global_size - 14,
     angle = 45
-  ) +
-  scale_fill_manual(values = rep("black", 8))
+  ) 
 ```
 
 <div id="fig-age_dist_bar">

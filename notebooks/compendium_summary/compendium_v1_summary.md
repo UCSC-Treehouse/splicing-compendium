@@ -798,15 +798,16 @@ Figure 3
 
 ``` r
 # make stacked bar plot of compendium sex distributions
-ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = sex)) +
+ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
   geom_bar(
     position = "stack"
   ) +
-  labs(title = "TARGET sex composition of Treehouse splice compendium v1", 
-       x = "Count", 
-       y = "Tissue type") +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 450) +
+  labs(
+    x = "Number of samples", 
+    y = "Tissue type"
+    ) +
+  # manually add to xlim so that there is space for over-bar labels
+  xlim(0, 470) +
   plot_theme +
   # et legend text size
   theme(
@@ -823,7 +824,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = sex)) +
     angle = 0,
     position = position_stack(vjust = 0.5)
   ) +
-  scale_fill_manual(values = c("lavender", "gray"))
+  scale_fill_manual(values = c("salmon", "lightblue"))
 ```
 
 <div id="fig-sex_dist_tacked_bar">

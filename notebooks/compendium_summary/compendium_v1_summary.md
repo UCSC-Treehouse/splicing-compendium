@@ -685,7 +685,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     stat = "count",
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
-    vjust = 0,
+    vjust = 0.5,
     size = global_size - 14
     ) +
   scale_fill_manual(values = tissue_palette)
@@ -720,7 +720,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
     stat = "count",
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
-    vjust = 0,
+    vjust = 0.5,
     size = global_size - 14
   ) +
   scale_fill_manual(values = tissue_palette)

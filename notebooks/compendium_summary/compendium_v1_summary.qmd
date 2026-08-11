@@ -568,15 +568,16 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
 
 ```{r}
 #| label: fig-age_dist_bar
-#| fig-width: 15
-#| fig-height: 11
+#| fig-width: 12
+#| fig-height: 6
 
 # make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
   geom_bar() +
-  labs(title = "Age bin composition of Treehouse splice compendium v1", 
-       x = "Age in 10-year bins", 
-       y = "Count") +
+  labs(
+    x = "Age in 10-year bins", 
+    y = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   ylim(0, 400) +
   plot_theme +
@@ -585,7 +586,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
   # make facet labels bigger
   theme(strip.text = element_text(size = global_size - 2)) +
   facet_wrap(
-    ~ dataset + tissue_type,
+    ~ dataset + plot_tissue_type,
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
   # add N observations to bars
@@ -597,8 +598,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
     vjust = -0.5,
     size = global_size - 14,
     angle = 45
-  ) +
-  scale_fill_manual(values = rep("black", 8))
+  ) 
 
 ```
 

@@ -421,6 +421,7 @@ for_summary_gtex_df <- cleaned_gtex_df |>
       body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
       .default = body_site
     )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,

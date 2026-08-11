@@ -46,9 +46,6 @@ As part of tracking differences between the two tables, we have labeled NA value
 
 - -1: NA values assigned by Shiba (splice events with low coverage)
 
-- NA: NA values from merging the v1 and combined tables.
-  These NAs represent splice events that are only found in one analysis method (combined vs. v1)
-
 We are particularly interested in the impact merging v1 tables has on unannotated event detection, since this is one novelty of using Shiba.
 
 **Targeted questions this notebook is trying to answer:**

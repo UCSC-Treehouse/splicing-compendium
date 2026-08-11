@@ -624,11 +624,11 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
 
 ```{r}
 #| label: fig-sex_dist_tacked_bar
-#| fig-width: 12
+#| fig-width: 10
 #| fig-height: 8
 
 # make stacked bar plot of compendium sex distributions
-ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
+gtex <- ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = sex)) +
   geom_bar(
     position = "stack"
   ) +
@@ -656,7 +656,62 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
   ) +
   scale_fill_manual(values = c("salmon", "lightblue")) +
   # allow tissue types to be plotted in same order as age distribution plots
-  scale_y_discrete(limits = rev(tissue_order))
+  scale_y_discrete(
+    limits = rev(
+      c(
+        "EBV lymphocytes",
+        "Kidney - Cortex",
+        "Muscle - Skeletal",
+        "Whole Blood"
+    )
+    )
+  )
+
+target <- ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = sex)) +
+  geom_bar(
+    position = "stack"
+  ) +
+  labs(
+    x = "Number of samples", 
+    y = "Tissue type"
+    ) +
+  # manually add to xlim so that there is space for over-bar labels
+  xlim(0, 470) +
+  plot_theme +
+  # et legend text size
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = global_size),
+    legend.title = element_text(size = global_size)
+    ) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    size = global_size - 14,
+    angle = 0,
+    position = position_stack(vjust = 0.5)
+  ) +
+  scale_fill_manual(values = c("salmon", "lightblue")) +
+  # allow tissue types to be plotted in same order as age distribution plots
+  scale_y_discrete(
+    limits = rev(
+      c(
+        "ALL",
+        "AML",
+        "CCSK",
+        "NBL",
+        "RT",
+        "WT"
+    )
+    )
+  )
+
+gtex / target + 
+  plot_layout(
+    guides = "collect",
+    axis_titles = "collect")
 
 ```
 

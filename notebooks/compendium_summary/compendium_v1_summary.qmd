@@ -49,18 +49,17 @@ plot_theme = list(
 
 # define palette for tissue types
 tissue_palette <- c(
-  "0-9" = "#1B9E77FF", 
-  "10-19" = "#D95F02FF", 
-  "20-29" = "#7570B3FF", 
-  "30-39" = "#E7298AFF", 
-  "40-49" = "#2A363BFF", 
-  "50-59" = "#E6AB02FF", 
-  "60-69" = "#A8D0E8FF", 
-  "70-79" = "#666666FF",
-  "80-89" = "#FECEA8FF",
-  "90-99" = "#225BB2FF"
+  "ALL" = "#1B9E77FF", 
+  "AML" = "#803E75", 
+  "CCSK" = "#D6DE12", 
+  "WT" = "#E7298AFF", 
+  "RT" = "black", 
+  "NBL" = "#E6AB02FF", 
+  "EBV lymphocytes" = "#A8D0E8FF", 
+  "Kidney - Cortex" = "#BCA3D8",
+  "Muscle - Skeletal" = "#FECEA8FF",
+  "Whole Blood" = "#225BB2FF"
 )
-
 ```
 
 ## Read in input and output paths
@@ -531,7 +530,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     vjust = -0.5,
     size = global_size - 14
     ) +
-  scale_fill_brewer(palette = "YlOrBr")
+  scale_fill_manual(values = tissue_palette)
 ```
 
 ### GTEx sample distribution plot
@@ -559,7 +558,7 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
     vjust = -0.5,
     size = global_size - 14
   ) +
-  scale_fill_brewer(palette = "Greens")
+  scale_fill_manual(values = tissue_palette)
 ```
 
 ## Write output

@@ -145,13 +145,10 @@ target_sra_cleaned_metadata <- target_sra_metadata |>
 # merge target metadata with cleaned sra metadata columns
 target_metadata_with_version <- dplyr::left_join(
   target_sra_cleaned_metadata,
-  target_metadata
+  target_metadata,
+  by = dplyr::join_by(Run)
 )
-```
 
-    Joining with `by = join_by(Run)`
-
-``` r
 # merge GTEx SRA with demographic metadata by accession ID
 gtex_sra_ages_df <- gtex_sra_metadata |>
   dplyr::left_join(gtex_demographic_metadata, by = "SUBJID") |>
@@ -402,10 +399,8 @@ for_summary_gtex_df <- cleaned_gtex_df |>
   # give ebv lymphocyte samples a shorter name for plots
   dplyr::mutate(
     plot_tissue_type = dplyr::case_when(
-      body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
-      body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
-      body_site == "Whole Blood" ~ "Whole Blood",
-      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
+      .default = body_site
     )
   )
 
@@ -705,7 +700,7 @@ Figure 1
 
 ``` r
 # make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
   labs(
     y = "Tissue type",

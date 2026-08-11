@@ -37,11 +37,7 @@ plot_theme = list(
    axis.title = element_text(size = global_size),
    plot.title = element_text(size = global_size),
    axis.text = element_text(size = global_size),
-   axis.text.x = element_text(
-     hjust = 1,
-     margin = margin(t = 0, r = 80, b = 0, l = 0),
-     size = global_size
-   ),
+   axis.text.x = element_text(size = global_size),
    legend.position = "none",
    panel.grid = element_blank(),
  )

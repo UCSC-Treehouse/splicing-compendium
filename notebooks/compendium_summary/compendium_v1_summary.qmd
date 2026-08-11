@@ -513,9 +513,10 @@ ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versi
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(title = "TARGET tissue type composition of splice compendium v1", 
-        y = "Tissue type", 
-        x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Count"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -524,8 +525,8 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0,
     size = global_size - 14
     ) +
   scale_fill_manual(values = tissue_palette)
@@ -541,9 +542,10 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
 # make bar plot of gtex sample distribution
 ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
   geom_bar() +
-  labs(title = "GTEx tissue type composition of splice compendium v1", 
-       y = "Tissue type", 
-       x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Count"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -552,8 +554,8 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0,
     size = global_size - 14
   ) +
   scale_fill_manual(values = tissue_palette)

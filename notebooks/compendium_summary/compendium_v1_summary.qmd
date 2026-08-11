@@ -579,7 +579,7 @@ ggplot(for_summary_gtex_df, aes(y = body_site, fill = body_site)) +
   geom_bar() +
   labs(
     y = "Tissue type",
-    x = "Count"
+    x = "Number of samples"
     ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +

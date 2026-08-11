@@ -374,10 +374,8 @@ for_summary_gtex_df <- cleaned_gtex_df |>
   # give ebv lymphocyte samples a shorter name for plots
   dplyr::mutate(
     plot_tissue_type = dplyr::case_when(
-      body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
-      body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
-      body_site == "Whole Blood" ~ "Whole Blood",
-      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
+      .default = body_site
     )
   )
 

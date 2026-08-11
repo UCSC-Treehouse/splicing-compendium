@@ -160,7 +160,7 @@ rule calculate_psi:
         shiba_scripts = config["shiba_scripts_path"],
         min_reads = config["shiba_min_reads"]
     priority: 1
-    threads: 4
+    threads: 8
     resources:
         mem_mb = 2200000,
         runtime = 20160

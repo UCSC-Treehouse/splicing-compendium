@@ -327,9 +327,7 @@ cleaned_gtex_df <- gtex_compendium_df |>
 merged_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   cleaned_gtex_df
-) |>
-  # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(plot_tissue_type, body_site))
+)
   
 # check number of rows
 nrow(merged_compendium_df)
@@ -369,7 +367,6 @@ colnames(merged_compendium_df)
     [25] "age_in_years"                                             
     [26] "plot_tissue_type"                                         
     [27] "gtex_subject_id"                                          
-    [28] "tissue_type"                                              
 
 Check for duplicates in Run
 
@@ -395,6 +392,21 @@ tissue_types <- c(
   "Cells - EBV-transformed lymphocytes"
 )
 
+
+# define custom tissue type order, with gtex appearing first
+tissue_order <- c(
+  "EBV lymphocytes",
+  "Kidney - Cortex",
+  "Muscle - Skeletal",
+  "Whole Blood",
+  "ALL",
+  "AML",
+  "CCSK",
+  "NBL",
+  "RT",
+  "WT"
+)
+
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
@@ -406,8 +418,12 @@ for_summary_gtex_df <- cleaned_gtex_df |>
       body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
       body_site == "Whole Blood" ~ "Whole Blood",
       body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+    ),
+    # set tissue order as a factor so it can be applied to plots
+    plot_tissue_type = factor(
+      plot_tissue_type, 
+      levels = tissue_order)
     )
-  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
@@ -740,11 +756,12 @@ Figure 2
 
 ``` r
 # make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
+ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
   geom_bar() +
-  labs(title = "Age bin composition of Treehouse splice compendium v1", 
-       x = "Age in 10-year bins", 
-       y = "Count") +
+  labs(
+    x = "Age in 10-year bins", 
+    y = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   ylim(0, 400) +
   plot_theme +
@@ -753,7 +770,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
   # make facet labels bigger
   theme(strip.text = element_text(size = global_size - 2)) +
   facet_wrap(
-    ~ dataset + tissue_type,
+    ~ plot_tissue_type,
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
   # add N observations to bars
@@ -765,8 +782,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = age_in_years)) +
     vjust = -0.5,
     size = global_size - 14,
     angle = 45
-  ) +
-  scale_fill_manual(values = rep("black", 8))
+  ) 
 ```
 
 <div id="fig-age_dist_bar">

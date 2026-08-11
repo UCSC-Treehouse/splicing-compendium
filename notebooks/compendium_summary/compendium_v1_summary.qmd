@@ -321,7 +321,14 @@ cleaned_gtex_df <- gtex_compendium_df |>
       dplyr::case_when(
         sex == 1 ~ "male",
         sex == 2 ~ "female"
-  )
+  ),
+  # give ebv lymphocyte samples a shorter name for plots
+  plot_tissue_type = dplyr::case_when(
+    body_site == "Kidney - Cortex" ~ "Kidney - Cortex",
+    body_site == "Muscle - Skeletal" ~ "Muscle - Skeletal",
+    body_site == "Whole Blood" ~ "Whole Blood",
+    body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes"
+    )
   )
 
 merged_compendium_df <- dplyr::bind_rows(

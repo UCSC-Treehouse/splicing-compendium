@@ -49,16 +49,16 @@ plot_theme = list(
 
 # define palette for tissue types
 tissue_palette <- c(
-  "ALL" = "#1B9E77FF", 
+  "ALL" = "#1B9E77", 
   "AML" = "#803E75", 
   "CCSK" = "#D6DE12", 
-  "WT" = "#E7298AFF", 
+  "WT" = "#E7298A", 
   "RT" = "black", 
-  "NBL" = "#E6AB02FF", 
-  "EBV lymphocytes" = "#A8D0E8FF", 
+  "NBL" = "#E6AB02", 
+  "EBV lymphocytes" = "#A8D0E8", 
   "Kidney - Cortex" = "#BCA3D8",
-  "Muscle - Skeletal" = "#FECEA8FF",
-  "Whole Blood" = "#225BB2FF"
+  "Muscle - Skeletal" = "#FECEA8",
+  "Whole Blood" = "#225BB2"
 )
 ```
 
@@ -547,7 +547,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
 #| fig-height: 4
 
 # make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = body_site)) +
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
   labs(
     y = "Tissue type",

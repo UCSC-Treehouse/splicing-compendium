@@ -233,7 +233,12 @@ v1_vs_rep2_events_summary <- v1_vs_rep2_v1_events |> dplyr::summarise(
     rep2_only_percent = rep2_only_count / total * 100,
 )
 
-v1_vs_rep2_events_summary |> dplyr::select(
+v1_vs_rep2_events_summary |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
   event_type,
   label,
   total,
@@ -242,6 +247,9 @@ v1_vs_rep2_events_summary |> dplyr::select(
   v1_only_percent)
 
 ```
+
+Even when the same workflow is run twice, a small fraction of differences remain in annotated event types.
+The exception is retained intron events, which we expect to be more different due to how exon-intron junctions are constructed in this workflow.
 
 Check what the unshared events between `v1` and `rep2` tables look like
 
@@ -256,7 +264,7 @@ head(unshared_events)
 ```
 
 From looking at chr 10 iof the unshared skipped exon events between `v1` and `rep2` of the v1 workflow results, these are actually all the same position ID; they have just been assigned a different gene.
-The differences likely come from random differences in the GTF that occur when GTFs are regenerated from scratch.
+The event differences therefore likely come from random differences in the GTF that occur when GTFs are regenerated from scratch.
 
 #### v1 vs. combined run PSI table event differences
 
@@ -290,7 +298,12 @@ v1_vs_combined_events_summary <- v1_vs_combined_events |> dplyr::summarise(
     combined_only_percent = combined_only_count / total * 100,
 )
 
-v1_vs_combined_events_summary |> dplyr::select(
+v1_vs_combined_events_summary |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
   event_type,
   label,
   total,
@@ -331,7 +344,12 @@ rep2_vs_combined_events_summary <- rep2_vs_combined_events |> dplyr::summarise(
     combined_only_percent = combined_only_count / total * 100,
 )
 
-rep2_vs_combined_events_summary |> dplyr::select(
+rep2_vs_combined_events_summary |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
   event_type,
   label,
   total,

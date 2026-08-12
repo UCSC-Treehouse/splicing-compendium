@@ -38,6 +38,8 @@ plot_theme = list(
  )
 )
 
+## Define palettes
+
 # define palette for tissue types
 tissue_palette <- c(
   "ALL" = "#1B9E77", 
@@ -50,6 +52,12 @@ tissue_palette <- c(
   "Kidney - Cortex" = "#BCA3D8",
   "Muscle - Skeletal" = "#FECEA8",
   "Whole Blood" = "#225BB2"
+)
+
+# palette for datasets
+dataset_palette <- c(
+  "gtex" = "gray",
+  "target" = "white"
 )
 ```
 
@@ -592,12 +600,12 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
 
 ```{r}
 #| label: fig-age_dist_bar
-#| fig-width: 13
-#| fig-height: 6
+#| fig-width: 14
+#| fig-height: 7
  
 # make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
-  geom_bar() +
+ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
+  geom_bar(color = "black", linewidth = 0.5) +
   labs(
     x = "Age in 10-year bins", 
     y = "Number of samples"
@@ -622,45 +630,8 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
     vjust = -0.5,
     size = global_size - 14,
     angle = 45
-  ) 
-
-```
-
-### Compendium age distribution plot
-
-```{r}
-#| label: fig-age_dist_bar
-#| fig-width: 13
-#| fig-height: 6
- 
-# make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
-  geom_bar() +
-  labs(
-    x = "Age in 10-year bins", 
-    y = "Number of samples"
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  ylim(0, 400) +
-  plot_theme +
-  # rotate x axis labels
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  # make facet labels bigger
-  theme(strip.text = element_text(size = global_size - 2)) +
-  facet_wrap(
-    ~ plot_tissue_type,
-    ncol = 4,
-    labeller = label_wrap_gen(width = 20)) +
-  # add N observations to bars
-  geom_text(
-    # count number of observations in each tissue type
-    stat = "count",
-    aes(label = paste0(after_stat(count))), 
-    hjust = 0,
-    vjust = -0.5,
-    size = global_size - 14,
-    angle = 45
-  ) 
+  )  +
+  scale_fill_manual(values = dataset_palette)
 
 ```
 

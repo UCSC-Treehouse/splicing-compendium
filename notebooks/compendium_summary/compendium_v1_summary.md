@@ -766,7 +766,7 @@ Figure 2
 
 ``` r
 # make bar plot of target sample distribution
-ggplot(for_summary_compendium_df, aes(x = age_in_years)) +
+ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   geom_bar() +
   labs(
     x = "Age in 10-year bins", 

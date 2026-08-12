@@ -420,8 +420,12 @@ for_summary_gtex_df <- cleaned_gtex_df |>
     plot_tissue_type = dplyr::case_when(
       body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
       .default = body_site
+    ),
+    # set tissue order as a factor so it can be applied to plots
+    plot_tissue_type = factor(
+      plot_tissue_type, 
+      levels = tissue_order)
     )
-  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,

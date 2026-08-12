@@ -34,11 +34,6 @@ global_size <- 20
 plot_theme = list(
  theme_bw(base_size = global_size),
  theme(
-   axis.title = element_text(size = global_size),
-   plot.title = element_text(size = global_size),
-   axis.text = element_text(size = global_size),
-   axis.text.x = element_text(size = global_size),
-   legend.position = "none",
    panel.grid = element_blank(),
  )
 )
@@ -471,8 +466,7 @@ for_summary_compendium_df |>
   )
 ```
 
-TARGET samples come from multiple different sequencing centers. 
-In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
+TARGET samples come from multiple different sequencing centers. In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
 
 ### Table of versions and release dates in GTEx dataset
 
@@ -530,7 +524,8 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     vjust = 0.5,
     size = global_size - 14
     ) +
-  scale_fill_manual(values = tissue_palette)
+  scale_fill_manual(values = tissue_palette) +
+  theme(legend.position = "none")
 ```
 
 ### GTEx sample distribution plot
@@ -559,7 +554,9 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     vjust = 0.5,
     size = global_size - 14
   ) +
-  scale_fill_manual(values = tissue_palette)
+  scale_fill_manual(values = tissue_palette) +
+  # remove legend
+  theme(legend.position = "none")
 ```
 
 ## Write output

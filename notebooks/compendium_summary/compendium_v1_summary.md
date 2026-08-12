@@ -767,7 +767,7 @@ Figure 2
 ``` r
 # make bar plot of target sample distribution
 ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
-  geom_bar() +
+  geom_bar(color = "black", linewidth = 0.5) +
   labs(
     x = "Age in 10-year bins", 
     y = "Number of samples"
@@ -792,7 +792,8 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     vjust = -0.5,
     size = global_size - 14,
     angle = 45
-  ) 
+  )  +
+  scale_fill_manual(values = dataset_palette)
 ```
 
 <div id="fig-age_dist_bar">

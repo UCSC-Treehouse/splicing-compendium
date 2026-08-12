@@ -15,12 +15,12 @@ This notebook reads in the
 ## Setup
 
 Load libraries
-```{r load libraries}
+```{r load_libraries}
 library(rtracklayer)
 ```
 Define directories and file paths
 
-```{r directories and files}
+```{r directories_and_files}
 # find the root-level repo directory so results files can be accessed
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
@@ -70,7 +70,7 @@ if (!dir.exists(v1_compendium_resuts_dir)) {
 
 Read in files
 
-```{r read in files}
+```{r read_in_files}
 ## splice result files ##
 # read merged splice table from v1 workflow on the TARGET pilot samples
 psi_results <- shiba_psi_paths |>
@@ -83,15 +83,9 @@ psi_results <- shiba_psi_paths |>
   })
 
 # combine PSI values of samples run together into one dataframe to compare against other PSI tables
-psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
-
-# sample-level PSI matrix of all event types together but missing gene ID and event annotation status
-psi_matrix <- readr::read_tsv(
-  psi_matrix_file,
-  col_types=readr::cols(.default = "c")
-  ) |>
-  # make PSI value columns numeric
-  dplyr::mutate(across(starts_with("SRR"), as.numeric))
+psi_table <- purrr::list_rbind(psi_results, names_to = "event_type") |>
+  # REMOVE THIS CODE WHEN YOU RUN ON THE V1 FILES! subset to save memory on laptop
+  dplyr::slice_sample(n = 10)
 
 ## gene annotation file ##
 # import gtf
@@ -104,10 +98,33 @@ gtf_df <- as.data.frame(gtf) |>
                 gene_name)
 ```
 
-## Make psi matrix nice
+## Add gene names to psi matrix made from combining all psi tables
 
 Merge PSI matrix with gene info and annotation columns from merged psi table
+Each row of this matrix corresponds to a unique splice event.
+columns are event_type, pos_id, gene_id, gene_name, label (annotation status), and the sample-level PSI values (columns start with "SRR")
 ```{r add_gene_annotation_to_matrix}
-nice_psi_matrix
+nice_psi_df <- dplyr::left_join(
+  psi_table,
+  gtf_df,
+  by = "gene_id",
+  # many splice events are present for each gene
+  relationship = "many-to-many"
+)
+
+# print column names of non-PSI value columns
+colnames(nice_psi_df[,sapply(nice_psi_df,is.character)])
+```
+
+## Write output
+```{r write_output}
+readr::write_tsv(nice_psi_df, out_file)
+```
+
+
+## Print session info
+
+```{r session_info}
+sessionInfo()
 ```
 

@@ -32,35 +32,25 @@ global_size <- 20
 
 # define plot theme (size) presets
 plot_theme = list(
- theme_bw(),
+ theme_bw(base_size = global_size),
  theme(
-   axis.title = element_text(size = global_size),
-   plot.title = element_text(size = global_size),
-   axis.text = element_text(size = global_size),
-   axis.text.x = element_text(
-     hjust = 1,
-     margin = margin(t = 0, r = 80, b = 0, l = 0),
-     size = global_size
-   ),
-   legend.position = "none",
    panel.grid = element_blank(),
  )
 )
 
 # define palette for tissue types
 tissue_palette <- c(
-  "0-9" = "#1B9E77FF", 
-  "10-19" = "#D95F02FF", 
-  "20-29" = "#7570B3FF", 
-  "30-39" = "#E7298AFF", 
-  "40-49" = "#2A363BFF", 
-  "50-59" = "#E6AB02FF", 
-  "60-69" = "#A8D0E8FF", 
-  "70-79" = "#666666FF",
-  "80-89" = "#FECEA8FF",
-  "90-99" = "#225BB2FF"
+  "ALL" = "#1B9E77", 
+  "AML" = "#803E75", 
+  "CCSK" = "#D6DE12", 
+  "WT" = "#E7298A", 
+  "RT" = "black", 
+  "NBL" = "#E6AB02", 
+  "EBV lymphocytes" = "#A8D0E8", 
+  "Kidney - Cortex" = "#BCA3D8",
+  "Muscle - Skeletal" = "#FECEA8",
+  "Whole Blood" = "#225BB2"
 )
-
 ```
 
 ## Read in input and output paths
@@ -371,16 +361,19 @@ tissue_types <- c(
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
-      )
+      ) |>
+  # give ebv lymphocyte samples a shorter name for plots
+  dplyr::mutate(
+    plot_tissue_type = dplyr::case_when(
+      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
+      .default = body_site
+    )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
-) |>
-  dplyr::mutate(
-    # add a tissue_type column for faceting
-    tissue_type = dplyr::coalesce(target_study_name, body_site)
-  )
+)
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -399,7 +392,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -413,7 +406,7 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -427,7 +420,7 @@ Print a table summarizing number of samples in each age bin in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -439,7 +432,7 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -454,7 +447,7 @@ All TARGET samples have age metadata and are composed primarily of \< 30 year ol
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 
@@ -468,13 +461,12 @@ for_summary_compendium_df |>
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 ```
 
-TARGET samples come from multiple different sequencing centers. 
-In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
+TARGET samples come from multiple different sequencing centers. In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
 
 ### Table of versions and release dates in GTEx dataset
 
@@ -482,7 +474,7 @@ In particular, ALL Phase 2 and AML samples come from two different sequencing ce
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -496,7 +488,7 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -510,15 +502,16 @@ ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versi
 
 ```{r}
 #| label: fig-target_sample_dist_bar
-#| fig-width: 15
-#| fig-height: 8
+#| fig-width: 8
+#| fig-height: 4
 
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(title = "TARGET tissue type composition of splice compendium v1", 
-        y = "Tissue type", 
-        x = "Count") +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
@@ -527,11 +520,43 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    hjust = -0.5,
-    vjust = -0.5,
+    hjust = -0.1,
+    vjust = 0.5,
     size = global_size - 14
     ) +
-  scale_fill_brewer(palette = "YlOrBr")
+  scale_fill_manual(values = tissue_palette) +
+  theme(legend.position = "none")
+```
+
+### GTEx sample distribution plot
+
+```{r}
+#| label: fig-gtex_sample_dist_bar
+#| fig-width: 8
+#| fig-height: 4
+
+# make bar plot of gtex sample distribution
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+  geom_bar() +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.1,
+    vjust = 0.5,
+    size = global_size - 14
+  ) +
+  scale_fill_manual(values = tissue_palette) +
+  # remove legend
+  theme(legend.position = "none")
 ```
 
 ## Write output

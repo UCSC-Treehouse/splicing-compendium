@@ -61,254 +61,6 @@ We are particularly interested in the impact merging v1 tables has on unannotate
 
 ## Set up
 
-```{r, setup, include=FALSE}
-# load libraries
-library(ggplot2)
-library(patchwork)
-
-# define global size for plots
-global_size <- 20
-
-# define plot theme (size) presets
-plot_theme = list(
- theme_bw(),
- theme(
-   legend.position = "right",
-   axis.title = element_text(size = global_size),
-   plot.title = element_text(size = global_size),
-   axis.text = element_text(size = global_size),
-   axis.text.x = element_text(
-     hjust = 1,
-     margin = margin(t = 0, r = 80, b = 0, l = 0),
-     size = global_size
-   ),
-   legend.title = element_text(size=global_size),
-   legend.text=element_text(size=global_size - 8)
- )
-)
-
-# color palette for splice event types
-cbPalette <- c(
-  afe = "#999999",
-  ale = "#E69F00",
-  five = "#56B4E9",
-  mse = "#009E73",
-  mxe = "#F0E442",
-  ri = "#0072B2",
-  se = "#D55E00",
-  three = "#CC79A7"
-)
-
-# define minimum number of samples to filter splice table by
-min_samples <- 5
-```
-
-### Define functions
-
-```{r functions}
-
-# PSI distribution plots of events in each method
-psi_distributions <- function(
-    df,
-    event_type_value) {
-  df |>
-    dplyr::filter(event_type == event_type_value) |>
-    ggplot(aes(PSI, fill = event_status)) +
-    geom_histogram(bins = 20) +
-    facet_wrap(vars(event_type, label, event_status), scales = "free_y") +
-    plot_theme +
-    # make facet labels bigger
-    theme(strip.text.x = element_text(size = global_size),
-          # rotate x axis labels so they don't overlap
-          axis.text.x = element_text(angle =45))
-}
-
-# create summary table of events detected
-make_event_summary <- function (events_table) {
-  events_table |>
-    dplyr::summarise(
-      .by = c(event_type, label),
-      # count number of events in each event type and annotation category
-      total = dplyr::n(),
-      shared_count = sum(shared_event),
-      combined_only_count = sum(combined_event) - shared_count,
-      v1_only_count = sum(v1_event) - shared_count,
-      shared_percent = shared_count / total * 100,
-      combined_only_percent = combined_only_count / total * 100,
-      v1_only_percent = v1_only_count / total * 100,
-    )
-}
-
-# plot event summary frequencies as percent and raw counts bar plots
-plot_event_summary <- function(
-    summary_df) {
-  # pivot summary df longer for plotting
-  long_summary_df <- summary_df |>
-    tidyr::pivot_longer(
-      cols = c(
-        shared_count,
-        shared_percent,
-        combined_only_count,
-        combined_only_percent,
-        v1_only_count,
-        v1_only_percent
-      ),
-      # extract percents and counts into v1 columns
-      names_to = c("category", ".value"),
-      names_pattern = "(.+)_(percent|count)"
-    )
-
-  # create percent stacked barplots
-  percent_plot <-
-    ggplot(long_summary_df, aes(fill = category, x = event_type, y = percent)) +
-    geom_bar(position = "stack", stat = "identity") +
-    plot_theme +
-    labs(
-      title = "% of splice events in combined, v1, or shared groups",
-      x = "Annotation status of event",
-      y = "Percentage of events"
-    ) +
-    facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
-    plot_theme
-
-  # create raw counts grouped barplot
-  counts_plot <-
-    ggplot(long_summary_df, aes(fill = category, x = event_type, y = count)) +
-    geom_bar(position = "dodge", stat = "identity") +
-    plot_theme +
-    labs(
-      title = "Number of splice events only in combined, v1, or shared groups",
-      x = "Annotation status of event",,
-      y = "Number of events"
-    ) +
-    facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
-    plot_theme
-
-  # arrange plots for printing
-  percent_plot /
-    counts_plot
-
-}
-
-# Histogram of quantified events
-number_events_dist <- function(
-    df,
-    psi_type, title) {
-    # construct histogram
-    ggplot(df,  aes(x = .data[[psi_type]], fill = event_type)) +
-    geom_histogram(binwidth = 1) +
-    facet_wrap(vars(label)) +
-    scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    # make facet labels bigger
-    theme(strip.text.x = element_text(size = global_size),
-          # rotate x axis labels so they don't overlap
-          axis.text.x = element_text(angle =45)) +
-    ggtitle(title)
-}
-
-## Sample-level functions
-
-# pivot event-level df long
-pivot_long <- function (wide_event_df) {
-  wide_event_df |>
-    dplyr::select(starts_with("SRR"), event_type, pos_id, label) |>
-    tidyr::pivot_longer(
-      cols = matches("_PSI_(combined|v1)$"),
-      names_to = c("sample", ".value"),
-      names_pattern = "(.*)_PSI_(combined|v1)"
-  )}
-
-# event summary plots of frequency of events in each category
-event_summary <- function(
-    long_df,
-    min_sample_value) {
-  # filter samples by complete PSI value in min number of samples
-  all_events_n_filtered <- long_df |>
-    dplyr::group_by(pos_id) |>
-    # count number of events are present in each shared status
-    dplyr::mutate(
-      combined_count = sum(method == "combined"),
-      v1_count = sum(method == "v1")
-    ) |>
-    # filter for events with complete PSI values for minimum number of samples
-    dplyr::filter(
-      combined_count >= min_sample_value,
-      v1_count >= min_sample_value
-    ) |>
-    dplyr::ungroup() |>
-    # create summary table for plotting
-    dplyr::summarise(
-      .by = c(event_type, label),
-      # count number of events in each event type and annotation category
-      total = dplyr::n(),
-      shared_count = sum(shared_event),
-      combined_only_count = sum(combined_event) - shared_count,
-      v1_only_count = sum(v1_event) - shared_count,
-      shared_percent = shared_count / total * 100,
-      combined_only_percent = combined_only_count / total * 100,
-      v1_only_percent = v1_only_count / total * 100
-    )
-}
-
-# Create summary table of number and percentage of events in each PSI-NA matchup category
-na_comparison_summary <- function(long_df) {
-  long_df |>
-    dplyr::mutate(
-      match_category =
-        dplyr::case_when(
-          v1 == -1 & combined == -1 ~ "both Shiba NAs",
-          v1 == -1 & is.na(combined) ~ "no event in combined, Shiba NA in v1",
-          is.na(v1) & combined >= 0 ~ "PSI only quantified in combined table",
-          is.na(v1) & combined == -1 ~ "no event in v1, Shiba NA in combined",
-          is.na(v1) & is.na(combined) ~ "both NA",
-          v1 >= 0 & is.na(combined) ~ "PSI only quantified in v1 table",
-          v1 >= 0 & combined >= 0 ~ "PSI quantified in both"
-        )
-    ) |>
-    dplyr::summarise(
-      .by = c(match_category),
-      count = dplyr::n()
-    ) |>
-    dplyr::mutate(
-      total = sum(count),
-      percent = count / total * 100
-    )
-}
-
-# plot PSI distributions of events with numeric PSI values in combined tables but are dropped in v1 tables
-psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
-  na_comparison_df |>
-    # drop NAs from putting together the v1 and combined tables
-    tidyr::drop_na() |>
-    # assign match categories
-    dplyr::mutate(
-      match_category =
-        dplyr::case_when(
-          v1 == -1 & combined == -1 ~ "both Shiba NAs",
-          v1 == -1 & combined >=0 ~ "v1 Shiba NA",
-          v1 >= 0 & combined == -1 ~ "combined Shiba NA",
-          v1 >= 0 & combined >= 0 ~ "PSI quantified in both",
-          is.na(v1) & combined >= 0 ~ "PSI only quantified in combined table",
-          v1 >= 0 & is.na(combined) ~ "PSI only quantified in v1 table"
-        )
-    ) |>
-    # plot only events in combined table with numeric PSIs that are dropped in the v1 table
-    dplyr::filter(match_category == match_queried,) |>
-      ggplot(aes(combined, fill = event_type)) +
-      geom_histogram(bins = 20) +
-      facet_wrap(vars(label)) +
-      scale_fill_manual(values = cbPalette) +
-      plot_theme +
-      # make facet labels bigger
-      theme(strip.text.x = element_text(size = global_size),
-            # rotate x axis labels so they don't overlap
-            axis.text.x = element_text(angle =45))
-}
-```
-
 ## Directories and files
 
 ```{r}
@@ -442,6 +194,8 @@ identical(v1_psi_table, dedup_combined_psi_table)
 identical(combined_psi_table, dedup_combined_psi_table)
 ```
 
+The combined PSI tables and PSI tables from running psi.py on the combined run's event files and deduplicated junctions are identical
+This kind of makes sense to me because the final PSI tables don't have duplicated junction pos_ids; so I think the bug didn't impact the PSI calculation since shiba just "picked" the valid junction rows?
 
 ## What splice event types do we miss out on with the v1 tables method?
 
@@ -511,3 +265,19 @@ all_events_summary |> dplyr::select(
   combined_only_percent,
   v1_only_percent)
 ```
+
+Check what the unshared events look like
+```{r}
+unshared_events <- all_events |> dplyr::filter(
+  shared_event == FALSE,
+  event_type == "se"
+) |>
+  dplyr::arrange(pos_id)
+
+head(unshared_events)
+```
+
+From looking at chr 10 iof the unshared skipped exon events, these are actually all the same position ID; they have just been assigned a different gene
+So the error likely comes from random things different in the GTF
+
+

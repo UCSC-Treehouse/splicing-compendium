@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-11
+2026-08-12
 
 ## Introduction
 
@@ -683,7 +683,8 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     vjust = 0.5,
     size = global_size - 14
     ) +
-  scale_fill_manual(values = tissue_palette)
+  scale_fill_manual(values = tissue_palette) +
+  theme(legend.position = "none")
 ```
 
 <div id="fig-target_sample_dist_bar">
@@ -718,7 +719,9 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     vjust = 0.5,
     size = global_size - 14
   ) +
-  scale_fill_manual(values = tissue_palette)
+  scale_fill_manual(values = tissue_palette) +
+  # remove legend
+  theme(legend.position = "none")
 ```
 
 <div id="fig-gtex_sample_dist_bar">

@@ -10,7 +10,9 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Introduction
 
-This notebook reads in the 
+This notebook reads in the PSI tables generated from the Treehouse Splice Compendium workflow,
+merges them into one matrix for ease of downstream analysis,
+and adds in a gene_name column to associate ENSG IDs with gene names.
 
 ## Setup
 

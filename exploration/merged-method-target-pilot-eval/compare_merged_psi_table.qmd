@@ -318,7 +318,9 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 # define the data directories
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
+# these contain zipped psi files
 target_pilot_workflow_results_dir <- file.path(exploration_dir, "v1_workflow_target_pilot_results", "psi")
+
 #output dir for long tables
 target_pilot_output <- file.path(exploration_dir, "v1_psi_tables")
 
@@ -327,7 +329,12 @@ target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pil
 # directory of shiba results produced from the same shiba run
 combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
 # psi table directory
+# these contain unzipped psi files
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
+
+# psi table dir of deduplicated combined pilot results
+# these are unzipped files
+dedup_combined_results_dir <- file.path(exploration_dir, "dedup_target_pilot_combined_results")
 
 # Check output dir exists; if not, create it
 if (!dir.exists(target_pilot_output)) {
@@ -361,6 +368,9 @@ psi_files <- c(
 # construct psi table paths of shiba results of two samples run together
 shiba_psi_paths <-file.path(combined_splice_results_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
+
+dedup_shiba_psi_paths <-file.path(dedup_combined_results_dir, psi_files)
+names(dedup_shiba_psi_paths) <- names(psi_files)
 
 v1_psi_paths <-file.path(target_pilot_workflow_results_dir, v1_psi_files)
 names(v1_psi_paths) <- names(v1_psi_files)
@@ -398,6 +408,19 @@ combined_splice_results <- shiba_psi_paths |>
 
 # combine PSI values of samples run together into one dataframe to compare against v1 PSI dataframe
 combined_psi_table <- purrr::list_rbind(combined_splice_results, names_to = "event_type")
+
+# read in deduplicated splice results
+dedup_splice_results <- dedup_shiba_psi_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
+      # select for columns that will be used in downstream analysis
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      # convert PSI values to numeric and replace NA values from shiba representing low coverage with -1
+      dplyr::mutate(across(contains("_PSI"), \(x) tidyr::replace_na(as.numeric(x), -1)))
+  })
+
+# combine PSI values of samples run together into one dataframe to compare against v1 PSI dataframe
+dedup_combined_psi_table <- purrr::list_rbind(dedup_splice_results, names_to = "event_type")
 ```
 
 ### Obtain dimensions of each PSI table
@@ -405,11 +428,10 @@ combined_psi_table <- purrr::list_rbind(combined_splice_results, names_to = "eve
 ```{r}
 # dimensions of v1 PSI table
 dim(v1_psi_table)
-```
-
-```{r}
 # dimensions of combined PSI table
 dim(combined_psi_table)
+# dimensions of deduplicated combined PSI table
+dim(dedup_combined_psi_table)
 ```
 
 There are \~400 more splice events in the combined PSI table than the v1 table.

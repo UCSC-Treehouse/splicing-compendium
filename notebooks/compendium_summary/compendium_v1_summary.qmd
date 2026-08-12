@@ -32,7 +32,7 @@ global_size <- 20
 
 # define plot theme (size) presets
 plot_theme = list(
- theme_bw(),
+ theme_bw(base_size = global_size),
  theme(
    axis.title = element_text(size = global_size),
    plot.title = element_text(size = global_size),

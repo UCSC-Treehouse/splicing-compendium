@@ -166,8 +166,8 @@ target_compendium_df <- target_metadata_with_version |>
   dplyr::filter(Run %in% target_accessions_list) |>
   # the xena browser metadata's "name.project" has the cancer type in a prettier format 
   # (no "TARGET:" prefix) 
-  # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata, 
-  # we will use thee study_name column from dbGaP metadata
+  # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata,
+  # we will use the study_name column from dbGaP metadata
   dplyr::mutate(
     # add dataset column to facet plots by
     dataset = "target",
@@ -695,13 +695,6 @@ multiple versions.
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(
-    y = "Tissue type",
-    x = "Number of samples"
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
@@ -711,6 +704,13 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     vjust = 0.5,
     size = rel(5)
     ) +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
   scale_fill_manual(values = tissue_palette) +
   theme(legend.position = "none")
 ```
@@ -731,13 +731,6 @@ Figure 1
 # make bar plot of gtex sample distribution
 ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(
-    y = "Tissue type",
-    x = "Number of samples"
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
@@ -747,6 +740,13 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     vjust = 0.5,
     size = rel(5)
   ) +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
   scale_fill_manual(values = tissue_palette) +
   # remove legend
   theme(legend.position = "none")

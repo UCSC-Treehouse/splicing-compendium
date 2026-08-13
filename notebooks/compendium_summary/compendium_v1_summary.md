@@ -775,10 +775,12 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   # manually add to ylim so that there is space for over-bar labels
   ylim(0, 400) +
   plot_theme +
-  # rotate x axis labels
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  # make facet labels bigger
-  theme(strip.text = element_text(size = global_size - 2)) +
+  theme(
+    # rotate x axis labels
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    # make facet labels bigger
+    strip.text = element_text(size = rel(0.9))
+  ) +
   facet_wrap(
     ~ plot_tissue_type,
     ncol = 4,

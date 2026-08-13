@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-12
+2026-08-13
 
 ## Introduction
 
@@ -166,8 +166,8 @@ target_compendium_df <- target_metadata_with_version |>
   dplyr::filter(Run %in% target_accessions_list) |>
   # the xena browser metadata's "name.project" has the cancer type in a prettier format 
   # (no "TARGET:" prefix) 
-  # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata, 
-  # we will use thee study_name column from dbGaP metadata
+  # but since some ALL phase 2 samples were miscategorized as  ALL phase 3 in the xena metadata,
+  # we will use the study_name column from dbGaP metadata
   dplyr::mutate(
     # add dataset column to facet plots by
     dataset = "target",
@@ -695,13 +695,6 @@ multiple versions.
 # make bar plot of target sample distribution
 ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(
-    y = "Tissue type",
-    x = "Number of samples"
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
@@ -709,8 +702,15 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = global_size - 14
+    size = rel(5)
     ) +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
   scale_fill_manual(values = tissue_palette) +
   theme(legend.position = "none")
 ```
@@ -731,13 +731,6 @@ Figure 1
 # make bar plot of gtex sample distribution
 ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   geom_bar() +
-  labs(
-    y = "Tissue type",
-    x = "Number of samples"
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
@@ -745,8 +738,15 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = global_size - 14
+    size = rel(5)
   ) +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
   scale_fill_manual(values = tissue_palette) +
   # remove legend
   theme(legend.position = "none")
@@ -768,21 +768,6 @@ Figure 2
 # make bar plot of target sample distribution
 ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   geom_bar(color = "black", linewidth = 0.5) +
-  labs(
-    x = "Age in 10-year bins", 
-    y = "Number of samples"
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  ylim(0, 400) +
-  plot_theme +
-  # rotate x axis labels
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  # make facet labels bigger
-  theme(strip.text = element_text(size = global_size - 2)) +
-  facet_wrap(
-    ~ plot_tissue_type,
-    ncol = 4,
-    labeller = label_wrap_gen(width = 20)) +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
@@ -790,9 +775,26 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     aes(label = paste0(after_stat(count))), 
     hjust = 0,
     vjust = -0.5,
-    size = global_size - 14,
+    size = rel(5),
     angle = 45
-  )  +
+  ) +
+  labs(
+    x = "Age in 10-year bins", 
+    y = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  ylim(0, 400) +
+  plot_theme +
+  theme(
+    # rotate x axis labels
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    # make facet labels smaller
+    strip.text = element_text(size = rel(0.8))
+    ) +
+  facet_wrap(
+    ~ plot_tissue_type,
+    ncol = 4,
+    labeller = label_wrap_gen(width = 20)) +
   scale_fill_manual(values = dataset_palette)
 ```
 

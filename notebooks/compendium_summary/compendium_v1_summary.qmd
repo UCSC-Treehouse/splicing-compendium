@@ -559,7 +559,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = global_size - 14
+    size = rel(5)
     ) +
   scale_fill_manual(values = tissue_palette) +
   theme(legend.position = "none")
@@ -589,7 +589,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = global_size - 14
+    size = rel(5)
   ) +
   scale_fill_manual(values = tissue_palette) +
   # remove legend

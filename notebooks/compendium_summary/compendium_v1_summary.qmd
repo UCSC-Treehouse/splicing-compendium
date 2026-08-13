@@ -673,10 +673,8 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
   plot_theme +
   # set legend text size
   theme(
-    legend.position = "right",
-    legend.text = element_text(size = rel(1)),
-    legend.title = element_text(size = rel(1))
-    ) +
+    legend.position = "bottom"
+  ) +
   facet_grid(
     rows = "dataset",
     scales = "free_y",

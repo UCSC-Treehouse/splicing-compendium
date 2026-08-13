@@ -820,29 +820,28 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
     x = "Number of samples", 
     y = "Tissue type"
     ) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    size = rel(6),
+    angle = 0,
+    position = position_stack(vjust = 0.5)
+  ) +
   # manually add to xlim so that there is space for over-bar labels
   xlim(0, 470) +
   plot_theme +
   # set legend text size
   theme(
     legend.position = "right",
-    legend.text = element_text(size = global_size),
-    legend.title = element_text(size = global_size)
+    legend.text = element_text(size = rel(1)),
+    legend.title = element_text(size = rel(1))
     ) +
-  facet_wrap(
-    ~ dataset,
-    ncol = 2,
+  facet_grid(
+    rows = "dataset",
     scales = "free_y",
-    labeller = label_wrap_gen(width = 20)
-    ) +
-  # add N observations to bars
-  geom_text(
-    # count number of observations in each tissue type
-    stat = "count",
-    aes(label = paste0(after_stat(count))), 
-    size = global_size - 16,
-    angle = 0,
-    position = position_stack(vjust = 0.5)
+    space = "free_y"
   ) +
   scale_fill_manual(values = sex_palette) 
 ```

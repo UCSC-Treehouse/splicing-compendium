@@ -32,20 +32,24 @@ global_size <- 20
 
 # define plot theme (size) presets
 plot_theme = list(
- theme_bw(),
+ theme_bw(base_size = global_size),
  theme(
-   legend.position = "right",
-   axis.title = element_text(size = global_size),
-   plot.title = element_text(size = global_size),
-   axis.text = element_text(size = global_size),
-   axis.text.x = element_text(
-     hjust = 1,
-     margin = margin(t = 0, r = 80, b = 0, l = 0),
-     size = global_size
-   ),
-   legend.title = element_text(size=global_size),
-   legend.text=element_text(size=global_size - 8)
+   panel.grid = element_blank(),
  )
+)
+
+# define palette for tissue types
+tissue_palette <- c(
+  "ALL" = "#1B9E77", 
+  "AML" = "#803E75", 
+  "CCSK" = "#D6DE12", 
+  "WT" = "#E7298A", 
+  "RT" = "black", 
+  "NBL" = "#E6AB02", 
+  "EBV lymphocytes" = "#A8D0E8", 
+  "Kidney - Cortex" = "#BCA3D8",
+  "Muscle - Skeletal" = "#FECEA8",
+  "Whole Blood" = "#225BB2"
 )
 ```
 
@@ -187,8 +191,11 @@ target_compendium_df <- target_metadata_with_version |>
   dplyr::mutate(
     # add dataset column to facet plots by
     dataset = "target",
-    # remove TARGET prefix from study_name values
-    study_name = stringr::str_remove(study_name, "^TARGET: ")) |>
+    # remove slash characters and TARGET prefix from study_name values
+    target_study_name = study_name |> 
+      stringr::str_replace_all(stringr::fixed("\\"), "") |> 
+      stringr::str_remove("^TARGET: "),
+    tissue_type = study_name) |>
   # clean up TARGET metadata by selecting clinically relevant and batch-relevant information
   dplyr::select(
     # fields shared with gtex metadata
@@ -199,7 +206,7 @@ target_compendium_df <- target_metadata_with_version |>
     BioSample, # sample-specific accession ID from dbgap
     center_name = `Center Name`, # sequencing center of origin
     sex = gender.demographic, # in "male" / "female" values,
-    target_study_name = study_name, # cancer type of sample, to be used in combining columns
+    target_study_name, # cancer type of sample, to be used in combining columns
     # fields specific to target metadata
     age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, # in continuous floating point numbers, to be binned
     target_patient_id = `_PATIENT`, # ID of patient sample came from - some samples came from the same patient
@@ -287,7 +294,18 @@ cleaned_target_df <- target_compendium_df |>
          "80-89",
          "90-99"
        )
-       )
+       ),
+     # clean target tissue type labels for printing in a plot
+     plot_tissue_type = dplyr::case_when(
+       target_study_name == "Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2" |
+         target_study_name == "Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1" ~
+         "ALL",
+       target_study_name == "Acute Myeloid Leukemia (AML)" ~ "AML",
+       target_study_name == "Kidney, Clear Cell Sarcoma of the Kidney (CCSK)" ~ "CCSK",
+       target_study_name == "Kidney, Wilms Tumor (WT)" ~ "WT",
+       target_study_name == "Kidney, Rhabdoid Tumor (RT)" ~ "RT",
+       target_study_name == "Neuroblastoma (NBL)" ~ "NBL"
+     )
     ) |>
   # there are 4 TARGET ALL phase 2 samples duplicated as ALL phase 3 with no age information
   # all other TARGET accessions have age info
@@ -343,14 +361,19 @@ tissue_types <- c(
 for_summary_gtex_df <- cleaned_gtex_df |>
   dplyr::filter(
     body_site %in% tissue_types
-      )
+      ) |>
+  # give ebv lymphocyte samples a shorter name for plots
+  dplyr::mutate(
+    plot_tissue_type = dplyr::case_when(
+      body_site == "Cells - EBV-transformed lymphocytes" ~ "EBV lymphocytes",
+      .default = body_site
+    )
+  )
 
 for_summary_compendium_df <- dplyr::bind_rows(
   cleaned_target_df,
   for_summary_gtex_df
-) |>
-  # add a tissue_type column for faceting
-  dplyr::mutate(tissue_type = dplyr::coalesce(target_study_name, body_site))
+)
 
 for_summary_compendium_df |>
   dplyr::summarise(
@@ -369,7 +392,7 @@ Print a table summarizing number of samples in each tissue type in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -383,7 +406,7 @@ Our curated GTEx compendium dataset is primarily composed of whole blood (for le
 # summarize number of samples in each TARGET tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type) |>
+  dplyr::group_by(plot_tissue_type) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -397,7 +420,7 @@ Print a table summarizing number of samples in each age bin in compendium
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -409,7 +432,7 @@ for_summary_compendium_df |>
 # summarize number of samples in each GTEx tissue type
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
-  dplyr::group_by(tissue_type, age_in_years) |>
+  dplyr::group_by(plot_tissue_type, age_in_years) |>
   dplyr::summarise(
     n = dplyr::n()
     )
@@ -424,7 +447,7 @@ All TARGET samples have age metadata and are composed primarily of \< 30 year ol
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 
@@ -438,13 +461,12 @@ for_summary_compendium_df |>
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, center_name),
+    .by = c(plot_tissue_type, center_name),
     n = dplyr::n()
   )
 ```
 
-TARGET samples come from multiple different sequencing centers. 
-In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
+TARGET samples come from multiple different sequencing centers. In particular, ALL Phase 2 and AML samples come from two different sequencing centers.
 
 ### Table of versions and release dates in GTEx dataset
 
@@ -452,7 +474,7 @@ In particular, ALL Phase 2 and AML samples come from two different sequencing ce
 for_summary_compendium_df |>
   dplyr::filter(dataset == "gtex") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
@@ -466,13 +488,76 @@ All GTEx tissue types in the compendium come from multiple versions.
 for_summary_compendium_df |>
   dplyr::filter(dataset == "target") |>
   dplyr::summarise(
-    .by = c(tissue_type, version),
+    .by = c(plot_tissue_type, version),
     n = dplyr::n()
   )
 
 ```
 
 ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versions.
+
+## Plot sample composition of v1 compendium
+
+### TARGET sample distribution plot
+
+```{r}
+#| label: fig-target_sample_dist_bar
+#| fig-width: 8
+#| fig-height: 4
+
+# make bar plot of target sample distribution
+ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+  geom_bar() +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.1,
+    vjust = 0.5,
+    size = global_size - 14
+    ) +
+  scale_fill_manual(values = tissue_palette) +
+  theme(legend.position = "none")
+```
+
+### GTEx sample distribution plot
+
+```{r}
+#| label: fig-gtex_sample_dist_bar
+#| fig-width: 8
+#| fig-height: 4
+
+# make bar plot of gtex sample distribution
+ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+  geom_bar() +
+  labs(
+    y = "Tissue type",
+    x = "Number of samples"
+    ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.1,
+    vjust = 0.5,
+    size = global_size - 14
+  ) +
+  scale_fill_manual(values = tissue_palette) +
+  # remove legend
+  theme(legend.position = "none")
+```
 
 ## Write output
 

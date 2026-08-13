@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-12
+2026-08-13
 
 ## Introduction
 
@@ -709,7 +709,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = global_size - 14
+    size = rel(5)
     ) +
   scale_fill_manual(values = tissue_palette) +
   theme(legend.position = "none")
@@ -745,7 +745,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = global_size - 14
+    size = rel(5)
   ) +
   scale_fill_manual(values = tissue_palette) +
   # remove legend
@@ -768,6 +768,16 @@ Figure 2
 # make bar plot of target sample distribution
 ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   geom_bar(color = "black", linewidth = 0.5) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = 0,
+    vjust = -0.5,
+    size = rel(5),
+    angle = 45
+  ) +
   labs(
     x = "Age in 10-year bins", 
     y = "Number of samples"
@@ -778,23 +788,13 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   theme(
     # rotate x axis labels
     axis.text.x = element_text(angle = 45, hjust = 1),
-    # make facet labels bigger
-    strip.text = element_text(size = rel(0.9))
-  ) +
+    # make facet labels smaller
+    strip.text = element_text(size = rel(0.8))
+    ) +
   facet_wrap(
     ~ plot_tissue_type,
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
-  # add N observations to bars
-  geom_text(
-    # count number of observations in each tissue type
-    stat = "count",
-    aes(label = paste0(after_stat(count))), 
-    hjust = 0,
-    vjust = -0.5,
-    size = global_size - 14,
-    angle = 45
-  )  +
   scale_fill_manual(values = dataset_palette)
 ```
 

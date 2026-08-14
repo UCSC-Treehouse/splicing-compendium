@@ -676,11 +676,11 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
     legend.position = "bottom"
   ) +
   facet_grid(
-    rows = "dataset",
+    rows = vars(dataset),
     scales = "free_y",
     space = "free_y"
   ) +
-  scale_fill_manual(values = sex_palette) 
+  scale_fill_manual(values = sex_palette, guide = guide_legend(reverse = TRUE)) 
 
 ```
 

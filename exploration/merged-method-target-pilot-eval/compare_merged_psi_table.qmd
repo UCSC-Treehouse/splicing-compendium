@@ -195,6 +195,80 @@ Columns contain each samples' PSI value with -1 indicating low read NA and NA in
 
 ## rep1 vs. rep2 PSI table event differences
 
+Joining by both pos_id and gene_id, 
+```{r}
+rep1_vs_rep2_example_table <- dplyr::full_join(
+  rep1_psi_table,
+  rep2_psi_table,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_rep1", "_rep2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # v1 events are counted if the values are not all NA
+    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
+    # rep2 events are counted if the values for the event are not all NA
+    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
+    shared_event = rep1_event & rep2_event
+  )
+
+# event-level summary of the number of each splice event type in each splice table
+genes_rep1_vs_rep2_events_summary <- rep1_vs_rep2_example_table |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    rep1_only_count = sum(rep1_event) - shared_count,
+    rep2_only_count = sum(rep2_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    rep1_only_percent = rep1_only_count / total * 100,
+    rep2_only_percent = rep2_only_count / total * 100,
+)
+
+genes_rep1_vs_rep2_events_summary |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+  event_type,
+  label,
+  total,
+  shared_percent,
+  rep2_only_percent,
+  rep1_only_percent)
+
+```
+
+
+Print example of events with same pos_ids, put into different genes
+```{r}
+# construct table of rep1 and rep2 events and label by whether event is shared
+rep1_vs_rep2_example_table <- dplyr::full_join(
+  rep1_psi_table,
+  rep2_psi_table,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_rep1", "_rep2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # v1 events are counted if the values are not all NA
+    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
+    # rep2 events are counted if the values for the event are not all NA
+    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
+    shared_event = rep1_event & rep2_event
+  ) |>
+  dplyr::filter(
+    event_type == "se",
+    shared_event == FALSE
+  )
+
+rep1_vs_rep2_example_table |>
+  dplyr::arrange(pos_id) |>
+  head()
+```
+
+
 ### print fraction of events that are unshared
 
 ```{r rep1_vs_rep2}

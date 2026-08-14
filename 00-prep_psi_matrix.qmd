@@ -1,0 +1,128 @@
+---
+title: "Prep psi matrix for analysis"
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+This notebook reads in the PSI tables generated from the Treehouse Splice Compendium workflow, merges them into one matrix for ease of downstream analysis, and adds in a gene_name column to associate ENSG IDs with gene names.
+
+## Setup
+
+Load libraries
+
+```{r load_libraries}
+library(rtracklayer)
+```
+
+Define directories and file paths
+
+```{r directories_and_files}
+# find the root-level repo directory so results files can be accessed
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+## directories ##
+# parent directories
+exploration_dir <- file.path(repo_root, "exploration")
+results_dir <- file.path(repo_root, "results")
+references_dir <- file.path(repo_root, "references")
+
+# psi table dir
+target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
+combined_results_dir <- file.path(target_pilot_dir, "shiba_combined", "results", "splicing")
+
+# output dir of psi table with gene name and splice event annotation status
+v1_compendium_resuts_dir <- file.path(results_dir, "v1_compendium")
+
+## files ##
+# gtf file for converting ensg id to gene names
+gtf_file <- file.path(references_dir, "gencode.v47.primary_assembly.annotation.gtf")
+
+# psi matrix to make nice
+psi_matrix_file <- file.path(combined_results_dir, "PSI_matrix_sample.txt")
+# output nice psi matrix file
+out_file <- file.path(v1_compendium_resuts_dir, "v1_compendium_psi_matrix.txt")
+
+# define list of PSI results files produced by Shiba
+psi_files <- c(
+  se = "PSI_SE.txt",
+  afe = "PSI_AFE.txt",
+  ale = "PSI_ALE.txt",
+  five = "PSI_FIVE.txt",
+  three = "PSI_THREE.txt",
+  mse = "PSI_MSE.txt",
+  mxe = "PSI_MXE.txt",
+  ri = "PSI_RI.txt"
+)
+
+# construct psi table paths of combined run shiba results
+shiba_psi_paths <-file.path(combined_results_dir, psi_files)
+names(shiba_psi_paths) <- names(psi_files)
+
+# Check output dir exists; if not, create it
+if (!dir.exists(v1_compendium_resuts_dir)) {
+  dir.create(v1_compendium_resuts_dir)
+}
+```
+
+Read in files
+
+```{r read_in_files}
+## gene annotation file ##
+
+# import gtf
+gtf <- import(gtf_file)
+
+# make a named vector of gene names to IDs
+gene_names <- setNames(gtf$gene_name, gtf$gene_id)
+
+# remove the gtf when you are done with it
+rm(gtf)
+
+## splice result files ##
+# read merged splice table from v1 workflow on the TARGET pilot samples
+psi_results <- shiba_psi_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
+      # select for columns that will be used in downstream analysis
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      # convert PSI values to numeric
+      dplyr::mutate(across(contains("_PSI"), \(x) as.numeric(x)))
+  })
+
+# combine PSI values of samples run together into one dataframe to compare against other PSI tables
+psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
+```
+
+## Add gene names to psi matrix made from combining all psi tables
+
+Merge PSI matrix with gene info and annotation columns from merged psi table Each row of this matrix corresponds to a unique splice event. columns are event_type, pos_id, gene_id, gene_name, label (annotation status), and the sample-level PSI values (columns start with "SRR")
+
+```{r add_gene_annotation_to_matrix}
+nice_psi_df <-psi_table |>
+  dplyr::mutate(
+    # make a gene name column based off the gene name/gene id vector from gtf
+    gene_name = gene_names[gene_id],
+    .after = gene_id
+  )
+
+# print column names of non-PSI value columns
+colnames(nice_psi_df[,sapply(nice_psi_df,is.character)])
+```
+
+## Write output
+
+```{r write_output}
+readr::write_tsv(nice_psi_df, out_file)
+```
+
+## Print session info
+
+```{r session_info}
+sessionInfo()
+```

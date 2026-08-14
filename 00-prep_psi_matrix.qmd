@@ -79,7 +79,7 @@ Read in files
 gtf <- import(gtf_file)
 
 # make a named vector of gene names to IDs
-gene_names = setNames(gtf$gene_name, gtf$gene_id)
+gene_names <- setNames(gtf$gene_name, gtf$gene_id)
 
 # remove the gtf when you are done with it
 rm(gtf)
@@ -104,10 +104,12 @@ psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 Merge PSI matrix with gene info and annotation columns from merged psi table Each row of this matrix corresponds to a unique splice event. columns are event_type, pos_id, gene_id, gene_name, label (annotation status), and the sample-level PSI values (columns start with "SRR")
 
 ```{r add_gene_annotation_to_matrix}
-nice_psi_df <-psi_table |> dplyr::mutate(
-  # make a gene name column based off the gene name/gene id vector from gtf
- gene_name = gene_names[gene_id]
-)
+nice_psi_df <-psi_table |>
+  dplyr::mutate(
+    # make a gene name column based off the gene name/gene id vector from gtf
+    gene_name = gene_names[gene_id]
+    .after = gene_id
+  )
 
 # print column names of non-PSI value columns
 colnames(nice_psi_df[,sapply(nice_psi_df,is.character)])

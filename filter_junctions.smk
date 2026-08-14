@@ -19,7 +19,6 @@ REF_GTF = config["reference_gtf"]
 sample_to_group = dict(zip(SAMPLES, GROUPS))
 
 pathvars:
-    merged_shiba_results = f"results/merged_shiba/splice_compendium_v1",
     test_results_dir = f"results/test_split_psi_calc"
 
 # create all rule with expanded wildcards because cannot run target rules with wildcards
@@ -28,7 +27,7 @@ rule all:
         "<test_results_dir>/psi"
 
 rule filter_junctions:
-    input: "<merged_shiba_results>/merged_junctions.bed"
+    input: "<test_results_dir>/merged_junctions.bed"
     output: "<test_results_dir>/junctions_by_chromosome/chr1_merged_junctions.bed"
     threads: 8
     resources:
@@ -42,9 +41,9 @@ rule filter_junctions:
 
 rule calculate_psi:
     input:
-        events_dir = "<merged_shiba_results>/events",
+        events_dir = "<test_results_dir>/events",
         merged_junctions = "<test_results_dir>/junctions_by_chromosome/chr1_merged_junctions.bed",
-        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
+        merged_gtf = "<test_results_dir>/merged_gtf.gtf",
     output:
         shiba_psi_out = directory("<test_results_dir>/psi")
     params:
@@ -53,7 +52,7 @@ rule calculate_psi:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 2200000,
+        mem_mb = 1000000,
         runtime = 20160
     shell:
         """

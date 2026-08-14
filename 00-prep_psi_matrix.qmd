@@ -107,7 +107,7 @@ Merge PSI matrix with gene info and annotation columns from merged psi table Eac
 nice_psi_df <-psi_table |>
   dplyr::mutate(
     # make a gene name column based off the gene name/gene id vector from gtf
-    gene_name = gene_names[gene_id]
+    gene_name = gene_names[gene_id],
     .after = gene_id
   )
 

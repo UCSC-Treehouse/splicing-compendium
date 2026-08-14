@@ -630,7 +630,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     strip.text = element_text(size = rel(0.8))
     ) +
   facet_wrap(
-    ~ plot_tissue_type,
+    facets = vars(plot_tissue_type),
     ncol = 4,
     labeller = label_wrap_gen(width = 20)) +
   scale_fill_manual(values = dataset_palette)

@@ -47,7 +47,18 @@ For all PSI tables loaded in, NA values assigned by Shiba within each method lis
 Define functions
 
 ```{r functions}
-# read merged splice table from v1 workflow on the TARGET pilot samples
+# construct paths to psi tables
+construct_psi_paths <- function(psi_dir, psi_file_list) {
+  # construct paths to individual psi files
+  psi_paths <-file.path(psi_dir, psi_file_list)
+  # name each path according to event type
+  names(psi_paths) <- names(psi_file_list)
+  
+  # returned the named vector of psi paths
+  return(psi_paths)
+}
+
+# read in and merge splice tables
 read_psi_tables <- function(psi_paths) {
   psi_results <- psi_paths |>
   purrr::map(\(path){
@@ -64,6 +75,7 @@ psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 # return the psi table
 return(psi_table)
 }
+
 ```
 
 ## Directories and files
@@ -124,20 +136,16 @@ psi_files <- c(
 )
 
 # construct psi table paths of combined run shiba results
-shiba_psi_paths <-file.path(combined_splice_results_dir, psi_files)
-names(shiba_psi_paths) <- names(psi_files)
+combined_psi_paths <- construct_psi_paths(combined_splice_results_dir, psi_files)
 
 # psi table paths of psi.py run on deduplicated combined run junctions.bed
-dedup_shiba_psi_paths <-file.path(dedup_combined_results_dir, psi_files)
-names(dedup_shiba_psi_paths) <- names(psi_files)
+dedup_comb_psi_paths <- construct_psi_paths(dedup_combined_results_dir, psi_files)
 
 # psi table paths of v1 workflow on target pilot samples
 # these psi tables are zipped so can use the 'v1_psi_files' names
-rep1_psi_paths <-file.path(target_pilot_workflow_results_dir, workflow_psi_files)
-names(rep1_psi_paths) <- names(workflow_psi_files)
+rep1_psi_paths <- construct_psi_paths(target_pilot_workflow_results_dir, workflow_psi_files)
+rep2_psi_paths <- construct_psi_paths(rep2_target_pilot_results_dir, workflow_psi_files)
 
-rep2_psi_paths <- file.path(rep2_target_pilot_results_dir, workflow_psi_files)
-names(rep2_psi_paths) <- names(workflow_psi_files)
 ```
 
 Read in files
@@ -148,8 +156,8 @@ rep1_psi_table <- read_psi_tables(rep1_psi_paths)
 rep2_psi_table <- read_psi_tables(rep2_psi_paths)
 
 # read in 'negative control' canonical shiba run tables
-combined_psi_table <- read_psi_tables(shiba_psi_paths)
-dedup_combined_psi_table <- read_psi_tables(dedup_shiba_psi_paths)
+combined_psi_table <- read_psi_tables(combined_psi_paths)
+dedup_combined_psi_table <- read_psi_tables(dedup_comb_psi_paths)
 ```
 
 ## Compare PSI tables
@@ -169,46 +177,26 @@ dim(dedup_combined_psi_table)
 
 There are \~400 more splice events in the combined PSI tables than the v1 tables.
 
-### Check if PSI values are identical
-
-```{r check_identical}
-# check whether identical runs of the v1 method produce identical results
-identical(rep1_psi_table, rep2_psi_table)
-
-# check if rep1 method result is identical to the deduplicated combined method result
-identical(rep1_psi_table, dedup_combined_psi_table)
-
-# check if psi values from the combined method before and after deduplication of junctions.bed file are identical
-identical(combined_psi_table, dedup_combined_psi_table)
-```
-
-Repeated runs of the rep1 compendium workflow do not produce identical results.
-
-Results from the rep1 compendium workflow are not identical to results from the canonical Shiba run.
-
-However, PSI tables from the "combined" run and just running unaltered `psi.py` on events files from the combined run and deduplicated combined run `junctions.bed` file are identical.
-This kind of makes sense to me because the final PSI tables don't have duplicated junction `pos_ids`; so I think the bug didn't impact the PSI calculation since Shiba just "picked" the valid junction rows to calculate PSIs on.
-
 ### Check fraction of splice events that are unshared between methods
 
 Since the `combined` and `deduplicated_combined` results are identical, I will make the following comparisons:
 
 - `rep1` vs. `rep2`: To see what fraction of events are different when the workflow is run multiple times
 
-- `rep1` vs. `combined` and `rep2` vs. `combined`: To see if differences between the latest workflow and the combined run are the same, despite different workflow runs.
-
 The dataframes created in the following cells are event-level dataframes of splice events that are shared or unshared between each method.
 Each row is a unique pos_id/event_id + gene combination.
 Columns contain each samples' PSI value with -1 indicating low read NA and NA indicating event not shared between methods.
 
-#### rep1 vs. rep2 PSI table event differences
+## rep1 vs. rep2 PSI table event differences
+
+### print fraction of events that are unshared
 
 ```{r rep1_vs_rep2}
 # construct table of rep1 and rep2 events and label by whether event is shared
 rep1_vs_rep2_events <- dplyr::full_join(
   rep1_psi_table,
   rep2_psi_table,
-  by = c("event_type", "pos_id", "gene_id", "label"),
+  by = c("event_type", "pos_id", "label"),
   # label PSI values by table they came from
   suffix = c("_rep1", "_rep2")) |>
   # categorize events by whether they are in the v1 or rep2 tables
@@ -248,123 +236,30 @@ rep1_vs_rep2_events_summary |>
 
 ```
 
-Even when the same workflow is run twice, a small fraction of differences remain in annotated event types.
-The exception is retained intron events, which we expect to be more different due to how exon-intron junctions are constructed in this workflow.
-
-Check what the unshared events between `v1` and `rep2` tables look like
-
-```{r}
-unshared_events <- rep1_vs_rep2_events |> dplyr::filter(
-  shared_event == FALSE,
-  event_type == "se"
-) |>
-  dplyr::arrange(pos_id)
-
-head(unshared_events)
-```
-
-From looking at chr 10 iof the unshared skipped exon events between `v1` and `rep2` of the v1 workflow results, these are actually all the same position ID; they have just been assigned a different gene.
-The event differences therefore likely come from random differences in the GTF that occur when GTFs are regenerated from scratch.
-
-#### rep1 vs. combined run PSI table event differences
-
-```{r rep1_vs_combined}
-# construct table of v1 and combined events and label by whether event is shared
-rep1_vs_combined_events <- dplyr::full_join(
-  rep1_psi_table,
-  combined_psi_table,
-  by = c("event_type", "pos_id", "gene_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_rep1", "_combined")) |>
-  # categorize events by whether they are in the v1 or combined tables
-  dplyr::mutate(
-    # rep1 events are counted if the values are not all NA
-    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
-    # combined events are counted if the values for the event are not all NA
-    combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
-    shared_event = rep1_event & combined_event
-  )
-
-# event-level summary of the number of each splice event type in each splice table
-rep1_vs_combined_events_summary <- rep1_vs_combined_events |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    rep1_only_count = sum(rep1_event) - shared_count,
-    combined_only_count = sum(combined_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    rep1_only_percent = rep1_only_count / total * 100,
-    combined_only_percent = combined_only_count / total * 100,
-)
-
-rep1_vs_combined_events_summary |> 
-  # no need to look at event types that are all the same
+### Check if PSI values are identical
+```{r rep1_rep2_psi_identical}
+# extract position ids of events that are shared between tables
+rep1_rep2_shared_psi <- rep1_vs_rep2_events |>
   dplyr::filter(
-    shared_percent != 100
-  ) |>
-  dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  combined_only_percent,
-  rep1_only_percent)
+    shared_event == TRUE,
+    # let's not look at retained introns for now
+    event_type != "ri"
+    ) |>
+  dplyr::pull(pos_id)
+
+# filter tables for events in shared tables
+shared_only_rep1_table <- rep1_psi_table |>
+  dplyr::filter(pos_id %in% rep1_rep2_shared_psi) |>
+  dplyr::select(pos_id, ends_with("_PSI"))
+
+shared_only_rep2_table <- rep2_psi_table |>
+  dplyr::filter(pos_id %in% rep1_rep2_shared_psi) |>
+  dplyr::select(pos_id, ends_with("_PSI"))
+
+all.equal(shared_only_rep1_table, shared_only_rep2_table)
 ```
+Even though position IDs of non-RI event types are the same, the PSI values in rep 1 and rep 2 are different.
+based on the previous version of this notebook where I printed out examples of cases where positions IDs are the same but being assigned different genes,
+I wonder how much of differing PSI values stem from cases where junctions in the same position IDs are assigned different genes when Shiba calculates PSI.
 
-#### rep2_v1 vs. combined run event differences
-
-```{r rep2_vs_combined}
-# construct table of rep2_v1 and combined events and label by whether event is shared
-rep2_vs_combined_events <- dplyr::full_join(
-  rep2_psi_table,
-  combined_psi_table,
-  by = c("event_type", "pos_id", "gene_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_rep2", "_combined")) |>
-  # categorize events by whether they are in the v1 or combined tables
-  dplyr::mutate(
-    # rep2 events are counted if the values are not all NA
-    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
-    # combined events are counted if the values for the event are not all NA
-    combined_event = ! dplyr::if_all(ends_with("_combined"), is.na),
-    shared_event = rep2_event & combined_event
-  )
-
-# event-level summary of the number of each splice event type in each splice table
-rep2_vs_combined_events_summary <- rep2_vs_combined_events |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    rep2_only_count = sum(rep2_event) - shared_count,
-    combined_only_count = sum(combined_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    rep2_only_percent = rep2_only_count / total * 100,
-    combined_only_percent = combined_only_count / total * 100,
-)
-
-rep2_vs_combined_events_summary |> 
-  # no need to look at event types that are all the same
-  dplyr::filter(
-    shared_percent != 100
-  ) |>
-  dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  combined_only_percent,
-  rep2_only_percent)
-
-```
-
-Both `rep1` and `rep2` methods result in events that are different from the `combined` method's events.
-Similar to differences between the `v1` and `rep2_v1` methods, these differences are only present in annotated event types.
-Although the fraction of these differences are all low, they tend to differ when the v1 workflow is run different times (e.g. fraction of events unanswered between `rep1`` and `combined`, or between `rep2_v1` and `combined` differ slightly) As expected, in all comparisons, the retained intron event type is the only category wehre the percentage of unshared events exceeds 1% and unshared events are present in both annotated and unannotated event types.
-We suspect this stems from exon-intron junctions in the compendium workflow being defined from GTFs with fewer possibel transcripts.
-
-## Concluding remarks
-
-- Differences in results remaining in the v1 compendium workflow are negligible and appear to stem from randomness in GTF generation and exon-intron junction definition
-- Even with the differences in the retained introns, the fraction of unshared events is so low that I think we can keep retained introns in the compendium, with a caveat that they are slightly less trustworthy than other events types.
+One idea I have is to look at two categories of PSI values for whether they are identical - PSI values from position IDs that are identical and assigned to different genes, and PSI values from truly identical pos_ids assigned to the same gene.

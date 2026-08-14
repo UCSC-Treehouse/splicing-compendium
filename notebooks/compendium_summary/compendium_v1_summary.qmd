@@ -552,7 +552,7 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = rel(5)
+    size = rel(15)/.pt
     ) +
   labs(
     y = "Tissue type",
@@ -582,7 +582,7 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = rel(1.5)/.pt
+    size = rel(15)/.pt
   ) +
   labs(
     y = "Tissue type",
@@ -613,7 +613,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     aes(label = paste0(after_stat(count))), 
     hjust = 0,
     vjust = -0.5,
-    size = rel(5),
+    size = rel(15)/.pt,
     angle = 45
   ) +
   labs(

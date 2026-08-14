@@ -198,6 +198,14 @@ dim(dedup_combined_psi_table)
 There are ~400 more splice events in the combined PSI tables than the v1
 tables.
 
+## Check whether combined and deduplicated combined tables are identical
+
+``` r
+identical(combined_psi_table, dedup_combined_psi_table)
+```
+
+    [1] TRUE
+
 ### Check fraction of splice events that are unshared between methods
 
 Since the `combined` and `deduplicated_combined` results are identical,

@@ -775,6 +775,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     aes(label = paste0(after_stat(count))), 
     hjust = 0,
     vjust = -0.5,
+    # rel() gives size in mm, use /.pt to convert to points
     size = rel(15)/.pt,
     angle = 45
   ) +
@@ -788,7 +789,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   theme(
     # rotate x axis labels
     axis.text.x = element_text(angle = 45, hjust = 1),
-    # make facet labels smaller
+    # make facet labels smaller, size in points
     strip.text = element_text(size = rel(0.8))
     ) +
   facet_wrap(
@@ -825,7 +826,7 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    size = rel(6),
+    size = rel(16)/.pt,
     angle = 0,
     position = position_stack(vjust = 0.5)
   ) +
@@ -837,11 +838,11 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
     legend.position = "bottom"
   ) +
   facet_grid(
-    rows = "dataset",
+    rows = vars(dataset),
     scales = "free_y",
     space = "free_y"
   ) +
-  scale_fill_manual(values = sex_palette) 
+  scale_fill_manual(values = sex_palette, guide = guide_legend(reverse = TRUE)) 
 ```
 
 <div id="fig-sex_dist_tacked_bar">

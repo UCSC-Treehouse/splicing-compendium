@@ -775,6 +775,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     aes(label = paste0(after_stat(count))), 
     hjust = 0,
     vjust = -0.5,
+    # rel() gives size in mm, use /.pt to convert to points
     size = rel(15)/.pt,
     angle = 45
   ) +
@@ -788,7 +789,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   theme(
     # rotate x axis labels
     axis.text.x = element_text(angle = 45, hjust = 1),
-    # make facet labels smaller
+    # make facet labels smaller, size in points
     strip.text = element_text(size = rel(0.8))
     ) +
   facet_wrap(
@@ -805,6 +806,52 @@ src="compendium_v1_summary_files/figure-commonmark/fig-age_dist_bar-1.png"
 id="fig-age_dist_bar" />
 
 Figure 3
+
+</div>
+
+### Compendium sex distribution plot
+
+``` r
+# make stacked bar plot of compendium sex distributions
+ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
+  geom_bar(
+    position = "stack"
+  ) +
+  labs(
+    x = "Number of samples", 
+    y = "Tissue type"
+    ) +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    size = rel(16)/.pt,
+    angle = 0,
+    position = position_stack(vjust = 0.5)
+  ) +
+  # manually add to xlim so that there is space for over-bar labels
+  xlim(0, 470) +
+  plot_theme +
+  # set legend text size
+  theme(
+    legend.position = "bottom"
+  ) +
+  facet_grid(
+    rows = vars(dataset),
+    scales = "free_y",
+    space = "free_y"
+  ) +
+  scale_fill_manual(values = sex_palette, guide = guide_legend(reverse = TRUE)) 
+```
+
+<div id="fig-sex_dist_tacked_bar">
+
+<img
+src="compendium_v1_summary_files/figure-commonmark/fig-sex_dist_tacked_bar-1.png"
+id="fig-sex_dist_tacked_bar" />
+
+Figure 4
 
 </div>
 

@@ -1,6 +1,6 @@
 # Prep psi matrix for analysis
 Cindy Liang (celiang@ucsc.edu)
-2026-08-12
+2026-08-14
 
 ## Introduction
 
@@ -109,6 +109,17 @@ if (!dir.exists(v1_compendium_resuts_dir)) {
 Read in files
 
 ``` r
+## gene annotation file ##
+
+# import gtf
+gtf <- import(gtf_file)
+
+# make a named vector of gene names to IDs
+gene_names <- setNames(gtf$gene_name, gtf$gene_id)
+
+# remove the gtf when you are done with it
+rm(gtf)
+
 ## splice result files ##
 # read merged splice table from v1 workflow on the TARGET pilot samples
 psi_results <- shiba_psi_paths |>
@@ -121,19 +132,7 @@ psi_results <- shiba_psi_paths |>
   })
 
 # combine PSI values of samples run together into one dataframe to compare against other PSI tables
-psi_table <- purrr::list_rbind(psi_results, names_to = "event_type") |>
-  # REMOVE THIS CODE WHEN YOU RUN ON THE V1 FILES! subset to save memory on laptop
-  dplyr::slice_sample(n = 10)
-
-## gene annotation file ##
-# import gtf
-gtf <- import(gtf_file)
-
-# convert gtf to data frame for manipulating fields
-gtf_df <- as.data.frame(gtf) |>
-  # we only need gene id and gene name columns
-  dplyr::select(gene_id,
-                gene_name)
+psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 ```
 
 ## Add gene names to psi matrix made from combining all psi tables
@@ -144,19 +143,18 @@ columns are event_type, pos_id, gene_id, gene_name, label (annotation
 status), and the sample-level PSI values (columns start with “SRR”)
 
 ``` r
-nice_psi_df <- dplyr::left_join(
-  psi_table,
-  gtf_df,
-  by = "gene_id",
-  # many splice events are present for each gene
-  relationship = "many-to-many"
-)
+nice_psi_df <-psi_table |>
+  dplyr::mutate(
+    # make a gene name column based off the gene name/gene id vector from gtf
+    gene_name = gene_names[gene_id],
+    .after = gene_id
+  )
 
 # print column names of non-PSI value columns
 colnames(nice_psi_df[,sapply(nice_psi_df,is.character)])
 ```
 
-    [1] "event_type" "pos_id"     "gene_id"    "label"      "gene_name" 
+    [1] "event_type" "pos_id"     "gene_id"    "gene_name"  "label"     
 
 ## Write output
 

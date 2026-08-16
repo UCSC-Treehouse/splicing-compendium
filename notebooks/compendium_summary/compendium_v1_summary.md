@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-14
+2026-08-16
 
 ## Introduction
 
@@ -702,17 +702,21 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = rel(15)/.pt
+    size = global_size - 14
     ) +
   labs(
-    y = "Tissue type",
-    x = "Number of samples"
+    x = "Number of samples",
+    y = "",
     ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
   scale_fill_manual(values = tissue_palette) +
-  theme(legend.position = "none")
+  theme(
+    legend.position = "none",
+    panel.widths = unit(10, "cm"),
+    panel.heights = unit(5, "cm")
+    )
 ```
 
 <div id="fig-target_sample_dist_bar">
@@ -738,18 +742,21 @@ ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) 
     aes(label = paste0(after_stat(count))), 
     hjust = -0.1,
     vjust = 0.5,
-    size = rel(15)/.pt
+    size = global_size - 14
   ) +
   labs(
-    y = "Tissue type",
-    x = "Number of samples"
+    x = "Number of samples",
+    y = ""
     ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
   scale_fill_manual(values = tissue_palette) +
   # remove legend
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        panel.widths = unit(10, "cm"),
+        panel.heights = unit(5, "cm")
+        )
 ```
 
 <div id="fig-gtex_sample_dist_bar">
@@ -775,8 +782,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
     aes(label = paste0(after_stat(count))), 
     hjust = 0,
     vjust = -0.5,
-    # rel() gives size in mm, use /.pt to convert to points
-    size = rel(15)/.pt,
+    size = global_size - 13,
     angle = 45
   ) +
   labs(
@@ -788,9 +794,15 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
   plot_theme +
   theme(
     # rotate x axis labels
-    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.text.x = element_text(
+      angle = 45, 
+      hjust = 1, 
+      size = global_size + 2),
+    axis.text.y = element_text(
+      size = global_size + 2
+    ),
     # make facet labels smaller, size in points
-    strip.text = element_text(size = rel(0.8))
+    strip.text = element_text(size = global_size)
     ) +
   facet_wrap(
     facets = vars(plot_tissue_type),
@@ -819,14 +831,14 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
   ) +
   labs(
     x = "Number of samples", 
-    y = "Tissue type"
+    y = ""
     ) +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
     stat = "count",
     aes(label = paste0(after_stat(count))), 
-    size = rel(16)/.pt,
+    size = global_size - 14,
     angle = 0,
     position = position_stack(vjust = 0.5)
   ) +
@@ -842,7 +854,10 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
     scales = "free_y",
     space = "free_y"
   ) +
-  scale_fill_manual(values = sex_palette, guide = guide_legend(reverse = TRUE)) 
+  scale_fill_manual(
+    values = sex_palette, 
+    guide = guide_legend(reverse = TRUE)
+    ) 
 ```
 
 <div id="fig-sex_dist_tacked_bar">

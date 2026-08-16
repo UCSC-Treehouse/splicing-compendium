@@ -19,7 +19,7 @@ REF_GTF = config["reference_gtf"]
 sample_to_group = dict(zip(SAMPLES, GROUPS))
 
 pathvars:
-    test_results_dir = f"results/test_split_psi_calc"
+    test_results_dir = f"results/test_minreads_psi_calc"
 
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
@@ -55,7 +55,7 @@ rule filter_junctions:
 rule calculate_psi:
     input:
         events_dir = "<test_results_dir>/events",
-        merged_junctions = "<test_results_dir>/junctions_by_chromosome/chr1_merged_junctions.bed",
+        merged_junctions = "<test_results_dir>/minread_filtered_junc/filtered_merged_junctions.bed",
         merged_gtf = "<test_results_dir>/merged_gtf.gtf",
     output:
         shiba_psi_out = directory("<test_results_dir>/psi")

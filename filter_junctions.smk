@@ -52,7 +52,7 @@ rule calculate_psi:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 1000000,
+        mem_mb = 2200000,
         runtime = 20160
     shell:
         """

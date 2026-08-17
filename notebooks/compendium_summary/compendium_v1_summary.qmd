@@ -40,24 +40,10 @@ plot_theme = list(
 
 ## Define palettes
 
-# define palette for tissue types
-tissue_palette <- c(
-  "ALL" = "#1B9E77", 
-  "AML" = "#803E75", 
-  "CCSK" = "#D6DE12", 
-  "WT" = "#E7298A", 
-  "RT" = "black", 
-  "NBL" = "#E6AB02", 
-  "EBV lymphocytes" = "#A8D0E8", 
-  "Kidney - Cortex" = "#BCA3D8",
-  "Muscle - Skeletal" = "#FECEA8",
-  "Whole Blood" = "#225BB2"
-)
-
 # palette for datasets
 dataset_palette <- c(
-  "gtex" = "gray",
-  "target" = "white"
+  "gtex" = "#D6DE12",
+  "target" = "#803E75"
 )
 
 # palette for sex
@@ -545,11 +531,43 @@ ALL Phase 2 and neuroblastoma samples in the compendium come from multiple versi
 
 ```{r}
 #| label: fig-target_sample_dist_bar
-#| fig-width: 8
+#| fig-width: 14
 #| fig-height: 4
 
-# make bar plot of target sample distribution
-ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+# make bar plot of gtex sample distribution
+gtex_sample_dist_plot <- ggplot(
+  for_summary_gtex_df, 
+  aes(y = plot_tissue_type, fill = dataset)
+  ) +
+  geom_bar() +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.1,
+    vjust = 0.5,
+    size = global_size - 14
+  ) +
+  labs(
+    x = "Number of samples",
+    y = ""
+  ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  scale_fill_manual(values = dataset_palette) +
+  # set legend position and panel size
+  theme(legend.position = "bottom",
+        panel.widths = unit(10, "cm"),
+        panel.heights = unit(5, "cm")
+  )
+
+# target sample dist plot
+target_sample_dist_plot <- ggplot(
+  cleaned_target_df, 
+  aes(y = plot_tissue_type, fill = dataset)
+  ) +
   geom_bar() +
   # add N observations to bars
   geom_text(
@@ -567,58 +585,30 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
-  scale_fill_manual(values = tissue_palette) +
+  scale_fill_manual(values = dataset_palette) +
+  # set legend position and panel size
   theme(
-    legend.position = "none",
+    legend.position = "bottom",
     panel.widths = unit(10, "cm"),
     panel.heights = unit(5, "cm")
     )
+
+# plot plots together
+gtex_sample_dist_plot + target_sample_dist_plot
 ```
 
 ### GTEx sample distribution plot
-
-```{r}
-#| label: fig-gtex_sample_dist_bar
-#| fig-width: 8
-#| fig-height: 4
-
-# make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
-  geom_bar() +
-  # add N observations to bars
-  geom_text(
-    # count number of observations in each tissue type
-    stat = "count",
-    aes(label = paste0(after_stat(count))), 
-    hjust = -0.1,
-    vjust = 0.5,
-    size = global_size - 14
-  ) +
-  labs(
-    x = "Number of samples",
-    y = ""
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
-  scale_fill_manual(values = tissue_palette) +
-  # remove legend
-  theme(legend.position = "none",
-        panel.widths = unit(10, "cm"),
-        panel.heights = unit(5, "cm")
-        )
-```
 
 ### Compendium age distribution plot
 
 ```{r}
 #| label: fig-age_dist_bar
 #| fig-width: 15
-#| fig-height: 7
+#| fig-height: 8
  
 # make bar plot of target sample distribution
 ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
-  geom_bar(color = "black", linewidth = 0.5) +
+  geom_bar() +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type

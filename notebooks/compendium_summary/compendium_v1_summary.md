@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-16
+2026-08-17
 
 ## Introduction
 
@@ -692,8 +692,40 @@ multiple versions.
 ### TARGET sample distribution plot
 
 ``` r
-# make bar plot of target sample distribution
-ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
+# make bar plot of gtex sample distribution
+gtex_sample_dist_plot <- ggplot(
+  for_summary_gtex_df, 
+  aes(y = plot_tissue_type, fill = dataset)
+  ) +
+  geom_bar() +
+  # add N observations to bars
+  geom_text(
+    # count number of observations in each tissue type
+    stat = "count",
+    aes(label = paste0(after_stat(count))), 
+    hjust = -0.1,
+    vjust = 0.5,
+    size = global_size - 14
+  ) +
+  labs(
+    x = "Number of samples",
+    y = ""
+  ) +
+  # manually add to ylim so that there is space for over-bar labels
+  xlim(0, 500) +
+  plot_theme +
+  scale_fill_manual(values = dataset_palette) +
+  # set legend position and panel size
+  theme(legend.position = "bottom",
+        panel.widths = unit(10, "cm"),
+        panel.heights = unit(5, "cm")
+  )
+
+# target sample dist plot
+target_sample_dist_plot <- ggplot(
+  cleaned_target_df, 
+  aes(y = plot_tissue_type, fill = dataset)
+  ) +
   geom_bar() +
   # add N observations to bars
   geom_text(
@@ -711,12 +743,16 @@ ggplot(cleaned_target_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +
-  scale_fill_manual(values = tissue_palette) +
+  scale_fill_manual(values = dataset_palette) +
+  # set legend position and panel size
   theme(
-    legend.position = "none",
+    legend.position = "bottom",
     panel.widths = unit(10, "cm"),
     panel.heights = unit(5, "cm")
     )
+
+# plot plots together
+gtex_sample_dist_plot + target_sample_dist_plot
 ```
 
 <div id="fig-target_sample_dist_bar">
@@ -731,50 +767,12 @@ Figure 1
 
 ### GTEx sample distribution plot
 
-``` r
-# make bar plot of gtex sample distribution
-ggplot(for_summary_gtex_df, aes(y = plot_tissue_type, fill = plot_tissue_type)) +
-  geom_bar() +
-  # add N observations to bars
-  geom_text(
-    # count number of observations in each tissue type
-    stat = "count",
-    aes(label = paste0(after_stat(count))), 
-    hjust = -0.1,
-    vjust = 0.5,
-    size = global_size - 14
-  ) +
-  labs(
-    x = "Number of samples",
-    y = ""
-    ) +
-  # manually add to ylim so that there is space for over-bar labels
-  xlim(0, 500) +
-  plot_theme +
-  scale_fill_manual(values = tissue_palette) +
-  # remove legend
-  theme(legend.position = "none",
-        panel.widths = unit(10, "cm"),
-        panel.heights = unit(5, "cm")
-        )
-```
-
-<div id="fig-gtex_sample_dist_bar">
-
-<img
-src="compendium_v1_summary_files/figure-commonmark/fig-gtex_sample_dist_bar-1.png"
-id="fig-gtex_sample_dist_bar" />
-
-Figure 2
-
-</div>
-
 ### Compendium age distribution plot
 
 ``` r
 # make bar plot of target sample distribution
 ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
-  geom_bar(color = "black", linewidth = 0.5) +
+  geom_bar() +
   # add N observations to bars
   geom_text(
     # count number of observations in each tissue type
@@ -817,7 +815,7 @@ ggplot(for_summary_compendium_df, aes(x = age_in_years, fill = dataset)) +
 src="compendium_v1_summary_files/figure-commonmark/fig-age_dist_bar-1.png"
 id="fig-age_dist_bar" />
 
-Figure 3
+Figure 2
 
 </div>
 
@@ -866,7 +864,7 @@ ggplot(for_summary_compendium_df, aes(y = plot_tissue_type, fill = sex)) +
 src="compendium_v1_summary_files/figure-commonmark/fig-sex_dist_tacked_bar-1.png"
 id="fig-sex_dist_tacked_bar" />
 
-Figure 4
+Figure 3
 
 </div>
 

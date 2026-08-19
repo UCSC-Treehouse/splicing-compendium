@@ -395,158 +395,35 @@ at a slightly lower fraction compared to the fraction of retained introns unshar
 
 #### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
 
-```{r}
+```{r rep1_vs_combined_pos_ids_identical}
+# First check PSI values between pos_ids that are shared in all aspects (including gene_id)
 
-```
-
-
-## rep1 vs. rep2 PSI table event differences
-
-```{r}
-
-  # calculate fraction of events only present in either table and fraction events that are shared
-  shared_events_summary <- joined_table |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    rep1_only_count = sum(rep1_event) - shared_count,
-    rep2_only_count = sum(rep2_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    rep1_only_percent = rep1_only_count / total * 100,
-    rep2_only_percent = rep2_only_count / total * 100,
-  )
-  
-  # return summary table
-
-# event-level summary of the number of each splice event type in each splice table
-genes_rep1_vs_rep2_events_summary <- rep1_vs_rep2_example_table |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    rep1_only_count = sum(rep1_event) - shared_count,
-    rep2_only_count = sum(rep2_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    rep1_only_percent = rep1_only_count / total * 100,
-    rep2_only_percent = rep2_only_count / total * 100,
-)
-
-genes_rep1_vs_rep2_events_summary |> 
-  # no need to look at event types that are all the same
-  dplyr::filter(
-    shared_percent != 100
-  ) |>
-  dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  rep2_only_percent,
-  rep1_only_percent)
-
-```
-
-Print example of events with same pos_ids, put into different genes
-
-```{r}
-# construct table of rep1 and rep2 events and label by whether event is shared
-rep1_vs_rep2_example_table <- dplyr::full_join(
-  rep1_psi_table,
-  rep2_psi_table,
-  by = c("event_type", "pos_id", "gene_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_rep1", "_rep2")) |>
-  # categorize events by whether they are in the v1 or rep2 tables
-  dplyr::mutate(
-    # v1 events are counted if the values are not all NA
-    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
-    # rep2 events are counted if the values for the event are not all NA
-    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
-    shared_event = rep1_event & rep2_event
-  ) |>
-  dplyr::filter(
-    event_type == "se",
-    shared_event == FALSE
-  )
-
-rep1_vs_rep2_example_table |>
-  dplyr::arrange(pos_id) |>
-  head()
-```
-
-### print fraction of events that are unshared
-
-```{r rep1_vs_rep2}
-# construct table of rep1 and rep2 events and label by whether event is shared
-rep1_vs_rep2_events <- dplyr::full_join(
-  rep1_psi_table,
-  rep2_psi_table,
-  by = c("event_type", "pos_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_rep1", "_rep2")) |>
-  # categorize events by whether they are in the v1 or rep2 tables
-  dplyr::mutate(
-    # v1 events are counted if the values are not all NA
-    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
-    # rep2 events are counted if the values for the event are not all NA
-    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
-    shared_event = rep1_event & rep2_event
-  )
-
-# event-level summary of the number of each splice event type in each splice table
-rep1_vs_rep2_events_summary <- rep1_vs_rep2_events |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    rep1_only_count = sum(rep1_event) - shared_count,
-    rep2_only_count = sum(rep2_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    rep1_only_percent = rep1_only_count / total * 100,
-    rep2_only_percent = rep2_only_count / total * 100,
-)
-
-rep1_vs_rep2_events_summary |> 
-  # no need to look at event types that are all the same
-  dplyr::filter(
-    shared_percent != 100
-  ) |>
-  dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  rep2_only_percent,
-  rep1_only_percent)
-
-```
-
-### Check if PSI values are identical
-
-```{r rep1_rep2_psi_identical}
 # extract position ids of events that are shared between tables
-rep1_rep2_shared_psi <- rep1_vs_rep2_events |>
+shared_ids_rep1_vs_combined <- rep1_vs_combined_table |>
   dplyr::filter(
     shared_event == TRUE,
-    # let's not look at retained introns for now
+    # exclude retained intron event types
     event_type != "ri"
     ) |>
   dplyr::pull(pos_id)
 
 # filter tables for events in shared tables
 shared_only_rep1_table <- rep1_psi_table |>
-  dplyr::filter(pos_id %in% rep1_rep2_shared_psi) |>
-  dplyr::select(pos_id, ends_with("_PSI"))
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_combined) |>
+  # filter only for fields to compare (pos_id, psi values of samples)
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
 
-shared_only_rep2_table <- rep2_psi_table |>
-  dplyr::filter(pos_id %in% rep1_rep2_shared_psi) |>
-  dplyr::select(pos_id, ends_with("_PSI"))
+shared_only_combined_table <- combined_psi_table |>
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_combined) |>
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
 
-all.equal(shared_only_rep1_table, shared_only_rep2_table)
+all.equal(shared_only_rep1_table, shared_only_combined_table)
+
 ```
+PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.
 
-Even though position IDs of non-RI event types are the same, the PSI values in rep 1 and rep 2 are different.
-based on the previous version of this notebook where I printed out examples of cases where positions IDs are the same but being assigned different genes, I wonder how much of differing PSI values stem from cases where junctions in the same position IDs are assigned different genes when Shiba calculates PSI.
 
-One idea I have is to look at two categories of PSI values for whether they are identical - PSI values from position IDs that are identical and assigned to different genes, and PSI values from truly identical pos_ids assigned to the same gene.

@@ -74,9 +74,12 @@ For all PSI tables loaded in, NA values assigned by Shiba within each method lis
 
 ## Set up
 
-Define functions
+### Define functions
 
 ```{r functions}
+
+## Reading in PSI tables ##
+
 # construct paths to psi tables
 construct_psi_paths <- function(psi_dir, psi_file_list) {
   # construct paths to individual psi files
@@ -104,6 +107,73 @@ psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 
 # return the psi table
 return(psi_table)
+}
+
+## Manipulating PSI tables for comparison ##
+
+# merge tables by all identifying fields for a splice event ID (event_type", "pos_id", "gene_id", "label")
+join_tables_incl_genes <- function(table1, table2) {
+  
+  # create the merged table of PSI tables to compare
+  joined_table <- dplyr::full_join(
+  table1,
+  table2,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # Count events in one table or other if the values are not all NA
+    table1_event = ! dplyr::if_all(ends_with("_table1"), is.na),
+    # rep2 events are counted if the values for the event are not all NA
+    table2_event = ! dplyr::if_all(ends_with("_table2"), is.na),
+    shared_event = table1_event & table2_event
+  )
+  
+  return(joined_table)
+
+}
+
+# merge tables by event_type", "pos_id", and "label" only (consider event the same if position is the same regardless of gene)
+join_tables_no_genes <- function(table1, table2) {
+  
+  # create the merged table of PSI tables to compare
+  joined_table <- dplyr::full_join(
+  table1,
+  table2,
+  by = c("event_type", "pos_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # Count events in one table or other if the values are not all NA
+    table1_event = ! dplyr::if_all(ends_with("_table1"), is.na),
+    # rep2 events are counted if the values for the event are not all NA
+    table2_event = ! dplyr::if_all(ends_with("_table2"), is.na),
+    shared_event = .data[[table1_event]] & .data[[table_event]]
+  )
+  
+  return(joined_table)
+
+}
+
+# Summarize events shared and unshared between tables
+summarize_shared_events <- function(joined_table) {
+  # calculate fraction of events only present in either table and fraction events that are shared
+  shared_events_summary <- joined_table |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    table1_only_count = sum(table1_event) - shared_count,
+    table2_only_count = sum(table2_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    table1_only_percent = table1_only_count / total * 100,
+    table2_only_percent = table2_only_count / total * 100,
+  )
+  
+  # return summary table
+  return(shared_events_summary)
 }
 
 ```
@@ -226,36 +296,86 @@ dim(combined_psi_table)
 There are ~400 more unique splice events (rows) in the combined table, compared to the rep1 table;   
 the canonical Shiba and Treehouse Compendium methods produce different results.
 
-### Check fraction of splice events that are unshared between methods
+#### Check fraction of splice events that are unshared between methods
 
 First, quantify differences present in each table.
 To compare differences, rep1 and combined tables are merged on "event_type", "pos_id", "gene_id", and "label" columns.
-()
-PSI values ()
+(data tables are joined so each row corresponds to a splice event, defined by the combination of event_type, pos_id, gene_id, and label columns)
+Columns correspond to PSI values for a sample and are suffixed by whether they appear in the rep1 table, combined table, or both.
+-1 PSI values indicate missing PSI values from low junction readsl. 
+An NA indicates that a splice event is not shared between the tables (splice event is only detected in one method).
 
-The dataframes created in the following cells are event-level dataframes of splice events that are shared or unshared between each method.
-Each row is a unique pos_id/event_id + gene combination.
-Columns contain each samples' PSI value with -1 indicating low read NA and NA indicating event not shared between methods.
+```{r rep1_vs_combined_frac_unshared}
+#| label: tbl-rep1_vs_combined_event_comparison
+#| tbl-cap: "Percentage of events only in the rep1 (table1) or combined (table2) PSI tables"
+
+# merge rep1 and combined tables and label columns by whether the event is shared between tables
+rep1_vs_combined_table <- join_tables_incl_genes(rep1_psi_table, combined_psi_table)
+
+# summarize table
+summary_with_genes_rep1_vs_combined <- summarize_shared_events(rep1_vs_combined_table)
+
+summary_with_genes_rep1_vs_combined |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+  event_type,
+  label,
+  total,
+  shared_percent,
+  table1_only_percent,
+  table2_only_percent)
+
+
+```
+
+Spot-check what examples of unshared event IDs look like
+```{r rep1_vs_combined_unshared_event_examples}
+#| label: tbl-rep1_vs_combined_unshared_events
+#| tbl-cap: "Example features of splice events not shared between rep1 and combined tables"
+
+rep1_vs_combined_table |>
+  dplyr::filter(
+      event_type == "se",
+      shared_event == FALSE
+    ) |>
+  # arrange by pos_id
+  dplyr::arrange(pos_id) |>
+  # only print PSi columns of two samples for ease of viewing
+  dplyr::select(
+    event_type, 
+    pos_id, 
+    gene_id, 
+    label,
+    SRR1559043_PSI_table1,
+    SRR1559044_PSI_table1
+  ) |>
+  # print head
+  head()
+
+```
+
 
 ## rep1 vs. rep2 PSI table event differences
 
-Joining by both pos_id and gene_id,
-
 ```{r}
-rep1_vs_rep2_example_table <- dplyr::full_join(
-  rep1_psi_table,
-  rep2_psi_table,
-  by = c("event_type", "pos_id", "gene_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_rep1", "_rep2")) |>
-  # categorize events by whether they are in the v1 or rep2 tables
-  dplyr::mutate(
-    # v1 events are counted if the values are not all NA
-    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
-    # rep2 events are counted if the values for the event are not all NA
-    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
-    shared_event = rep1_event & rep2_event
+
+  # calculate fraction of events only present in either table and fraction events that are shared
+  shared_events_summary <- joined_table |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    rep1_only_count = sum(rep1_event) - shared_count,
+    rep2_only_count = sum(rep2_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    rep1_only_percent = rep1_only_count / total * 100,
+    rep2_only_percent = rep2_only_count / total * 100,
   )
+  
+  # return summary table
 
 # event-level summary of the number of each splice event type in each splice table
 genes_rep1_vs_rep2_events_summary <- rep1_vs_rep2_example_table |> dplyr::summarise(

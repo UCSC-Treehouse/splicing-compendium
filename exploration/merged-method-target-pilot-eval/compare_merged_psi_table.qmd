@@ -14,21 +14,29 @@ params:
 
 ## Introduction
 
-Compendium workflow v1 (workflow with updated GTF generation and merging rules) has been run on the TARGET pilot samples.
-To understand what differences remain between PSI results generated from this workflow and the canonical Shiba run, this notebook compares what percentage of events remain that can only be found in the current v1 workflow and the canonical Shiba run methods.
+Treehouse Compendium version 1 has been run on the TARGET pilot samples.
+This workflow includes generating GTFs from alignments, merging GTFs of all samples, merging separately-produced junction bedfiles for each sample, and running Shiba on the merged GTF and junction file as inputs to produce event coordinate and PSI files.
 
-**rep1**: Refers to PSI results generated from the most recent compendium v1 workflow method
+To understand what differences remain between PSI results generated from Treehouse Compendium v1 and the canonical Shiba run, this notebook compares what percentage of events remain that can only be found in the workflow and the canonical Shiba method.
 
-**rep2**: Refers to PSI results generated from the most recent compendium v1 workflow method, generated with the same commands and parameters as rep1 but written in a different output directory.
-rep2_v1 will be used to test whether identical runs of the workflow will result in the same proportion of different events, due to randomness from GTFs being generated from scratch in each workflow run.
+Below are names used to refer to different workflow runs on TARGET pilot samples:
 
-**Combined**: Refers to PSI results generated from the unaltered Shiba script.
+### PSI tables produced using canonical (unaltered) Shiba scripts
 
-**Combined_dedup**: PSI valiues generated from running only the Shiba PSI.py script on the following inputs and command:
+**Combined**: Refers to PSI results generated from the unaltered Shiba scripts, using `shiba.py`:
 
-- event coordinates files generated from the Combined method
+```         
+shiba.py -p 15 exploration/merging-psi-tables/target_pilot/shiba_config.yaml
+```
 
-- Junctions.bed files generated from Combined, then duplicated with the deduplication commands used in the v1 workflow
+There is a bug in Shiba v0.8.1 that causes some `junctions.bed` position IDs (coordinates) to be duplicated.
+To check if duplicated junctions impact PSI calculation, I also compare the PSI tables below:
+
+**Combined_dedup**: PSI values generated from running only the Shiba `PSI.py` script on the following inputs and command:
+
+- event coordinates files generated from the Combined (canonical Shiba) method above
+
+- `junctions.bed` files generated from Combined, then duplicated with the deduplication commands used in the v1 snakemake workflow in the `merge_jucntions` rule
 
 ```         
 python $CONDA_PREFIX/share/shiba-0.8.1-0/src/psi.py -m \
@@ -39,6 +47,28 @@ python $CONDA_PREFIX/share/shiba-0.8.1-0/src/psi.py -m \
 /private/groups/treehouse/working-projects/celiang/splicing-compendium/exploration/merging-psi-tables/target_pilot/shiba_combined/events \
 v1_dedup_target_pilot_combined
 ```
+
+### PSI table results produced by running Treehouse Compendium v1:
+
+Two replicates of Treehosue Compendium v1 workflow were run to check whether repeated runs of the workflow (same command, different output directory) produce different PSI tables.
+
+**rep1**: Refers to PSI results generated from the most recent compendium v1 workflow method **rep2**: Refers to PSI results generated from the most recent compendium v1 workflow method, generated with the same commands and parameters as rep1 but written in a different output directory.
+
+### Comparisons in notebook
+
+Are combined and deduplicated results identical?
+
+- combined vs. combined_dedup
+
+Are there different events in Compendium vs. canonical Shiba methods?
+
+- rep1 vs. combined
+
+Are there differences in PSI tables if compendium workflow is run twice (are two replicate runs different?)
+
+- rep1 vs. rep2
+
+Are GTFs generated from the same sample in rep1 and rep2 identical?
 
 For all PSI tables loaded in, NA values assigned by Shiba within each method listed above are replaced with -1, to distinguish NAs from splice events with low coverage apart from NAs from splice events that are not matched between each method.
 
@@ -162,32 +192,46 @@ dedup_combined_psi_table <- read_psi_tables(dedup_comb_psi_paths)
 
 ## Compare PSI tables
 
-### Obtain dimensions of each PSI table
+### Combined vs. combined_dedup
+Are these PSI tables the same? 
 
-```{r}
-# dimensions of v1 PSI table
-dim(rep1_psi_table)
-# dimensions of rep2 v1 PSI table
-dim(rep2_psi_table)
+#### Compare dimensions
+
+```{r combined_vs_dedup_dims}
 # dimensions of combined PSI table
 dim(combined_psi_table)
 # dimensions of deduplicated combined PSI table
 dim(dedup_combined_psi_table)
 ```
 
-There are \~400 more splice events in the combined PSI tables than the v1 tables.
+Dimensions between tables are identical.
 
-## Check whether combined and deduplicated combined tables are identical
+#### Check whether combined and deduplicated combined tables are identical
+
 ```{r}
 identical(combined_psi_table, dedup_combined_psi_table)
 ```
 
+`combined` and `deduplicated_combined` results are identical (duplicated junctions in the canonical junctions.bed file do not alter PSI calculations). 
+Moving forward, the combined table is compared to the other methods.
+
+### Treehouse Compendium workflow rep1 vs. Combined table
+
+#### Compare dimensions
+```{r rep1_vs_combined_dim}
+dim(rep1_psi_table)
+dim(combined_psi_table)
+```
+
+There are ~400 more unique splice events (rows) in the combined table, compared to the rep1 table;   
+the canonical Shiba and Treehouse Compendium methods produce different results.
 
 ### Check fraction of splice events that are unshared between methods
 
-Since the `combined` and `deduplicated_combined` results are identical, I will make the following comparisons:
-
-- `rep1` vs. `rep2`: To see what fraction of events are different when the workflow is run multiple times
+First, quantify differences present in each table.
+To compare differences, rep1 and combined tables are merged on "event_type", "pos_id", "gene_id", and "label" columns.
+()
+PSI values ()
 
 The dataframes created in the following cells are event-level dataframes of splice events that are shared or unshared between each method.
 Each row is a unique pos_id/event_id + gene combination.
@@ -195,7 +239,8 @@ Columns contain each samples' PSI value with -1 indicating low read NA and NA in
 
 ## rep1 vs. rep2 PSI table event differences
 
-Joining by both pos_id and gene_id, 
+Joining by both pos_id and gene_id,
+
 ```{r}
 rep1_vs_rep2_example_table <- dplyr::full_join(
   rep1_psi_table,
@@ -240,8 +285,8 @@ genes_rep1_vs_rep2_events_summary |>
 
 ```
 
-
 Print example of events with same pos_ids, put into different genes
+
 ```{r}
 # construct table of rep1 and rep2 events and label by whether event is shared
 rep1_vs_rep2_example_table <- dplyr::full_join(
@@ -267,7 +312,6 @@ rep1_vs_rep2_example_table |>
   dplyr::arrange(pos_id) |>
   head()
 ```
-
 
 ### print fraction of events that are unshared
 
@@ -317,6 +361,7 @@ rep1_vs_rep2_events_summary |>
 ```
 
 ### Check if PSI values are identical
+
 ```{r rep1_rep2_psi_identical}
 # extract position ids of events that are shared between tables
 rep1_rep2_shared_psi <- rep1_vs_rep2_events |>
@@ -338,8 +383,8 @@ shared_only_rep2_table <- rep2_psi_table |>
 
 all.equal(shared_only_rep1_table, shared_only_rep2_table)
 ```
+
 Even though position IDs of non-RI event types are the same, the PSI values in rep 1 and rep 2 are different.
-based on the previous version of this notebook where I printed out examples of cases where positions IDs are the same but being assigned different genes,
-I wonder how much of differing PSI values stem from cases where junctions in the same position IDs are assigned different genes when Shiba calculates PSI.
+based on the previous version of this notebook where I printed out examples of cases where positions IDs are the same but being assigned different genes, I wonder how much of differing PSI values stem from cases where junctions in the same position IDs are assigned different genes when Shiba calculates PSI.
 
 One idea I have is to look at two categories of PSI values for whether they are identical - PSI values from position IDs that are identical and assigned to different genes, and PSI values from truly identical pos_ids assigned to the same gene.

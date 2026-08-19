@@ -717,7 +717,7 @@ gtex_sample_dist_plot <- ggplot(
   plot_theme +
   scale_fill_manual(values = dataset_palette) +
   # set legend position and panel size
-  theme(legend.position = "bottom",
+  theme(legend.position = "none",
         panel.widths = unit(10, "cm"),
         panel.heights = unit(5, "cm")
   )
@@ -748,7 +748,7 @@ target_sample_dist_plot <- ggplot(
   scale_fill_manual(values = dataset_palette) +
   # set legend position and panel size
   theme(
-    legend.position = "bottom",
+    legend.position = "none",
     panel.widths = unit(10, "cm"),
     panel.heights = unit(5, "cm")
     )

@@ -321,12 +321,13 @@ summary_with_genes_rep1_vs_combined |>
     shared_percent != 100
   ) |>
   dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  table1_only_percent,
-  table2_only_percent)
+    event_type,
+    label,
+    total,
+    shared_percent,
+    table1_only_percent,
+    table2_only_percent
+  )
 
 
 ```
@@ -381,12 +382,13 @@ summary_without_genes_rep1_vs_combined |>
     shared_percent != 100
   ) |>
   dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  table1_only_percent,
-  table2_only_percent)
+    event_type,
+    label,
+    total,
+    shared_percent,
+    table1_only_percent,
+    table2_only_percent
+  )
 
 ```
 

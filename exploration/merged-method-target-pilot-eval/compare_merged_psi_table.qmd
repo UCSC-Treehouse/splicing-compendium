@@ -426,4 +426,107 @@ all.equal(shared_only_rep1_table, shared_only_combined_table)
 ```
 PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.
 
+### Rep1 vs. rep2
 
+Because all differences in the PSI tables stem from pos_ids being assigned different genes, 
+I suspect the difference comes from the GTF generation or merge steps in the workflow.
+
+To check this, see if the same kind of differences (same pos_ids present but assigned to different genes) are present in PSI tables generated from identical Compendium workflow runs (rep1 and rep2).
+
+#### Check fraction of splice events that are unshared between methods
+
+First, quantify differences present in each table.
+To compare differences, rep1 and combined tables are merged on "event_type", "pos_id", "gene_id", and "label" columns.
+(data tables are joined so each row corresponds to a splice event, defined by the combination of event_type, pos_id, gene_id, and label columns)
+Columns correspond to PSI values for a sample and are suffixed by whether they appear in the rep1 table, combined table, or both.
+-1 PSI values indicate missing PSI values from low junction readsl. 
+An NA indicates that a splice event is not shared between the tables (splice event is only detected in one method).
+
+```{r rep1_vs_rep2_frac_unshared}
+#| label: tbl-rep1_vs_rep2_event_comparison
+#| tbl-cap: "Percentage of events only in the rep1 (table1) or rep2 (table2) PSI tables"
+
+# merge rep1 and combined tables and label columns by whether the event is shared between tables
+rep1_vs_rep2_table <- join_tables_incl_genes(rep1_psi_table, rep2_psi_table)
+
+# summarize table
+summary_with_genes_rep1_vs_rep2 <- summarize_shared_events(rep1_vs_rep2_table)
+
+summary_with_genes_rep1_vs_rep2 |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+  event_type,
+  label,
+  total,
+  shared_percent,
+  table1_only_percent,
+  table2_only_percent)
+
+```
+
+Even in PSI tables generated from the same workflow commands, a similar fraction of unshared splice events are present in the tables.
+
+Check if these differences are all from pos_ids being assigned to different genes
+
+```{r no_gene_id_rep1_vs_rep2_frac_unshared}
+#| label: tbl-no_gene_id_rep1_vs_rep2_event_comparison
+#| tbl-cap: "Percentage of events only in the rep1 (table1) or rep2 (table2) PSI tables if gene_id is excluded from the definition of a unique event ID"
+
+# merge rep1 and rep2 tables and label columns by whether the event is shared between tables
+nogene_rep1_vs_rep2_table <- join_tables_no_genes(rep1_psi_table, rep2_psi_table)
+
+# summarize table
+summary_without_genes_rep1_vs_rep2 <- summarize_shared_events(nogene_rep1_vs_rep2_table)
+
+summary_without_genes_rep1_vs_rep2 |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+  event_type,
+  label,
+  total,
+  shared_percent,
+  table1_only_percent,
+  table2_only_percent)
+
+```
+
+Similar to @tbl-no_gene_id_rep1_vs_combined_event_comparison, all event types except for retained introns become shared if `gene_id` is dropped from the definition of a unique event.
+
+#### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
+
+```{r rep1_vs_rep2_pos_ids_identical}
+# First check PSI values between pos_ids that are shared in all aspects (including gene_id)
+
+# extract position ids of events that are shared between tables
+shared_ids_rep1_vs_rep2 <- rep1_vs_rep2_table |>
+  dplyr::filter(
+    shared_event == TRUE,
+    # exclude retained intron event types
+    event_type != "ri"
+    ) |>
+  dplyr::pull(pos_id)
+
+# filter tables for events in shared tables
+shared_only_rep1_table <- rep1_psi_table |>
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_rep2) |>
+  # filter only for fields to compare (pos_id, psi values of samples)
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+shared_only_rep2_table <- rep2_psi_table |>
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_rep2) |>
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+all.equal(shared_only_rep1_table, shared_only_rep2_table)
+
+```
+PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.

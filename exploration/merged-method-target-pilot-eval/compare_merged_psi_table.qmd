@@ -78,7 +78,9 @@ For all PSI tables loaded in, NA values assigned by Shiba within each method lis
 
 ```{r functions}
 
-## Reading in PSI tables ##
+## Reading in files tables ##
+
+# read in PSI tables
 
 # construct paths to psi tables
 construct_psi_paths <- function(psi_dir, psi_file_list) {
@@ -107,6 +109,14 @@ psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 
 # return the psi table
 return(psi_table)
+}
+
+# read in event tables
+read_in_events <- function(file_paths) {
+event_coords <- file_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c"))
+  })
 }
 
 ## Manipulating PSI tables for comparison ##
@@ -207,6 +217,9 @@ combined_splice_results_dir <- file.path(combined_dir, "splicing")
 dedup_combined_results_dir <- file.path(exploration_dir, "dedup_target_pilot_combined_results")
 
 ## files ##
+
+# PSI tables
+
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 workflow_psi_files <- c(
   se = "PSI_SE.txt.gz",
@@ -241,16 +254,39 @@ dedup_comb_psi_paths <- construct_psi_paths(dedup_combined_results_dir, psi_file
 rep1_psi_paths <- construct_psi_paths(target_pilot_workflow_results_dir, workflow_psi_files)
 rep2_psi_paths <- construct_psi_paths(rep2_target_pilot_results_dir, workflow_psi_files)
 
+# GTFs
+
 # GTF produced by rep 1 compendium TARGET pilot run
 rep1_gtf_path <- file.path(gtf_dir, "rep1", "SRR1559043.gtf")
 # GTF produced by rep 2 compendium TARGET pilot run
 rep2_gtf_path <- file.path(gtf_dir, "rep2", "SRR1559043.gtf")
+
+# event files
+
+# rep1 event files
+rep1_events_path <- file.path(target_pilot_workflow_results_dir, "v1_events_rep1")
+rep2_events_path <- file.path(rep2_target_pilot_results_dir, "v1_events_rep2")
+
+# define list of event file paths
+event_files <- c(
+  se = "EVENT_SE.txt",
+  afe = "EVENT_AFE.txt",
+  ale = "EVENT_ALE.txt",
+  five = "EVENT_FIVE.txt",
+  three = "EVENT_THREE.txt",
+  mse = "EVENT_MSE.txt",
+  mxe = "EVENT_MXE.txt",
+  ri = "EVENT_RI.txt"
+)
 
 ```
 
 Read in files
 
 ```{r read_in_files}
+
+# PSI tables
+
 # read merged splice table from v1 workflow on the TARGET pilot samples
 rep1_psi_table <- read_psi_tables(rep1_psi_paths)
 rep2_psi_table <- read_psi_tables(rep2_psi_paths)
@@ -258,10 +294,9 @@ rep2_psi_table <- read_psi_tables(rep2_psi_paths)
 # read in 'negative control' canonical shiba run tables
 combined_psi_table <- read_psi_tables(combined_psi_paths)
 dedup_combined_psi_table <- read_psi_tables(dedup_comb_psi_paths)
-```
 
+# GTFs
 
-```{r}
 # read in GTFs from compendium TARGET runs
 rep1_gtf_table <- rtracklayer::import(rep1_gtf_path) |>
   # convert to dataframe for ease of comparison
@@ -271,6 +306,11 @@ rep1_gtf_table <- rtracklayer::import(rep1_gtf_path) |>
 rep2_gtf_table <- rtracklayer::import(rep2_gtf_path) |>
   # convert to dataframe for ease of comparison
   as.data.frame(header = FALSE, sep = '\t')
+
+# event files
+events_rep1 <- read_in_events(rep1_events_path)
+events_rep2 <- read_in_events(rep2_events_path)
+
 ```
 
 ## Compare PSI tables
@@ -670,4 +710,79 @@ gtf_comparison_df
 The GTFs here also do not differ in a way that I would have expected to make a difference in how position IDs are assigned to genes.
 e.g. I would have expected there to be nonzero GTF features assigned to different genes.
 
+Next, I revisited the Shiba code to see what part is responsible for assigning splice event IDs to genes. 
+
+Shiba v0.8.1 [gtf2event.py](https://github.com/Sika-Zheng-Lab/Shiba/blob/v0.8.1/src/gtf2event.py) actually is what assigns event coordinates gene names, and includes code to deal with ties:
+
+```
+for index in range(gtf_df.shape[0]):
+		if gtf_gene_id[index] in gene_id_list_dic:
+			l = gene_id_list_dic[gtf_gene_id[index]]
+			c = collections.Counter(l)
+			most_common = c.most_common()[0][0]
+			gtf_df.at[index, "gene_id"] = most_common
+		if gtf_gene_name[index] in gene_name_list_dic:
+			l = gene_name_list_dic[gtf_gene_name[index]]
+			c = collections.Counter(l)
+			most_common = c.most_common()[0][0]
+			gtf_df.at[index, "gene_name"] = most_common
+		if ~(gtf_chr[index].startswith("chr")) and (len(gtf_chr[index]) <= 2):
+			gtf_df.at[index, "chr"] = "chr" + gtf_chr[index]
+```
+
+The following explanation is from Claude -- from what I understand, multiprocessing in `gtf2events.py` results in how ties are resolved to be non-deterministic, which would explain why gene IDs in the PSI tables are different:
+
+```
+2. The actual source of irreproducibility: multiprocessing + unstable sort + dedup
+The gene_id resolved above gets carried into event rows purely by which gene's dictionary an event was discovered under:
+
+python
+event_l += [[exon, inc1, inc2, exc, strand, gene, gene_name]]
+
+Event search itself, however, is parallelized:
+
+python
+with concurrent.futures.ProcessPoolExecutor(max_workers=num_process) as executor:
+    futures = [executor.submit(se, gtf_dic_split[i]) for i in range(num_process)]
+output_l = []
+for future in concurrent.futures.as_completed(futures):
+    output_l += future.result()
+as_completed() yields futures in the order they finish, not the order they were submitted 
+
+— this order depends on OS scheduling, per-process workload, and system load, so output_l's row order is genuinely non-deterministic across runs whenever num_process > 1.
+That non-deterministic ordering then feeds directly into the dedup step used for every event type:
+
+python
+output_df = output_df.sort_values("exon")   # or "exon_a", etc.
+output_df = output_df.drop_duplicates(subset = "pos_id", keep = "first")
+
+Two things compound here:
+
+sort_values() uses pandas' default kind='quicksort', which is not stable — it doesn't guarantee that rows with equal sort keys (e.g. the same exon coordinate) keep their original relative order.
+drop_duplicates(keep="first") then keeps whichever row happens to land first after that sort.
+
+Putting it together
+
+If two different genes — whether genuinely overlapping loci, or exons that got resolved to different gene_ids via the majority-vote fallback — happen to produce an event with the identical pos_id string 
+(same event type, chromosome, and junction coordinates), then:
+Their rows arrive in output_l in whatever order the worker processes happened to finish (non-deterministic across runs).
+
+The unstable sort doesn't reliably preserve any particular ordering for ties.
+drop_duplicates(subset="pos_id", keep="first") silently keeps whichever gene's row happened to survive — which can differ from run to run.
+So the same genomic position can end up labeled with different gene_id/gene_name values across two otherwise-identical runs of gtf2event.py, purely because of scheduling non-determinism in the parallel event search.
+
+Practical implication: this only manifests when -p/--num-process is set above 1 (with a single process, there's only one future to complete, so ordering is trivially deterministic) and only for pos_ids that are genuinely ambiguous across genes — i.e., cases where two distinct genes generate an identical coordinate-based event signature.
+```
+
+I did indeed use more than one thread for these runs. 
+[compare_event_coords.md](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/exploration/merged-method-target-pilot-eval/compare_event_coords.md) compared similarity between event files produced by identical Shiba runs with multiple threads, but Jaccard indices were only compared using position IDs.
+This notebook did not examine similarity in gene names assigned to position IDs.
+
+## Compare event coordinates 
+
+Because the difference in PSI values stem from differences in gene IDs, compare gene IDs in event coordinates
+
+```{r}
+
+```
 

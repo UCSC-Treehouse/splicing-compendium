@@ -1,6 +1,6 @@
 # Summary of samples on splice compendium v1
 Cindy Liang (celiang@ucsc.edu)
-2026-08-17
+2026-08-19
 
 ## Introduction
 
@@ -709,7 +709,8 @@ gtex_sample_dist_plot <- ggplot(
   ) +
   labs(
     x = "Number of samples",
-    y = ""
+    y = "",
+    title = "GTEx"
   ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
@@ -739,7 +740,8 @@ target_sample_dist_plot <- ggplot(
   labs(
     x = "Number of samples",
     y = "",
-    ) +
+    title = "TARGET"
+   ) +
   # manually add to ylim so that there is space for over-bar labels
   xlim(0, 500) +
   plot_theme +

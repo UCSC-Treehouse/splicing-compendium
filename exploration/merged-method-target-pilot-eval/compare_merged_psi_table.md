@@ -1,6 +1,6 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-08-18
+2026-08-19
 
 ## Introduction
 
@@ -88,7 +88,9 @@ matched between each method.
 ### Define functions
 
 ``` r
-## Reading in PSI tables ##
+## Reading in files tables ##
+
+# read in PSI tables
 
 # construct paths to psi tables
 construct_psi_paths <- function(psi_dir, psi_file_list) {
@@ -117,6 +119,14 @@ psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 
 # return the psi table
 return(psi_table)
+}
+
+# read in event tables
+read_in_events <- function(file_paths) {
+event_coords <- file_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c"))
+  })
 }
 
 ## Manipulating PSI tables for comparison ##
@@ -193,15 +203,19 @@ summarize_shared_events <- function(joined_table) {
 ## directories ##
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
 # define the data directories
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
+# directories of rep1 and rep2 compendium Shiba results
+target_pilot_workflow_results_dir <- file.path(exploration_dir, "withlogs_v1_pilot_rep1")
+rep2_target_pilot_results_dir <- file.path(exploration_dir, "withlogs_v1_pilot_rep2")
+# directory of GTFs produced by rep1 and rep2 of compendium workflow run
+gtf_dir <- file.path(exploration_dir, "pilot_gtfs")
 # these contain zipped psi files
-target_pilot_workflow_results_dir <- file.path(exploration_dir, "v1_workflow_target_pilot_results", "psi")
-rep2_target_pilot_results_dir <- file.path(exploration_dir, "v1_target_pilot_rep2", "psi")
+rep1_psi_dir <- file.path(target_pilot_workflow_results_dir, "psi")
+rep2_psi_dir <- file.path(rep2_target_pilot_results_dir, "psi")
 
-#output dir for long tables
-target_pilot_output <- file.path(exploration_dir, "v1_psi_tables")
 
 ## combined / canonical shiba run results
 target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
@@ -215,12 +229,10 @@ combined_splice_results_dir <- file.path(combined_dir, "splicing")
 # these are unzipped files
 dedup_combined_results_dir <- file.path(exploration_dir, "dedup_target_pilot_combined_results")
 
-# Check output dir exists; if not, create it
-if (!dir.exists(target_pilot_output)) {
-  dir.create(target_pilot_output)
-}
-
 ## files ##
+
+# PSI tables
+
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 workflow_psi_files <- c(
   se = "PSI_SE.txt.gz",
@@ -252,13 +264,40 @@ dedup_comb_psi_paths <- construct_psi_paths(dedup_combined_results_dir, psi_file
 
 # psi table paths of v1 workflow on target pilot samples
 # these psi tables are zipped so can use the 'v1_psi_files' names
-rep1_psi_paths <- construct_psi_paths(target_pilot_workflow_results_dir, workflow_psi_files)
-rep2_psi_paths <- construct_psi_paths(rep2_target_pilot_results_dir, workflow_psi_files)
+rep1_psi_paths <- construct_psi_paths(rep1_psi_dir, workflow_psi_files)
+rep2_psi_paths <- construct_psi_paths(rep2_psi_dir, workflow_psi_files)
+
+# GTFs
+
+# GTF produced by rep 1 compendium TARGET pilot run
+rep1_gtf_path <- file.path(gtf_dir, "rep1", "SRR1559043.gtf")
+# GTF produced by rep 2 compendium TARGET pilot run
+rep2_gtf_path <- file.path(gtf_dir, "rep2", "SRR1559043.gtf")
+
+# event files
+
+# rep1 event files path lists
+rep1_events_dir <- file.path(target_pilot_workflow_results_dir, "events")
+rep2_events_dir <- file.path(rep2_target_pilot_results_dir, "events")
+
+# define list of event file paths
+event_files <- c(
+  se = "EVENT_SE.txt",
+  afe = "EVENT_AFE.txt",
+  ale = "EVENT_ALE.txt",
+  five = "EVENT_FIVE.txt",
+  three = "EVENT_THREE.txt",
+  mse = "EVENT_MSE.txt",
+  mxe = "EVENT_MXE.txt",
+  ri = "EVENT_RI.txt"
+)
 ```
 
 Read in files
 
 ``` r
+# PSI tables
+
 # read merged splice table from v1 workflow on the TARGET pilot samples
 rep1_psi_table <- read_psi_tables(rep1_psi_paths)
 rep2_psi_table <- read_psi_tables(rep2_psi_paths)
@@ -266,6 +305,38 @@ rep2_psi_table <- read_psi_tables(rep2_psi_paths)
 # read in 'negative control' canonical shiba run tables
 combined_psi_table <- read_psi_tables(combined_psi_paths)
 dedup_combined_psi_table <- read_psi_tables(dedup_comb_psi_paths)
+
+# GTFs
+
+# read in GTFs from compendium TARGET runs
+rep1_gtf_table <- rtracklayer::import(rep1_gtf_path) |>
+  # convert to dataframe for ease of comparison
+  as.data.frame(header = FALSE, sep = '\t')
+```
+
+    Warning in .local(x, row.names, optional, ...): arguments in '...' ignored
+
+``` r
+# read in GTFs from compendium TARGET runs
+rep2_gtf_table <- rtracklayer::import(rep2_gtf_path) |>
+  # convert to dataframe for ease of comparison
+  as.data.frame(header = FALSE, sep = '\t')
+```
+
+    Warning in .local(x, row.names, optional, ...): arguments in '...' ignored
+
+``` r
+# event files
+
+# construct event file paths
+events_rep1_paths <- file.path(rep1_events_dir, event_files)
+names(events_rep1_paths) <- names(event_files)
+events_rep2_paths <- file.path(rep2_events_dir, event_files)
+names(events_rep2_paths) <- names(event_files)
+
+# read in events
+events_rep1 <- read_in_events(events_rep1_paths)
+events_rep2 <- read_in_events(events_rep2_paths)
 ```
 
 ## Compare PSI tables
@@ -328,16 +399,18 @@ results.
 
 #### Check fraction of splice events that are unshared between methods
 
-First, quantify differences present in each table. To compare
-differences, rep1 and combined tables are merged on “event_type”,
-“pos_id”, “gene_id”, and “label” columns. (data tables are joined so
-each row corresponds to a splice event, defined by the combination of
-event_type, pos_id, gene_id, and label columns) Columns correspond to
-PSI values for a sample and are suffixed by whether they appear in the
-rep1 table, combined table, or both. -1 PSI values indicate missing PSI
-values from low junction readsl. An NA indicates that a splice event is
-not shared between the tables (splice event is only detected in one
-method).
+First, quantify differences present in each table.
+
+To compare differences, rep1 and combined tables are merged on
+“event_type”, “pos_id”, “gene_id”, and “label” columns. (data tables are
+joined so each row corresponds to a splice event, defined by the
+combination of event_type, pos_id, gene_id, and label columns) Columns
+correspond to PSI values for a sample and are suffixed by whether they
+appear in the rep1 table, combined table, or both.
+
+`-1` PSI values indicate missing PSI values from low junction reads. An
+`NA` indicates that a splice event is not shared between the tables
+(splice event is only detected in one method).
 
 ``` r
 # merge rep1 and combined tables and label columns by whether the event is shared between tables
@@ -370,15 +443,15 @@ Table 1: Percentage of events only in the rep1 (table1) or combined
 
 | event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
 |:---|:---|---:|---:|---:|---:|
-| se | annotated | 103591 | 98.70838 | 0.6458090 | 0.6458090 |
-| afe | annotated | 158700 | 99.94077 | 0.0296156 | 0.0296156 |
-| ale | annotated | 130130 | 99.97541 | 0.0122954 | 0.0122954 |
-| five | annotated | 32471 | 99.12537 | 0.4373133 | 0.4373133 |
-| three | annotated | 38118 | 98.64106 | 0.6794690 | 0.6794690 |
-| mse | annotated | 62589 | 99.62613 | 0.1869338 | 0.1869338 |
-| mxe | annotated | 801 | 99.50062 | 0.2496879 | 0.2496879 |
-| ri | unannotated | 36314 | 98.18803 | 0.4681390 | 1.3438343 |
-| ri | annotated | 13419 | 96.90737 | 1.5873016 | 1.5053283 |
+| se | annotated | 103574 | 98.74100 | 0.6295016 | 0.6295016 |
+| afe | annotated | 158762 | 99.86269 | 0.0686562 | 0.0686562 |
+| ale | annotated | 130124 | 99.98463 | 0.0076850 | 0.0076850 |
+| five | annotated | 32472 | 99.11924 | 0.4403794 | 0.4403794 |
+| three | annotated | 38110 | 98.68276 | 0.6586198 | 0.6586198 |
+| mse | annotated | 62594 | 99.61019 | 0.1949069 | 0.1949069 |
+| mxe | annotated | 800 | 99.75000 | 0.1250000 | 0.1250000 |
+| ri | unannotated | 36339 | 98.10121 | 0.5366136 | 1.3621729 |
+| ri | annotated | 13411 | 96.89061 | 1.5285959 | 1.5807919 |
 
 </div>
 
@@ -473,8 +546,8 @@ unique event ID
 
 | event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
 |:---|:---|---:|---:|---:|---:|
-| ri | unannotated | 36246 | 98.55984 | 0.2814104 | 1.1587486 |
-| ri | annotated | 13334 | 98.16259 | 0.9599520 | 0.8774561 |
+| ri | unannotated | 36255 | 98.56020 | 0.3061647 | 1.133637 |
+| ri | annotated | 13325 | 98.16135 | 0.8930582 | 0.945591 |
 
 </div>
 
@@ -534,17 +607,6 @@ from identical Compendium workflow runs (rep1 and rep2).
 
 #### Check fraction of splice events that are unshared between methods
 
-First, quantify differences present in each table. To compare
-differences, rep1 and combined tables are merged on “event_type”,
-“pos_id”, “gene_id”, and “label” columns. (data tables are joined so
-each row corresponds to a splice event, defined by the combination of
-event_type, pos_id, gene_id, and label columns) Columns correspond to
-PSI values for a sample and are suffixed by whether they appear in the
-rep1 table, combined table, or both. -1 PSI values indicate missing PSI
-values from low junction readsl. An NA indicates that a splice event is
-not shared between the tables (splice event is only detected in one
-method).
-
 ``` r
 # merge rep1 and combined tables and label columns by whether the event is shared between tables
 rep1_vs_rep2_table <- join_tables_incl_genes(rep1_psi_table, rep2_psi_table)
@@ -576,14 +638,14 @@ PSI tables
 | event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
 |:---|:---|---:|---:|---:|---:|
 | se | annotated | 103600 | 98.69112 | 0.6544402 | 0.6544402 |
-| afe | annotated | 158723 | 99.91180 | 0.0441020 | 0.0441020 |
-| ale | annotated | 130135 | 99.96773 | 0.0161371 | 0.0161371 |
-| five | annotated | 32474 | 99.10698 | 0.4465111 | 0.4465111 |
-| three | annotated | 38117 | 98.64627 | 0.6768633 | 0.6768633 |
-| mse | annotated | 62597 | 99.60062 | 0.1996901 | 0.1996901 |
+| afe | annotated | 158709 | 99.92943 | 0.0352847 | 0.0352847 |
+| ale | annotated | 130120 | 99.99078 | 0.0046111 | 0.0046111 |
+| five | annotated | 32473 | 99.11311 | 0.4434453 | 0.4434453 |
+| three | annotated | 38120 | 98.63064 | 0.6846800 | 0.6846800 |
+| mse | annotated | 62603 | 99.58149 | 0.2092551 | 0.2092551 |
 | mxe | annotated | 801 | 99.50062 | 0.2496879 | 0.2496879 |
-| ri | unannotated | 36004 | 98.98622 | 0.5193867 | 0.4943895 |
-| ri | annotated | 13406 | 97.24750 | 1.3426824 | 1.4098165 |
+| ri | unannotated | 36024 | 98.95903 | 0.5413058 | 0.4996669 |
+| ri | annotated | 13414 | 96.90622 | 1.4909796 | 1.6028030 |
 
 </div>
 
@@ -592,7 +654,53 @@ PSI tables
 Even in PSI tables generated from the same workflow commands, a similar
 fraction of unshared splice events are present in the tables.
 
-Check if these differences are all from pos_ids being assigned to
+Print example of `pos_ids` of events that are unshared
+
+``` r
+rep1_vs_rep2_table |>
+  dplyr::filter(
+      event_type == "se",
+      shared_event == FALSE
+    ) |>
+  # arrange by pos_id
+  dplyr::arrange(pos_id) |>
+  # only print PSI columns of two samples for ease of viewing
+  dplyr::select(
+    event_type, 
+    pos_id, 
+    gene_id, 
+    label,
+    SRR1559043_PSI_table1,
+    SRR1559044_PSI_table1
+  ) |>
+  # print head
+  head()
+```
+
+<div id="tbl-rep1_vs_rep2_unshared_events">
+
+Table 5: Example features of splice events not shared between rep1 and
+rep2 tables
+
+<div class="cell-output-display">
+
+| event_type | pos_id | gene_id | label | SRR1559043_PSI_table1 | SRR1559044_PSI_table1 |
+|:---|:---|:---|:---|---:|---:|
+| se | SE@chr10@100523977-100524139@100516960-100526399 | ENSG00000075826.17 | annotated | 0.0000000 | -1.000000 |
+| se | SE@chr10@100523977-100524139@100516960-100526399 | ENSG00000255339.6 | annotated | NA | NA |
+| se | SE@chr10@100526399-100526554@100516960-100526975 | ENSG00000075826.17 | annotated | 0.9921824 | 0.985119 |
+| se | SE@chr10@100526399-100526554@100516960-100526975 | ENSG00000255339.6 | annotated | NA | NA |
+| se | SE@chr10@101793686-101793744@101792943-101797980 | ENSG00000120049.20 | annotated | 0.0000000 | -1.000000 |
+| se | SE@chr10@101793686-101793744@101792943-101797980 | ENSG00000198408.14 | annotated | NA | NA |
+
+</div>
+
+</div>
+
+Between rep1 and rep2, events that are unshared also appear to be events
+with the same position IDs, but assigned to different genes
+
+Check if these differences are all from `pos_ids` being assigned to
 different genes
 
 ``` r
@@ -618,7 +726,7 @@ summary_without_genes_rep1_vs_rep2 |>
 
 <div id="tbl-no_gene_id_rep1_vs_rep2_event_comparison">
 
-Table 5: Percentage of events only in the rep1 (table1) or rep2 (table2)
+Table 6: Percentage of events only in the rep1 (table1) or rep2 (table2)
 PSI tables if gene_id is excluded from the definition of a unique event
 ID
 
@@ -626,8 +734,8 @@ ID
 
 | event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
 |:---|:---|---:|---:|---:|---:|
-| ri | unannotated | 35933 | 99.37940 | 0.3228230 | 0.2977764 |
-| ri | annotated | 13333 | 98.32746 | 0.8025201 | 0.8700218 |
+| ri | unannotated | 35957 | 99.32976 | 0.3559808 | 0.3142643 |
+| ri | annotated | 13327 | 98.19164 | 0.8479028 | 0.9604562 |
 
 </div>
 
@@ -673,3 +781,290 @@ all.equal(shared_only_rep1_table, shared_only_rep2_table)
 
 PSI values are identical in events where pos_id, event_type, gene_id,
 and label are the same.
+
+## Compare GTFs produced from rep1 and rep2 of compendium workflow runs
+
+Since differences in the PSI tables from the `rep1 vs. combined` and
+`rep1 vs. rep2` comparisons stem from positions being assigned to
+different gene IDs in annotated events, first check what GTF entries for
+features in an example unshared pos_id look like. Check features
+corresponding to the first pos_id in
+<a href="#tbl-rep1_vs_rep2_unshared_events"
+class="quarto-xref">Table 5</a>:
+`SE@chr10@100523977-100524139@100516960-100526399`
+
+This position corresponds to `ENSG00000075826.17` in rep1, but
+`ENSG00000255339.6` in rep2
+
+``` r
+test_rep1 <- rep1_gtf_table |>
+  dplyr::filter(
+    ref_gene_id %in% c("ENSG00000075826.17", "ENSG00000255339.6")
+  )
+
+test_rep2 <- rep2_gtf_table |>
+  dplyr::filter(
+    ref_gene_id %in% c("ENSG00000075826.17", "ENSG00000255339.6")
+  )
+
+identical(test_rep1, test_rep2)
+```
+
+    [1] TRUE
+
+I would have expected these features in the two GTFs to be non-identical
+if the GTFs were the cause of pos_ids being assigned to different genes.
+Contrary to this, they are identical.
+
+Next, compare GTF `ref_gene_id` columns for a given feature (seqnames,
+start, end)
+
+``` r
+# merge gtf tables from rep1 and rep2 to compare
+gtf1_gtf2_merged_df <- dplyr::full_join(
+  rep1_gtf_table,
+  rep2_gtf_table,
+  by = c(
+    "seqnames", 
+    "start", 
+    "end", 
+    "width", 
+    "cov", 
+    "FPKM", 
+    "TPM", 
+    "exon_number", 
+    "reference_id"
+    ),
+  # only row 45455 has a many-to-many relationship given these join columns
+  relationship = "many-to-many",
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")
+  ) |>
+  # add a column to label by whether the gene assigned to the feature is the same
+  dplyr::mutate(
+    gene_id_status = dplyr::case_when(
+      ref_gene_id_table1 != ref_gene_id_table2 ~ "diff_gene",
+      ref_gene_id_table1 == ref_gene_id_table2 ~ "same_gene",
+      # if feature is unannotated it will not have gene ID 
+      is.na(ref_gene_id_table1) | is.na(ref_gene_id_table2) ~ "unannotated"
+    )
+  )
+```
+
+If “many-to-many” relationship is not set above, the following warning
+is thrown:
+
+    Warning in dplyr::full_join(rep1_gtf_table, rep2_gtf_table, by = c("seqnames",  :
+      Detected an unexpected many-to-many relationship between `x` and `y`.
+    ℹ Row 45455 of `x` matches multiple rows in `y`.
+    ℹ Row 45455 of `y` matches multiple rows in `x`.
+    ℹ If a many-to-many relationship is expected, set `relationship = "many-to-many"` to silence this
+      warning.
+
+check row 45455 for why it has a many-to-many relationship
+
+``` r
+# check row 45455 for why it has a many-to-many relationship
+gtf1_gtf2_merged_df[45454, ]
+```
+
+|  | seqnames | start | end | width | strand_table1 | source_table1 | type_table1 | score_table1 | phase_table1 | gene_id_table1 | transcript_id_table1 | cov | FPKM | TPM | exon_number | reference_id | ref_gene_id_table1 | ref_gene_name_table1 | strand_table2 | source_table2 | type_table2 | score_table2 | phase_table2 | gene_id_table2 | transcript_id_table2 | ref_gene_id_table2 | ref_gene_name_table2 | gene_id_status |
+|:---|:---|---:|---:|---:|:---|:---|:---|---:|---:|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|---:|---:|:---|:---|:---|:---|:---|
+| 45454 | chr1 | 149488045 | 149518139 | 30095 | \+ | StringTie | transcript | 1000 | NA | STRG.5502 | STRG.5502.2 | 1.959668 | 0.157136 | 0.327909 | NA | NA | NA | NA | \+ | StringTie | transcript | 1000 | NA | STRG.5502 | STRG.5502.2 | NA | NA | unannotated |
+
+I don’t see any list-cols in this row, but notice that it corresponds to
+an unannotated feature (no ref_gene_id or ref_gene_name). So there may
+be two STRG.5502.2 corresponding to unannotated events that matched to
+the other columns in this row.
+
+Summarize fraction of features between `gtf1` and `gtf2` that have the
+same gene or have different genes
+
+``` r
+gtf_comparison_df <- gtf1_gtf2_merged_df |> 
+  dplyr::summarise(
+    .by = c(gene_id_status),
+    # count number of events in each event type and annotation category
+    total = dplyr::n()
+  )
+
+gtf_comparison_df
+```
+
+| gene_id_status |  total |
+|:---------------|-------:|
+| unannotated    | 376737 |
+| same_gene      | 417441 |
+
+The GTFs here also do not differ in a way that I would have expected to
+make a difference in how position IDs are assigned to genes. e.g. I
+would have expected there to be nonzero GTF features assigned to
+different genes.
+
+Next, I revisited the Shiba code to see what part is responsible for
+assigning splice event IDs to genes.
+
+Shiba v0.8.1
+[gtf2event.py](https://github.com/Sika-Zheng-Lab/Shiba/blob/v0.8.1/src/gtf2event.py)
+actually is what assigns event coordinates gene names, and includes code
+to deal with ties:
+
+    for index in range(gtf_df.shape[0]):
+            if gtf_gene_id[index] in gene_id_list_dic:
+                l = gene_id_list_dic[gtf_gene_id[index]]
+                c = collections.Counter(l)
+                most_common = c.most_common()[0][0]
+                gtf_df.at[index, "gene_id"] = most_common
+            if gtf_gene_name[index] in gene_name_list_dic:
+                l = gene_name_list_dic[gtf_gene_name[index]]
+                c = collections.Counter(l)
+                most_common = c.most_common()[0][0]
+                gtf_df.at[index, "gene_name"] = most_common
+            if ~(gtf_chr[index].startswith("chr")) and (len(gtf_chr[index]) <= 2):
+                gtf_df.at[index, "chr"] = "chr" + gtf_chr[index]
+
+The following explanation is from Claude – from what I understand,
+multiprocessing in `gtf2events.py` results in how ties are resolved to
+be non-deterministic, which would explain why gene IDs in the PSI tables
+are different:
+
+    2. The actual source of irreproducibility: multiprocessing + unstable sort + dedup
+    The gene_id resolved above gets carried into event rows purely by which gene's dictionary an event was discovered under:
+
+    python
+    event_l += [[exon, inc1, inc2, exc, strand, gene, gene_name]]
+
+    Event search itself, however, is parallelized:
+
+    python
+    with concurrent.futures.ProcessPoolExecutor(max_workers=num_process) as executor:
+        futures = [executor.submit(se, gtf_dic_split[i]) for i in range(num_process)]
+    output_l = []
+    for future in concurrent.futures.as_completed(futures):
+        output_l += future.result()
+    as_completed() yields futures in the order they finish, not the order they were submitted 
+
+    — this order depends on OS scheduling, per-process workload, and system load, so output_l's row order is genuinely non-deterministic across runs whenever num_process > 1.
+    That non-deterministic ordering then feeds directly into the dedup step used for every event type:
+
+    python
+    output_df = output_df.sort_values("exon")   # or "exon_a", etc.
+    output_df = output_df.drop_duplicates(subset = "pos_id", keep = "first")
+
+    Two things compound here:
+
+    sort_values() uses pandas' default kind='quicksort', which is not stable — it doesn't guarantee that rows with equal sort keys (e.g. the same exon coordinate) keep their original relative order.
+    drop_duplicates(keep="first") then keeps whichever row happens to land first after that sort.
+
+    Putting it together
+
+    If two different genes — whether genuinely overlapping loci, or exons that got resolved to different gene_ids via the majority-vote fallback — happen to produce an event with the identical pos_id string 
+    (same event type, chromosome, and junction coordinates), then:
+    Their rows arrive in output_l in whatever order the worker processes happened to finish (non-deterministic across runs).
+
+    The unstable sort doesn't reliably preserve any particular ordering for ties.
+    drop_duplicates(subset="pos_id", keep="first") silently keeps whichever gene's row happened to survive — which can differ from run to run.
+    So the same genomic position can end up labeled with different gene_id/gene_name values across two otherwise-identical runs of gtf2event.py, purely because of scheduling non-determinism in the parallel event search.
+
+    Practical implication: this only manifests when -p/--num-process is set above 1 (with a single process, there's only one future to complete, so ordering is trivially deterministic) and only for pos_ids that are genuinely ambiguous across genes — i.e., cases where two distinct genes generate an identical coordinate-based event signature.
+
+I did indeed use more than one thread for these runs.
+[compare_event_coords.md](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/exploration/merged-method-target-pilot-eval/compare_event_coords.md)
+compared similarity between event files produced by identical Shiba runs
+with multiple threads, but Jaccard indices were only compared using
+position IDs. This notebook did not examine similarity in gene names
+assigned to position IDs.
+
+## Compare event coordinates
+
+Because the difference in PSI values stem from differences in gene IDs,
+compare gene IDs in event coordinates
+
+``` r
+# lazily using jaccard index code from previous notebook
+gene_id_jaccard <- purrr::map2(
+  # read in lists of event coordinate dataframes to compare and iterate the two simultaneously
+  events_rep1,
+  events_rep2,
+  # take the matching two dataframes from the input lists
+  \(df1, df2){
+    # obtain set of gene IDs 
+    set1 <- df1$gene_id
+    set2 <- df2$gene_id
+    
+    # calculate Jaccard index of position IDs
+    length(intersect(set1, set2)) / length(union(set1, set2))
+  }
+  )
+
+# print results
+gene_id_jaccard
+```
+
+    $se
+    [1] 0.9939016
+
+    $afe
+    [1] 0.9995905
+
+    $ale
+    [1] 0.9997969
+
+    $five
+    [1] 0.9937388
+
+    $three
+    [1] 0.9928166
+
+    $mse
+    [1] 0.9948641
+
+    $mxe
+    [1] 0.9976247
+
+    $ri
+    [1] 0.9947494
+
+The event file gene IDs are not the same, supporting the hypothesis that
+inconsistent gene IDs come from `gtf2events.py`
+
+Check features corresponding to the first pos_id in
+<a href="#tbl-rep1_vs_rep2_unshared_events"
+class="quarto-xref">Table 5</a>:
+`SE@chr10@100523977-100524139@100516960-100526399`
+
+``` r
+events_rep1$se |>
+  dplyr::filter(pos_id == "SE@chr10@100523977-100524139@100516960-100526399")
+```
+
+| event_id | pos_id | exon | intron_a | intron_b | intron_c | strand | gene_id | gene_name | label |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| SE_1093 | SE@chr10@100523977-100524139@100516960-100526399 | chr10:100523977-100524139 | chr10:100516960-100523977 | chr10:100524139-100526399 | chr10:100516960-100526399 | \- | ENSG00000075826.17 | SEC31B | annotated |
+
+``` r
+events_rep2$se |>
+  dplyr::filter(pos_id == "SE@chr10@100523977-100524139@100516960-100526399")
+```
+
+| event_id | pos_id | exon | intron_a | intron_b | intron_c | strand | gene_id | gene_name | label |
+|:---|:---|:---|:---|:---|:---|:---|:---|:---|:---|
+| SE_1093 | SE@chr10@100523977-100524139@100516960-100526399 | chr10:100523977-100524139 | chr10:100516960-100523977 | chr10:100524139-100526399 | chr10:100516960-100526399 | \- | ENSG00000255339.6 | ENSG00000255339 | annotated |
+
+In the event file for this position ID, we can see that the `gene_id` /
+`gene_name` columns are the only fields different between the two runs.
+
+## Conclusions:
+
+- PSI differences all stem from the same position ID being assigned to
+  different genes
+
+- Different gene assignment for a splice event position ID appears to
+  come from Shiba’s `gtf2event.py` code, not GTF generation (though row
+  order of features in the GTF may play a role in how `gtf2event.py`
+  breaks ties)
+
+- A potential last step would be to rerun two replicates of TARGET pilot
+  with one thread for `gtf2event.py` and compare Jaccard indices for
+  both `pos_id` and `gene_id` between rep1 and rep2 events made with
+  multithreading.

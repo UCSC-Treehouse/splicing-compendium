@@ -1,36 +1,43 @@
 # Compare merged PSI table from TARGET pilot samples
 Cindy Liang (celiang@ucsc.edu)
-2026-08-13
+2026-08-18
 
 ## Introduction
 
-Compendium workflow v1 (workflow with updated GTF generation and merging
-rules) has been run on the TARGET pilot samples. To understand what
-differences remain between PSI results generated from this workflow and
-the canonical Shiba run, this notebook compares what percentage of
-events remain that can only be found in the current v1 workflow and the
-canonical Shiba run methods.
+Treehouse Compendium version 1 has been run on the TARGET pilot samples.
+This workflow includes generating GTFs from alignments, merging GTFs of
+all samples, merging separately-produced junction bedfiles for each
+sample, and running Shiba on the merged GTF and junction file as inputs
+to produce event coordinate and PSI files.
 
-**rep1**: Refers to PSI results generated from the most recent
-compendium v1 workflow method
+To understand what differences remain between PSI results generated from
+Treehouse Compendium v1 and the canonical Shiba run, this notebook
+compares what percentage of events remain that can only be found in the
+workflow and the canonical Shiba method.
 
-**rep2**: Refers to PSI results generated from the most recent
-compendium v1 workflow method, generated with the same commands and
-parameters as rep1 but written in a different output directory. rep2_v1
-will be used to test whether identical runs of the workflow will result
-in the same proportion of different events, due to randomness from GTFs
-being generated from scratch in each workflow run.
+Below are names used to refer to different workflow runs on TARGET pilot
+samples:
+
+### PSI tables produced using canonical (unaltered) Shiba scripts
 
 **Combined**: Refers to PSI results generated from the unaltered Shiba
-script.
+scripts, using `shiba.py`:
 
-**Combined_dedup**: PSI valiues generated from running only the Shiba
-PSI.py script on the following inputs and command:
+    shiba.py -p 15 exploration/merging-psi-tables/target_pilot/shiba_config.yaml
 
-- event coordinates files generated from the Combined method
+There is a bug in Shiba v0.8.1 that causes some `junctions.bed` position
+IDs (coordinates) to be duplicated. To check if duplicated junctions
+impact PSI calculation, I also compare the PSI tables below:
 
-- Junctions.bed files generated from Combined, then duplicated with the
-  deduplication commands used in the v1 workflow
+**Combined_dedup**: PSI values generated from running only the Shiba
+`PSI.py` script on the following inputs and command:
+
+- event coordinates files generated from the Combined (canonical Shiba)
+  method above
+
+- `junctions.bed` files generated from Combined, then duplicated with
+  the deduplication commands used in the v1 snakemake workflow in the
+  `merge_jucntions` rule
 
 <!-- -->
 
@@ -42,6 +49,35 @@ PSI.py script on the following inputs and command:
     /private/groups/treehouse/working-projects/celiang/splicing-compendium/exploration/merging-psi-tables/target_pilot/shiba_combined/events \
     v1_dedup_target_pilot_combined
 
+### PSI table results produced by running Treehouse Compendium v1:
+
+Two replicates of Treehosue Compendium v1 workflow were run to check
+whether repeated runs of the workflow (same command, different output
+directory) produce different PSI tables.
+
+**rep1**: Refers to PSI results generated from the most recent
+compendium v1 workflow method **rep2**: Refers to PSI results generated
+from the most recent compendium v1 workflow method, generated with the
+same commands and parameters as rep1 but written in a different output
+directory.
+
+### Comparisons in notebook
+
+Are combined and deduplicated results identical?
+
+- combined vs. combined_dedup
+
+Are there different events in Compendium vs. canonical Shiba methods?
+
+- rep1 vs. combined
+
+Are there differences in PSI tables if compendium workflow is run twice
+(are two replicate runs different?)
+
+- rep1 vs. rep2
+
+Are GTFs generated from the same sample in rep1 and rep2 identical?
+
 For all PSI tables loaded in, NA values assigned by Shiba within each
 method listed above are replaced with -1, to distinguish NAs from splice
 events with low coverage apart from NAs from splice events that are not
@@ -49,9 +85,11 @@ matched between each method.
 
 ## Set up
 
-Define functions
+### Define functions
 
 ``` r
+## Reading in PSI tables ##
+
 # construct paths to psi tables
 construct_psi_paths <- function(psi_dir, psi_file_list) {
   # construct paths to individual psi files
@@ -79,6 +117,73 @@ psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
 
 # return the psi table
 return(psi_table)
+}
+
+## Manipulating PSI tables for comparison ##
+
+# merge tables by all identifying fields for a splice event ID (event_type", "pos_id", "gene_id", "label")
+join_tables_incl_genes <- function(table1, table2) {
+  
+  # create the merged table of PSI tables to compare
+  joined_table <- dplyr::full_join(
+  table1,
+  table2,
+  by = c("event_type", "pos_id", "gene_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # Count events in one table or other if the values are not all NA
+    table1_event = ! dplyr::if_all(ends_with("_table1"), is.na),
+    # rep2 events are counted if the values for the event are not all NA
+    table2_event = ! dplyr::if_all(ends_with("_table2"), is.na),
+    shared_event = table1_event & table2_event
+  )
+  
+  return(joined_table)
+
+}
+
+# merge tables by event_type", "pos_id", and "label" only (consider event the same if position is the same regardless of gene)
+join_tables_no_genes <- function(table1, table2) {
+  
+  # create the merged table of PSI tables to compare
+  joined_table <- dplyr::full_join(
+  table1,
+  table2,
+  by = c("event_type", "pos_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # Count events in one table or other if the values are not all NA
+    table1_event = ! dplyr::if_all(ends_with("_table1"), is.na),
+    # rep2 events are counted if the values for the event are not all NA
+    table2_event = ! dplyr::if_all(ends_with("_table2"), is.na),
+    shared_event = table1_event & table2_event
+  )
+  
+  return(joined_table)
+
+}
+
+# Summarize events shared and unshared between tables
+summarize_shared_events <- function(joined_table) {
+  # calculate fraction of events only present in either table and fraction events that are shared
+  shared_events_summary <- joined_table |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    table1_only_count = sum(table1_event) - shared_count,
+    table2_only_count = sum(table2_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    table1_only_percent = table1_only_count / total * 100,
+    table2_only_percent = table2_only_count / total * 100,
+  )
+  
+  # return summary table
+  return(shared_events_summary)
 }
 ```
 
@@ -165,21 +270,11 @@ dedup_combined_psi_table <- read_psi_tables(dedup_comb_psi_paths)
 
 ## Compare PSI tables
 
-### Obtain dimensions of each PSI table
+### Combined vs. combined_dedup
 
-``` r
-# dimensions of v1 PSI table
-dim(rep1_psi_table)
-```
+Are these PSI tables the same?
 
-    [1] 746294     92
-
-``` r
-# dimensions of rep2 v1 PSI table
-dim(rep2_psi_table)
-```
-
-    [1] 746294     92
+#### Compare dimensions
 
 ``` r
 # dimensions of combined PSI table
@@ -195,10 +290,9 @@ dim(dedup_combined_psi_table)
 
     [1] 746601     92
 
-There are ~400 more splice events in the combined PSI tables than the v1
-tables.
+Dimensions between tables are identical.
 
-## Check whether combined and deduplicated combined tables are identical
+#### Check whether combined and deduplicated combined tables are identical
 
 ``` r
 identical(combined_psi_table, dedup_combined_psi_table)
@@ -206,55 +300,259 @@ identical(combined_psi_table, dedup_combined_psi_table)
 
     [1] TRUE
 
-### Check fraction of splice events that are unshared between methods
+`combined` and `deduplicated_combined` results are identical (duplicated
+junctions in the canonical junctions.bed file do not alter PSI
+calculations). Moving forward, the combined table is compared to the
+other methods.
 
-Since the `combined` and `deduplicated_combined` results are identical,
-I will make the following comparisons:
+### Treehouse Compendium workflow rep1 vs. Combined table
 
-- `rep1` vs. `rep2`: To see what fraction of events are different when
-  the workflow is run multiple times
-
-The dataframes created in the following cells are event-level dataframes
-of splice events that are shared or unshared between each method. Each
-row is a unique pos_id/event_id + gene combination. Columns contain each
-samples’ PSI value with -1 indicating low read NA and NA indicating
-event not shared between methods.
-
-## rep1 vs. rep2 PSI table event differences
-
-### print fraction of events that are unshared
+#### Compare dimensions
 
 ``` r
-# construct table of rep1 and rep2 events and label by whether event is shared
-rep1_vs_rep2_events <- dplyr::full_join(
-  rep1_psi_table,
-  rep2_psi_table,
-  by = c("event_type", "pos_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_rep1", "_rep2")) |>
-  # categorize events by whether they are in the v1 or rep2 tables
-  dplyr::mutate(
-    # v1 events are counted if the values are not all NA
-    rep1_event = ! dplyr::if_all(ends_with("_rep1"), is.na),
-    # rep2 events are counted if the values for the event are not all NA
-    rep2_event = ! dplyr::if_all(ends_with("_rep2"), is.na),
-    shared_event = rep1_event & rep2_event
+dim(rep1_psi_table)
+```
+
+    [1] 746294     92
+
+``` r
+dim(combined_psi_table)
+```
+
+    [1] 746601     92
+
+There are ~400 more unique splice events (rows) in the combined table,
+compared to the rep1 table;  
+the canonical Shiba and Treehouse Compendium methods produce different
+results.
+
+#### Check fraction of splice events that are unshared between methods
+
+First, quantify differences present in each table. To compare
+differences, rep1 and combined tables are merged on “event_type”,
+“pos_id”, “gene_id”, and “label” columns. (data tables are joined so
+each row corresponds to a splice event, defined by the combination of
+event_type, pos_id, gene_id, and label columns) Columns correspond to
+PSI values for a sample and are suffixed by whether they appear in the
+rep1 table, combined table, or both. -1 PSI values indicate missing PSI
+values from low junction readsl. An NA indicates that a splice event is
+not shared between the tables (splice event is only detected in one
+method).
+
+``` r
+# merge rep1 and combined tables and label columns by whether the event is shared between tables
+rep1_vs_combined_table <- join_tables_incl_genes(rep1_psi_table, combined_psi_table)
+
+# summarize table
+summary_with_genes_rep1_vs_combined <- summarize_shared_events(rep1_vs_combined_table)
+
+summary_with_genes_rep1_vs_combined |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+    event_type,
+    label,
+    total,
+    shared_percent,
+    table1_only_percent,
+    table2_only_percent
   )
+```
 
-# event-level summary of the number of each splice event type in each splice table
-rep1_vs_rep2_events_summary <- rep1_vs_rep2_events |> dplyr::summarise(
-    .by = c(event_type, label),
-    # count number of events in each event type and annotation category
-    total = dplyr::n(),
-    shared_count = sum(shared_event),
-    rep1_only_count = sum(rep1_event) - shared_count,
-    rep2_only_count = sum(rep2_event) - shared_count,
-    shared_percent = shared_count / total * 100,
-    rep1_only_percent = rep1_only_count / total * 100,
-    rep2_only_percent = rep2_only_count / total * 100,
-)
+<div id="tbl-rep1_vs_combined_event_comparison">
 
-rep1_vs_rep2_events_summary |> 
+Table 1: Percentage of events only in the rep1 (table1) or combined
+(table2) PSI tables
+
+<div class="cell-output-display">
+
+| event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
+|:---|:---|---:|---:|---:|---:|
+| se | annotated | 103591 | 98.70838 | 0.6458090 | 0.6458090 |
+| afe | annotated | 158700 | 99.94077 | 0.0296156 | 0.0296156 |
+| ale | annotated | 130130 | 99.97541 | 0.0122954 | 0.0122954 |
+| five | annotated | 32471 | 99.12537 | 0.4373133 | 0.4373133 |
+| three | annotated | 38118 | 98.64106 | 0.6794690 | 0.6794690 |
+| mse | annotated | 62589 | 99.62613 | 0.1869338 | 0.1869338 |
+| mxe | annotated | 801 | 99.50062 | 0.2496879 | 0.2496879 |
+| ri | unannotated | 36314 | 98.18803 | 0.4681390 | 1.3438343 |
+| ri | annotated | 13419 | 96.90737 | 1.5873016 | 1.5053283 |
+
+</div>
+
+</div>
+
+A small fraction of splice events are still only found in the `rep1` or
+`combined` table. Except for retained intron events, unshared events are
+all in annotated event types. Retained introns are the event type
+category with the highest fraction of unshared events. However, this is
+expected based on how exon-intron junctions (which are used to calculate
+these event types’ PSI values) are handled in the compendium workflow.
+Moving forward, I will focus on non-RI event types.
+
+Spot-check what examples of unshared event IDs look like
+
+``` r
+rep1_vs_combined_table |>
+  dplyr::filter(
+      event_type == "se",
+      shared_event == FALSE
+    ) |>
+  # arrange by pos_id
+  dplyr::arrange(pos_id) |>
+  # only print PSI columns of two samples for ease of viewing
+  dplyr::select(
+    event_type, 
+    pos_id, 
+    gene_id, 
+    label,
+    SRR1559043_PSI_table1,
+    SRR1559044_PSI_table1
+  ) |>
+  # print head
+  head()
+```
+
+<div id="tbl-rep1_vs_combined_unshared_events">
+
+Table 2: Example features of splice events not shared between rep1 and
+combined tables
+
+<div class="cell-output-display">
+
+| event_type | pos_id | gene_id | label | SRR1559043_PSI_table1 | SRR1559044_PSI_table1 |
+|:---|:---|:---|:---|---:|---:|
+| se | SE@chr10@100523977-100524139@100516960-100526399 | ENSG00000075826.17 | annotated | 0.0000000 | -1.0000000 |
+| se | SE@chr10@100523977-100524139@100516960-100526399 | ENSG00000255339.6 | annotated | NA | NA |
+| se | SE@chr10@100526399-100526554@100516960-100526975 | ENSG00000075826.17 | annotated | 0.9921824 | 0.9851190 |
+| se | SE@chr10@100526399-100526554@100516960-100526975 | ENSG00000255339.6 | annotated | NA | NA |
+| se | SE@chr10@101793913-101793998@101792943-101797980 | ENSG00000198408.14 | annotated | 0.8383838 | 0.8217822 |
+| se | SE@chr10@101793913-101793998@101792943-101797980 | ENSG00000120049.20 | annotated | NA | NA |
+
+</div>
+
+</div>
+
+Many position IDs that are not shared between tables have the same
+position ID (see top two rows of table) but different gene IDs.
+
+If we exclude gene ID from the position IDs, what is the fraction of
+events that remain unshared?
+
+``` r
+# merge rep1 and combined tables and label columns by whether the event is shared between tables
+nogene_rep1_vs_combined_table <- join_tables_no_genes(rep1_psi_table, combined_psi_table)
+
+# summarize table
+summary_without_genes_rep1_vs_combined <- summarize_shared_events(nogene_rep1_vs_combined_table)
+
+summary_without_genes_rep1_vs_combined |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+    event_type,
+    label,
+    total,
+    shared_percent,
+    table1_only_percent,
+    table2_only_percent
+  )
+```
+
+<div id="tbl-no_gene_id_rep1_vs_combined_event_comparison">
+
+Table 3: Percentage of events only in the rep1 (table1) or combined
+(table2) PSI tables if gene_id is excluded from the definition of a
+unique event ID
+
+<div class="cell-output-display">
+
+| event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
+|:---|:---|---:|---:|---:|---:|
+| ri | unannotated | 36246 | 98.55984 | 0.2814104 | 1.1587486 |
+| ri | annotated | 13334 | 98.16259 | 0.9599520 | 0.8774561 |
+
+</div>
+
+</div>
+
+If gene ID is excluded from the definition of a unique splice event,
+only retained intron event types are unshared between tables, at a
+slightly lower fraction compared to the fraction of retained introns
+unshared when gene_id is included in the definition of a unique splice
+event.
+
+#### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
+
+``` r
+# First check PSI values between pos_ids that are shared in all aspects (including gene_id)
+
+# extract position ids of events that are shared between tables
+shared_ids_rep1_vs_combined <- rep1_vs_combined_table |>
+  dplyr::filter(
+    shared_event == TRUE,
+    # exclude retained intron event types
+    event_type != "ri"
+    ) |>
+  dplyr::pull(pos_id)
+
+# filter tables for events in shared tables
+shared_only_rep1_table <- rep1_psi_table |>
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_combined) |>
+  # filter only for fields to compare (pos_id, psi values of samples)
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+shared_only_combined_table <- combined_psi_table |>
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_combined) |>
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+all.equal(shared_only_rep1_table, shared_only_combined_table)
+```
+
+    [1] TRUE
+
+PSI values are identical in events where pos_id, event_type, gene_id,
+and label are the same.
+
+### Rep1 vs. rep2
+
+Because all differences in the PSI tables stem from pos_ids being
+assigned different genes, I suspect the difference comes from the GTF
+generation or merge steps in the workflow.
+
+To check this, see if the same kind of differences (same pos_ids present
+but assigned to different genes) are present in PSI tables generated
+from identical Compendium workflow runs (rep1 and rep2).
+
+#### Check fraction of splice events that are unshared between methods
+
+First, quantify differences present in each table. To compare
+differences, rep1 and combined tables are merged on “event_type”,
+“pos_id”, “gene_id”, and “label” columns. (data tables are joined so
+each row corresponds to a splice event, defined by the combination of
+event_type, pos_id, gene_id, and label columns) Columns correspond to
+PSI values for a sample and are suffixed by whether they appear in the
+rep1 table, combined table, or both. -1 PSI values indicate missing PSI
+values from low junction readsl. An NA indicates that a splice event is
+not shared between the tables (splice event is only detected in one
+method).
+
+``` r
+# merge rep1 and combined tables and label columns by whether the event is shared between tables
+rep1_vs_rep2_table <- join_tables_incl_genes(rep1_psi_table, rep2_psi_table)
+
+# summarize table
+summary_with_genes_rep1_vs_rep2 <- summarize_shared_events(rep1_vs_rep2_table)
+
+summary_with_genes_rep1_vs_rep2 |> 
   # no need to look at event types that are all the same
   dplyr::filter(
     shared_percent != 100
@@ -264,137 +562,114 @@ rep1_vs_rep2_events_summary |>
   label,
   total,
   shared_percent,
-  rep2_only_percent,
-  rep1_only_percent)
+  table1_only_percent,
+  table2_only_percent)
 ```
 
-| event_type | label | total | shared_percent | rep2_only_percent | rep1_only_percent |
-|:---|:---|---:|---:|---:|---:|
-| ri | unannotated | 35933 | 99.37940 | 0.2977764 | 0.3228230 |
-| ri | annotated | 13333 | 98.32746 | 0.8700218 | 0.8025201 |
+<div id="tbl-rep1_vs_rep2_event_comparison">
 
-### Check if PSI values are identical
+Table 4: Percentage of events only in the rep1 (table1) or rep2 (table2)
+PSI tables
+
+<div class="cell-output-display">
+
+| event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
+|:---|:---|---:|---:|---:|---:|
+| se | annotated | 103600 | 98.69112 | 0.6544402 | 0.6544402 |
+| afe | annotated | 158723 | 99.91180 | 0.0441020 | 0.0441020 |
+| ale | annotated | 130135 | 99.96773 | 0.0161371 | 0.0161371 |
+| five | annotated | 32474 | 99.10698 | 0.4465111 | 0.4465111 |
+| three | annotated | 38117 | 98.64627 | 0.6768633 | 0.6768633 |
+| mse | annotated | 62597 | 99.60062 | 0.1996901 | 0.1996901 |
+| mxe | annotated | 801 | 99.50062 | 0.2496879 | 0.2496879 |
+| ri | unannotated | 36004 | 98.98622 | 0.5193867 | 0.4943895 |
+| ri | annotated | 13406 | 97.24750 | 1.3426824 | 1.4098165 |
+
+</div>
+
+</div>
+
+Even in PSI tables generated from the same workflow commands, a similar
+fraction of unshared splice events are present in the tables.
+
+Check if these differences are all from pos_ids being assigned to
+different genes
 
 ``` r
+# merge rep1 and rep2 tables and label columns by whether the event is shared between tables
+nogene_rep1_vs_rep2_table <- join_tables_no_genes(rep1_psi_table, rep2_psi_table)
+
+# summarize table
+summary_without_genes_rep1_vs_rep2 <- summarize_shared_events(nogene_rep1_vs_rep2_table)
+
+summary_without_genes_rep1_vs_rep2 |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+  event_type,
+  label,
+  total,
+  shared_percent,
+  table1_only_percent,
+  table2_only_percent)
+```
+
+<div id="tbl-no_gene_id_rep1_vs_rep2_event_comparison">
+
+Table 5: Percentage of events only in the rep1 (table1) or rep2 (table2)
+PSI tables if gene_id is excluded from the definition of a unique event
+ID
+
+<div class="cell-output-display">
+
+| event_type | label | total | shared_percent | table1_only_percent | table2_only_percent |
+|:---|:---|---:|---:|---:|---:|
+| ri | unannotated | 35933 | 99.37940 | 0.3228230 | 0.2977764 |
+| ri | annotated | 13333 | 98.32746 | 0.8025201 | 0.8700218 |
+
+</div>
+
+</div>
+
+Similar to <a href="#tbl-no_gene_id_rep1_vs_combined_event_comparison"
+class="quarto-xref">Table 3</a>, all event types except for retained
+introns become shared if `gene_id` is dropped from the definition of a
+unique event.
+
+#### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
+
+``` r
+# First check PSI values between pos_ids that are shared in all aspects (including gene_id)
+
 # extract position ids of events that are shared between tables
-rep1_rep2_shared_psi <- rep1_vs_rep2_events |>
+shared_ids_rep1_vs_rep2 <- rep1_vs_rep2_table |>
   dplyr::filter(
     shared_event == TRUE,
-    # let's not look at retained introns for now
+    # exclude retained intron event types
     event_type != "ri"
     ) |>
   dplyr::pull(pos_id)
 
 # filter tables for events in shared tables
 shared_only_rep1_table <- rep1_psi_table |>
-  dplyr::filter(pos_id %in% rep1_rep2_shared_psi) |>
-  dplyr::select(pos_id, ends_with("_PSI"))
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_rep2) |>
+  # filter only for fields to compare (pos_id, psi values of samples)
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
 
 shared_only_rep2_table <- rep2_psi_table |>
-  dplyr::filter(pos_id %in% rep1_rep2_shared_psi) |>
-  dplyr::select(pos_id, ends_with("_PSI"))
+  dplyr::filter(pos_id %in% shared_ids_rep1_vs_rep2) |>
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
 
 all.equal(shared_only_rep1_table, shared_only_rep2_table)
 ```
 
-     [1] "Component \"pos_id\": 69715 string mismatches"                   
-     [2] "Component \"SRR1559043_PSI\": Mean relative difference: 1.483315"
-     [3] "Component \"SRR1559044_PSI\": Mean relative difference: 1.431269"
-     [4] "Component \"SRR1559052_PSI\": Mean relative difference: 1.400423"
-     [5] "Component \"SRR1559054_PSI\": Mean relative difference: 1.364795"
-     [6] "Component \"SRR1559075_PSI\": Mean relative difference: 1.199781"
-     [7] "Component \"SRR1559100_PSI\": Mean relative difference: 1.233691"
-     [8] "Component \"SRR1559105_PSI\": Mean relative difference: 1.175447"
-     [9] "Component \"SRR1559133_PSI\": Mean relative difference: 1.142479"
-    [10] "Component \"SRR1559134_PSI\": Mean relative difference: 1.233245"
-    [11] "Component \"SRR1559145_PSI\": Mean relative difference: 1.185312"
-    [12] "Component \"SRR1559160_PSI\": Mean relative difference: 1.219263"
-    [13] "Component \"SRR1559164_PSI\": Mean relative difference: 1.196658"
-    [14] "Component \"SRR1559177_PSI\": Mean relative difference: 1.367918"
-    [15] "Component \"SRR1559183_PSI\": Mean relative difference: 1.284216"
-    [16] "Component \"SRR1559184_PSI\": Mean relative difference: 1.310272"
-    [17] "Component \"SRR1712453_PSI\": Mean relative difference: 1.337926"
-    [18] "Component \"SRR1712454_PSI\": Mean relative difference: 1.326938"
-    [19] "Component \"SRR1712455_PSI\": Mean relative difference: 1.345445"
-    [20] "Component \"SRR1712456_PSI\": Mean relative difference: 1.390126"
-    [21] "Component \"SRR1712457_PSI\": Mean relative difference: 1.306888"
-    [22] "Component \"SRR1712458_PSI\": Mean relative difference: 1.288512"
-    [23] "Component \"SRR1712459_PSI\": Mean relative difference: 1.283701"
-    [24] "Component \"SRR1712460_PSI\": Mean relative difference: 1.281702"
-    [25] "Component \"SRR1712461_PSI\": Mean relative difference: 1.282"   
-    [26] "Component \"SRR1712462_PSI\": Mean relative difference: 1.327855"
-    [27] "Component \"SRR1712463_PSI\": Mean relative difference: 1.319016"
-    [28] "Component \"SRR1712464_PSI\": Mean relative difference: 1.326263"
-    [29] "Component \"SRR1712465_PSI\": Mean relative difference: 1.347159"
-    [30] "Component \"SRR1784865_PSI\": Mean relative difference: 1.273438"
-    [31] "Component \"SRR1784867_PSI\": Mean relative difference: 1.347157"
-    [32] "Component \"SRR1791016_PSI\": Mean relative difference: 1.24397" 
-    [33] "Component \"SRR1791028_PSI\": Mean relative difference: 1.386342"
-    [34] "Component \"SRR1791108_PSI\": Mean relative difference: 1.335521"
-    [35] "Component \"SRR1796863_PSI\": Mean relative difference: 1.293248"
-    [36] "Component \"SRR1796867_PSI\": Mean relative difference: 1.195812"
-    [37] "Component \"SRR1796893_PSI\": Mean relative difference: 1.397051"
-    [38] "Component \"SRR1796906_PSI\": Mean relative difference: 1.291464"
-    [39] "Component \"SRR1796912_PSI\": Mean relative difference: 1.25922" 
-    [40] "Component \"SRR1796939_PSI\": Mean relative difference: 1.297364"
-    [41] "Component \"SRR1796967_PSI\": Mean relative difference: 1.266642"
-    [42] "Component \"SRR1796990_PSI\": Mean relative difference: 1.330303"
-    [43] "Component \"SRR1797014_PSI\": Mean relative difference: 1.317037"
-    [44] "Component \"SRR1797024_PSI\": Mean relative difference: 1.41884" 
-    [45] "Component \"SRR1797033_PSI\": Mean relative difference: 1.417557"
-    [46] "Component \"SRR1797034_PSI\": Mean relative difference: 1.3245"  
-    [47] "Component \"SRR1797035_PSI\": Mean relative difference: 1.345886"
-    [48] "Component \"SRR1797039_PSI\": Mean relative difference: 1.30156" 
-    [49] "Component \"SRR1797052_PSI\": Mean relative difference: 1.243718"
-    [50] "Component \"SRR1797053_PSI\": Mean relative difference: 1.501428"
-    [51] "Component \"SRR1797055_PSI\": Mean relative difference: 1.322663"
-    [52] "Component \"SRR1797057_PSI\": Mean relative difference: 1.417556"
-    [53] "Component \"SRR1797087_PSI\": Mean relative difference: 1.181426"
-    [54] "Component \"SRR1797107_PSI\": Mean relative difference: 1.44048" 
-    [55] "Component \"SRR1797111_PSI\": Mean relative difference: 1.351465"
-    [56] "Component \"SRR1799022_PSI\": Mean relative difference: 1.354374"
-    [57] "Component \"SRR1799025_PSI\": Mean relative difference: 1.524506"
-    [58] "Component \"SRR1799041_PSI\": Mean relative difference: 1.367856"
-    [59] "Component \"SRR1799042_PSI\": Mean relative difference: 1.414652"
-    [60] "Component \"SRR1799057_PSI\": Mean relative difference: 1.434093"
-    [61] "Component \"SRR1799058_PSI\": Mean relative difference: 1.254455"
-    [62] "Component \"SRR1799059_PSI\": Mean relative difference: 1.385652"
-    [63] "Component \"SRR1799061_PSI\": Mean relative difference: 1.311708"
-    [64] "Component \"SRR1799062_PSI\": Mean relative difference: 1.356123"
-    [65] "Component \"SRR1799067_PSI\": Mean relative difference: 1.273098"
-    [66] "Component \"SRR1799069_PSI\": Mean relative difference: 1.481294"
-    [67] "Component \"SRR1799081_PSI\": Mean relative difference: 1.337429"
-    [68] "Component \"SRR1810588_PSI\": Mean relative difference: 1.378175"
-    [69] "Component \"SRR2042833_PSI\": Mean relative difference: 1.448634"
-    [70] "Component \"SRR2042845_PSI\": Mean relative difference: 1.564858"
-    [71] "Component \"SRR2042853_PSI\": Mean relative difference: 1.348048"
-    [72] "Component \"SRR2042854_PSI\": Mean relative difference: 1.272542"
-    [73] "Component \"SRR2042856_PSI\": Mean relative difference: 1.214568"
-    [74] "Component \"SRR2083154_PSI\": Mean relative difference: 1.183345"
-    [75] "Component \"SRR2083162_PSI\": Mean relative difference: 1.198706"
-    [76] "Component \"SRR2083171_PSI\": Mean relative difference: 1.17097" 
-    [77] "Component \"SRR2083176_PSI\": Mean relative difference: 1.132067"
-    [78] "Component \"SRR2083188_PSI\": Mean relative difference: 1.193011"
-    [79] "Component \"SRR2239703_PSI\": Mean relative difference: 1.47903" 
-    [80] "Component \"SRR2239717_PSI\": Mean relative difference: 1.530352"
-    [81] "Component \"SRR3162160_PSI\": Mean relative difference: 1.359017"
-    [82] "Component \"SRR3162195_PSI\": Mean relative difference: 1.39001" 
-    [83] "Component \"SRR3162212_PSI\": Mean relative difference: 1.356906"
-    [84] "Component \"SRR3162237_PSI\": Mean relative difference: 1.283128"
-    [85] "Component \"SRR3162253_PSI\": Mean relative difference: 1.195055"
-    [86] "Component \"SRR4376029_PSI\": Mean relative difference: 1.37848" 
-    [87] "Component \"SRR4416297_PSI\": Mean relative difference: 1.360608"
-    [88] "Component \"SRR4419554_PSI\": Mean relative difference: 1.335413"
-    [89] "Component \"SRR4419565_PSI\": Mean relative difference: 1.3535"  
+    [1] TRUE
 
-Even though position IDs of non-RI event types are the same, the PSI
-values in rep 1 and rep 2 are different. based on the previous version
-of this notebook where I printed out examples of cases where positions
-IDs are the same but being assigned different genes, I wonder how much
-of differing PSI values stem from cases where junctions in the same
-position IDs are assigned different genes when Shiba calculates PSI.
-
-One idea I have is to look at two categories of PSI values for whether
-they are identical - PSI values from position IDs that are identical and
-assigned to different genes, and PSI values from truly identical pos_ids
-assigned to the same gene.
+PSI values are identical in events where pos_id, event_type, gene_id,
+and label are the same.

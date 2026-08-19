@@ -46,3 +46,4 @@ exploration/v1_workflow_target_pilot_results/
 exploration/v1_psi_tables/long_psi_df.rd
 exploration/dedup_target_pilot_combined_results/
 exploration/v1_target_pilot_rep2/
+exploration/pilot_gtfs/

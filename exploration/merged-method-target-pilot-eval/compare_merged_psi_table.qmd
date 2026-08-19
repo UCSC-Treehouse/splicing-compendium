@@ -366,10 +366,12 @@ the canonical Shiba and Treehouse Compendium methods produce different results.
 #### Check fraction of splice events that are unshared between methods
 
 First, quantify differences present in each table.
+
 To compare differences, rep1 and combined tables are merged on "event_type", "pos_id", "gene_id", and "label" columns.
 (data tables are joined so each row corresponds to a splice event, defined by the combination of event_type, pos_id, gene_id, and label columns) Columns correspond to PSI values for a sample and are suffixed by whether they appear in the rep1 table, combined table, or both.
--1 PSI values indicate missing PSI values from low junction readsl.
-An NA indicates that a splice event is not shared between the tables (splice event is only detected in one method).
+
+`-1` PSI values indicate missing PSI values from low junction reads.
+An `NA` indicates that a splice event is not shared between the tables (splice event is only detected in one method).
 
 ```{r rep1_vs_combined_frac_unshared}
 #| label: tbl-rep1_vs_combined_event_comparison
@@ -505,12 +507,6 @@ To check this, see if the same kind of differences (same pos_ids present but ass
 
 #### Check fraction of splice events that are unshared between methods
 
-First, quantify differences present in each table.
-To compare differences, rep1 and combined tables are merged on "event_type", "pos_id", "gene_id", and "label" columns.
-(data tables are joined so each row corresponds to a splice event, defined by the combination of event_type, pos_id, gene_id, and label columns) Columns correspond to PSI values for a sample and are suffixed by whether they appear in the rep1 table, combined table, or both.
--1 PSI values indicate missing PSI values from low junction readsl.
-An NA indicates that a splice event is not shared between the tables (splice event is only detected in one method).
-
 ```{r rep1_vs_rep2_frac_unshared}
 #| label: tbl-rep1_vs_rep2_event_comparison
 #| tbl-cap: "Percentage of events only in the rep1 (table1) or rep2 (table2) PSI tables"
@@ -538,7 +534,7 @@ summary_with_genes_rep1_vs_rep2 |>
 
 Even in PSI tables generated from the same workflow commands, a similar fraction of unshared splice events are present in the tables.
 
-Print example of pos_ids of events that are unshared
+Print example of `pos_ids` of events that are unshared
 
 ```{r rep1_vs_rep2_unshared_event_examples}
 #| label: tbl-rep1_vs_rep2_unshared_events
@@ -565,9 +561,9 @@ rep1_vs_rep2_table |>
 
 ```
 
-Between rep1 and rep2, events that are unshared also appear to be events witht he same position IDs, but assigned to different genes
+Between rep1 and rep2, events that are unshared also appear to be events with the same position IDs, but assigned to different genes
 
-Check if these differences are all from pos_ids being assigned to different genes
+Check if these differences are all from `pos_ids` being assigned to different genes
 
 ```{r no_gene_id_rep1_vs_rep2_frac_unshared}
 #| label: tbl-no_gene_id_rep1_vs_rep2_event_comparison
@@ -846,4 +842,4 @@ In the event file for this position ID, we can see that the `gene_id` / `gene_na
 
 - Different gene assignment for a splice event position ID appears to come from Shiba's `gtf2event.py` code, not GTF generation (though row order of features in the GTF may play a role in how `gtf2event.py` breaks ties)
 
-- A potential last step would be to rerun two replicates of TARGET pilot with one thread for `gtf2event.py` and compare Jaccard indices for both pos_id and gene_id between rep1 and rep2 events made with multithreading.
+- A potential last step would be to rerun two replicates of TARGET pilot with one thread for `gtf2event.py` and compare Jaccard indices for both `pos_id` and `gene_id` between rep1 and rep2 events made with multithreading.

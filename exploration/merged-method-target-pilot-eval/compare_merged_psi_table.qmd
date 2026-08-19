@@ -150,7 +150,7 @@ join_tables_no_genes <- function(table1, table2) {
     table1_event = ! dplyr::if_all(ends_with("_table1"), is.na),
     # rep2 events are counted if the values for the event are not all NA
     table2_event = ! dplyr::if_all(ends_with("_table2"), is.na),
-    shared_event = .data[[table1_event]] & .data[[table_event]]
+    shared_event = table1_event & table2_event
   )
   
   return(joined_table)
@@ -330,6 +330,11 @@ summary_with_genes_rep1_vs_combined |>
 
 
 ```
+A small fraction of splice events are still only found in the `rep1` or `combined` table.
+Except for retained intron events, unshared events are all in annotated event types.
+Retained introns are the event type category with the highest fraction of unshared events.
+However, this is expected based on how exon-intron junctions (which are used to calculate these event types' PSI values) are handled in the compendium workflow.
+Moving forward, I will focus on non-RI event types.
 
 Spot-check what examples of unshared event IDs look like
 ```{r rep1_vs_combined_unshared_event_examples}
@@ -343,7 +348,7 @@ rep1_vs_combined_table |>
     ) |>
   # arrange by pos_id
   dplyr::arrange(pos_id) |>
-  # only print PSi columns of two samples for ease of viewing
+  # only print PSI columns of two samples for ease of viewing
   dplyr::select(
     event_type, 
     pos_id, 
@@ -354,6 +359,43 @@ rep1_vs_combined_table |>
   ) |>
   # print head
   head()
+
+```
+
+Many position IDs that are not shared between tables have the same position ID (see top two rows of table) but different gene IDs.
+
+If we exclude gene ID from the position IDs, what is the fraction of events that remain unshared?
+```{r no_gene_id_rep1_vs_combined_frac_unshared}
+#| label: tbl-no_gene_id_rep1_vs_combined_event_comparison
+#| tbl-cap: "Percentage of events only in the rep1 (table1) or combined (table2) PSI tables if gene_id is excluded from the definition of a unique event ID"
+
+# merge rep1 and combined tables and label columns by whether the event is shared between tables
+nogene_rep1_vs_combined_table <- join_tables_no_genes(rep1_psi_table, combined_psi_table)
+
+# summarize table
+summary_without_genes_rep1_vs_combined <- summarize_shared_events(nogene_rep1_vs_combined_table)
+
+summary_without_genes_rep1_vs_combined |> 
+  # no need to look at event types that are all the same
+  dplyr::filter(
+    shared_percent != 100
+  ) |>
+  dplyr::select(
+  event_type,
+  label,
+  total,
+  shared_percent,
+  table1_only_percent,
+  table2_only_percent)
+
+```
+
+If gene ID is excluded from the definition of a unique splice event, only retained intron event types are unshared between tables,
+at a slightly lower fraction compared to the fraction of retained introns unshared when gene_id is included in the definition of a unique splice event.
+
+#### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
+
+```{r}
 
 ```
 

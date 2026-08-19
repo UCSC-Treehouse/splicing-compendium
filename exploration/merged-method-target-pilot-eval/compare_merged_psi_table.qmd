@@ -74,11 +74,6 @@ For all PSI tables loaded in, NA values assigned by Shiba within each method lis
 
 ## Set up
 
-### Load libraries
-```{r libraries}
-library(rtracklayer)
-```
-
 ### Define functions
 
 ```{r functions}
@@ -194,8 +189,8 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
 # these contain zipped psi files
-target_pilot_workflow_results_dir <- file.path(exploration_dir, "v1_workflow_target_pilot_results", "psi")
-rep2_target_pilot_results_dir <- file.path(exploration_dir, "v1_target_pilot_rep2", "psi")
+target_pilot_workflow_results_dir <- file.path(exploration_dir, "withlogs_v1_pilot_rep1", "psi")
+rep2_target_pilot_results_dir <- file.path(exploration_dir, "withlogs_v1_pilot_rep2", "psi")
 # directory of GTFs produced by rep1 and rep2 of compendium workflow run
 gtf_dir <- file.path(exploration_dir, "pilot_gtfs")
 
@@ -489,6 +484,34 @@ summary_with_genes_rep1_vs_rep2 |>
 
 Even in PSI tables generated from the same workflow commands, a similar fraction of unshared splice events are present in the tables.
 
+Print example of pos_ids of events that are unshared 
+```{r rep1_vs_rep2_unshared_event_examples}
+#| label: tbl-rep1_vs_rep2_unshared_events
+#| tbl-cap: "Example features of splice events not shared between rep1 and rep2 tables"
+
+rep1_vs_rep2_table |>
+  dplyr::filter(
+      event_type == "se",
+      shared_event == FALSE
+    ) |>
+  # arrange by pos_id
+  dplyr::arrange(pos_id) |>
+  # only print PSI columns of two samples for ease of viewing
+  dplyr::select(
+    event_type, 
+    pos_id, 
+    gene_id, 
+    label,
+    SRR1559043_PSI_table1,
+    SRR1559044_PSI_table1
+  ) |>
+  # print head
+  head()
+
+```
+
+Between rep1 and rep2, events that are unshared also appear to be events witht he same position IDs, but assigned to different genes
+
 Check if these differences are all from pos_ids being assigned to different genes
 
 ```{r no_gene_id_rep1_vs_rep2_frac_unshared}
@@ -554,23 +577,97 @@ PSI values are identical in events where pos_id, event_type, gene_id, and label 
 ## Compare GTFs produced from rep1 and rep2 of compendium workflow runs
 
 Since differences in the PSI tables from the `rep1 vs. combined` and `rep1 vs. rep2` comparisons stem from positions being assigned to different gene IDs in annotated events, 
-first compare GTF `ref_gene_id` columns for a given feature (seqnames, start, end)
+first check what GTF entries for features in an example unshared pos_id look like.
+Check features corresponding to the first pos_id in @tbl-rep1_vs_rep2_unshared_events: `SE@chr10@100523977-100524139@100516960-100526399`
 
-```{r compare_gtf_tables}
+This position corresponds to `ENSG00000075826.17` in rep1, but `ENSG00000255339.6` in rep2
+
+```{r}
+test_rep1 <- rep1_gtf_table |>
+  dplyr::filter(
+    ref_gene_id %in% c("ENSG00000075826.17", "ENSG00000255339.6")
+  )
+
+test_rep2 <- rep2_gtf_table |>
+  dplyr::filter(
+    ref_gene_id %in% c("ENSG00000075826.17", "ENSG00000255339.6")
+  )
+
+identical(test_rep1, test_rep2)
+```
+
+I would have expected these features in the two GTFs to be non-identical if the GTFs were the cause of pos_ids being assigned to different genes. 
+Contrary to this, they are identical.
+
+Next, compare GTF `ref_gene_id` columns for a given feature (seqnames, start, end)
+
+```{r combine_gtf_tables}
 # merge gtf tables from rep1 and rep2 to compare
 gtf1_gtf2_merged_df <- dplyr::full_join(
   rep1_gtf_table,
   rep2_gtf_table,
-  by = c(seqnames, start, end, ref_gene_id),
+  by = c(
+    "seqnames", 
+    "start", 
+    "end", 
+    "width", 
+    "cov", 
+    "FPKM", 
+    "TPM", 
+    "exon_number", 
+    "reference_id"
+    ),
+  # only row 45455 has a many-to-many relationship given these join columns
+  relationship = "many-to-many",
   # label PSI values by table they came from
   suffix = c("_table1", "_table2")
   ) |>
   # add a column to label by whether the gene assigned to the feature is the same
   dplyr::mutate(
-    shared_gene_id = dplyr::case_when(
-      
+    gene_id_status = dplyr::case_when(
+      ref_gene_id_table1 != ref_gene_id_table2 ~ "diff_gene",
+      ref_gene_id_table1 == ref_gene_id_table2 ~ "same_gene",
+      # if feature is unannotated it will not have gene ID 
+      is.na(ref_gene_id_table1) | is.na(ref_gene_id_table2) ~ "unannotated"
     )
   )
 
 ```
+
+If "many-to-many" relationship is not set above, the following warning is thrown:
+```
+Warning in dplyr::full_join(rep1_gtf_table, rep2_gtf_table, by = c("seqnames",  :
+  Detected an unexpected many-to-many relationship between `x` and `y`.
+ℹ Row 45455 of `x` matches multiple rows in `y`.
+ℹ Row 45455 of `y` matches multiple rows in `x`.
+ℹ If a many-to-many relationship is expected, set `relationship = "many-to-many"` to silence this
+  warning.
+```
+check row 45455 for why it has a many-to-many relationship
+
+```{r}
+# check row 45455 for why it has a many-to-many relationship
+gtf1_gtf2_merged_df[45454, ]
+```
+
+I don't see any list-cols in this row, but notice that it corresponds to an unannotated feature (no ref_gene_id or ref_gene_name).
+So there may be two STRG.5502.2 corresponding to unannotated events that matched to the other columns in this row.
+
+Summarize fraction of features between `gtf1` and `gtf2` that have the same gene or have different genes
+```{r compare_gtf_tables}
+
+gtf_comparison_df <- gtf1_gtf2_merged_df |> 
+  dplyr::summarise(
+    .by = c(gene_id_status),
+    # count number of events in each event type and annotation category
+    total = dplyr::n()
+  )
+
+gtf_comparison_df
+
+```
+
+The GTFs here also do not differ in a way that I would have expected to make a difference in how position IDs are assigned to genes.
+e.g. I would have expected there to be nonzero GTF features assigned to different genes.
+
 

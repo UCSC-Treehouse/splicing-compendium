@@ -74,6 +74,11 @@ For all PSI tables loaded in, NA values assigned by Shiba within each method lis
 
 ## Set up
 
+### Load libraries
+```{r libraries}
+library(rtracklayer)
+```
+
 ### Define functions
 
 ```{r functions}
@@ -184,15 +189,15 @@ summarize_shared_events <- function(joined_table) {
 ## directories ##
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
 # define the data directories
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merged-method-target-pilot-eval")
 # these contain zipped psi files
 target_pilot_workflow_results_dir <- file.path(exploration_dir, "v1_workflow_target_pilot_results", "psi")
 rep2_target_pilot_results_dir <- file.path(exploration_dir, "v1_target_pilot_rep2", "psi")
-
-#output dir for long tables
-target_pilot_output <- file.path(exploration_dir, "v1_psi_tables")
+# directory of GTFs produced by rep1 and rep2 of compendium workflow run
+gtf_dir <- file.path(exploration_dir, "pilot_gtfs")
 
 ## combined / canonical shiba run results
 target_pilot_dir <- file.path(exploration_dir, "merging-psi-tables", "target_pilot")
@@ -205,11 +210,6 @@ combined_splice_results_dir <- file.path(combined_dir, "splicing")
 # psi table dir of deduplicated combined pilot results
 # these are unzipped files
 dedup_combined_results_dir <- file.path(exploration_dir, "dedup_target_pilot_combined_results")
-
-# Check output dir exists; if not, create it
-if (!dir.exists(target_pilot_output)) {
-  dir.create(target_pilot_output)
-}
 
 ## files ##
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
@@ -246,6 +246,11 @@ dedup_comb_psi_paths <- construct_psi_paths(dedup_combined_results_dir, psi_file
 rep1_psi_paths <- construct_psi_paths(target_pilot_workflow_results_dir, workflow_psi_files)
 rep2_psi_paths <- construct_psi_paths(rep2_target_pilot_results_dir, workflow_psi_files)
 
+# GTF produced by rep 1 compendium TARGET pilot run
+rep1_gtf_path <- file.path(gtf_dir, "rep1", "SRR1559043.gtf")
+# GTF produced by rep 2 compendium TARGET pilot run
+rep2_gtf_path <- file.path(gtf_dir, "rep2", "SRR1559043.gtf")
+
 ```
 
 Read in files
@@ -258,6 +263,19 @@ rep2_psi_table <- read_psi_tables(rep2_psi_paths)
 # read in 'negative control' canonical shiba run tables
 combined_psi_table <- read_psi_tables(combined_psi_paths)
 dedup_combined_psi_table <- read_psi_tables(dedup_comb_psi_paths)
+```
+
+
+```{r}
+# read in GTFs from compendium TARGET runs
+rep1_gtf_table <- rtracklayer::import(rep1_gtf_path) |>
+  # convert to dataframe for ease of comparison
+  as.data.frame(header = FALSE, sep = '\t')
+
+# read in GTFs from compendium TARGET runs
+rep2_gtf_table <- rtracklayer::import(rep2_gtf_path) |>
+  # convert to dataframe for ease of comparison
+  as.data.frame(header = FALSE, sep = '\t')
 ```
 
 ## Compare PSI tables
@@ -532,3 +550,15 @@ all.equal(shared_only_rep1_table, shared_only_rep2_table)
 
 ```
 PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.
+
+## Compare GTFs produced from rep1 and rep2 of compendium workflow runs
+
+Since differences in the PSI tables from the `rep1 vs. combined` and `rep1 vs. rep2` comparisons stem from positions being assigned to different gene IDs in annotated events, 
+first compare GTF `ref_gene_id` columns for a given feature (seqnames, start, end)
+
+```{r compare_gtf_tables}
+# merge gtf tables from rep1 and rep2 to compare
+
+
+```
+

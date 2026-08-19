@@ -558,7 +558,19 @@ first compare GTF `ref_gene_id` columns for a given feature (seqnames, start, en
 
 ```{r compare_gtf_tables}
 # merge gtf tables from rep1 and rep2 to compare
-
+gtf1_gtf2_merged_df <- dplyr::full_join(
+  rep1_gtf_table,
+  rep2_gtf_table,
+  by = c(seqnames, start, end, ref_gene_id),
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")
+  ) |>
+  # add a column to label by whether the gene assigned to the feature is the same
+  dplyr::mutate(
+    shared_gene_id = dplyr::case_when(
+      
+    )
+  )
 
 ```
 

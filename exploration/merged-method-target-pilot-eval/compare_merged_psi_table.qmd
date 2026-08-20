@@ -292,7 +292,7 @@ An NA indicates that a splice event is not shared between the tables (splice eve
 
 ```{r rep1_vs_combined_frac_unshared}
 #| label: tbl-rep1_vs_combined_event_comparison
-#| tbl-cap: "Percentage of events only in the rep1 (table1) or combined (table2) PSI tables"
+#| tbl-cap: "Percentage of events only in the rep1 or combined PSI tables"
 
 # merge rep1 and combined tables and label columns by whether the event is shared between tables
 rep1_vs_combined_table <- join_tables(rep1_psi_table, combined_psi_table)
@@ -322,16 +322,16 @@ These differences are under 1% of the total events detected.
 Based on how exon-intron junctions (which are used to calculate retained intron PSI values) are handled in the compendium workflow,
 we expect retained intron types to have differences between our method and the canonical Shiba method.
 
-#### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
+#### Do non-RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
 
-```{r rep1_vs_combined_pos_ids_identical}
-# First check PSI values between pos_ids that are shared in all aspects (including gene_id)
+```{r rep1_vs_combined_psi_identical}
+# First check if PSI values between pos_ids that are shared in all aspects (including gene_id) are identical between tables
 
 # extract position ids of events that are shared between tables
 shared_ids_rep1_vs_combined <- rep1_vs_combined_table |>
   dplyr::filter(
-    shared_event == TRUE,
-    # exclude retained intron event types
+    identical_pos_id_and_gene_id == TRUE,
+    # exclude retained intron events
     event_type != "ri"
     ) |>
   dplyr::pull(pos_id)
@@ -353,11 +353,46 @@ shared_only_combined_table <- combined_psi_table |>
 all.equal(shared_only_rep1_table, shared_only_combined_table)
 
 ```
-PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.
+PSI values are identical in events where `pos_id`, `event_type`, `gene_id`, and `label` fields are the same.
+
+#### Do RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
+
+```{r rep1_vs_combined_ri_psi_identical}
+
+# extract position ids of events that are shared between tables
+ri_shared_ids_rep1_vs_combined <- rep1_vs_combined_table |>
+  dplyr::filter(
+    identical_pos_id_and_gene_id == TRUE,
+    # exclude retained intron events
+    event_type == "ri"
+    ) |>
+  dplyr::pull(pos_id)
+
+# filter tables for events in shared tables
+ri_shared_only_rep1_table <- rep1_psi_table |>
+  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_combined) |>
+  # filter only for fields to compare (pos_id, psi values of samples)
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+ri_shared_only_combined_table <- combined_psi_table |>
+  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_combined) |>
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+all.equal(ri_shared_only_rep1_table, ri_shared_only_combined_table)
+
+```
+
+Even in events where `pos_id`, `event_type`, `gene_id`, and `label` fields are the same,
+retained intron events between both tables are not identical.
+Based on these results, exclude RI event types from compendium v1 release
 
 ### Rep1 vs. rep2
 
-Because all differences in the PSI tables stem from pos_ids being assigned different genes, 
+Because all differences in the PSI tables stem from `pos_id`s being assigned different genes, 
 I suspect the difference comes from the GTF generation or merge steps in the workflow.
 
 To check this, see if the same kind of differences (same pos_ids present but assigned to different genes) are present in PSI tables generated from identical Compendium workflow runs (rep1 and rep2).
@@ -376,58 +411,31 @@ An NA indicates that a splice event is not shared between the tables (splice eve
 #| tbl-cap: "Percentage of events only in the rep1 (table1) or rep2 (table2) PSI tables"
 
 # merge rep1 and combined tables and label columns by whether the event is shared between tables
-rep1_vs_rep2_table <- join_tables_incl_genes(rep1_psi_table, rep2_psi_table)
+rep1_vs_rep2_table <- join_tables(rep1_psi_table, rep2_psi_table)
 
 # summarize table
-summary_with_genes_rep1_vs_rep2 <- summarize_shared_events(rep1_vs_rep2_table)
+summary_rep1_vs_rep2 <- summarize_shared_events(rep1_vs_rep2_table)
 
-summary_with_genes_rep1_vs_rep2 |> 
+summary_rep1_vs_rep2 |> 
   # no need to look at event types that are all the same
   dplyr::filter(
-    shared_percent != 100
+    shared_pos_and_gene_id_percent != 100
   ) |>
   dplyr::select(
   event_type,
   label,
   total,
-  shared_percent,
-  table1_only_percent,
-  table2_only_percent)
+  shared_pos_and_gene_id_percent,
+  shared_pos_diff_gene_percent,
+  rep1_only = table1_only_percent,
+  rep2_only = table2_only_percent)
 
 ```
 
-Even in PSI tables generated from the same workflow commands, a similar fraction of unshared splice events are present in the tables.
+Similar to @rep1_vs_combined_frac_unshared, excluding retained intron events, 
+all event ID differences stem from cases where the gene ID is different for the same `pos_id`.
 
-Check if these differences are all from pos_ids being assigned to different genes
-
-```{r no_gene_id_rep1_vs_rep2_frac_unshared}
-#| label: tbl-no_gene_id_rep1_vs_rep2_event_comparison
-#| tbl-cap: "Percentage of events only in the rep1 (table1) or rep2 (table2) PSI tables if gene_id is excluded from the definition of a unique event ID"
-
-# merge rep1 and rep2 tables and label columns by whether the event is shared between tables
-nogene_rep1_vs_rep2_table <- join_tables_no_genes(rep1_psi_table, rep2_psi_table)
-
-# summarize table
-summary_without_genes_rep1_vs_rep2 <- summarize_shared_events(nogene_rep1_vs_rep2_table)
-
-summary_without_genes_rep1_vs_rep2 |> 
-  # no need to look at event types that are all the same
-  dplyr::filter(
-    shared_percent != 100
-  ) |>
-  dplyr::select(
-  event_type,
-  label,
-  total,
-  shared_percent,
-  table1_only_percent,
-  table2_only_percent)
-
-```
-
-Similar to @tbl-no_gene_id_rep1_vs_combined_event_comparison, all event types except for retained introns become shared if `gene_id` is dropped from the definition of a unique event.
-
-#### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
+#### Do non-RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
 
 ```{r rep1_vs_rep2_pos_ids_identical}
 # First check PSI values between pos_ids that are shared in all aspects (including gene_id)
@@ -435,7 +443,7 @@ Similar to @tbl-no_gene_id_rep1_vs_combined_event_comparison, all event types ex
 # extract position ids of events that are shared between tables
 shared_ids_rep1_vs_rep2 <- rep1_vs_rep2_table |>
   dplyr::filter(
-    shared_event == TRUE,
+    identical_pos_id_and_gene_id == TRUE,
     # exclude retained intron event types
     event_type != "ri"
     ) |>
@@ -458,4 +466,35 @@ shared_only_rep2_table <- rep2_psi_table |>
 all.equal(shared_only_rep1_table, shared_only_rep2_table)
 
 ```
-PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.
+Excluding retained intron event types, PSI values are identical in events where pos_id, event_type, gene_id, and label are the same.
+
+#### Do RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
+
+```{r rep1_vs_rep2_ri_pos_ids_identical}
+# extract position ids of events that are shared between tables
+ri_shared_ids_rep1_vs_rep2 <- rep1_vs_rep2_table |>
+  dplyr::filter(
+    identical_pos_id_and_gene_id == TRUE,
+    event_type == "ri"
+    ) |>
+  dplyr::pull(pos_id)
+
+# filter tables for events in shared tables
+ri_shared_only_rep1_table <- rep1_psi_table |>
+  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_rep2) |>
+  # filter only for fields to compare (pos_id, psi values of samples)
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+ri_shared_only_rep2_table <- rep2_psi_table |>
+  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_rep2) |>
+  dplyr::select(pos_id, ends_with("_PSI")) |>
+  # sort by pos_id so order is the same
+  dplyr::arrange(pos_id)
+
+all.equal(ri_shared_only_rep1_table, ri_shared_only_rep2_table)
+```
+
+In replicate compendium runs, retained intron events with the same `gene_id` and `pos_id` fields have identical PSI values.
+This finding supports our thinking that the difference in RI event PSI calculation stems from how exon-intron junctions are processed in the compendum workflow.

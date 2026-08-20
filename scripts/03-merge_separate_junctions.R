@@ -12,7 +12,8 @@
 #   - One merged wide table: chr, start, end, ID, then one count column per sample. Must end in .bed.
 #
 # --output_dir <dir>
-#  - One <sample>.bed per sample, all within the specified output directory.
+#  - A unified junctions.bed file with all junctions present in any sample.
+#  - One <sample>_junction_counts.tsv per sample, all within the specified output directory.
 #
 #
 # usage:
@@ -146,7 +147,8 @@ long_junctions <- read_csv_duckdb(
 # the union of junctions seen in any sample
 # (this replaces the pivot: every output file uses this same row set)
 all_junctions <- long_junctions |>
-  distinct(chr, start, end, ID)
+  distinct(chr, start, end, ID) |>
+  arrange(chr, start, end)
 
 # Check if junction IDs are duplicated
 dup_rows <- all_junctions |>
@@ -191,7 +193,17 @@ if (output_merged) {
       options = list(delim = "\t", header = TRUE)
     )
 } else {
-  ## Separate mode: one bedfile per sample ##
+  ## Separate mode: one count file per sample + junction bed ##
+  # save the junction bed file
+  all_junctions |>
+    select(chr, start, end, ID) |>
+    as_duckdb_tibble(prudence = "stingy") |>
+    duckplyr::compute_csv(
+      file.path(opt$output_dir, "all_junctions.bed"),
+      options = list(delim = "\t", header = TRUE)
+    )
+
+  # create one count file per sample
   purrr::walk(sample_df$sample, \(sample_name) {
     all_junctions |>
       left_join(
@@ -202,11 +214,11 @@ if (output_merged) {
       ) |>
       # samples missing a junction get a zero count, as the pivot does
       mutate(count = coalesce(count, 0L)) |>
-      rename("{sample_name}" := count) |>
       arrange(chr, start, end) |>
+      select("{sample_name}" := count) |>
       as_duckdb_tibble(prudence = "stingy") |>
       duckplyr::compute_csv(
-        file.path(opt$output_dir, paste0(sample_name, ".bed")),
+        file.path(opt$output_dir, paste0(sample_name, "_junction_counts.tsv")),
         options = list(delim = "\t", header = TRUE)
       )
   })

@@ -304,8 +304,8 @@ summary_with_genes_rep1_vs_combined |>
     label,
     total,
     shared_percent,
-    table1_only_percent,
-    table2_only_percent
+    rep1_only =  table1_only_percent,
+    combined_only = table2_only_percent
   )
 
 

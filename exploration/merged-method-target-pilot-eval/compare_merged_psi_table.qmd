@@ -112,7 +112,7 @@ return(psi_table)
 ## Manipulating PSI tables for comparison ##
 
 # merge tables by event_type", "pos_id", and "label" only (consider event the same if position is the same regardless of gene)
-join_tables_no_genes <- function(table1, table2) {
+join_tables <- function(table1, table2) {
   
   # create the merged table of PSI tables to compare
   joined_table <- dplyr::full_join(
@@ -126,10 +126,10 @@ join_tables_no_genes <- function(table1, table2) {
     # Count events in one table or other if the gene in the other table is NA
     table1_only = is.na(gene_id_table2),
     table2_only = is.na(gene_id_table1),
-    shared_event = !(table1_only | table2_only),
-    gene_difference = shared_event & gene_id_table1 != gene_id_table2,
+    shared_pos_id = !(table1_only | table2_only),
+    gene_difference = shared_pos_id & gene_id_table1 != gene_id_table2,
     # Label events that are completely identical if event_type/pos_id/label fields are the same and gene_ids are the same
-    identical = shared_event & ! gene_difference
+    identical_pos_id_and_gene_id = shared_pos_id & ! gene_difference
   )
   
   return(joined_table)
@@ -143,10 +143,13 @@ summarize_shared_events <- function(joined_table) {
     .by = c(event_type, label),
     # count number of events in each event type and annotation category
     total = dplyr::n(),
-    shared_count = sum(shared_event),
-    table1_only_count = sum(table1_event) - shared_count,
-    table2_only_count = sum(table2_event) - shared_count,
-    shared_percent = shared_count / total * 100,
+    # count event types that have share position IDs (includes events with different gene_ids)
+    shared_pos_id_count = sum(shared_pos_id),
+    # count events that share position IDs and gene IDs
+    shared_pos_and_gene_id_count = sum(identical_pos_id_and_gene_id),
+    table1_only_count = sum(table1_only),
+    table2_only_count = sum(table2_only),
+    shared_pos_and_gene_id_percent = shared_pos_and_gene_id_count / total * 100,
     table1_only_percent = table1_only_count / total * 100,
     table2_only_percent = table2_only_count / total * 100,
   )
@@ -289,7 +292,7 @@ An NA indicates that a splice event is not shared between the tables (splice eve
 #| tbl-cap: "Percentage of events only in the rep1 (table1) or combined (table2) PSI tables"
 
 # merge rep1 and combined tables and label columns by whether the event is shared between tables
-rep1_vs_combined_table <- join_tables_incl_genes(rep1_psi_table, combined_psi_table)
+rep1_vs_combined_table <- join_tables(rep1_psi_table, combined_psi_table)
 
 # summarize table
 summary_with_genes_rep1_vs_combined <- summarize_shared_events(rep1_vs_combined_table)
@@ -297,17 +300,16 @@ summary_with_genes_rep1_vs_combined <- summarize_shared_events(rep1_vs_combined_
 summary_with_genes_rep1_vs_combined |> 
   # no need to look at event types that are all the same
   dplyr::filter(
-    shared_percent != 100
+    shared_pos_and_gene_id_percent != 100
   ) |>
   dplyr::select(
     event_type,
     label,
     total,
-    shared_percent,
+    shared_pos_and_gene_id_percent,
     rep1_only =  table1_only_percent,
     combined_only = table2_only_percent
   )
-
 
 ```
 A small fraction of splice events are still only found in the `rep1` or `combined` table.

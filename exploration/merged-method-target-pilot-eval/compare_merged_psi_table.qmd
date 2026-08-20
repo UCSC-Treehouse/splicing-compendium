@@ -145,11 +145,14 @@ summarize_shared_events <- function(joined_table) {
     total = dplyr::n(),
     # count event types that have share position IDs (includes events with different gene_ids)
     shared_pos_id_count = sum(shared_pos_id),
-    # count events that share position IDs and gene IDs
+    # count events in each share category
     shared_pos_and_gene_id_count = sum(identical_pos_id_and_gene_id),
+    shared_pos_diff_gene_count = sum(gene_difference),
     table1_only_count = sum(table1_only),
     table2_only_count = sum(table2_only),
+    # calculate percentages of each category
     shared_pos_and_gene_id_percent = shared_pos_and_gene_id_count / total * 100,
+    shared_pos_diff_gene_percent = shared_pos_diff_gene_count / total * 100,
     table1_only_percent = table1_only_count / total * 100,
     table2_only_percent = table2_only_count / total * 100,
   )
@@ -307,47 +310,17 @@ summary_with_genes_rep1_vs_combined |>
     label,
     total,
     shared_pos_and_gene_id_percent,
+    shared_pos_diff_gene_percent,
     rep1_only =  table1_only_percent,
     combined_only = table2_only_percent
   )
 
 ```
-A small fraction of splice events are still only found in the `rep1` or `combined` table.
-Except for retained intron events, unshared events are all in annotated event types.
-Retained introns are the event type category with the highest fraction of unshared events.
-However, this is expected based on how exon-intron junctions (which are used to calculate these event types' PSI values) are handled in the compendium workflow.
-Moving forward, I will focus on non-RI event types.
+Except for retained intron event types, all differences between the v1 compendium table and canonical Shiba table are from cases where the position ID is the same, but gene IDs are different.
+These differences are under 1% of the total events detected.
 
-
-If we exclude gene ID from the position IDs, what is the fraction of events that remain unshared?
-```{r no_gene_id_rep1_vs_combined_frac_unshared}
-#| label: tbl-no_gene_id_rep1_vs_combined_event_comparison
-#| tbl-cap: "Percentage of events only in the rep1 (table1) or combined (table2) PSI tables if gene_id is excluded from the definition of a unique event ID"
-
-# merge rep1 and combined tables and label columns by whether the event is shared between tables
-nogene_rep1_vs_combined_table <- join_tables_no_genes(rep1_psi_table, combined_psi_table)
-
-# summarize table
-summary_without_genes_rep1_vs_combined <- summarize_shared_events(nogene_rep1_vs_combined_table)
-
-summary_without_genes_rep1_vs_combined |> 
-  # no need to look at event types that are all the same
-  dplyr::filter(
-    shared_percent != 100
-  ) |>
-  dplyr::select(
-    event_type,
-    label,
-    total,
-    shared_percent,
-    table1_only_percent,
-    table2_only_percent
-  )
-
-```
-
-If gene ID is excluded from the definition of a unique splice event, only retained intron event types are unshared between tables,
-at a slightly lower fraction compared to the fraction of retained introns unshared when gene_id is included in the definition of a unique splice event.
+Based on how exon-intron junctions (which are used to calculate retained intron PSI values) are handled in the compendium workflow,
+we expect retained intron types to have differences between our method and the canonical Shiba method.
 
 #### Do position IDs that are shared between tables (including same gene ID) have the same PSI values?
 

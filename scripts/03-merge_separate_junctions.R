@@ -1,5 +1,23 @@
-### create individual bed files with merged
-# usage: Rscript 03-merge_separate_junctions.R
+### merge junction bedfiles produced by separate Shiba runs ###
+#
+# Reads every *.bed junction count file in --junctions and combines them so that all samples use the same set of junctions.
+# If a sample does not have a particular junction, it is treated as having zero reads for that junction.
+#
+# The sample name for each file is taken from the header of its final column
+# (Shiba names that column after the sample), not from the filename.
+#
+# There are two output modes, depending on which output argument is given
+#
+# --output <file.bed>
+#   - One merged wide table: chr, start, end, ID, then one count column per sample. Must end in .bed.
+#
+# --output_dir <dir>
+#  - One <sample>.bed per sample, all within the specified output directory.
+#
+#
+# usage:
+#   Rscript 03-merge_separate_junctions.R --junctions junction_dir/ --output merged.bed
+#   Rscript 03-merge_separate_junctions.R --junctions junction_dir/ --output_dir split/
 
 # Load Packages
 suppressPackageStartupMessages({

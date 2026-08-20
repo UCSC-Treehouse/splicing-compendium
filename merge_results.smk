@@ -137,8 +137,10 @@ rule merge_junctions_persample:
     input: JUNCTION_BEDS
     # output is one bedfile per sample, all in a single directory
     output:
-        bedfile = "<merged_shiba_results>/merged_junctions/junctions.bed",
+        bedfile = "<merged_shiba_results>/merged_junctions/all_junctions.bed",
         counts = expand("<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv", sample = SAMPLES)
+    params:
+        output_dir = "<merged_shiba_results>/merged_junctions"
     priority: 10
     threads: 15
     resources:
@@ -171,7 +173,7 @@ rule merge_junctions_persample:
           ((n ++))
         done
 
-        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir <merged_shiba_results>/merged_junctions
+        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir {params.output_dir}
 
         # remove tempdir of deduplicated junctions
         rm -rf $tempdir
@@ -197,7 +199,7 @@ rule gtf_to_events:
 
 rule calculate_sample_psi:
     input:
-        junctions = "<merged_shiba_results>/merged_junctions/junctions.bed",
+        junctions = "<merged_shiba_results>/merged_junctions/all_junctions.bed",
         junction_sample_count = "<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv",
         events_dir = "<merged_shiba_results>/events",
     output:

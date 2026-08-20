@@ -33,7 +33,8 @@ JUNCTION_BEDS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/psi"
+        # for now, just make the first two sample psi files
+        expand("<merged_shiba_results>/sample_psi/{sample}", sample=SAMPLES)
 
 rule bam2gtf:
     input:
@@ -149,11 +150,39 @@ rule gtf_to_events:
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/gtf2event.py -i {input.merged_gtf} -r {input.reference_gtf} -o {output.shiba_out} -p {threads} -v
         """
 
-rule calculate_psi:
+rule calculate_sample_psi:
+    input:
+        merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
+        events_dir = "<merged_shiba_results>/events",
+    output:
+        shiba_psi_out = directory("<merged_shiba_results>/sample_psi/{sample}")
+    params:
+        shiba_scripts = config["shiba_scripts_path"],
+        min_reads = config["shiba_min_reads"]
+    priority: 1
+    threads: 8
+    resources:
+        mem_mb = 60000,
+        runtime = 360
+    shell:
+        """
+        temp_bed=$(mktemp)
+
+        # find the sample id column:
+        sample_col=$(awk -F'\t' -v col="{wildcards.sample}" 'NR==1{{for(i=1;i<=NF;i++) if($i==col){{print i;exit}}}}' {input.merged_junctions})
+
+        # make the individual sample bed file
+        cut -f1-4,$sample_col {input.merged_junctions} > $temp_bed
+
+        python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi $temp_bed {input.events_dir} {output.shiba_psi_out}
+        rm $temp_bed
+        """
+
+
+rule calculate_merged_psi:
     input:
         events_dir = "<merged_shiba_results>/events",
         merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
-        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
     output:
         shiba_psi_out = directory("<merged_shiba_results>/psi")
     params:

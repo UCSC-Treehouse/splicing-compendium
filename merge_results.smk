@@ -136,7 +136,9 @@ rule merge_junctions:
 rule merge_junctions_persample:
     input: JUNCTION_BEDS
     # output is one bedfile per sample, all in a single directory
-    output: expand("{params.output_dir}/{sample}.bed", sample = SAMPLES )
+    output:
+        bedfile = "{params.output_dir}/junctions.bed",
+        counts = expand("{params.output_dir}/{sample}_junction_counts.tsv", sample = SAMPLES)
     params:
         output_dir = "<merged_shiba_results>/merged_junctions"
     priority: 10
@@ -197,7 +199,8 @@ rule gtf_to_events:
 
 rule calculate_sample_psi:
     input:
-        merged_junctions = "<merged_shiba_results>/merged_junctions/{sample}.bed",
+        junctions = "<merged_shiba_results>/merged_junctions/junctions.bed",
+        junction_sample_count = "<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv",
         events_dir = "<merged_shiba_results>/events",
     output:
         shiba_psi_out = directory("<merged_shiba_results>/sample_psi/{sample}")
@@ -211,12 +214,16 @@ rule calculate_sample_psi:
         runtime = 360
     shell:
         """
+        tempfile=$(mktemp)
+        trap "rm -f $tempfile" EXIT
+
+        paste -d "\t" {input.junctions} {input.junction_sample_count} > $tempfile
         python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py \
             -m {params.min_reads} \
             -p {threads} \
             -v \
             --onlypsi \
-            {input.merged_junctions} {input.events_dir} \
+            $tempfile {input.events_dir} \
             {output.shiba_psi_out}
         """
 

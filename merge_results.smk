@@ -137,10 +137,8 @@ rule merge_junctions_persample:
     input: JUNCTION_BEDS
     # output is one bedfile per sample, all in a single directory
     output:
-        bedfile = "{params.output_dir}/junctions.bed",
-        counts = expand("{params.output_dir}/{sample}_junction_counts.tsv", sample = SAMPLES)
-    params:
-        output_dir = "<merged_shiba_results>/merged_junctions"
+        bedfile = "<merged_shiba_results>/merged_junctions/junctions.bed",
+        counts = expand("<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv", sample = SAMPLES)
     priority: 10
     threads: 15
     resources:
@@ -173,7 +171,7 @@ rule merge_junctions_persample:
           ((n ++))
         done
 
-        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir {params.output_dir}
+        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir <merged_shiba_results>/merged_junctions
 
         # remove tempdir of deduplicated junctions
         rm -rf $tempdir

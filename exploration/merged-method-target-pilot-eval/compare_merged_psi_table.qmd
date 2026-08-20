@@ -111,29 +111,6 @@ return(psi_table)
 
 ## Manipulating PSI tables for comparison ##
 
-# merge tables by all identifying fields for a splice event ID (event_type", "pos_id", "gene_id", "label")
-join_tables_incl_genes <- function(table1, table2) {
-  
-  # create the merged table of PSI tables to compare
-  joined_table <- dplyr::full_join(
-  table1,
-  table2,
-  by = c("event_type", "pos_id", "gene_id", "label"),
-  # label PSI values by table they came from
-  suffix = c("_table1", "_table2")) |>
-  # categorize events by whether they are in the v1 or rep2 tables
-  dplyr::mutate(
-    # Count events in one table or other if the values are not all NA
-    table1_event = ! dplyr::if_all(ends_with("_table1"), is.na),
-    # rep2 events are counted if the values for the event are not all NA
-    table2_event = ! dplyr::if_all(ends_with("_table2"), is.na),
-    shared_event = table1_event & table2_event
-  )
-  
-  return(joined_table)
-
-}
-
 # merge tables by event_type", "pos_id", and "label" only (consider event the same if position is the same regardless of gene)
 join_tables_no_genes <- function(table1, table2) {
   
@@ -147,10 +124,12 @@ join_tables_no_genes <- function(table1, table2) {
   # categorize events by whether they are in the v1 or rep2 tables
   dplyr::mutate(
     # Count events in one table or other if the gene in the other table is NA
-    table1_only = is.na(gene_it_table2),
-    table2_only = is.na(gene_it_table1),
-    shared_event = !(table1_only | table2_only)
+    table1_only = is.na(gene_id_table2),
+    table2_only = is.na(gene_id_table1),
+    shared_event = !(table1_only | table2_only),
     gene_difference = shared_event & gene_id_table1 != gene_id_table2,
+    # Label events that are completely identical if event_type/pos_id/label fields are the same and gene_ids are the same
+    identical = shared_event & ! gene_difference
   )
   
   return(joined_table)

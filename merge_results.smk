@@ -34,7 +34,7 @@ JUNCTION_BEDS = expand(
 rule all:
     input:
         # for now, just make the first two sample psi files
-        expand("<merged_shiba_results>/sample_psi/{sample}", sample=SAMPLES[:2])
+        expand("<merged_shiba_results>/sample_psi/{sample}", sample=SAMPLES)
 
 rule bam2gtf:
     input:
@@ -169,7 +169,7 @@ rule calculate_sample_psi:
         temp_bed=$(mktemp)
 
         # find the sample id column:
-        sample_col=$(awk -F'\t' -v col="{sample}" 'NR==1{for(i=1;i<=NF;i++) if($i==col){print i;exit}}' {input.merged_junctions})
+        sample_col=$(awk -F'\t' -v col="{wildcards.sample}" 'NR==1{{for(i=1;i<=NF;i++) if($i==col){{print i;exit}}}}' {input.merged_junctions})
 
         # make the individual sample bed file
         cut -f1-4,$sample_col {input.merged_junctions} > $temp_bed

@@ -39,6 +39,7 @@ option_list <- list(
 
   make_option(
     opt_str = "--output",
+    dest = "output_file",
     type = "character",
     help = paste(
       "Specify output path for a single merged junction counts bedfile",
@@ -63,21 +64,21 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # exactly one of --output / --output_dir
-if (!xor(is.null(opt$output), is.null(opt$output_dir))) {
+if (!xor(is.null(opt$output_file), is.null(opt$output_dir))) {
   stop("Specify exactly one of --output (a .bed file) or --output_dir.")
 }
 
-output_merged <- !is.null(opt$output)
+output_merged <- !is.null(opt$output_file)
 
 if (output_merged) {
   # merged mode: must be a .bed file path, not an existing directory
-  if (!grepl("\\.bed$", opt$output, ignore.case = TRUE)) {
-    stop("--output must be a file path ending in .bed: ", opt$output)
+  if (!grepl("\\.bed$", opt$output_file, ignore.case = TRUE)) {
+    stop("--output must be a file path ending in .bed: ", opt$output_file)
   }
-  if (dir.exists(opt$output)) {
+  if (dir.exists(opt$output_file)) {
     stop(
       "--output is an existing directory, expected a .bed file: ",
-      opt$output
+      opt$output_file
     )
   }
 } else {
@@ -152,8 +153,8 @@ all_junctions <- long_junctions |>
 
 # Check if junction IDs are duplicated
 dup_rows <- all_junctions |>
-  group_by(ID) |>
-  filter(n() > 1) |>
+  summarise(n = n(), .by = ID) |>
+  filter(n > 1) |>
   collect()
 
 if (nrow(dup_rows) > 0) {
@@ -189,7 +190,7 @@ if (output_merged) {
     compute() |>
     as_duckdb_tibble(prudence = "stingy") |>
     duckplyr::compute_csv(
-      opt$output,
+      opt$output_file,
       options = list(delim = "\t", header = TRUE)
     )
 } else {

@@ -380,7 +380,7 @@ Even in events where `pos_id`, `event_type`, `gene_id`, and `label` fields are t
 retained intron events between both tables are not identical.
 Based on these results, exclude RI event types from compendium v1 release
 
-#### Do shared position IDs with different gene IDs have the same PSI values?
+#### Do shared position IDs with different gene IDs have the same PSI values, excluding RI events?
 
 ```{r rep1_vs_combined_shared_pos_id_diff_gene_id_psi_identical}
 compare_shared_events(
@@ -394,6 +394,20 @@ compare_shared_events(
 
 When retained intron events are excluded,
 PSI values of tables produced by the compendium workflow and canonical Shiba method in cases where the position IDs are the same but gene IDs are different are identical.
+
+#### Do RI shared position IDs with different gene IDs have the same PSI values?
+
+```{r ri_rep1_vs_combined_shared_pos_id_diff_gene_id_psi_identical}
+compare_shared_events(
+    rep1_vs_combined_table, 
+    rep1_psi_table, 
+    combined_psi_table, 
+    shared_pos_id & gene_difference, 
+    event_type == "ri"
+    )
+```
+
+RI events with same `pos_id`, different `gene_id`s are not identical
 
 ### Rep1 vs. rep2
 
@@ -479,4 +493,4 @@ compare_shared_events(
     )
 ```
 
-In replicate compendium runs, retained intron events with the same `gene_id` different `pos_id` fields have different PSI values.
+In replicate compendium runs, retained intron events with the same `pos_id` different `gene_id` fields have different PSI values.

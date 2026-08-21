@@ -170,6 +170,35 @@ summarize_shared_events <- function(joined_table) {
   # return summary table
   return(shared_events_summary)
 }
+
+# compare if PSI values are identical for a set of event IDs
+# compare shared events between two psi tables
+compare_shared_events <- function(
+    comparison_table, 
+    psi_table1, 
+    psi_table2, 
+    event_id_filter_expr, 
+    event_type_filter_expr
+    ) {
+  shared_ids <- comparison_table |>
+    dplyr::filter(
+      {{ event_id_filter_expr }},
+      {{ event_type_filter_expr }}
+    ) |>
+    dplyr::pull(pos_id)
+
+  # extract pos_ids from filtered IDs to compare
+  extract_shared <- function(psi_table) {
+    psi_table |>
+      dplyr::filter(pos_id %in% shared_ids) |>
+      # filter only for fields to compare (pos_id, psi values of samples)
+      dplyr::select(pos_id, ends_with("_PSI")) |>
+      # sort by pos_id so order is the same
+      dplyr::arrange(pos_id)
+  }
+
+  all.equal(extract_shared(psi_table1), extract_shared(psi_table2))
+}
 ```
 
 ## Directories and files
@@ -381,67 +410,30 @@ canonical Shiba method.
 
 #### Do non-RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
 
+PSI values are identical in events where `pos_id`, `event_type`,
+`gene_id`, and `label` fields are the same.
+
 ``` r
-# First check if PSI values between pos_ids that are shared in all aspects (including gene_id) are identical between tables
-
-# extract position ids of events that are shared between tables
-shared_ids_rep1_vs_combined <- rep1_vs_combined_table |>
-  dplyr::filter(
-    identical_pos_id_and_gene_id == TRUE,
-    # exclude retained intron events
+compare_shared_events(
+    rep1_vs_combined_table, 
+    rep1_psi_table, 
+    combined_psi_table, 
+    identical_pos_id_and_gene_id == TRUE, 
     event_type != "ri"
-    ) |>
-  dplyr::pull(pos_id)
-
-# filter tables for events in shared tables
-shared_only_rep1_table <- rep1_psi_table |>
-  dplyr::filter(pos_id %in% shared_ids_rep1_vs_combined) |>
-  # filter only for fields to compare (pos_id, psi values of samples)
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-shared_only_combined_table <- combined_psi_table |>
-  dplyr::filter(pos_id %in% shared_ids_rep1_vs_combined) |>
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-all.equal(shared_only_rep1_table, shared_only_combined_table)
+    )
 ```
 
     [1] TRUE
 
-PSI values are identical in events where `pos_id`, `event_type`,
-`gene_id`, and `label` fields are the same.
-
 #### Do RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
 
 ``` r
-# extract position ids of events that are shared between tables
-ri_shared_ids_rep1_vs_combined <- rep1_vs_combined_table |>
-  dplyr::filter(
-    identical_pos_id_and_gene_id == TRUE,
-    # exclude retained intron events
-    event_type == "ri"
-    ) |>
-  dplyr::pull(pos_id)
-
-# filter tables for events in shared tables
-ri_shared_only_rep1_table <- rep1_psi_table |>
-  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_combined) |>
-  # filter only for fields to compare (pos_id, psi values of samples)
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-ri_shared_only_combined_table <- combined_psi_table |>
-  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_combined) |>
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-all.equal(ri_shared_only_rep1_table, ri_shared_only_combined_table)
+compare_shared_events(
+    rep1_vs_combined_table, 
+    rep1_psi_table, 
+    combined_psi_table, 
+    identical_pos_id_and_gene_id == TRUE
+    )
 ```
 
      [1] "Component \"SRR1559043_PSI\": Mean relative difference: 2.129928"
@@ -538,6 +530,24 @@ fields are the same, retained intron events between both tables are not
 identical. Based on these results, exclude RI event types from
 compendium v1 release
 
+#### Do shared position IDs with different gene IDs have the same PSI values?
+
+``` r
+compare_shared_events(
+    rep1_vs_combined_table, 
+    rep1_psi_table, 
+    combined_psi_table, 
+    shared_pos_id & gene_difference, 
+    event_type != "ri"
+    )
+```
+
+    [1] TRUE
+
+When retained intron events are excluded, PSI values of tables produced
+by the compendium workflow and canonical Shiba method in cases where the
+position IDs are the same but gene IDs are different are identical.
+
 ### Rep1 vs. rep2
 
 Because all differences in the PSI tables stem from `pos_id`s being
@@ -610,74 +620,131 @@ Similar to @rep1_vs_combined_frac_unshared, excluding retained intron
 events, all event ID differences stem from cases where the gene ID is
 different for the same `pos_id`.
 
-#### Do non-RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
+#### Do all position IDs that are shared between tables (including same gene ID) have the same PSI values?
 
 ``` r
-# First check PSI values between pos_ids that are shared in all aspects (including gene_id)
-
-# extract position ids of events that are shared between tables
-shared_ids_rep1_vs_rep2 <- rep1_vs_rep2_table |>
-  dplyr::filter(
-    identical_pos_id_and_gene_id == TRUE,
-    # exclude retained intron event types
-    event_type != "ri"
-    ) |>
-  dplyr::pull(pos_id)
-
-# filter tables for events in shared tables
-shared_only_rep1_table <- rep1_psi_table |>
-  dplyr::filter(pos_id %in% shared_ids_rep1_vs_rep2) |>
-  # filter only for fields to compare (pos_id, psi values of samples)
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-shared_only_rep2_table <- rep2_psi_table |>
-  dplyr::filter(pos_id %in% shared_ids_rep1_vs_rep2) |>
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-all.equal(shared_only_rep1_table, shared_only_rep2_table)
+compare_shared_events(
+    rep1_vs_rep2_table, 
+    rep1_psi_table, 
+    rep2_psi_table,
+    identical_pos_id_and_gene_id == TRUE
+    )
 ```
 
     [1] TRUE
 
-Excluding retained intron event types, PSI values are identical in
+Including retained intron event types, PSI values are identical in
 events where pos_id, event_type, gene_id, and label are the same.
 
-#### Do RI position IDs that are shared between tables (including same gene ID) have the same PSI values?
+#### Do shared position IDs with different gene IDs have the same PSI values?
+
+First, check non-retained-intron event types
 
 ``` r
-# extract position ids of events that are shared between tables
-ri_shared_ids_rep1_vs_rep2 <- rep1_vs_rep2_table |>
-  dplyr::filter(
-    identical_pos_id_and_gene_id == TRUE,
-    event_type == "ri"
-    ) |>
-  dplyr::pull(pos_id)
-
-# filter tables for events in shared tables
-ri_shared_only_rep1_table <- rep1_psi_table |>
-  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_rep2) |>
-  # filter only for fields to compare (pos_id, psi values of samples)
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-ri_shared_only_rep2_table <- rep2_psi_table |>
-  dplyr::filter(pos_id %in% ri_shared_ids_rep1_vs_rep2) |>
-  dplyr::select(pos_id, ends_with("_PSI")) |>
-  # sort by pos_id so order is the same
-  dplyr::arrange(pos_id)
-
-all.equal(ri_shared_only_rep1_table, ri_shared_only_rep2_table)
+compare_shared_events(
+    rep1_vs_combined_table, 
+    rep1_psi_table, 
+    combined_psi_table, 
+    shared_pos_id & gene_difference, 
+    event_type != "ri"
+    )
 ```
 
     [1] TRUE
 
+Next, check if retained intron events with same pos_ids but different
+gene_ids have identical PSI values
+
+``` r
+compare_shared_events(
+    rep1_vs_combined_table, 
+    rep1_psi_table, 
+    combined_psi_table, 
+    shared_pos_id & gene_difference, 
+    event_type == "ri"
+    )
+```
+
+     [1] "Component \"SRR1559044_PSI\": Mean absolute difference: 0.1123596" 
+     [2] "Component \"SRR1559052_PSI\": Mean absolute difference: 0.1448763" 
+     [3] "Component \"SRR1559054_PSI\": Mean absolute difference: 0.12"      
+     [4] "Component \"SRR1559075_PSI\": Mean relative difference: 2"         
+     [5] "Component \"SRR1559105_PSI\": Mean absolute difference: 0.1746032" 
+     [6] "Component \"SRR1559133_PSI\": Mean absolute difference: 0.1350806" 
+     [7] "Component \"SRR1559134_PSI\": Mean absolute difference: 0.199115"  
+     [8] "Component \"SRR1559145_PSI\": Mean relative difference: 2.386223"  
+     [9] "Component \"SRR1559164_PSI\": Mean absolute difference: 0.1886848" 
+    [10] "Component \"SRR1559177_PSI\": Mean absolute difference: 0.08108108"
+    [11] "Component \"SRR1559183_PSI\": Mean absolute difference: 0.1349481" 
+    [12] "Component \"SRR1559184_PSI\": Mean absolute difference: 0.1162791" 
+    [13] "Component \"SRR1712453_PSI\": Mean absolute difference: 0.1149817" 
+    [14] "Component \"SRR1712454_PSI\": Mean absolute difference: 0.182308"  
+    [15] "Component \"SRR1712455_PSI\": Mean absolute difference: 0.1958143" 
+    [16] "Component \"SRR1712456_PSI\": Mean absolute difference: 0.1344086" 
+    [17] "Component \"SRR1712457_PSI\": Mean absolute difference: 0.295082"  
+    [18] "Component \"SRR1712458_PSI\": Mean absolute difference: 0.2158696" 
+    [19] "Component \"SRR1712459_PSI\": Mean absolute difference: 0.2628205" 
+    [20] "Component \"SRR1712462_PSI\": Mean absolute difference: 0.3793103" 
+    [21] "Component \"SRR1712464_PSI\": Mean relative difference: 2.392025"  
+    [22] "Component \"SRR1712465_PSI\": Mean absolute difference: 0.1546985" 
+    [23] "Component \"SRR1784865_PSI\": Mean absolute difference: 0.1284916" 
+    [24] "Component \"SRR1784867_PSI\": Mean absolute difference: 0.2144397" 
+    [25] "Component \"SRR1791016_PSI\": Mean absolute difference: 0.2584909" 
+    [26] "Component \"SRR1791028_PSI\": Mean absolute difference: 0.2625"    
+    [27] "Component \"SRR1791108_PSI\": Mean absolute difference: 0.3927348" 
+    [28] "Component \"SRR1796863_PSI\": Mean absolute difference: 0.3565219" 
+    [29] "Component \"SRR1796867_PSI\": Mean absolute difference: 0.4068219" 
+    [30] "Component \"SRR1796893_PSI\": Mean absolute difference: 0.2241087" 
+    [31] "Component \"SRR1796906_PSI\": Mean absolute difference: 0.06775068"
+    [32] "Component \"SRR1796912_PSI\": Mean absolute difference: 0.09090909"
+    [33] "Component \"SRR1796939_PSI\": Mean absolute difference: 0.2889564" 
+    [34] "Component \"SRR1796967_PSI\": Mean absolute difference: 0.105802"  
+    [35] "Component \"SRR1796990_PSI\": Mean absolute difference: 0.2141058" 
+    [36] "Component \"SRR1797014_PSI\": Mean absolute difference: 0.1676768" 
+    [37] "Component \"SRR1797024_PSI\": Mean relative difference: 2.524862"  
+    [38] "Component \"SRR1797033_PSI\": Mean absolute difference: 0.222973"  
+    [39] "Component \"SRR1797034_PSI\": Mean absolute difference: 0.08521739"
+    [40] "Component \"SRR1797035_PSI\": Mean absolute difference: 0.1229508" 
+    [41] "Component \"SRR1797039_PSI\": Mean absolute difference: 0.1456311" 
+    [42] "Component \"SRR1797052_PSI\": Mean relative difference: 2.005747"  
+    [43] "Component \"SRR1797053_PSI\": Mean absolute difference: 0.2"       
+    [44] "Component \"SRR1797055_PSI\": Mean relative difference: 2.789051"  
+    [45] "Component \"SRR1797057_PSI\": Mean absolute difference: 0.2984293" 
+    [46] "Component \"SRR1797087_PSI\": Mean absolute difference: 0.1381302" 
+    [47] "Component \"SRR1797107_PSI\": Mean absolute difference: 0.08333333"
+    [48] "Component \"SRR1797111_PSI\": Mean absolute difference: 0.1666667" 
+    [49] "Component \"SRR1799025_PSI\": Mean absolute difference: 0.09090909"
+    [50] "Component \"SRR1799041_PSI\": Mean relative difference: 1.917407"  
+    [51] "Component \"SRR1799042_PSI\": Mean absolute difference: 0.1407035" 
+    [52] "Component \"SRR1799057_PSI\": Mean absolute difference: 0.06493506"
+    [53] "Component \"SRR1799058_PSI\": Mean absolute difference: 0.05074627"
+    [54] "Component \"SRR1799059_PSI\": Mean absolute difference: 0.02604167"
+    [55] "Component \"SRR1799061_PSI\": Mean absolute difference: 0.1173134" 
+    [56] "Component \"SRR1799062_PSI\": Mean absolute difference: 0.1777778" 
+    [57] "Component \"SRR1799067_PSI\": Mean relative difference: 1.766059"  
+    [58] "Component \"SRR1799069_PSI\": Mean relative difference: 2.092593"  
+    [59] "Component \"SRR1799081_PSI\": Mean absolute difference: 0.04115226"
+    [60] "Component \"SRR1810588_PSI\": Mean absolute difference: 0.06725664"
+    [61] "Component \"SRR2042833_PSI\": Mean absolute difference: 0.0877193" 
+    [62] "Component \"SRR2042853_PSI\": Mean relative difference: 1.915433"  
+    [63] "Component \"SRR2042854_PSI\": Mean absolute difference: 0.05184981"
+    [64] "Component \"SRR2042856_PSI\": Mean absolute difference: 0.2171972" 
+    [65] "Component \"SRR2083154_PSI\": Mean relative difference: 2.410384"  
+    [66] "Component \"SRR2083162_PSI\": Mean relative difference: 1.777648"  
+    [67] "Component \"SRR2083171_PSI\": Mean absolute difference: 0.2473451" 
+    [68] "Component \"SRR2083176_PSI\": Mean absolute difference: 0.09090909"
+    [69] "Component \"SRR2083188_PSI\": Mean relative difference: 2.006406"  
+    [70] "Component \"SRR2239703_PSI\": Mean absolute difference: 0.05555556"
+    [71] "Component \"SRR2239717_PSI\": Mean absolute difference: 0.06306306"
+    [72] "Component \"SRR3162160_PSI\": Mean absolute difference: 0.207986"  
+    [73] "Component \"SRR3162195_PSI\": Mean relative difference: 2.552941"  
+    [74] "Component \"SRR3162212_PSI\": Mean absolute difference: 0.1813538" 
+    [75] "Component \"SRR3162237_PSI\": Mean absolute difference: 0.1555556" 
+    [76] "Component \"SRR3162253_PSI\": Mean relative difference: 1.784615"  
+    [77] "Component \"SRR4376029_PSI\": Mean relative difference: 2.311277"  
+    [78] "Component \"SRR4416297_PSI\": Mean absolute difference: 0.1598837" 
+    [79] "Component \"SRR4419554_PSI\": Mean relative difference: 2.228387"  
+    [80] "Component \"SRR4419565_PSI\": Mean relative difference: 1.923677"  
+
 In replicate compendium runs, retained intron events with the same
-`gene_id` and `pos_id` fields have identical PSI values. This finding
-supports our thinking that the difference in RI event PSI calculation
-stems from how exon-intron junctions are processed in the compendum
-workflow.
+`gene_id` different `pos_id` fields have different PSI values.

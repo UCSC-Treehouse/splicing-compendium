@@ -140,7 +140,7 @@ rule merge_junctions_persample:
         bedfile = "<merged_shiba_results>/merged_junctions/all_junctions.bed",
         counts = expand("<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv", sample = SAMPLES)
     params:
-        output_dir = lambda wildcards, output: os.path.dirname(output.bedfile)
+        output_dir = subpath(output.bedfile, parent=True)
     priority: 10
     threads: 15
     resources:

@@ -25,7 +25,7 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
 # result directories
 results_dir <- file.path(repo_root, "results")
-compendium_results_dir <- file.path(results, "merged_shiba")
+compendium_results_dir <- file.path(results_dir, "merged_shiba")
 version_dir <- file.path(compendium_results_dir, "v1.1.0_two_sample")
 psi_dir <- file.path(version_dir, "sample_psi")
 
@@ -73,15 +73,39 @@ if (!dir.exists(output_merged)) {
 Read in psi files
 
 ```{r}
-# Make function for reading all PSI tables for a sample (or set of samples run together)
-read_psi <- function(psi_path, psi_files = psi_file_list) {
-  # returns a data frame with the following columns: pos_id, gene_id, label, event_type, sample, psi
+# function for reading all sample PSI tables into one PSI table per event type
+read_psi_to_event_tables <- function(psi_path, psi_files = psi_file_list) {
+  # returns a data frame per event type with all 
   # construct file path for event type
   file_paths <- file.path(psi_path, psi_files)
   # name each PSI table file path by event type
   names(file_paths) <- names(psi_files)
 
-  # read in files
+  # merge all event types together for analysis
+  purrr::map(file_paths, \(file) {
+    readr::read_tsv(file, col_types = readr::cols(.default = "c"))
+  })
+}
+
+# function for reading all sample PSI matrix ("PSI_matrix_sample.txt")
+read_sample_psi_matrix <- function(psi_path) {
+  # returns a PSI matrix data frame of all samples in sample sheet
+  file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
+  # merge psi matrix files together 
+  purrr::map(file_paths, \(file) {
+    readr::read_tsv(file, col_types = readr::cols(.default = "c"))
+  }) |>
+    dplyr::bind_rows()
+}
+
+# Make function for reading all PSI tables for a sample (or set of samples run together) into one PSI table with all event types
+read_psi_to_one_table <- function(psi_path, psi_files = psi_file_list) {
+  # construct file path for event type
+  file_paths <- file.path(psi_path, psi_files)
+  # name each PSI table file path by event type
+  names(file_paths) <- names(psi_files)
+
+  # merge all event types together for analysis
   purrr::map(file_paths, \(file) {
     readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
       # select for columns that will be used downstream in analysis so all dataframes have uniform column names
@@ -99,4 +123,14 @@ read_psi <- function(psi_path, psi_files = psi_file_list) {
 }
 ```
 
+sdfsdf
+```{r}
+test <- read_psi_to_event_tables(sample_paths, psi_file_list)
+
+test_se <- test$se
+```
+
+```{r}
+test_matrix <- read_sample_psi_matrix(sample_paths)
+```
 

@@ -10,11 +10,8 @@ load packages
 suppressPackageStartupMessages({
   library(optparse)
   library(dplyr)
-  library(duckplyr)
-  library(dbplyr)
 })
 ```
-
 
 read in file paths
 
@@ -33,7 +30,7 @@ psi_dir <- file.path(version_dir, "sample_psi")
 config_dir <- file.path(repo_root, "config")
 
 # merged psi table output dir
-output_merged <- file.path(compendium_results_dir, "merged_psi")
+output_dir <- file.path(compendium_results_dir, "merged_psi")
 
 ## Files ##
 
@@ -64,13 +61,33 @@ sample_paths <- file.path(
 )
 
 # create output directory if it does not exist
-if (!dir.exists(output_merged)) {
-  dir.create(output_merged, recursive = TRUE)
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
 }
 
+# output files
+out_file_list <- c(
+  se = "PSI_SE.txt",
+  afe = "PSI_AFE.txt",
+  ale = "PSI_ALE.txt",
+  five = "PSI_FIVE.txt",
+  three = "PSI_THREE.txt",
+  mse = "PSI_MSE.txt",
+  mxe = "PSI_MXE.txt",
+  ri = "PSI_RI.txt",
+  matrix = "PSI_matrix_sample.txt",
+  all_events = "all_events_PSI.txt"
+)
+
+# construct output file paths
+
+out_paths <- file.path(
+  output_dir, 
+  out_file_list
+)
 ```
 
-Read in psi files
+Define functions to read in psi files
 
 ```{r}
 # function for reading all sample PSI tables into one PSI table per event type
@@ -123,13 +140,21 @@ read_psi_to_one_table <- function(psi_path, psi_files = psi_file_list) {
 }
 ```
 
-sdfsdf
+Read in and merge PSI files 
 ```{r}
 test <- read_psi_to_event_tables(sample_paths, psi_file_list)
 
 test_se <- test$se
+
 ```
 
+Construct output file paths
+```{r}
+
+```
+
+
+Write output
 ```{r}
 test_matrix <- read_sample_psi_matrix(sample_paths)
 ```

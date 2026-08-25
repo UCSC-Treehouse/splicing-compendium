@@ -1,0 +1,102 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+merge sample psi tables 
+
+load packages
+```{r}
+suppressPackageStartupMessages({
+  library(optparse)
+  library(dplyr)
+  library(duckplyr)
+  library(dbplyr)
+})
+```
+
+
+read in file paths
+
+```{r read_files}
+## Directories ##
+# find project root to access separate results dir
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+# result directories
+results_dir <- file.path(repo_root, "results")
+compendium_results_dir <- file.path(results, "merged_shiba")
+version_dir <- file.path(compendium_results_dir, "v1.1.0_two_sample")
+psi_dir <- file.path(version_dir, "sample_psi")
+
+# sample sheet dir
+config_dir <- file.path(repo_root, "config")
+
+# merged psi table output dir
+output_merged <- file.path(compendium_results_dir, "merged_psi")
+
+## Files ##
+
+# sample sheet file with sample names
+samples_file <- file.path(config_dir, "two_sample_merge_samples.tsv")
+
+# read in sample sheet and create list of samples from samples column
+samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>
+  dplyr::pull(sample) |>
+  as.list()
+
+# define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
+psi_file_list <- c(
+  se = "PSI_SE.txt",
+  afe = "PSI_AFE.txt",
+  ale = "PSI_ALE.txt",
+  five = "PSI_FIVE.txt",
+  three = "PSI_THREE.txt",
+  mse = "PSI_MSE.txt",
+  mxe = "PSI_MXE.txt",
+  ri = "PSI_RI.txt"
+)
+
+# make sample psi table paths
+sample_paths <- file.path(
+  psi_dir,
+  samples
+)
+
+# create output directory if it does not exist
+if (!dir.exists(output_merged)) {
+  dir.create(output_merged, recursive = TRUE)
+}
+
+```
+
+Read in psi files
+
+```{r}
+# Make function for reading all PSI tables for a sample (or set of samples run together)
+read_psi <- function(psi_path, psi_files = psi_file_list) {
+  # returns a data frame with the following columns: pos_id, gene_id, label, event_type, sample, psi
+  # construct file path for event type
+  file_paths <- file.path(psi_path, psi_files)
+  # name each PSI table file path by event type
+  names(file_paths) <- names(psi_files)
+
+  # read in files
+  purrr::map(file_paths, \(file) {
+    readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
+      # select for columns that will be used downstream in analysis so all dataframes have uniform column names
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      # transform so we get a long table of PSI values for each event type, with one row per position and sample
+      tidyr::pivot_longer(
+        cols = contains("_PSI"),
+        names_to = "sample",
+        values_to = "psi",
+        values_transform = as.numeric
+      )
+  }) |>
+    # merge individual event type PSI tables to get one PSI table per sample
+    dplyr::bind_rows(.id = "event_type")
+}
+```
+
+

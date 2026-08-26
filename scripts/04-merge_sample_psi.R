@@ -1,6 +1,45 @@
-# merge sample psi tables without any functions just to get logic working
+### merge per-sample PSI tables produced by merge_results.smk ###
+#
+# reads every PSI output within the sample_psi/ directory and combines them so that all samples' PSI results appear in each file.
+# samples may have NA values in their PSI column if junction counts for the event < 10
+#
+# the sample name for each file is taken from the sample sheet passed to the workflow's configfile
+#
+# usage:
+#   Rscript 04-merge_sample_psi.R --sample_sheet=sample_sheet.tsv --version_dir=v1.1.0_two_sample
 
-# read in file paths
+# load packages
+suppressPackageStartupMessages({
+  library(optparse)
+  library(dplyr)
+})
+
+# set up options to Rscript with optparse
+option_list <- list(
+  make_option(
+    opt_str = "--sample_sheet",
+    type = "character",
+    action = "store",
+    help = "name of sample sheet with list of sample IDs"
+  ),
+  make_option(
+    opt_str = "--version_dir",
+    type = "character",
+    action = "store",
+    help = "name of version directory of separate PSI results"
+  )
+)
+
+# Parse options
+opt <- parse_args(OptionParser(option_list = option_list))
+
+## Validate output options ##
+# exactly one of --output / --output_dir
+if ((is.null(opt$sample_sheet) || is.null(opt$version_dir))) {
+  stop("Specify --sample_sheet and --version_dir.")
+}
+
+### read in file paths ###
 
 ## Directories ##
 # find project root to access separate results dir

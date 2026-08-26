@@ -72,15 +72,16 @@ out_file_list <- c(
   mse = "PSI_MSE.txt",
   mxe = "PSI_MXE.txt",
   ri = "PSI_RI.txt",
-  matrix = "PSI_matrix_sample.txt",
-  all_events = "all_events_PSI.txt"
+  matrix = "PSI_matrix_sample.txt"
 )
 
 # construct output file paths
-out_path <- file.path(
+out_paths <- file.path(
   output_dir,
-  "PSI_matrix_sample.txt"
+  out_file_list
 )
+
+names(out_paths) <- names(out_file_list)
 ```
 
 define functions
@@ -137,7 +138,6 @@ read_se_table <- function(sample_paths) {
 }
 
 ## afe/ale/five/three have the same non-sample-specfic columns
-
 read_afe_ale_five_three_table <- function(sample_paths, psi_event_file) {
   # returns one data frame of skipped exon event types with all samples' psi values as separate columns
   # note some pos_ids and junction counts for exons in this table will be separated by colons
@@ -295,18 +295,30 @@ read_ri_table <- function(sample_paths) {
 
 read in psi files and make merged tables
 ```{r}
-merged_matrix <- read_sample_psi_matrix(sample_paths)
 merged_se_table <- read_se_table(sample_paths) 
+merged_afe_table <- read_afe_ale_five_three_table(sample_paths, "PSI_AFE.txt")
+merged_ale_table <- read_afe_ale_five_three_table(sample_paths, "PSI_ALE.txt")
+merged_five_table <- read_afe_ale_five_three_table(sample_paths, "PSI_FIVE.txt")
+merged_three_table <- read_afe_ale_five_three_table(sample_paths, "PSI_THREE.txt")
+merged_matrix <- read_sample_psi_matrix(sample_paths)
 ```
 
+write output
 ```{r}
-merged_afe_table <- read_afe_table(sample_paths)
-```
+# roll outputs into a list for writing outputs with purrr
+all_outputs <- c(
+  se = merged_se_table,
+  afe = merged_afe_table,
+  ale = merged_ale_table,
+  five = merged_five_table ,
+  three = merged_three_table,
+  matrix = merged_matrix
+)
 
-
-```{r}
-merged_se_table |>
-  head()
+# give purrr iwalk the list of named output files and write output using named output paths
+purrr::iwalk(all_outputs, \(df, name) {
+  readr::write_tsv(df, out_paths[[name]])
+})
 ```
 
 
@@ -315,9 +327,4 @@ write output
 readr::write_tsv(merged_matrix, out_path)
 ```
 
-
-
-```{r}
-psi_file_list[se]
-```
 

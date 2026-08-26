@@ -148,11 +148,13 @@ read_sample_psi_matrix <- function(psi_path) {
 }
 
 # function for reading all PSI tables for a set of samples run together into one PSI table with all event types
-read_psi_to_one_table <- function(psi_path, psi_files = psi_file_list) {
-  # construct file path for event type
-  file_paths <- file.path(psi_path, psi_files)
-  # name each PSI table file path by event type
-  names(file_paths) <- names(psi_files)
+read_psi_to_one_table <- function(sample_paths, psi_files = psi_file_list) {
+  # loop over all samples in sample_paths to construct file paths
+  purrr::map(sample_paths, \(one_sample_path) {
+    # construct paths to each psi output for each sample
+    file_paths <- file.path(one_sample_path, psi_files)
+    # name each file path according to event type
+    names(file_paths) <- names(psi_files)
 
   # merge all event types together for analysis
   purrr::map(file_paths, \(file) {
@@ -169,6 +171,7 @@ read_psi_to_one_table <- function(psi_path, psi_files = psi_file_list) {
   }) |>
     # merge individual event type PSI tables to get one PSI table per sample
     dplyr::bind_rows(.id = "event_type")
+  }
 }
 
 ### Read in and merge PSI files from all samples ###

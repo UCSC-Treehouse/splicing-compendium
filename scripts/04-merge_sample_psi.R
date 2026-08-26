@@ -34,7 +34,7 @@ option_list <- list(
 opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
-# exactly one of --output / --output_dir
+# user must provide sample_sheet and version_dir to script
 if ((is.null(opt$sample_sheet) || is.null(opt$version_dir))) {
   stop("Specify --sample_sheet and --version_dir.")
 }
@@ -48,14 +48,14 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 # result directories
 results_dir <- file.path(repo_root, "results")
 compendium_results_dir <- file.path(results_dir, "merged_shiba")
-version_dir <- file.path(compendium_results_dir, "v1.1_reuse_table_target_pilot")
-psi_dir <- file.path(version_dir, "sample_psi")
+version_dir <- file.path(compendium_results_dir, opt$version_dir)
+psi_dir <- file.path(opt$version_dir, "sample_psi")
 
 # sample sheet dir
 config_dir <- file.path(repo_root, "config")
 
 # merged psi table output dir
-output_dir <- file.path(version_dir, "merged_psi")
+output_dir <- file.path(opt$version_dir, "merged_psi")
 
 # create output dir if it does not exist
 if (!dir.exists(output_dir)) {
@@ -65,14 +65,12 @@ if (!dir.exists(output_dir)) {
 ## Files ##
 
 # sample sheet file with sample names
-samples_file <- file.path(config_dir, "target_pilot_experiment.tsv")
+samples_file <- file.path(config_dir, opt$sample_sheet)
 
 # read in sample sheet and create list of samples from samples column
 samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>
   dplyr::pull(sample) |>
-  as.list() |>
-  # subset
-  head(10)
+  as.list()
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_file_list <- c(
@@ -117,7 +115,8 @@ names(out_paths) <- names(out_file_list)
 
 # function for reading all sample PSI matrix ("PSI_matrix_sample.txt")
 read_sample_psi_matrix <- function(psi_path) {
-  # returns a PSI matrix data frame of all samples in sample sheet
+  # returns a psi matrix data frame of all samples in sample sheet
+
   # construct paths to psi sample matrices
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
   # read psi matrix files
@@ -129,7 +128,7 @@ read_sample_psi_matrix <- function(psi_path) {
 }
 
 read_se_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # returns one data frame of skipped exon event types with all samples' psi values and junction counts as separate columns
 
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
@@ -167,10 +166,11 @@ read_se_table <- function(sample_paths) {
 
 ## afe/ale/five/three have the same non-sample-specfic columns
 read_afe_ale_five_three_table <- function(sample_paths, psi_event_file) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # returns one data frame of afe/ale/five/three event types with all samples' psi values and junction counts as separate columns
+
   # note some pos_ids and junction counts for exons in this table will be separated by colons
   # e.g 0;0;0;0;0;15;16;0;0;0;0;0
-  # but this is seen in the canonical target pilot AFE table too
+  # but this is seen in the canonical target pilot tables too
 
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
@@ -208,7 +208,8 @@ read_afe_ale_five_three_table <- function(sample_paths, psi_event_file) {
 }
 
 read_mse_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # returns one data frame of mse event types with all samples' psi values and junction counts as separate columns
+
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
     # construct paths to each psi output for each sample
@@ -244,7 +245,8 @@ read_mse_table <- function(sample_paths) {
 }
 
 read_mxe_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # returns one data frame of mse event types with all samples' psi values and junction counts as separate columns
+
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
     # construct paths to each psi output for each sample
@@ -283,7 +285,8 @@ read_mxe_table <- function(sample_paths) {
 }
 
 read_ri_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # returns one data frame of ri event types with all samples' psi values and junction counts as separate columns
+
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
     # construct paths to each psi output for each sample

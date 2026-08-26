@@ -115,12 +115,12 @@ read_se_table <- function(sample_paths) {
       by = c(
         "event_id",
         "pos_id",
-        "gene_id",
         "exon",
         "intron_a",
         "intron_b",
         "intron_c",
         "strand",
+        "gene_id",
         "gene_name",
         "label")
     ) |>
@@ -138,7 +138,7 @@ read_se_table <- function(sample_paths) {
 
 ## afe/ale/five/three have the same non-sample-specfic columns
 
-read_afe_table <- function(sample_paths) {
+read_afe_ale_five_three_table <- function(sample_paths, psi_event_file) {
   # returns one data frame of skipped exon event types with all samples' psi values as separate columns
   # note some pos_ids and junction counts for exons in this table will be separated by colons
   # e.g 0;0;0;0;0;15;16;0;0;0;0;0
@@ -147,131 +147,13 @@ read_afe_table <- function(sample_paths) {
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
     # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_AFE.txt")
+    file_paths <- file.path(one_sample_path, psi_event_file)
     
     # read each file into a table
     purrr::map(file_paths, \(file) {
       readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
       }) |>
       
-      # merge samples' event tables together horizontally
-    purrr::reduce(dplyr::left_join,
-      by = c(
-        "event_id",
-        "pos_id",
-        "exon_a",
-        "exon_b",
-        "intron_a",
-        "intron_b",
-        "strand",
-        "gene_id",
-        "gene_name",
-        "label")
-    ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-    }) |>
-    
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
-# this function is the same as the AFE one save for the last bit in the path
-read_ale_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
-  # note some pos_ids and junction counts for exons in this table will be separated by colons
-  # e.g 0;0;0;0;0;15;16;0;0;0;0;0
-  # but this is seen in the canonical target pilot AFE table too
-  
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_ALE.txt")
-    
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-      }) |>
-      
-      # merge samples' event tables together horizontally
-    purrr::reduce(dplyr::left_join,
-      by = c(
-        "event_id",
-        "pos_id",
-        "exon_a",
-        "exon_b",
-        "intron_a",
-        "intron_b",
-        "strand",
-        "gene_id",
-        "gene_name",
-        "label")
-    ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-    }) |>
-    
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
-read_five_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
-  
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_FIVE.txt")
-    
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-      }) |>
-      # merge samples' event tables together horizontally
-    purrr::reduce(dplyr::left_join,
-      by = c(
-        "event_id",
-        "pos_id",
-        "exon_a",
-        "exon_b",
-        "intron_a",
-        "intron_b",
-        "strand",
-        "gene_id",
-        "gene_name",
-        "label")
-    ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-    }) |>
-    
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
-read_three_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_THREE.txt")
-    
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-      }) |>
       # merge samples' event tables together horizontally
     purrr::reduce(dplyr::left_join,
       by = c(

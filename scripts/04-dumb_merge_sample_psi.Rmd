@@ -1,6 +1,9 @@
 ---
 title: "R Notebook"
-output: html_notebook
+format:
+  gfm:
+    df-print: kable
+editor: visual
 ---
 
 merge sample psi tables without any functions just to get logic working
@@ -29,7 +32,6 @@ if (!dir.exists(output_dir)) {
   dir.create(output_dir, recursive = TRUE)
 }
 
-
 ## Files ##
 
 # sample sheet file with sample names
@@ -38,7 +40,9 @@ samples_file <- file.path(config_dir, "target_pilot_experiment.tsv")
 # read in sample sheet and create list of samples from samples column
 samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>
   dplyr::pull(sample) |>
-  as.list()
+  as.list() |>
+  # subset
+  head(10)
 
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_file_list <- c(
@@ -93,10 +97,6 @@ read_sample_psi_matrix <- function(psi_path) {
   # Join them all by a common column name
   purrr::reduce(dplyr::left_join, by = c("event_id", "pos_id"))
 }
-```
-
-Function for merging SE tables together
-```{r}
 
 read_se_table <- function(sample_paths, psi_table_name) {
   # returns one data frame of skipped exon event types with all samples' psi values as separate columns
@@ -108,10 +108,9 @@ read_se_table <- function(sample_paths, psi_table_name) {
     
     purrr::map(file_paths, \(file) {
       readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-      })
-    }) |>
-
-    # merge two samples' event tables together horizontally
+      }) |>
+      
+      # merge two samples' event tables together horizontally
     purrr::reduce(dplyr::left_join,
       by = c(
         "event_id",
@@ -131,6 +130,10 @@ read_se_table <- function(sample_paths, psi_table_name) {
         "pos_id",
         "gene_id"
       )
+      
+    }) |>
+    
+    dplyr::bind_rows()
 }
 ```
 
@@ -141,11 +144,11 @@ merged_matrix <- read_sample_psi_matrix(sample_paths)
 ```
 
 ```{r}
-merged_se_table <- read_se_table(sample_paths, "PSI_SE.txt")
+merged_se_table <- read_se_table(sample_paths, "PSI_SE.txt") 
 ```
 
 ```{r}
-merged_se_table[[1]] |>
+merged_se_table |>
   head()
 ```
 

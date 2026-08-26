@@ -95,41 +95,72 @@ read_sample_psi_matrix <- function(psi_path) {
 }
 ```
 
+Function for merging SE tables together
+```{r}
+
+read_se_table <- function(sample_paths, psi_table_name) {
+  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+
+  # loop over all samples in sample_paths
+  purrr::map(sample_paths, \(one_sample_path) {
+    # construct paths to each psi output for each sample
+    file_paths <- file.path(one_sample_path, psi_table_name)
+    
+    purrr::map(file_paths, \(file) {
+      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
+      })
+    }) |>
+
+    # merge two samples' event tables together horizontally
+    purrr::reduce(dplyr::left_join,
+      by = c(
+        "event_id",
+        "pos_id",
+        "gene_id",
+        "exon",
+        "intron_a",
+        "intron_b",
+        "intron_c",
+        "strand",
+        "gene_name",
+        "label")
+    ) |>
+      # move identifying columns to the front for spot-checking
+      dplyr::relocate(
+        "event_id",
+        "pos_id",
+        "gene_id"
+      )
+}
+```
+
 
 read in psi files
 ```{r}
 merged_matrix <- read_sample_psi_matrix(sample_paths)
 ```
 
+```{r}
+merged_se_table <- read_se_table(sample_paths, "PSI_SE.txt")
+```
+
+```{r}
+merged_se_table[[1]] |>
+  head()
+```
+
+
 write output
 ```{r}
 readr::write_tsv(merged_matrix, out_path)
 ```
 
+```{r}
+readr:Lwrite_
+```
+
 
 ```{r}
-
-# # merge two samples' event tables together horizontally
-# merged_se_df <- dplyr::left_join(
-#   sample_one_se_df,
-#   sample_two_se_df,
-#   by = c(
-#     "event_id",
-#     "pos_id", 
-#     "gene_id",
-#     "exon",
-#     "intron_a",
-#     "intron_b",
-#     "intron_c",
-#     "strand",
-#     "gene_name",
-#     "label")
-# ) |>
-#   dplyr::relocate(
-#     "event_id",
-#     "pos_id",
-#     "gene_id"
-#   )
-
+psi_file_list[se]
 ```
 

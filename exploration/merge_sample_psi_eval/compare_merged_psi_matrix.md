@@ -32,7 +32,7 @@ combined_splice_results_dir <- file.path(combined_dir, "splicing")
 # merged sample psi matrix
 merged_matrix_file <- file.path(psi_dir, "PSI_matrix_sample.txt")
 # canonical shiba run sample psi matrix
-canonical_matrix_file <- file.path(combined_splice_results_dir, "PSI_matrix_sample.txt")
+combined_matrix_file <- file.path(combined_splice_results_dir, "PSI_matrix_sample.txt")
 ```
 
 Read in matrices to compare and filter out ri events
@@ -40,14 +40,11 @@ Read in matrices to compare and filter out ri events
 ``` r
 merged_matrix_df <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
     dplyr::filter(!stringr::str_detect(event_id,"RI_")) |>
-  # drop event id 
-  dplyr::select(!event_id) |>
   # sort by pos id
   dplyr::arrange(pos_id)
 
-canonical_matrix_df <- readr::read_tsv(canonical_matrix_file, col_types = readr::cols(.default = "c")) |>
+combined_matrix_df <- readr::read_tsv(combined_matrix_file, col_types = readr::cols(.default = "c")) |>
     dplyr::filter(!stringr::str_detect(event_id,"RI_")) |>
-  dplyr::select(!event_id) |>
   # sort by pos id
   dplyr::arrange(pos_id)
 ```
@@ -55,10 +52,28 @@ canonical_matrix_df <- readr::read_tsv(canonical_matrix_file, col_types = readr:
 check if matrices are identical
 
 ``` r
-all.equal(merged_matrix_df, canonical_matrix_df)
+all.equal(merged_matrix_df, combined_matrix_df)
+```
+
+    [1] "Component \"event_id\": 71280 string mismatches"
+
+Check if, excluding event IDs (SE_1, SE_2, etc), matrices are identical:
+
+``` r
+merged_matrix_df_no_id <- merged_matrix_df |>
+  dplyr::select(!event_id) |>
+  # sort by pos id
+  dplyr::arrange(pos_id)
+
+combined_matrix_df_no_id <- combined_matrix_df |>
+  dplyr::select(!event_id) |>
+  # sort by pos id
+  dplyr::arrange(pos_id)
+
+all.equal(merged_matrix_df_no_id, combined_matrix_df_no_id)
 ```
 
     [1] TRUE
 
 Merged PSI matrices, excluding RI events, are the same as the canonical
-PSI sample matrix
+PSI sample matrix, except for shiba-assigned event IDs

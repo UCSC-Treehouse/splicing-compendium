@@ -116,17 +116,23 @@ names(out_paths) <- names(out_file_list)
 ### Define functions to read in psi files ###
 
 # function for reading all sample PSI tables into one PSI table per event type
-read_psi_to_event_tables <- function(psi_path, psi_files = psi_file_list) {
-  # returns a data frame per event type with all
-  # construct file path for event type
-  file_paths <- file.path(psi_path, psi_files)
-  # name each PSI table file path by event type
-  names(file_paths) <- names(psi_files)
-
-  # merge all event types together for analysis
-  purrr::map(file_paths, \(file) {
-    readr::read_tsv(file, col_types = readr::cols(.default = "c"))
-  })
+read_psi_to_event_tables <- function(sample_paths, psi_files = psi_file_list) {
+  # returns a data frame per event type with all samples' psi values
+  
+  # loop over all samples in sample_paths
+  purrr::map(sample_paths, \(one_sample_path) {
+    # construct paths to each psi output for each sample
+    file_paths <- file.path(one_sample_path, psi_files)
+    # name each file path according to event type
+    names(file_paths) <- names(psi_files)
+    # read each samples' file
+    purrr::map(file_paths, \(file) {
+      readr::read_tsv(file, col_types = readr::cols(.default = "c"))
+    }) |>
+      # transpose list of tables so event types per sample are grouped together
+      purrr::transpose() |>
+      # merge each samples' event type psi table together into one per event type
+      purrr::map(dplyr::bind_rows)
 }
 
 # function for reading all sample PSI matrix ("PSI_matrix_sample.txt")

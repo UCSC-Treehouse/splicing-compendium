@@ -306,7 +306,7 @@ merged_matrix <- read_sample_psi_matrix(sample_paths)
 write output
 ```{r}
 # roll outputs into a list for writing outputs with purrr
-all_outputs <- c(
+all_outputs <- list(
   se = merged_se_table,
   afe = merged_afe_table,
   ale = merged_ale_table,
@@ -320,11 +320,4 @@ purrr::iwalk(all_outputs, \(df, name) {
   readr::write_tsv(df, out_paths[[name]])
 })
 ```
-
-
-write output
-```{r}
-readr::write_tsv(merged_matrix, out_path)
-```
-
 

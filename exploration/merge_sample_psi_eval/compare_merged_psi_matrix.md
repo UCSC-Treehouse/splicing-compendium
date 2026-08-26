@@ -1,17 +1,13 @@
----
-title: "compare merged sample psi matrix target pilot"
-author: "Cindy Liang (celiang@ucsc.edu)"
-format:
-  gfm:
-    df-print: kable
-editor: visual
-date: "`r format(Sys.time(), '%B %d, %Y')`"
----
+# compare merged sample psi matrix target pilot
+Cindy Liang (celiang@ucsc.edu)
+2026-08-26
 
-Check if merged PSI sample matrix on target pilot are the same as canonical PSI sample matrix
-hopefully this will give a quick view on whether my changes to the separate junctions code altered PSi calculation
+Check if merged PSI sample matrix on target pilot are the same as
+canonical PSI sample matrix hopefully this will give a quick view on
+whether my changes to the separate junctions code altered PSi
+calculation
 
-```{r read_files}
+``` r
 ## Directories ##
 # find project root to access separate results dir
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
@@ -37,12 +33,11 @@ combined_splice_results_dir <- file.path(combined_dir, "splicing")
 merged_matrix_file <- file.path(psi_dir, "PSI_matrix_sample.txt")
 # canonical shiba run sample psi matrix
 canonical_matrix_file <- file.path(combined_splice_results_dir, "PSI_matrix_sample.txt")
-
 ```
 
 Read in matrices to compare and filter out ri events
 
-```{r}
+``` r
 merged_matrix_df <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
     dplyr::filter(!stringr::str_detect(event_id,"RI_")) |>
   # drop event id 
@@ -58,9 +53,12 @@ canonical_matrix_df <- readr::read_tsv(canonical_matrix_file, col_types = readr:
 ```
 
 check if matrices are identical
-```{r}
+
+``` r
 all.equal(merged_matrix_df, canonical_matrix_df)
 ```
 
-Merged PSI matrices, excluding RI events, are the same as the canonical PSI sample matrix
+    [1] TRUE
 
+Merged PSI matrices, excluding RI events, are the same as the canonical
+PSI sample matrix

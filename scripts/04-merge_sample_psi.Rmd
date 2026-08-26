@@ -30,7 +30,13 @@ psi_dir <- file.path(version_dir, "sample_psi")
 config_dir <- file.path(repo_root, "config")
 
 # merged psi table output dir
-output_dir <- file.path(compendium_results_dir, "merged_psi")
+output_dir <- file.path(version_dir, "merged_psi")
+
+# create output dir if it does not exist
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+
 
 ## Files ##
 
@@ -60,11 +66,6 @@ sample_paths <- file.path(
   samples
 )
 
-# create output directory if it does not exist
-if (!dir.exists(output_dir)) {
-  dir.create(output_dir, recursive = TRUE)
-}
-
 # output files
 out_file_list <- c(
   se = "PSI_SE.txt",
@@ -81,7 +82,7 @@ out_file_list <- c(
 
 # construct output file paths
 out_paths <- file.path(
-  output_dir, 
+  output_dir,
   out_file_list
 )
 

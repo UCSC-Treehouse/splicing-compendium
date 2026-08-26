@@ -80,11 +80,13 @@ out_file_list <- c(
 )
 
 # construct output file paths
-
 out_paths <- file.path(
   output_dir, 
   out_file_list
 )
+
+# pass out_file_list names to output paths so purrr can match them up
+names(out_paths) <- names(out_file_list)
 ```
 
 Define functions to read in psi files
@@ -107,6 +109,7 @@ read_psi_to_event_tables <- function(psi_path, psi_files = psi_file_list) {
 # function for reading all sample PSI matrix ("PSI_matrix_sample.txt")
 read_sample_psi_matrix <- function(psi_path) {
   # returns a PSI matrix data frame of all samples in sample sheet
+  # with
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
   # merge psi matrix files together 
   purrr::map(file_paths, \(file) {
@@ -140,22 +143,27 @@ read_psi_to_one_table <- function(psi_path, psi_files = psi_file_list) {
 }
 ```
 
-Read in and merge PSI files 
+Read in and merge PSI files from all samples
 ```{r}
-test <- read_psi_to_event_tables(sample_paths, psi_file_list)
+# tables that mirror shiba outputs
+merged_separate_events <- read_psi_to_event_tables(sample_paths, psi_file_list)
+merged_matrix <- read_sample_psi_matrix(sample_paths)
+# nice psi table output intended for adding gene names and downstream evaluation
+merged_all_events <- read_psi_to_one_table(sample_paths, psi_file_list)
 
-test_se <- test$se
+# roll outputs into a list for writing outputs with purrr
+all_outputs <- c(
+  # already a named list
+  merged_separate_events,
+  # add merged matrix and all events table to the list, giving them the same names as out_paths
+  list(matrix = merged_matrix, all_events = merged_all_events)
+)
+
+# give purrr iwalk the list of named output files and write output using named output paths
+purrr::iwalk(all_outputs, \(df, name) {
+  readr::write_tsv(df, out_paths[[name]])
+})
 
 ```
 
-Construct output file paths
-```{r}
-
-```
-
-
-Write output
-```{r}
-test_matrix <- read_sample_psi_matrix(sample_paths)
-```
 

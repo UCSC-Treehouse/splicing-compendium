@@ -91,6 +91,7 @@ sample_paths <- file.path(
 )
 
 # output files
+
 out_file_list <- c(
   se = "PSI_SE.txt",
   afe = "PSI_AFE.txt",
@@ -100,8 +101,7 @@ out_file_list <- c(
   mse = "PSI_MSE.txt",
   mxe = "PSI_MXE.txt",
   ri = "PSI_RI.txt",
-  matrix = "PSI_matrix_sample.txt",
-  all_events = "all_events_PSI.txt"
+  matrix = "PSI_matrix_sample.txt"
 )
 
 # construct output file paths
@@ -118,27 +118,28 @@ names(out_paths) <- names(out_file_list)
 # function for reading all sample PSI tables into one PSI table per event type
 read_psi_to_event_tables <- function(sample_paths, psi_files = psi_file_list) {
   # returns a data frame per event type with all samples' psi values
-  
+
   # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
     # construct paths to each psi output for each sample
     file_paths <- file.path(one_sample_path, psi_files)
     # name each file path according to event type
     names(file_paths) <- names(psi_files)
+
     # read each samples' file
     purrr::map(file_paths, \(file) {
       readr::read_tsv(file, col_types = readr::cols(.default = "c"))
-    }) |>
-      # transpose list of tables so event types per sample are grouped together
-      purrr::transpose() |>
-      # merge each samples' event type psi table together into one per event type
-      purrr::map(dplyr::bind_rows)
+    })
+  }) |>
+    # transpose list of tables so event types per sample are grouped together
+    purrr::transpose() |>
+    # merge each samples' event type psi table together into one per event type
+    purrr::map(dplyr::bind_rows)
 }
 
-# function for reading all sample PSI matrix ("PSI_matrix_sample.txt")
+# function for reading all sample PSI matrix "PSI_matrix_sample.txt"
 read_sample_psi_matrix <- function(psi_path) {
   # returns a PSI matrix data frame of all samples in sample sheet
-  # with
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
   # merge psi matrix files together
   purrr::map(file_paths, \(file) {
@@ -148,30 +149,26 @@ read_sample_psi_matrix <- function(psi_path) {
 }
 
 # function for reading all PSI tables for a set of samples run together into one PSI table with all event types
-read_psi_to_one_table <- function(sample_paths, psi_files = psi_file_list) {
-  # loop over all samples in sample_paths to construct file paths
+read_psi_to_one_table <- function(merged_event_table_paths, psi_files = psi_file_list) {
+  # loop over all samples in sample_paths
   purrr::map(sample_paths, \(one_sample_path) {
     # construct paths to each psi output for each sample
     file_paths <- file.path(one_sample_path, psi_files)
     # name each file path according to event type
     names(file_paths) <- names(psi_files)
 
-  # merge all event types together for analysis
-  purrr::map(file_paths, \(file) {
-    readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
-      # select for columns that will be used downstream in analysis so all dataframes have uniform column names
-      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
-      # transform so we get a long table of PSI values for each event type, with one row per position and sample
-      tidyr::pivot_longer(
-        cols = contains("_PSI"),
-        names_to = "sample",
-        values_to = "psi",
-        values_transform = as.numeric
-      )
+
+    # merge all event types together for analysis
+    purrr::map(file_paths, \(file) {
+      readr::read_tsv(file, col_types = readr::cols(.default = "c")) |>
+        # select for columns that will be used downstream in analysis so all dataframes have uniform column names
+        dplyr::select(pos_id, gene_id, label, contains("_PSI"))
+    }) |>
+      # merge individual event type PSI tables to get one PSI table per sample
+      dplyr::bind_rows(.id = "event_type")
   }) |>
-    # merge individual event type PSI tables to get one PSI table per sample
-    dplyr::bind_rows(.id = "event_type")
-  }
+    # merge into one psi table
+    dplyr::bind_rows()
 }
 
 ### Read in and merge PSI files from all samples ###

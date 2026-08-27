@@ -55,7 +55,7 @@ psi_dir <- file.path(version_dir, "sample_psi")
 config_dir <- file.path(repo_root, "config")
 
 # merged psi table output dir
-output_dir <- file.path(opt$version_dir, "merged_psi")
+output_dir <- file.path(version_dir, "merged_psi")
 
 # create output dir if it does not exist
 if (!dir.exists(output_dir)) {

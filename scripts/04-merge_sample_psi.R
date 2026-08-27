@@ -147,167 +147,16 @@ read_event_table <- function(sample_paths, event_table_name) {
     )
 }
 
-## afe/ale/five/three have the same non-sample-specfic columns
-read_afe_ale_five_three_table <- function(sample_paths, psi_event_file) {
-  # returns one data frame of afe/ale/five/three event types with all samples' psi values and junction counts as separate columns
-
-  # note some pos_ids and junction counts for exons in this table will be separated by colons
-  # e.g 0;0;0;0;0;15;16;0;0;0;0;0
-  # but this is seen in the canonical target pilot tables too
-
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, psi_event_file)
-
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-    }) |>
-      # merge samples' event tables together horizontally
-      purrr::reduce(dplyr::left_join,
-        by = c(
-          "event_id",
-          "pos_id",
-          "exon_a",
-          "exon_b",
-          "intron_a",
-          "intron_b",
-          "strand",
-          "gene_id",
-          "gene_name",
-          "label"
-        )
-      ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-  }) |>
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
-read_mse_table <- function(sample_paths) {
-  # returns one data frame of mse event types with all samples' psi values and junction counts as separate columns
-
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_MSE.txt")
-
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-    }) |>
-      # merge samples' event tables together horizontally
-      purrr::reduce(dplyr::left_join,
-        by = c(
-          "event_id",
-          "pos_id",
-          "mse_n",
-          "exon",
-          "intron",
-          "strand",
-          "gene_id",
-          "gene_name",
-          "label"
-        )
-      ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-  }) |>
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
-read_mxe_table <- function(sample_paths) {
-  # returns one data frame of mse event types with all samples' psi values and junction counts as separate columns
-
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_MXE.txt")
-
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-    }) |>
-      # merge samples' event tables together horizontally
-      purrr::reduce(dplyr::left_join,
-        by = c(
-          "event_id",
-          "pos_id",
-          "exon_a",
-          "exon_b",
-          "intron_a1",
-          "intron_a2",
-          "intron_b1",
-          "intron_b2",
-          "strand",
-          "gene_id",
-          "gene_name",
-          "label"
-        )
-      ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-  }) |>
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
-read_ri_table <- function(sample_paths) {
-  # returns one data frame of ri event types with all samples' psi values and junction counts as separate columns
-
-  # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_RI.txt")
-
-    # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-    }) |>
-      # merge samples' event tables together horizontally
-      purrr::reduce(dplyr::left_join,
-        by = c(
-          "event_id",
-          "pos_id",
-          "exon_a",
-          "exon_b",
-          "exon_c",
-          "intron_a",
-          "strand",
-          "gene_id",
-          "gene_name",
-          "label"
-        )
-      ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
-  }) |>
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows()
-}
-
 ### read in and merge psi tables ###
 
 merged_se_table <- read_event_table(sample_paths, out_file_list["se"])
+merged_afe_table <- read_event_table(sample_paths, out_file_list["afe"])
+merged_ale_table <- read_event_table(sample_paths, out_file_list["ale"])
+merged_five_table <- read_event_table(sample_paths, out_file_list["five"])
+merged_three_table <- read_event_table(sample_paths, out_file_list["three"])
+merged_mse_table <- read_event_table(sample_paths, out_file_list["mse"])
+merged_mxe_table <- read_event_table(sample_paths, out_file_list["mxe"])
+merged_ri_table <- read_event_table(sample_paths, out_file_list["ri"])
 merged_matrix <- read_sample_psi_matrix(sample_paths)
 
 ### write output ###
@@ -319,6 +168,9 @@ all_outputs <- list(
   ale = merged_ale_table,
   five = merged_five_table,
   three = merged_three_table,
+  mse = merged_mse_table,
+  mxe = merged_mxe_table,
+  ri = merged_ri_table,
   matrix = merged_matrix
 )
 

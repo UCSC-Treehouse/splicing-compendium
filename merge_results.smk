@@ -132,6 +132,53 @@ rule merge_junctions:
         rm -rf $tempdir
         """
 
+
+rule merge_junctions_persample:
+    input: JUNCTION_BEDS
+    # output is one bedfile per sample, all in a single directory
+    output:
+        bedfile = "<merged_shiba_results>/merged_junctions/all_junctions.bed",
+        counts = expand("<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv", sample = SAMPLES)
+    params:
+        output_dir = subpath(output.bedfile, parent=True)
+    priority: 10
+    threads: 15
+    resources:
+        mem_mb = 1600000,
+        runtime = 400
+    shell:
+        """
+        tempdir=$(mktemp -d)
+        # initialize a number for identifying the temp junction files
+        n=1
+
+        for file in {input}; do
+            # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
+            awk 'BEGIN{{FS=OFS="\t"}} {{ # set tab as delimiter
+              for (i = 1; i <= NF; i++) {{
+                  if ($i ~ /;/) {{ # only process fields containing ";"
+                      n = split($i, parts, ";") # split into parts on semicolons
+                      new = parts[1]
+                      for (j = 2; j <= n; j++) {{
+                          if (parts[j] != parts[j-1]) {{ # skip consecutive duplicates
+                              new = new ";" parts[j] # reassemble if values are different
+                          }}
+                      }}
+                      $i = new
+                  }}
+              }}
+              print
+          }}' $file > $tempdir/$n.bed
+
+          ((n ++))
+        done
+
+        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir {params.output_dir}
+
+        # remove tempdir of deduplicated junctions
+        rm -rf $tempdir
+        """
+
 rule gtf_to_events:
     input:
         merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
@@ -152,7 +199,8 @@ rule gtf_to_events:
 
 rule calculate_sample_psi:
     input:
-        merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
+        junctions = "<merged_shiba_results>/merged_junctions/all_junctions.bed",
+        junction_sample_count = "<merged_shiba_results>/merged_junctions/{sample}_junction_counts.tsv",
         events_dir = "<merged_shiba_results>/events",
     output:
         shiba_psi_out = directory("<merged_shiba_results>/sample_psi/{sample}")
@@ -166,16 +214,17 @@ rule calculate_sample_psi:
         runtime = 360
     shell:
         """
-        temp_bed=$(mktemp)
+        tempfile=$(mktemp)
+        trap "rm -f $tempfile" EXIT
 
-        # find the sample id column:
-        sample_col=$(awk -F'\t' -v col="{wildcards.sample}" 'NR==1{{for(i=1;i<=NF;i++) if($i==col){{print i;exit}}}}' {input.merged_junctions})
-
-        # make the individual sample bed file
-        cut -f1-4,$sample_col {input.merged_junctions} > $temp_bed
-
-        python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py -m {params.min_reads} -p {threads} -v --onlypsi $temp_bed {input.events_dir} {output.shiba_psi_out}
-        rm $temp_bed
+        paste -d "\t" {input.junctions} {input.junction_sample_count} > $tempfile
+        python ${{CONDA_PREFIX:-.}}/{params.shiba_scripts}/psi.py \
+            -m {params.min_reads} \
+            -p {threads} \
+            -v \
+            --onlypsi \
+            $tempfile {input.events_dir} \
+            {output.shiba_psi_out}
         """
 
 

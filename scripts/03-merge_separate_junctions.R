@@ -25,11 +25,19 @@ suppressPackageStartupMessages({
   library(optparse)
   library(dplyr)
   library(duckplyr)
+  library(dbplyr)
 })
 
 
 # Set up options to Rscript with optparse
 option_list <- list(
+  make_option(
+    "--threads",
+    type = "integer",
+    default = parallel::detectCores(),
+    help = "DuckDB worker threads"
+    ),
+
   make_option(
     opt_str = "--junctions",
     type = "character",
@@ -107,7 +115,7 @@ sample_df <- junction_paths |>
     colnames <- readr::read_tsv(
       path,
       n_max = 0,
-      col_types = c(.default = "c")
+      col_types = readr::cols(.default = "c")
     ) |>
       names()
     # get the last value
@@ -144,6 +152,14 @@ long_junctions <- read_csv_duckdb(
   left_join(sample_df, by = c("filename" = "path")) |>
   select(!filename)
 
+# turn long table into a 'tbl' duckdb table reference
+lj_tbl <- duckplyr::as_tbl(long_junctions)
+# extract duckdb connection object for raw sql statement execution
+con <- dbplyr::remote_con(lj_tbl)
+
+# use threads for the rule
+DBI::dbExecute(con, sprintf("PRAGMA threads=%d", opt$threads))
+
 
 # the union of junctions seen in any sample
 # (this replaces the pivot: every output file uses this same row set)
@@ -165,59 +181,42 @@ if (nrow(dup_rows) > 0) {
   )
 }
 
+nm <- as.character(dbplyr::remote_name(lj_tbl))
+pivot_sql <- glue::glue_sql(
+  'PIVOT {`nm`} ON sample USING coalesce(first(count), 0) GROUP BY chr, "start", "end", ID',
+  .con = con
+)
+
+# materialize the pivot ONCE, reuse for every output file
+wide <- tbl(con, sql(pivot_sql)) |>
+  arrange(chr, start, end) |>
+  compute() |>
+  as_duckdb_tibble(prudence = "stingy")
+
 if (output_merged) {
   ## Merged mode: one wide table with a column per sample ##
 
-  # get the table name and connection for direct dbplyr SQL query
-  lj_tbl <- duckplyr::as_tbl(long_junctions)
-  con <- dbplyr::remote_con(lj_tbl) # duckplyr's DuckDB connection
-  nm <- as.character(dbplyr::remote_name(lj_tbl)) # the temp view's name
-
-  # create the SQL query to pivot the long table within DuckDB
-  pivot_sql <- glue::glue_sql(
-    '
-    PIVOT {`nm`}
-    ON sample
-    USING coalesce(first(count), 0)
-    GROUP BY chr, "start", "end", ID
-  ',
-    .con = con
-  )
-
-  ## Save merged junction counts as output
-  tbl(con, sql(pivot_sql)) |>
-    arrange(chr, start, end) |>
-    compute() |>
-    as_duckdb_tibble(prudence = "stingy") |>
+   wide |>
     duckplyr::compute_csv(
       opt$output_file,
-      options = list(delim = "\t", header = TRUE)
-    )
+      options = list(delim = "\t", header = TRUE))
+
 } else {
   ## Separate mode: one count file per sample + junction bed ##
-  # save the junction bed file
-  all_junctions |>
+
+  wide |>
     select(chr, start, end, ID) |>
-    as_duckdb_tibble(prudence = "stingy") |>
     duckplyr::compute_csv(
-      file.path(opt$output_dir, "all_junctions.bed"),
+      file.path(
+        opt$output_dir, "all_junctions.bed"
+      ),
       options = list(delim = "\t", header = TRUE)
     )
 
   # create one count file per sample
   purrr::walk(sample_df$sample, \(sample_name) {
-    all_junctions |>
-      left_join(
-        long_junctions |>
-          filter(sample == .env$sample_name) |>
-          select(chr, start, end, ID, count),
-        by = c("chr", "start", "end", "ID")
-      ) |>
-      # samples missing a junction get a zero count, as the pivot does
-      mutate(count = coalesce(count, 0L)) |>
-      arrange(chr, start, end) |>
-      select("{sample_name}" := count) |>
-      as_duckdb_tibble(prudence = "stingy") |>
+    wide |>
+      select(all_of(sample_name)) |>
       duckplyr::compute_csv(
         file.path(opt$output_dir, paste0(sample_name, "_junction_counts.tsv")),
         options = list(delim = "\t", header = TRUE)

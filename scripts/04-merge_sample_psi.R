@@ -49,13 +49,13 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 results_dir <- file.path(repo_root, "results")
 compendium_results_dir <- file.path(results_dir, "merged_shiba")
 version_dir <- file.path(compendium_results_dir, opt$version_dir)
-psi_dir <- file.path(opt$version_dir, "sample_psi")
+psi_dir <- file.path(version_dir, "sample_psi")
 
 # sample sheet dir
 config_dir <- file.path(repo_root, "config")
 
 # merged psi table output dir
-output_dir <- file.path(opt$version_dir, "merged_psi")
+output_dir <- file.path(version_dir, "merged_psi")
 
 # create output dir if it does not exist
 if (!dir.exists(output_dir)) {
@@ -113,10 +113,9 @@ names(out_paths) <- names(out_file_list)
 
 ### define functions ###
 
-# function for reading all sample PSI matrix ("PSI_matrix_sample.txt")
+# function for reading per-sample sample PSI matrices ("PSI_matrix_sample.txt")
 read_sample_psi_matrix <- function(psi_path) {
-  # returns a psi matrix data frame of all samples in sample sheet
-
+  # returns a PSI matrix data frame of all samples in sample sheet
   # construct paths to psi sample matrices
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
   # read psi matrix files
@@ -127,41 +126,25 @@ read_sample_psi_matrix <- function(psi_path) {
     purrr::reduce(dplyr::left_join, by = c("event_id", "pos_id"))
 }
 
-read_se_table <- function(sample_paths) {
-  # returns one data frame of skipped exon event types with all samples' psi values and junction counts as separate columns
+# function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
+read_event_table <- function(sample_paths, event_table_name) {
+  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # construct paths to each psi output for each sample
+  file_paths <- file.path(sample_paths, event_table_name)
 
   # loop over all samples in sample_paths
-  purrr::map(sample_paths, \(one_sample_path) {
-    # construct paths to each psi output for each sample
-    file_paths <- file.path(one_sample_path, "PSI_SE.txt")
+  purrr::map(file_paths, \(file) {
     # read each file into a table
-    purrr::map(file_paths, \(file) {
-      readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-    }) |>
-      # merge samples' event tables together horizontally
-      purrr::reduce(dplyr::left_join,
-        by = c(
-          "event_id",
-          "pos_id",
-          "exon",
-          "intron_a",
-          "intron_b",
-          "intron_c",
-          "strand",
-          "gene_id",
-          "gene_name",
-          "label"
-        )
-      ) |>
-      # move identifying columns to the front for spot-checking
-      dplyr::relocate(
-        "event_id",
-        "pos_id",
-        "gene_id"
-      )
+    readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
   }) |>
     # merge per-sample tables into one vertically
-    dplyr::bind_rows()
+    dplyr::bind_rows() |>
+    # move identifying columns to the front for spot-checking
+    dplyr::relocate(
+      "event_id",
+      "pos_id",
+      "gene_id"
+    )
 }
 
 ## afe/ale/five/three have the same non-sample-specfic columns
@@ -324,11 +307,7 @@ read_ri_table <- function(sample_paths) {
 
 ### read in and merge psi tables ###
 
-merged_se_table <- read_se_table(sample_paths)
-merged_afe_table <- read_afe_ale_five_three_table(sample_paths, "PSI_AFE.txt")
-merged_ale_table <- read_afe_ale_five_three_table(sample_paths, "PSI_ALE.txt")
-merged_five_table <- read_afe_ale_five_three_table(sample_paths, "PSI_FIVE.txt")
-merged_three_table <- read_afe_ale_five_three_table(sample_paths, "PSI_THREE.txt")
+merged_se_table <- read_event_table(sample_paths, out_file_list["se"])
 merged_matrix <- read_sample_psi_matrix(sample_paths)
 
 ### write output ###

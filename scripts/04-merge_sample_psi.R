@@ -150,6 +150,13 @@ read_event_table <- function(sample_paths, event_table_name) {
 ### read in and merge psi tables ###
 
 merged_se_table <- read_event_table(sample_paths, out_file_list["se"])
+merged_afe_table <- read_event_table(sample_paths, out_file_list["afe"])
+merged_ale_table <- read_event_table(sample_paths, out_file_list["ale"])
+merged_five_table <- read_event_table(sample_paths, out_file_list["five"])
+merged_three_table <- read_event_table(sample_paths, out_file_list["three"])
+merged_mse_table <- read_event_table(sample_paths, out_file_list["mse"])
+merged_mxe_table <- read_event_table(sample_paths, out_file_list["mxe"])
+merged_ri_table <- read_event_table(sample_paths, out_file_list["ri"])
 merged_matrix <- read_sample_psi_matrix(sample_paths)
 
 ### write output ###
@@ -157,6 +164,13 @@ merged_matrix <- read_sample_psi_matrix(sample_paths)
 # roll outputs into a list for writing outputs with purrr
 all_outputs <- list(
   se = merged_se_table,
+  afe = merged_afe_table,
+  ale = merged_ale_table,
+  five = merged_five_table,
+  three = merged_three_table,
+  mse = merged_mse_table,
+  mxe = merged_mxe_table,
+  ri = merged_ri_table,
   matrix = merged_matrix
 )
 

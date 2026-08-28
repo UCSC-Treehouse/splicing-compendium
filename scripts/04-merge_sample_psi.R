@@ -52,7 +52,7 @@ version_dir <- file.path(compendium_results_dir, opt$version_dir)
 psi_dir <- file.path(version_dir, "sample_psi")
 
 # merged psi table output dir
-output_dir <- file.path(version_dir, "merged_psi")
+output_dir <- file.path(version_dir, "merged_persample_psi")
 
 # create output dir if it does not exist
 if (!dir.exists(output_dir)) {

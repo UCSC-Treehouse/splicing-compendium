@@ -125,19 +125,18 @@ read_event_table <- function(sample_paths, event_table_name) {
   # construct paths to each psi output for each sample
   file_paths <- file.path(sample_paths, event_table_name)
 
-  # read in all paths into tables and merge them together
-  purrr::map(file_paths, \(file) {
-    duckplyr::read_csv_duckdb(file, options = list(delim = "\t"))
-    }) |>
-    # merge vertically but preserve sample-specific columns
-    dplyr::bind_rows() |>
-    # move identifying columns to the front
-    dplyr::relocate(
-      "event_id",
-      "pos_id",
-      "gene_id"
-    ) |>
-    dplyr::collect()
+  # build a UNION ALL BY NAME query across all files directly in DuckDB
+  union_sql <- paste(
+    sprintf("SELECT * FROM read_csv('%s', delim = '\t')", file_paths),
+    collapse = "\nUNION ALL BY NAME\n"
+  )
+
+  con <- duckplyr:::get_default_duckdb_connection()
+
+  DBI::dbGetQuery(con, union_sql) |>
+  dplyr::relocate("event_id", "pos_id", "gene_id") |>
+  # materialize
+  dplyr::collect()
 }
 
 ### read in and merge psi tables ###

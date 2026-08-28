@@ -6,12 +6,13 @@
 # the sample name for each file is taken from the sample sheet passed to the workflow's configfile
 #
 # usage:
-#   Rscript 04-merge_sample_psi.R --sample_sheet=sample_sheet.tsv --version_dir=v1.1.0_two_sample
+#   Rscript 04-merge_sample_psi.R --sample_sheet=sample_sheet.tsv --version_dir=v1.1.0_two_sample --output_dir=out_dir
 
 # load packages
 suppressPackageStartupMessages({
   library(optparse)
   library(dplyr)
+  library(duckplyr)
 })
 
 # set up options to Rscript with optparse
@@ -28,7 +29,7 @@ option_list <- list(
     action = "store",
     help = "name of version directory of separate PSI results"
   ),
-    make_option(
+  make_option(
     opt_str = "--output_dir",
     type = "character",
     action = "store",
@@ -75,18 +76,6 @@ samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>
   dplyr::pull(sample) |>
   as.list()
 
-# define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
-psi_file_list <- c(
-  se = "PSI_SE.txt",
-  afe = "PSI_AFE.txt",
-  ale = "PSI_ALE.txt",
-  five = "PSI_FIVE.txt",
-  three = "PSI_THREE.txt",
-  mse = "PSI_MSE.txt",
-  mxe = "PSI_MXE.txt",
-  ri = "PSI_RI.txt"
-)
-
 # make sample psi table paths
 sample_paths <- file.path(
   psi_dir,
@@ -121,12 +110,13 @@ read_sample_psi_matrix <- function(psi_path) {
   # returns a PSI matrix data frame of all samples in sample sheet
   # construct paths to psi sample matrices
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
-  # read psi matrix files
-  matrix_list <- purrr::map(file_paths, \(file) {
-    readr::read_tsv(file, col_types = readr::cols(.default = "c"))
-  }) |>
-    # Join them all by a common column name
-    purrr::reduce(dplyr::left_join, by = c("event_id", "pos_id"))
+  # read psi matrix files and merge them together with duckplyr
+  matrix_tables <- purrr::map(file_paths, \(file) {
+    duckplyr::read_csv_duckdb(file, options = list(delim = "\t"))
+  })
+
+  purrr::reduce(matrix_tables, \(x, y) dplyr::left_join(x, y, by = c("event_id", "pos_id"))) |>
+    dplyr::collect() # only materialize once, at the very end
 }
 
 # function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
@@ -135,19 +125,18 @@ read_event_table <- function(sample_paths, event_table_name) {
   # construct paths to each psi output for each sample
   file_paths <- file.path(sample_paths, event_table_name)
 
-  # loop over all samples in sample_paths
-  purrr::map(file_paths, \(file) {
-    # read each file into a table
-    readr::read_tsv(file, col_names = TRUE, col_types = readr::cols(.default = "c"))
-  }) |>
-    # merge per-sample tables into one vertically
-    dplyr::bind_rows() |>
+  # read in all paths into tables and merge them together
+  duckplyr::read_csv_duckdb(
+    file_paths,
+    options = list(delim = "\t")
+  ) |>
     # move identifying columns to the front for spot-checking
     dplyr::relocate(
       "event_id",
       "pos_id",
       "gene_id"
-    )
+    ) |>
+    dplyr::collect()
 }
 
 ### read in and merge psi tables ###

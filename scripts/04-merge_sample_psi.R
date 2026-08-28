@@ -140,33 +140,33 @@ read_event_table <- function(sample_paths, event_table_name) {
 }
 
 ### read in and merge psi tables ###
+# merge each PSI table
+# then write to output and remove it after writing
 
-merged_se_table <- read_event_table(sample_paths, out_file_list["se"])
-merged_afe_table <- read_event_table(sample_paths, out_file_list["afe"])
-merged_ale_table <- read_event_table(sample_paths, out_file_list["ale"])
-merged_five_table <- read_event_table(sample_paths, out_file_list["five"])
-merged_three_table <- read_event_table(sample_paths, out_file_list["three"])
-merged_mse_table <- read_event_table(sample_paths, out_file_list["mse"])
-merged_mxe_table <- read_event_table(sample_paths, out_file_list["mxe"])
-merged_ri_table <- read_event_table(sample_paths, out_file_list["ri"])
+# make list of event types to loop through
+event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
+
+# loop through event types
+for (event_type in event_types) {
+  # print message for log
+  message("Merging ", event_type, " PSI tables")
+
+  # create merged table object
+  merged_event_table <- read_event_table(sample_paths, out_file_list[event_type])
+  readr::write_tsv(merged_event_table, out_paths[[event_type]])
+
+  # remove table and clear from memory
+  rm(merged_event_table)
+  gc()
+
+}
+
+# print message when merging matrix
+message("Merging PSI sample matrix")
+# merge matrices and write merged matrix to output
 merged_matrix <- read_sample_psi_matrix(sample_paths)
+readr::write_tsv(merged_matrix, out_paths[["matrix"]])
 
-### write output ###
-
-# roll outputs into a list for writing outputs with purrr
-all_outputs <- list(
-  se = merged_se_table,
-  afe = merged_afe_table,
-  ale = merged_ale_table,
-  five = merged_five_table,
-  three = merged_three_table,
-  mse = merged_mse_table,
-  mxe = merged_mxe_table,
-  ri = merged_ri_table,
-  matrix = merged_matrix
-)
-
-# give purrr iwalk the list of named output files and write output using named output paths
-purrr::iwalk(all_outputs, \(df, name) {
-  readr::write_tsv(df, out_paths[[name]])
-})
+# remove merged matrix from memory
+rm(merged_matrix)
+gc()

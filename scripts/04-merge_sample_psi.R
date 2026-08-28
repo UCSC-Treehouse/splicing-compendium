@@ -27,6 +27,12 @@ option_list <- list(
     type = "character",
     action = "store",
     help = "name of version directory of separate PSI results"
+  ),
+    make_option(
+    opt_str = "--output_dir",
+    type = "character",
+    action = "store",
+    help = "name of output directory of merged PSI results"
   )
 )
 
@@ -35,8 +41,8 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
-if ((is.null(opt$sample_sheet) || is.null(opt$version_dir))) {
-  stop("Specify --sample_sheet and --version_dir.")
+if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir)) {
+  stop("Specify --sample_sheet, --version_dir, and --output_dir.")
 }
 
 ### read in file paths ###
@@ -52,7 +58,7 @@ version_dir <- file.path(compendium_results_dir, opt$version_dir)
 psi_dir <- file.path(version_dir, "sample_psi")
 
 # merged psi table output dir
-output_dir <- file.path(version_dir, "merged_persample_psi")
+output_dir <- file.path(opt$output_dir)
 
 # create output dir if it does not exist
 if (!dir.exists(output_dir)) {

@@ -145,8 +145,6 @@ assemble_event_table <- function(sample_paths, event_table_name) {
 
   DBI::dbGetQuery(con, union_sql) |>
   dplyr::relocate("event_id", "pos_id", "gene_id") |>
-  # materialize
-  dplyr::collect()
 }
 
 ### read in and merge psi tables ###
@@ -162,21 +160,19 @@ for (event_type in event_types) {
   message("Merging ", event_type, " PSI tables")
 
   # create merged table object
-  merged_event_table <- assemble_event_table(sample_paths, out_file_list[event_type])
-  readr::write_tsv(merged_event_table, out_paths[[event_type]])
-
-  # remove table and clear from memory
-  rm(merged_event_table)
-  gc()
+  assemble_event_table(sample_paths, out_file_list[event_type]) |>
+  duckplyr::compute_csv(
+    out_paths[[event_type]],
+    options = list(delim = "\t", header = TRUE)
+    )
 
 }
 
 # print message when merging matrix
 message("Merging PSI sample matrix")
 # merge matrices and write merged matrix to output
-merged_matrix <- read_sample_psi_matrix(sample_paths)
-readr::write_tsv(merged_matrix, out_paths[["matrix"]])
-
-# remove merged matrix from memory
-rm(merged_matrix)
-gc()
+read_sample_psi_matrix(sample_paths) |>
+duckplyr::compute_csv(
+  out_paths[["matrix"]],
+  options = list(delim = "\t", header = TRUE)
+  )

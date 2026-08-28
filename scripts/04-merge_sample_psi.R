@@ -110,7 +110,7 @@ read_sample_psi_matrix <- function(psi_path) {
   # returns a PSI matrix data frame of all samples in sample sheet
   # construct paths to psi sample matrices
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
-  # read psi matrix files and merge them together with duckplyr
+  # read single-sample psi matrix files and merge them together with duckplyr
   matrix_tables <- purrr::map(file_paths, \(file) {
     duckplyr::read_csv_duckdb(file, options = list(delim = "\t"))
   })

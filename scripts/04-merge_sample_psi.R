@@ -126,14 +126,11 @@ read_event_table <- function(sample_paths, event_table_name) {
   file_paths <- file.path(sample_paths, event_table_name)
 
   # read in all paths into tables and merge them together
-  event_tables <- purrr::map(file_paths, \(file) {
+  purrr::map(file_paths, \(file) {
     duckplyr::read_csv_duckdb(file, options = list(delim = "\t"))
-    })
-
-    purrr::reduce(
-      event_tables,
-      \(x, y) dplyr::left_join(x, y, by = c("event_id", "pos_id", "gene_id"))
-    ) |>
+    }) |>
+    # merge vertically but preserve sample-specific columns
+    dplyr::bind_rows()
     # move identifying columns to the front
     dplyr::relocate(
       "event_id",

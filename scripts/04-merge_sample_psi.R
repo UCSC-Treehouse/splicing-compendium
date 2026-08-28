@@ -125,8 +125,7 @@ read_sample_psi_matrix <- function(psi_path) {
       ))
   })
 
-  purrr::reduce(matrix_tables, \(x, y) dplyr::left_join(x, y, by = c("event_id", "pos_id"))) |>
-    dplyr::collect() # only materialize once, at the very end
+  purrr::reduce(matrix_tables, \(x, y) dplyr::left_join(x, y, by = c("event_id", "pos_id")))
 }
 
 # function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
@@ -135,16 +134,15 @@ assemble_event_table <- function(sample_paths, event_table_name) {
   # construct paths to each psi output for each sample
   file_paths <- file.path(sample_paths, event_table_name)
 
-  # build a UNION ALL BY NAME query across all files directly in DuckDB
-  union_sql <- paste(
-    sprintf("SELECT * FROM read_csv('%s', delim = '\t')", file_paths),
-    collapse = "\nUNION ALL BY NAME\n"
+  # pass all samples from file paths to DuckDB list to construct union query
+  files_sql <- paste0("['", paste(file_paths, collapse = "','"), "']")
+  query <- sprintf(
+    "SELECT * FROM read_csv(%s, delim = '\t', union_by_name = true)",
+    files_sql
   )
 
-  con <- duckplyr:::get_default_duckdb_connection()
-
-  DBI::dbGetQuery(con, union_sql) |>
-  dplyr::relocate("event_id", "pos_id", "gene_id") |>
+  DBI::dbGetQuery(con, query) |>
+    dplyr::relocate("event_id", "pos_id", "gene_id")
 }
 
 ### read in and merge psi tables ###

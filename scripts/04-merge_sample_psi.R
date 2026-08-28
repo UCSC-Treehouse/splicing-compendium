@@ -111,21 +111,30 @@ names(out_paths) <- names(out_file_list)
 ### define functions ###
 
 # function for reading per-sample sample PSI matrices ("PSI_matrix_sample.txt")
-read_sample_psi_matrix <- function(psi_path) {
+read_sample_psi_matrix <- function(psi_path, samples) {
   # returns a PSI matrix data frame of all samples in sample sheet
   # construct paths to psi sample matrices
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
+
   # read single-sample psi matrix files and merge them together with duckplyr
-  matrix_tables <- purrr::map(file_paths, \(file) {
+  long_tables <- purrr::map2(file_paths, samples, \(file, sample_name) {
     duckplyr::read_csv_duckdb(file,
     options = list(
       delim = "\t",
       union_by_name = TRUE,
       header = TRUE
-      ))
+      )) |>
+      dplyr::collect() |>
+      tidyr::pivot_longer(
+        cols = !c(event_id, pos_id),
+        names_to = "sample",
+        values_to = "psi"
+      )
   })
 
-  purrr::reduce(matrix_tables, \(x, y) dplyr::left_join(x, y, by = c("event_id", "pos_id")))
+  # pivot wide once after all samples are stacked
+  purrr::list_rbind(long_tables) |>
+    tidyr::pivot_wider(names_from = sample, values_from = psi)
 }
 
 # function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")

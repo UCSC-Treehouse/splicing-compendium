@@ -130,7 +130,7 @@ read_event_table <- function(sample_paths, event_table_name) {
     duckplyr::read_csv_duckdb(file, options = list(delim = "\t"))
     }) |>
     # merge vertically but preserve sample-specific columns
-    dplyr::bind_rows()
+    dplyr::bind_rows() |>
     # move identifying columns to the front
     dplyr::relocate(
       "event_id",

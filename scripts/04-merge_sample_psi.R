@@ -180,7 +180,7 @@ for (event_type in event_types) {
 # print message when merging matrix
 message("Merging PSI sample matrix")
 # merge matrices and write merged matrix to output
-read_sample_psi_matrix(sample_paths) |>
+read_sample_psi_matrix(sample_paths, samples) |>
 duckplyr::compute_csv(
   out_paths[["matrix"]],
   options = list(delim = "\t", header = TRUE)

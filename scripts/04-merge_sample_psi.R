@@ -72,7 +72,12 @@ if (!dir.exists(output_dir)) {
 samples_file <- file.path(opt$sample_sheet)
 
 # read in sample sheet and create list of samples from samples column
-samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>
+samples <- duckplyr::read_csv_duckdb(samples_file,
+options = list(
+  delim = "\t",
+  union_by_name = TRUE,
+  header = TRUE
+  )) |>
   dplyr::pull(sample) |>
   as.list()
 
@@ -112,7 +117,12 @@ read_sample_psi_matrix <- function(psi_path) {
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
   # read single-sample psi matrix files and merge them together with duckplyr
   matrix_tables <- purrr::map(file_paths, \(file) {
-    duckplyr::read_csv_duckdb(file, options = list(delim = "\t"))
+    duckplyr::read_csv_duckdb(file,
+    options = list(
+      delim = "\t",
+      union_by_name = TRUE,
+      header = TRUE
+      ))
   })
 
   purrr::reduce(matrix_tables, \(x, y) dplyr::left_join(x, y, by = c("event_id", "pos_id"))) |>
@@ -152,7 +162,7 @@ for (event_type in event_types) {
   message("Merging ", event_type, " PSI tables")
 
   # create merged table object
-  merged_event_table <- read_event_table(sample_paths, out_file_list[event_type])
+  merged_event_table <- assemble_event_table(sample_paths, out_file_list[event_type])
   readr::write_tsv(merged_event_table, out_paths[[event_type]])
 
   # remove table and clear from memory

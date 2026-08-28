@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-configfile: "config/test_merge_config.yaml"
+configfile: "config/compendium_v1_merge_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])
@@ -237,8 +237,8 @@ rule merge_persample_psi:
     priority: 1
     threads: 15 # not currently in use
     resources:
-        mem_mb = 1000,
-        runtime = 60
+        mem_mb = 1200000,
+        runtime = 720
     shell:
         """
         Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output}

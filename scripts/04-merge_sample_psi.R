@@ -20,7 +20,7 @@ option_list <- list(
     opt_str = "--sample_sheet",
     type = "character",
     action = "store",
-    help = "name of sample sheet with list of sample IDs"
+    help = "path to sample sheet with list of sample IDs"
   ),
   make_option(
     opt_str = "--version_dir",
@@ -51,9 +51,6 @@ compendium_results_dir <- file.path(results_dir, "merged_shiba")
 version_dir <- file.path(compendium_results_dir, opt$version_dir)
 psi_dir <- file.path(version_dir, "sample_psi")
 
-# sample sheet dir
-config_dir <- file.path(repo_root, "config")
-
 # merged psi table output dir
 output_dir <- file.path(version_dir, "merged_psi")
 
@@ -65,7 +62,7 @@ if (!dir.exists(output_dir)) {
 ## Files ##
 
 # sample sheet file with sample names
-samples_file <- file.path(config_dir, opt$sample_sheet)
+samples_file <- file.path(opt$sample_sheet)
 
 # read in sample sheet and create list of samples from samples column
 samples <- readr::read_tsv(samples_file, col_types = list(.default = "c")) |>

@@ -33,7 +33,7 @@ JUNCTION_BEDS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        directory("<merged_shiba_results>/merged_persample_psi")
+        "<merged_shiba_results>/merged_persample_psi"
 
 rule bam2gtf:
     input:
@@ -228,11 +228,9 @@ rule calculate_sample_psi:
 
 rule merge_persample_psi:
     input:
-        persample_psi_dir = directory(
-            expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
-        )
+        persample_psi_dir = expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
     output:
-        "<merged_shiba_results>/merged_persample_psi"
+        directory("<merged_shiba_results>/merged_persample_psi")
     params:
         sample_sheet = config["sample_sheet"],
         version = config["version"]
@@ -240,10 +238,10 @@ rule merge_persample_psi:
     threads: 15 # not currently in use
     resources:
         mem_mb = 1000,
-        runtime = 1000
+        runtime = 60
     shell:
         """
-        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version}
+        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output}
         """
 
 rule calculate_merged_psi:

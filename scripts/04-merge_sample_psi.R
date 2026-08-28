@@ -120,7 +120,7 @@ read_sample_psi_matrix <- function(psi_path) {
 }
 
 # function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
-read_event_table <- function(sample_paths, event_table_name) {
+assemble_event_table <- function(sample_paths, event_table_name) {
   # returns one data frame of skipped exon event types with all samples' psi values as separate columns
   # construct paths to each psi output for each sample
   file_paths <- file.path(sample_paths, event_table_name)

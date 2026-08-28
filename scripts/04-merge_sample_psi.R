@@ -150,6 +150,8 @@ assemble_event_table <- function(sample_paths, event_table_name) {
     files_sql
   )
 
+  con <- duckplyr:::get_default_duckdb_connection()
+
   DBI::dbGetQuery(con, query) |>
     dplyr::relocate("event_id", "pos_id", "gene_id")
 }

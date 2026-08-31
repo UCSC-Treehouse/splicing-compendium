@@ -140,7 +140,7 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path) {
   )
 
   # execute above queries in the connection
-  DBI::dbExecute(con, query)
+  DBI::dbExecute(con, merged_table)
 
 }
 

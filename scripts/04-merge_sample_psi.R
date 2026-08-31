@@ -167,8 +167,15 @@ assemble_event_table <- function(sample_paths, event_table_name, out_path) {
 }
 
 ### read in and merge psi tables ###
-# merge each PSI table
-# then write to output and remove it after writing
+
+# print message when merging matrix
+message("Merging PSI sample matrix")
+# merge matrices and write merged matrix to output
+read_sample_psi_matrix(sample_paths, samples) |>
+duckplyr::compute_csv(
+  out_paths[["matrix"]],
+  options = list(delim = "\t", header = TRUE)
+  )
 
 # make list of event types to loop through
 event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
@@ -182,12 +189,3 @@ for (event_type in event_types) {
   assemble_event_table(sample_paths, out_file_list[event_type], out_paths[event_type])
 
 }
-
-# print message when merging matrix
-message("Merging PSI sample matrix")
-# merge matrices and write merged matrix to output
-read_sample_psi_matrix(sample_paths, samples) |>
-duckplyr::compute_csv(
-  out_paths[["matrix"]],
-  options = list(delim = "\t", header = TRUE)
-  )

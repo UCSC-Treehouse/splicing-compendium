@@ -122,7 +122,7 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path) {
   # build a SQL select statement for each sample to read each file, match columns by name, and rename PSI column with sample name for merging
   selects <- purrr::map2_chr(file_paths, samples, \(file_path, sample) {
     sprintf(
-      "SELECT event_id, pos_id, \"%s\" FROM read_csv('%s', delim='\t', union_by_name=true)",
+      "SELECT event_id, pos_id, \"%s\" FROM read_csv('%s', delim='\t', header=true, union_by_name=true)",
       sample, file_path
     )
   })
@@ -163,7 +163,7 @@ assemble_event_table <- function(sample_paths, event_table_name, out_path) {
   query <- sprintf(
     "COPY (
        SELECT event_id, pos_id, gene_id, * EXCLUDE (event_id, pos_id, gene_id)
-       FROM read_csv(%s, delim = '\t', union_by_name = true)
+       FROM read_csv(%s, delim = '\t', header=true, union_by_name = true)
      ) TO '%s' (DELIMITER '\t', HEADER)",
     files_sql, out_path
   )

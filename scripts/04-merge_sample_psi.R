@@ -138,20 +138,30 @@ read_sample_psi_matrix <- function(psi_path, samples) {
 }
 
 # function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
-assemble_event_table <- function(sample_paths, event_table_name) {
+assemble_event_table <- function(sample_paths, event_table_name, out_path) {
   # returns one data frame; rows are events; all samples' psi values are in separate columns
-  # construct paths to each psi output for each sample
+  # construct vector of paths to each psi output for each sample
   file_paths <- file.path(sample_paths, event_table_name)
 
-  # pass all samples from file paths to DuckDB list to construct union query
+  # format paths into a SQL list by joining the paths into a string separated by , and enclosed by brackets
   files_sql <- paste0("['", paste(file_paths, collapse = "','"), "']")
-  query <- sprintf(
-    "SELECT * FROM read_csv(%s, delim = '\t', union_by_name = true)",
-    files_sql
-  )
 
+  # obtain duckdb connection object so query won't open a new DuckDB session
   con <- duckplyr:::get_default_duckdb_connection()
 
+  # build SQL query string for files in the file list
+  # read all files in list of paths as one table with cols matched by header names
+  # reorders columns so that event_id, pos_id, and gene_id are at teh front
+  # then streams the result to out_path
+  query <- sprintf(
+    "COPY (
+       SELECT event_id, pos_id, gene_id, * EXCLUDE (event_id, pos_id, gene_id)
+       FROM read_csv(%s, delim = '\t', union_by_name = true)
+     ) TO '%s' (DELIMITER '\t', HEADER)",
+    files_sql, out_path
+  )
+
+  # execute query on the connection
   DBI::dbGetQuery(con, query) |>
     dplyr::relocate("event_id", "pos_id", "gene_id")
 }
@@ -169,11 +179,7 @@ for (event_type in event_types) {
   message("Merging ", event_type, " PSI tables")
 
   # create merged table object
-  assemble_event_table(sample_paths, out_file_list[event_type]) |>
-  duckplyr::compute_csv(
-    out_paths[[event_type]],
-    options = list(delim = "\t", header = TRUE)
-    )
+  assemble_event_table(sample_paths, out_file_list[event_type], out_paths[event_type])
 
 }
 

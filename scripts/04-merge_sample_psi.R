@@ -111,30 +111,37 @@ names(out_paths) <- names(out_file_list)
 ### define functions ###
 
 # function for reading per-sample sample PSI matrices ("PSI_matrix_sample.txt")
-read_sample_psi_matrix <- function(psi_path, samples) {
+read_sample_psi_matrix <- function(psi_path, samples, out_path) {
   # returns a PSI matrix data frame of all samples in sample sheet
   # construct paths to psi sample matrices
   file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
 
-  # read single-sample psi matrix files and merge them together with duckplyr
-  long_tables <- purrr::map2(file_paths, samples, \(file, sample_name) {
-    duckplyr::read_csv_duckdb(file,
-    options = list(
-      delim = "\t",
-      union_by_name = TRUE,
-      header = TRUE
-      )) |>
-      dplyr::collect() |>
-      tidyr::pivot_longer(
-        cols = !c(event_id, pos_id),
-        names_to = "sample",
-        values_to = "psi"
-      )
+  # obtain duckdb connection object so query won't open a new DuckDB session
+  con <- duckplyr:::get_default_duckdb_connection()
+
+  # build a SQL select statement for each sample to read each file, match columns by name, and rename PSI column with sample name for merging
+  selects <- purrr::map2_chr(file_paths, samples, \(file_path, sample) {
+    sprintf(
+      "SELECT event_id, pos_id, psi AS \"%s\" FROM read_csv('%s', delim='\t', union_by_name=true)",
+      sample, file_path
+    )
   })
 
-  # pivot wide once after all samples are stacked
-  purrr::list_rbind(long_tables) |>
-    tidyr::pivot_wider(names_from = sample, values_from = psi)
+  # combine per-sample select SQL query and join them pairwise (make wide table)
+  join_sql <- Reduce(function(a, b) {
+    # perform full outer join
+      sprintf("(%s) NATURAL FULL JOIN (%s)", a, b)
+    }, selects)
+
+  # write merged table directly from stream to output
+  merged_table <- sprintf(
+    "COPY (SELECT * FROM %s) TO '%s' (DELIMITER '\t', HEADER)",
+    join_sql, out_path
+  )
+
+  # execute above queries in the connection
+  DBI::dbExecute(con, query)
+
 }
 
 # function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
@@ -171,11 +178,7 @@ assemble_event_table <- function(sample_paths, event_table_name, out_path) {
 # print message when merging matrix
 message("Merging PSI sample matrix")
 # merge matrices and write merged matrix to output
-read_sample_psi_matrix(sample_paths, samples) |>
-duckplyr::compute_csv(
-  out_paths[["matrix"]],
-  options = list(delim = "\t", header = TRUE)
-  )
+read_sample_psi_matrix(sample_paths, samples, out_paths["matrix"])
 
 # make list of event types to loop through
 event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")

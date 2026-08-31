@@ -96,8 +96,8 @@ rule merge_junctions:
     priority: 10
     threads: 15
     resources:
-        mem_mb = 1600000,
-        runtime = 400
+        mem_mb = 2200000,
+        runtime = 720
     shell:
         """
         tempdir=$(mktemp -d)
@@ -237,8 +237,8 @@ rule merge_persample_psi:
     priority: 1
     threads: 15 # not currently in use
     resources:
-        mem_mb = 1200000,
-        runtime = 720
+        mem_mb = 1600000,
+        runtime = 160
     shell:
         """
         Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output}

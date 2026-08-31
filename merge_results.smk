@@ -33,7 +33,15 @@ JUNCTION_BEDS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/merged_persample_psi"
+        matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt",
+        se = "<merged_shiba_results>/merged_persample_psi/PSI_SE.txt",
+        afe = "<merged_shiba_results>/merged_persample_psi/PSI_AFE.txt",
+        ale = "<merged_shiba_results>/merged_persample_psi/PSI_ALE.txt",
+        five = "<merged_shiba_results>/merged_persample_psi/PSI_FIVE.txt",
+        three = "<merged_shiba_results>/merged_persample_psi/PSI_THREE.txt",
+        mse = "<merged_shiba_results>/merged_persample_psi/PSI_MSE.txt",
+        mxe = "<merged_shiba_results>/merged_persample_psi/PSI_MXE.txt",
+        ri = "<merged_shiba_results>/merged_persample_psi/PSI_RI.txt"
 
 rule bam2gtf:
     input:
@@ -226,22 +234,47 @@ rule calculate_sample_psi:
             {output.shiba_psi_out}
         """
 
-rule merge_persample_psi:
+rule merge_sample_psi_matrix:
     input:
         persample_psi_dir = expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
     output:
-        directory("<merged_shiba_results>/merged_persample_psi")
+        "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
     params:
         sample_sheet = config["sample_sheet"],
-        version = config["version"]
+        version = config["version"],
+        output_dir = subpath(output, parent=True)
     priority: 1
-    threads: 15 # not currently in use
     resources:
-        mem_mb = 1600000,
-        runtime = 160
+        mem_mb = 400000,
+        runtime = 60
     shell:
         """
-        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output}
+        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.output_dir} --mode=matrix
+        """
+
+rule merge_persample_psi_event:
+    input:
+        persample_psi_dir = expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
+    output:
+        se = "<merged_shiba_results>/merged_persample_psi/PSI_SE.txt",
+        afe = "<merged_shiba_results>/merged_persample_psi/PSI_AFE.txt",
+        ale = "<merged_shiba_results>/merged_persample_psi/PSI_ALE.txt",
+        five = "<merged_shiba_results>/merged_persample_psi/PSI_FIVE.txt",
+        three = "<merged_shiba_results>/merged_persample_psi/PSI_THREE.txt",
+        mse = "<merged_shiba_results>/merged_persample_psi/PSI_MSE.txt",
+        mxe = "<merged_shiba_results>/merged_persample_psi/PSI_MXE.txt",
+        ri = "<merged_shiba_results>/merged_persample_psi/PSI_RI.txt"
+    params:
+        sample_sheet = config["sample_sheet"],
+        version = config["version"],
+        output_dir = subpath(output.se, parent=True)
+    priority: 1
+    resources:
+        mem_mb = 400000,
+        runtime = 60
+    shell:
+        """
+        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.output_dir} --mode=matrix
         """
 
 rule calculate_merged_psi:
@@ -256,7 +289,7 @@ rule calculate_merged_psi:
     priority: 1
     threads: 8
     resources:
-        mem_mb = 2200000,
+        mem_mb = 500000,
         runtime = 20160
     shell:
         """

@@ -34,6 +34,12 @@ option_list <- list(
     type = "character",
     action = "store",
     help = "name of output directory of merged PSI results"
+  ),
+  make_option(
+    opt_str = "--mode",
+    type = "character",
+    action = "store",
+    help = "specify which matrices to merge (sample PSI matrices or event matrices)"
   )
 )
 
@@ -42,7 +48,7 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
-if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir)) {
+if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir) || is.null(opt$mode)) {
   stop("Specify --sample_sheet, --version_dir, and --output_dir.")
 }
 
@@ -174,20 +180,30 @@ assemble_event_table <- function(sample_paths, event_table_name, out_path) {
 
 ### read in and merge psi tables ###
 
-# print message when merging matrix
-message("Merging PSI sample matrix")
-# merge matrices and write merged matrix to output
-read_sample_psi_matrix(sample_paths, samples, out_paths[["matrix"]])
+# save mode into variable after checking that it is not null
+merge_mode <- !is.null(opt$mode)
 
-# make list of event types to loop through
-event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
+if (merge_mode == "matrix") {
+  # sample matrix mode - merge sample matrices
+  message("Merging PSI sample matrix")
 
-# loop through event types
-for (event_type in event_types) {
-  # print message for log
-  message("Merging ", event_type, " PSI tables")
+  # merge matrices and write merged matrix to output
+  read_sample_psi_matrix(sample_paths, samples, out_paths[["matrix"]])
+} else if (merge_mode == "event") {
+  # event matrix mode - merge event matrices
+  # make list of event types to loop through
+  event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
 
-  # create merged table object
-  assemble_event_table(sample_paths, out_file_list[[event_type]], out_paths[[event_type]])
+  # loop through event types
+  for (event_type in event_types) {
+    # print message for log
+    message("Merging ", event_type, " PSI tables")
 
+    # create merged table object
+    assemble_event_table(sample_paths, out_file_list[[event_type]], out_paths[[event_type]])
+
+  }
+} else {
+  # quit with error
+  stop("Please enter valid merge mode option")
 }

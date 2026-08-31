@@ -169,8 +169,7 @@ assemble_event_table <- function(sample_paths, event_table_name, out_path) {
   )
 
   # execute query on the connection
-  DBI::dbGetQuery(con, query) |>
-    dplyr::relocate("event_id", "pos_id", "gene_id")
+  DBI::dbExecute(con, query)
 }
 
 ### read in and merge psi tables ###
@@ -178,7 +177,7 @@ assemble_event_table <- function(sample_paths, event_table_name, out_path) {
 # print message when merging matrix
 message("Merging PSI sample matrix")
 # merge matrices and write merged matrix to output
-read_sample_psi_matrix(sample_paths, samples, out_paths["matrix"])
+read_sample_psi_matrix(sample_paths, samples, out_paths[["matrix"]])
 
 # make list of event types to loop through
 event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
@@ -189,6 +188,6 @@ for (event_type in event_types) {
   message("Merging ", event_type, " PSI tables")
 
   # create merged table object
-  assemble_event_table(sample_paths, out_file_list[event_type], out_paths[event_type])
+  assemble_event_table(sample_paths, out_file_list[[event_type]], out_paths[[event_type]])
 
 }

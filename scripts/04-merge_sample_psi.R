@@ -119,24 +119,32 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path) {
   # obtain duckdb connection object so query won't open a new DuckDB session
   con <- duckplyr:::get_default_duckdb_connection()
 
+  # increase global max expression depth in case of large samples
+  DBI::dbExecute(con, "SET GLOBAL max_expression_depth TO 10000")
+
+  # first reshape wide matrices into long format prior to combining
+  # cols should be event_id, pos_id, sample, psi
   # build a SQL select statement for each sample to read each file, match columns by name, and rename PSI column with sample name for merging
   selects <- purrr::map2_chr(file_paths, samples, \(file_path, sample) {
     sprintf(
-      "SELECT event_id, pos_id, \"%s\" FROM read_csv('%s', delim='\t', header=true, union_by_name=true)",
-      sample, file_path
+      "SELECT event_id, pos_id, '%s' AS sample, \"%s\" AS psi FROM read_csv('%s', delim='\t', header=true, union_by_name=true)",
+      sample, sample, file_path
     )
   })
 
-  # combine per-sample select SQL query and join them pairwise (make wide table)
-  join_sql <- Reduce(function(a, b) {
-    # perform full outer join
-      sprintf("(%s) NATURAL FULL JOIN (%s)", a, b)
-    }, selects)
+  # merge all sample tables vertically into a long table
+  union_sql <- paste(selects, collapse = " UNION ALL ")
 
-  # write merged table directly from stream to output
+  # pivot long table back to wide form
+  # then write merged table directly from stream to output
   merged_table <- sprintf(
-    "COPY (SELECT * FROM %s) TO '%s' (DELIMITER '\t', HEADER)",
-    join_sql, out_path
+    "COPY (
+       PIVOT (%s)
+       ON sample
+       USING first(psi)
+       GROUP BY event_id, pos_id
+     ) TO '%s' (DELIMITER '\t', HEADER)",
+    union_sql, out_path
   )
 
   # execute above queries in the connection

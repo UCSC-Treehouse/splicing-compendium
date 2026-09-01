@@ -33,6 +33,8 @@ Where "PSI\_\[EVENT\]" refers to PSI quantifications for each event type, with e
 
 The goal of this notebook is to check if the merged tables generated from the target pilot pilot samples are the same as the canonical PSI tables.
 
+## Setup
+
 ```{r read_files}
 ## Directories ##
 # find project root to access separate results dir
@@ -87,6 +89,117 @@ combined_files <- file.path(combined_splice_results_dir, combined_file_list)
 names(combined_files) <- names(combined_file_list)
 
 ```
+
+Define functions
+
+```{r functions}
+
+# read in and merge splice tables into one table of all event types
+# final table only contains pos_id, gene_id, label and sample PSI values
+# usage: read_psi_tables(paths_to_psi_event_tables)
+read_psi_tables <- function(psi_paths) {
+  psi_results <- psi_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c")) |>
+      # select for columns that will be used in downstream analysis
+      dplyr::select(pos_id, gene_id, label, contains("_PSI")) |>
+      # convert PSI values to numeric 
+      dplyr::mutate(across(contains("_PSI"), \(x) as.numeric(x)))
+  })
+
+# combine PSI values of samples run together into one dataframe to compare against other PSI tables
+psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
+
+# return the psi table
+return(psi_table)
+}
+
+## Manipulating PSI tables for comparison ##
+
+# merge tables by event_type", "pos_id", and "label" only (consider event the same if position is the same regardless of gene)
+join_tables <- function(table1, table2) {
+  
+  # create the merged table of PSI tables to compare
+  joined_table <- dplyr::full_join(
+  table1,
+  table2,
+  by = c("event_type", "pos_id", "label"),
+  # label PSI values by table they came from
+  suffix = c("_table1", "_table2")) |>
+  # categorize events by whether they are in the v1 or rep2 tables
+  dplyr::mutate(
+    # Count events in one table or other if the gene in the other table is NA
+    table1_only = is.na(gene_id_table2),
+    table2_only = is.na(gene_id_table1),
+    shared_pos_id = !(table1_only | table2_only),
+    gene_difference = shared_pos_id & gene_id_table1 != gene_id_table2,
+    # Label events that are completely identical if event_type/pos_id/label fields are the same and gene_ids are the same
+    identical_pos_id_and_gene_id = shared_pos_id & ! gene_difference
+  )
+  
+  return(joined_table)
+
+}
+
+# Summarize events shared and unshared between tables
+summarize_shared_events <- function(joined_table) {
+  # calculate fraction of events only present in either table and fraction events that are shared
+  shared_events_summary <- joined_table |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    # count event types that have share position IDs (includes events with different gene_ids)
+    shared_pos_id_count = sum(shared_pos_id),
+    # count events in each share category
+    shared_pos_and_gene_id_count = sum(identical_pos_id_and_gene_id),
+    shared_pos_diff_gene_count = sum(gene_difference),
+    table1_only_count = sum(table1_only),
+    table2_only_count = sum(table2_only),
+    # calculate percentages of each category
+    shared_pos_and_gene_id_percent = shared_pos_and_gene_id_count / total * 100,
+    shared_pos_diff_gene_percent = shared_pos_diff_gene_count / total * 100,
+    table1_only_percent = table1_only_count / total * 100,
+    table2_only_percent = table2_only_count / total * 100,
+  )
+  
+  # return summary table
+  return(shared_events_summary)
+}
+
+# compare if PSI values are identical for a set of event IDs
+# usage: 
+
+# compare shared events between two psi tables
+compare_shared_events <- function(
+    comparison_table, 
+    psi_table1, 
+    psi_table2, 
+    event_id_filter_expr, 
+    event_type_filter_expr
+    ) {
+  shared_ids <- comparison_table |>
+    dplyr::filter(
+      {{ event_id_filter_expr }},
+      {{ event_type_filter_expr }}
+    ) |>
+    dplyr::pull(pos_id)
+
+  # extract pos_ids from filtered IDs to compare
+  extract_shared <- function(psi_table) {
+    psi_table |>
+      dplyr::filter(pos_id %in% shared_ids) |>
+      # filter only for fields to compare (pos_id, psi values of samples)
+      dplyr::select(pos_id, ends_with("_PSI")) |>
+      # sort by pos_id so order is the same
+      dplyr::arrange(pos_id)
+  }
+
+  all.equal(extract_shared(psi_table1), extract_shared(psi_table2))
+}
+
+```
+
+
 
 Based on previous comparison work done in exploration/ we know that retained intron events are different 
 (different PSI values, even for events with the same position ID between splice compendium workflow method results and canonical Shiba results). 
@@ -146,18 +259,11 @@ gc()
 ```
 ## Compare event PSI tables
 
-Knowing that event_id 
+Knowing that `event_id` will differ in the results generated from the two methods, this column will not be included in subsequent comparisons. 
 
 ### SE
-```{r read_se_tables}
-merged_se_df <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
-    dplyr::filter(!stringr::str_detect(event_id,"RI_")) |>
-  # sort by pos id
-  dplyr::arrange(pos_id)
-
-combined_se_df <- readr::read_tsv(combined_matrix_file, col_types = readr::cols(.default = "c")) |>
-    dplyr::filter(!stringr::str_detect(event_id,"RI_")) |>
-  # sort by pos id
-  dplyr::arrange(pos_id)
+```{r read_event_tables}
+merged_events_df <- read_psi_tables(merged_files[1:8])
+combined_events_df <- read_psi_tables(combined_files[1:8])
 ```
 

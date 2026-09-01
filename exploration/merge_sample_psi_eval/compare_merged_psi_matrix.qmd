@@ -117,6 +117,7 @@ return(psi_table)
 ## Manipulating PSI tables for comparison ##
 
 # merge tables by event_type", "pos_id", and "label" only (consider event the same if position is the same regardless of gene)
+# usage: join_tables(merged_events_df, combined_events_df)
 join_tables <- function(table1, table2) {
   
   # create the merged table of PSI tables to compare
@@ -142,6 +143,7 @@ join_tables <- function(table1, table2) {
 }
 
 # Summarize events shared and unshared between tables
+# usage: summarize_shared_events(joined_table)
 summarize_shared_events <- function(joined_table) {
   # calculate fraction of events only present in either table and fraction events that are shared
   shared_events_summary <- joined_table |> dplyr::summarise(
@@ -257,13 +259,20 @@ rm(combined_matrix_df_no_id)
 # garbage collector
 gc()
 ```
+
 ## Compare event PSI tables
 
 Knowing that `event_id` will differ in the results generated from the two methods, this column will not be included in subsequent comparisons. 
 
-### SE
+Read in event tables, filter only for columns to compare (pos_id, psi, gene_id), and merge them into one table of all events
+
 ```{r read_event_tables}
 merged_events_df <- read_psi_tables(merged_files[1:8])
 combined_events_df <- read_psi_tables(combined_files[1:8])
+```
+
+Compare tables
+```{r}
+merged_vs_combined_table <- join_tables(merged_events_df, combined_events_df)
 ```
 

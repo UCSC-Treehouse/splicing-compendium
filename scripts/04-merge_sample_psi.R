@@ -187,15 +187,15 @@ message("Merging PSI sample matrix")
 # merge matrices and write merged matrix to output
 read_sample_psi_matrix(sample_paths, samples, out_paths[["matrix"]])
 
-# make list of event types to loop through
-event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
+# # make list of event types to loop through
+# event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
 
-# loop through event types
-for (event_type in event_types) {
-  # print message for log
-  message("Merging ", event_type, " PSI tables")
+# # loop through event types
+# for (event_type in event_types) {
+#   # print message for log
+#   message("Merging ", event_type, " PSI tables")
 
-  # create merged table object
-  assemble_event_table(sample_paths, out_file_list[[event_type]], out_paths[[event_type]])
+#   # create merged table object
+#   assemble_event_table(sample_paths, out_file_list[[event_type]], out_paths[[event_type]])
 
-}
+# }

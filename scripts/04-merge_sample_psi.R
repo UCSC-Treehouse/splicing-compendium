@@ -119,6 +119,9 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path) {
   # obtain duckdb connection object so query won't open a new DuckDB session
   con <- duckplyr:::get_default_duckdb_connection()
 
+  # set preserve row order to false to save memory
+  DBI::dbExecute(con, "SET preserve_insertion_order = false;")
+
   # increase global max expression depth in case of large samples
   DBI::dbExecute(con, "SET GLOBAL max_expression_depth TO 10000")
 

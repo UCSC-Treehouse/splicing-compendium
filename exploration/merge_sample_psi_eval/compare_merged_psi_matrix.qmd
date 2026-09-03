@@ -10,9 +10,13 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Introduction
 
-The Treehouse Splice Compendium workflow has been modified to allow for all 2581 samples of the compendium to be run given the Pheonix cluster's memory limits. These changes consist of taking the merged junctions bedfile containing counts and junction positions of all samples, splitting it into one file per sample so that each per-sample bedfile contains junction positions from all junctions, but only quantifications for one sample, and calculating per-sample PSI values using this per-sample junction count with event coordinate positions defined from the GTF made from all samples.
+The Treehouse Splice Compendium workflow has been modified to allow for all 2581 samples of the compendium to be run given the Pheonix cluster's memory limits. 
+These changes consist of taking the merged junctions bedfile containing counts and junction positions of all samples, 
+splitting it into one file per sample so that each per-sample bedfile contains junction positions from all junctions, 
+but only quantifications for one sample, and calculating per-sample PSI values using this per-sample junction count with event coordinate positions defined from the GTF made from all samples.
 
-Next, to create the PSI tables for compendium users, these per-sample PSI tables are merged into one table per Shiba output. The resulting merged tables are:
+Next, to create the PSI tables for compendium users, these per-sample PSI tables are merged into one table per Shiba output. 
+The resulting merged tables are:
 
 ```         
 
@@ -27,9 +31,19 @@ ri = "PSI_RI.txt",
 matrix = "PSI_matrix_sample.txt"
 ```
 
-Where "PSI\_\[EVENT\]" refers to PSI quantifications for each event type, with each row being a unique event's position ID and each column being event information such as gene ID assigned to the event, position coordinates of features such as introns and exons used to define that event, annotation status of that event, junction counts for each of these features for each sample, and PSI values corresponding to that event per sample.
+Where "PSI\_\[EVENT\]" refers to PSI quantifications for each event type, 
+with each row being a unique event's position ID and each column being event information such as gene ID assigned to the event, 
+position coordinates of features such as introns and exons used to define that event, 
+annotation status of that event, 
+junction counts for each of these features for each sample, 
+and PSI values corresponding to that event per sample.
 
-"PSI_matrix_sample.txt" corresponds to the sample-level event matrix. Splice events for all event types are present in this matrix. Each row is a unique splice event. In this martix, columns include the position ID (coordinates) of the splice event, a Shiba-assigned "event_ID" consisting of the event type in acronyms, followed by a number, and the PSI values for each sample.
+"PSI_matrix_sample.txt" corresponds to the sample-level event matrix. 
+Splice events for all event types are present in this matrix. 
+Each row is a unique splice event. 
+In this martix, columns include the position ID (coordinates) of the splice event, 
+a Shiba-assigned "event_ID" consisting of the event type in acronyms, f
+ollowed by a number, and the PSI values for each sample.
 
 The goal of this notebook is to check if the merged tables generated from the target pilot pilot samples are the same as the canonical PSI tables.
 
@@ -201,9 +215,8 @@ compare_shared_events <- function(
 
 ```
 
-
-
-Based on previous comparison work done in exploration/ we know that retained intron events are different 
+Based on previous comparison work done in `exploration`,
+we know that retained intron events are different 
 (different PSI values, even for events with the same position ID between splice compendium workflow method results and canonical Shiba results). 
 So RI event types are filtered out in all matrices prior to comparison.
 

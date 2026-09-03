@@ -37,6 +37,12 @@ option_list <- list(
     type = "character",
     action = "store",
     help = "name of output directory of merged PSI results"
+  ),
+    make_option(
+    opt_str = "--mode",
+    type = "character",
+    action = "store",
+    help = "specify which PSI tables to merge (options: matrix, se, afe, ale, five, three, mse, mxe, ri)"
   )
 )
 

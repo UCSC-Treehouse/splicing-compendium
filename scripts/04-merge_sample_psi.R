@@ -15,6 +15,9 @@ suppressPackageStartupMessages({
   library(duckplyr)
 })
 
+# environment variables
+Sys.setenv(DUCKPLYR_TEMP_DIR = "/data/tmp/celiang/fs")
+
 # set up options to Rscript with optparse
 option_list <- list(
   make_option(
@@ -78,8 +81,7 @@ options = list(
   union_by_name = TRUE,
   header = TRUE
   )) |>
-  dplyr::pull(sample) |>
-  as.list()
+  dplyr::pull(sample)
 
 # make sample psi table paths
 sample_paths <- file.path(
@@ -111,77 +113,114 @@ names(out_paths) <- names(out_file_list)
 ### define functions ###
 
 # function for reading per-sample sample PSI matrices ("PSI_matrix_sample.txt")
-read_sample_psi_matrix <- function(psi_path, samples) {
-  # returns a PSI matrix data frame of all samples in sample sheet
-  # construct paths to psi sample matrices
-  file_paths <- file.path(psi_path, "PSI_matrix_sample.txt")
+read_sample_psi_matrix <- function(psi_path, samples, out_path, chunk_size = 200) {
+  # returns a PSI matrix data frame of all samples in sample sheet, built by
+  # pivoting samples in batches of `chunk_size`, then
+  # joining the batches back together by column name (event_id, pos_id) so
+  # that each row corresponds to a unique pos_id
 
-  # read single-sample psi matrix files and merge them together with duckplyr
-  long_tables <- purrr::map2(file_paths, samples, \(file, sample_name) {
-    duckplyr::read_csv_duckdb(file,
-    options = list(
-      delim = "\t",
-      union_by_name = TRUE,
-      header = TRUE
-      )) |>
-      dplyr::collect() |>
-      tidyr::pivot_longer(
-        cols = !c(event_id, pos_id),
-        names_to = "sample",
-        values_to = "psi"
-      )
-  })
-
-  # pivot wide once after all samples are stacked
-  purrr::list_rbind(long_tables) |>
-    tidyr::pivot_wider(names_from = sample, values_from = psi)
-}
-
-# function for reading each event types' per-sample PSI tables (e.g. "PSI_SE.txt")
-assemble_event_table <- function(sample_paths, event_table_name) {
-  # returns one data frame; rows are events; all samples' psi values are in separate columns
-  # construct paths to each psi output for each sample
-  file_paths <- file.path(sample_paths, event_table_name)
-
-  # pass all samples from file paths to DuckDB list to construct union query
-  files_sql <- paste0("['", paste(file_paths, collapse = "','"), "']")
-  query <- sprintf(
-    "SELECT * FROM read_csv(%s, delim = '\t', union_by_name = true)",
-    files_sql
-  )
-
+  # obtain duckdb connection object so query won't open a new DuckDB session
   con <- duckplyr:::get_default_duckdb_connection()
 
-  DBI::dbGetQuery(con, query) |>
-    dplyr::relocate("event_id", "pos_id", "gene_id")
+  # set preserve row order to false to save memory
+  DBI::dbExecute(con, "SET preserve_insertion_order = false;")
+
+  # create temp dir to store intermediate batched tables
+  tmp_dir <- tempfile("psi_matrix_chunks_")
+  dir.create(tmp_dir)
+  on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
+
+  # split samples into chunks
+  chunks <- split(samples, ceiling(seq_along(samples) / chunk_size))
+  chunk_paths <- character(length(chunks))
+
+  # loop through chunks and write chunks into a wide parquet file
+  for (i in seq_along(chunks)) {
+    message("writing chunk ", i, " into parquet")
+
+    chunk_samples <- chunks[[i]]
+    chunk_file_paths <- file.path(psi_path, chunk_samples, "PSI_matrix_sample.txt")
+    chunk_out <- file.path(tmp_dir, sprintf("chunk_%03d.parquet", i))
+    chunk_paths[i] <- chunk_out
+
+    message("Pivoting chunk ", i, " of ", length(chunks),
+            " (", length(chunk_samples), " samples)")
+
+    # first reshape chunk's wide matrix into long format prior to combining
+    # cols should be event_id, pos_id, sample, psi
+    # build a SQL select statement for each sample to read each file, match columns by name, and rename PSI column with sample name for merging
+    selects <- purrr::map2_chr(chunk_file_paths, chunk_samples, \(file_path, sample) {
+      sprintf(
+        "SELECT event_id, pos_id, '%s' AS sample, \"%s\" AS psi FROM read_csv('%s', delim='\t', header=true, union_by_name=true)",
+        sample, sample, file_path
+      )
+    })
+
+    # merge the chunk's sample tables vertically into a long table
+    union_sql <- paste(selects, collapse = " UNION ALL ")
+
+    # pivot chunk's long table back to wide form
+    # then write merged table directly from stream to parquet file
+    chunk_query <- sprintf(
+      "COPY (
+        PIVOT (%s)
+        ON sample
+        USING first(psi)
+        GROUP BY event_id, pos_id
+      ) TO '%s' (FORMAT PARQUET)",
+      union_sql, chunk_out
+    )
+
+    # execute chunk pivot query on the connection
+    DBI::dbExecute(con, chunk_query)
+
+  }
+
+  # join all chunk-level wide tables together on event_id, pos_id
+  # start from the first chunk and left-join the rest in sequence
+  message("Joining ", length(chunk_paths), " chunks into final matrix")
+
+  # build a FROM clause chaining each chunk file with JOIN ... USING, which
+  # DuckDB resolves by matching column names (event_id, pos_id) rather than
+  # needing per-table aliases for the join condition
+  # name each parquet "c1" "c2"
+  chunk_refs <- sprintf("read_parquet('%s') AS c%d", chunk_paths, seq_along(chunk_paths))
+
+  from_sql <- Reduce(function(acc, tbl) {
+    paste(acc, "JOIN", tbl, "USING (event_id, pos_id)")
+  }, chunk_refs[-1], init = chunk_refs[1])
+
+  # select all columns; since joins are done with USING, event_id/pos_id
+  # appear once each in the result rather than once per chunk table
+  final_query <- sprintf(
+    "COPY (
+       SELECT event_id, pos_id, * EXCLUDE (event_id, pos_id)
+       FROM %s
+     ) TO '%s' (DELIMITER '\t', HEADER)",
+    from_sql, out_path
+  )
+
+  # execute final join query on the connection
+  DBI::dbExecute(con, final_query)
+
 }
 
 ### read in and merge psi tables ###
-# merge each PSI table
-# then write to output and remove it after writing
-
-# make list of event types to loop through
-event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
-
-# loop through event types
-for (event_type in event_types) {
-  # print message for log
-  message("Merging ", event_type, " PSI tables")
-
-  # create merged table object
-  assemble_event_table(sample_paths, out_file_list[event_type]) |>
-  duckplyr::compute_csv(
-    out_paths[[event_type]],
-    options = list(delim = "\t", header = TRUE)
-    )
-
-}
 
 # print message when merging matrix
 message("Merging PSI sample matrix")
 # merge matrices and write merged matrix to output
-read_sample_psi_matrix(sample_paths, samples) |>
-duckplyr::compute_csv(
-  out_paths[["matrix"]],
-  options = list(delim = "\t", header = TRUE)
-  )
+read_sample_psi_matrix(psi_dir, samples, out_paths[["matrix"]], chunk_size = 200)
+
+# # make list of event types to loop through
+# event_types <- c("se", "afe", "ale", "five", "three", "mse", "mxe", "ri")
+
+# # loop through event types
+# for (event_type in event_types) {
+#   # print message for log
+#   message("Merging ", event_type, " PSI tables")
+
+#   # create merged table object
+#   assemble_event_table(sample_paths, out_file_list[[event_type]], out_paths[[event_type]])
+
+# }

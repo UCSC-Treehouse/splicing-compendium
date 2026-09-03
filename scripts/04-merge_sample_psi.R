@@ -89,12 +89,6 @@ options = list(
   )) |>
   dplyr::pull(sample)
 
-# make sample psi table paths
-sample_paths <- file.path(
-  psi_dir,
-  samples
-)
-
 # output files
 out_file_list <- c(
   se = "PSI_SE.txt",
@@ -124,6 +118,8 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path, chunk_size = 200
   # pivoting samples in batches of `chunk_size`, then
   # joining the batches back together by column name (event_id, pos_id) so
   # that each row corresponds to a unique pos_id
+  # the default chunk size is 200 but the user can change this throught he function call
+  # e.g. read_sample_psi_matrix(psi_dir, samples, out_paths[["matrix"]], chunk_size = 20)
 
   # obtain duckdb connection object so query won't open a new DuckDB session
   con <- duckplyr:::get_default_duckdb_connection()
@@ -136,17 +132,22 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path, chunk_size = 200
   dir.create(tmp_dir)
   on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
 
-  # split samples into chunks
+  # split samples into chunks of specified sample size
   chunks <- split(samples, ceiling(seq_along(samples) / chunk_size))
+  # make empty vector to fill with paths to chunked parquet tables later
   chunk_paths <- character(length(chunks))
 
   # loop through chunks and write chunks into a wide parquet file
   for (i in seq_along(chunks)) {
     message("writing chunk ", i, " into parquet")
 
+    # make a list of samples in each chunk
     chunk_samples <- chunks[[i]]
+    # construct paths to PSI files in the chunk
     chunk_file_paths <- file.path(psi_path, chunk_samples, "PSI_matrix_sample.txt")
+    # construct output paths to parquet file for the chunk
     chunk_out <- file.path(tmp_dir, sprintf("chunk_%03d.parquet", i))
+    # add output path to list of chunk parquet paths
     chunk_paths[i] <- chunk_out
 
     message("Pivoting chunk ", i, " of ", length(chunks),
@@ -208,6 +209,35 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path, chunk_size = 200
 
   # execute final join query on the connection
   DBI::dbExecute(con, final_query)
+
+}
+
+## functions for reading and merging event tables ##
+# event tables have different columns depending on the event type,
+# so these functions operate on event tables that share columns
+
+# skipped exon event tables
+read_se_table <- function(psi_path, samples, out_path, chunk_size = 200) {
+  # returns one data frame of skipped exon event types with all samples' psi values as separate columns
+  # each row should correspond to a unique position ID (pos_id)
+  # columns include those shared across all samples (event_id, pos_id, gene_id, exon, intron_a, intron_b, intron_c, strand, gene_name, label)
+  # as well as sample-specific columns (sample1_junction_a, sample2_junction_b, sample1_junction_c, sample1_PSI)
+
+  # obtain duckdb connection object
+  con <- duckplyr:::get_default_duckdb_connection()
+
+  # set preserve row order to false to save memory
+  DBI::dbExecute(con, "SET preserve_insertion_order = false;")
+
+  # create temp dir to store intermediate batched tables
+  tmp_dir <- tempfile("psi_event_chunks_")
+  dir.create(tmp_dir)
+  on.exit(unlink(tmp_dir, recursive = TRUE), add = TRUE)
+
+  # split samples into chunks
+  chunks <- split(samples, ceiling(seq_along(samples) / chunk_size))
+  chunk_paths <- character(length(chunks))
+
 
 }
 

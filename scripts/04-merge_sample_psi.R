@@ -158,7 +158,8 @@ read_sample_psi_matrix <- function(psi_path, samples, out_path, chunk_size = 200
     # build a SQL select statement for each sample to read each file, match columns by name, and rename PSI column with sample name for merging
     selects <- purrr::map2_chr(chunk_file_paths, chunk_samples, \(file_path, sample) {
       sprintf(
-        "SELECT event_id, pos_id, '%s' AS sample, \"%s\" AS psi FROM read_csv('%s', delim='\t', header=true, union_by_name=true)",
+        "SELECT event_id, pos_id, '%s' AS sample, \"%s\" AS psi FROM read_csv('%s', delim='\t',
+        header=true, union_by_name=true)",
         sample, sample, file_path
       )
     })
@@ -236,8 +237,80 @@ read_se_table <- function(psi_path, samples, out_path, chunk_size = 200) {
 
   # split samples into chunks
   chunks <- split(samples, ceiling(seq_along(samples) / chunk_size))
+  # make empty vector to fill with paths to chunked parquet tables later
   chunk_paths <- character(length(chunks))
 
+  # loop through chunks, merge sample tables in chunks, and write into a wide parquet file
+  for (i in seq_along(chunks)) {
+    message("writing chunk ", i, " into parquet")
+
+    # make list of samples in each chunk
+    chunk_samples <- chunks [[i]]
+    # construct SE PSI table paths to files in the chunk
+    chunk_file_paths <- file.path(psi_path, chunk_samples, "PSI_SE.txt")
+    # construct parquet output paths
+    chunk_out <- file.path(tmp_dir, sprintf("chunk_%03d.parquet", i))
+    # add output path to list of chunk parquet paths
+    chunk_paths[i] <- chunk_out
+
+    message("merging samples in chunk ", i. "of ", length(chunks),
+    " (", length(chunk_samples), " samples)")
+
+    # read in each sample in chunk and reshape into long format
+    # cols should be
+    # event_id, pos_id, gene_id, exon, intron_a, intron_b, intron_c, strand, gene_name, label,
+    # junction_a, junction_b, junction_c, PSI, sample
+
+    # build SQL statement to read each file, rename sample-specific cols to be shared across samples, and match cols by name,
+    selects <- purrr::map2_chr(chunk_file_paths, chunk_samples, \(file_path, sample) {
+
+      # query to pivot tables longer
+      chunk_query <- sprintf(
+        "SELECT
+        event_id,
+        pos_id,
+        gene_id,
+        exon,
+        intron_a,
+        intron_b,
+        intron_c,
+        strand,
+        gene_name,
+        label,
+        regexp_extract(sample_col, '^(.+)_(junction_[abc]|PSI)$', 1) AS sample,
+        regexp_extract(sample_col, '_(junction_[abc]|PSI)$', 1) AS measure,
+        value
+    FROM your_table
+    UNPIVOT (
+        value FOR sample_col IN (
+            COLUMNS(
+                * EXCLUDE (
+                    event_id,
+                    pos_id,
+                    gene_id,
+                    exon,
+                    intron_a,
+                    intron_b,
+                    intron_c,
+                    strand,
+                    gene_name,
+                    label
+                )
+            )
+        )
+    )",
+      union_sql,
+      chunk_out
+    )
+    })
+
+    # merge the chunk's sample tables vertically into a long table
+    union_sql <- paste(selects, collapse = " UNION ALL ")
+
+    # execute chunk pivot query on the connection
+    DBI::dbExecute(con, chunk_query)
+
+  }
 
 }
 

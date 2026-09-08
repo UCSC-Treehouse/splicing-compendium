@@ -37,7 +37,34 @@ All commands in this readme are intended to be run from within the pixi shell en
 
 Note that currently the only supported platform is Linux, so this command must be run on a Linux machine.
 
-## Configuration
+## Filtering accessions for download
+
+Data filtering for GTEx and TARGET accession download was performed with `notebooks/data_filtering/filter_gtex_sra.qmd` and `notebooks/data_filtering/filter_target_sra.qmd`.
+Running these notebooks produce `gtex_accessions.txt` and `target_accessions.txt` files in `metadata/filter_target_gtex`, 
+which are used to download the raw sequence files processed in this compendium. 
+These notebooks can be run interactively within an Rstudio session, or with the following command:
+
+```
+quarto render filter_gtex_sra.qmd
+```
+
+## Data download
+
+Sequence file download is performed with `scripts/01-fastq-download.sh`, in batches defined by the accessions files generated above.
+
+General usage: 
+
+```
+scripts/01-fastq-download.sh [dataset] [batch number]
+```
+
+example command for downloading the first 1.2TB batch of target: 
+
+```
+scripts/01-fastq-download.sh target 1
+```
+
+## Workflow configuration
 
 Most configuration for this project is managed with the `config.yaml` and `compendium_v1_merge_config.yaml` files within the `config/` directory.
 These files contain information about the reference genome and annotation to be used for STAR indexing and alignment, as well as sample group information for runs of the workflows.

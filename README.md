@@ -39,18 +39,8 @@ Note that currently the only supported platform is Linux, so this command must b
 
 ## Configuration
 
-Most configuration for this project is managed with the `config.yaml` file.
-This file contains information about the reference genome and annotation to be used for STAR indexing and alignment, as well as sample group information for runs of the workflow.
-
-Note that input data files are expected to be found in the `data` directory of this project, and output files will be written to the `results` directory.
-Note that data files are organized by the sample group (e.g. TARGET, GTEx) in the `data` directory, and the sample group is specified in the `config.yaml` file.
-You may want to use symbolic links to point to the location of data files on your machine, if they are not stored in the project directory.
-
-For example, a symbolic link is used in this workflow could be created with
-
-```
-ln -s /mnt/bulk data
-```
+Most configuration for this project is managed with the `config.yaml` and `compendium_v1_merge_config.yaml` files within the `config/` directory.
+These files contain information about the reference genome and annotation to be used for STAR indexing and alignment, as well as sample group information for runs of the workflows.
 
 ## Download reference files and generate STAR index for file processing
 
@@ -70,6 +60,17 @@ Other index files may be added later.
 Replace [sample group] with the dataset to be downloaded (e.g. `target`, `gtex`)
 
 ## Running the main Snakemake workflow
+
+Input data files for the main snakemake workflow consist of raw sequence `.fastq` files, which are expected to be found in the `data` directory of this project.
+Output files consist of Shiba results generated for each individual sample, and will be written to the `results` directory.
+Data files are organized by the sample group (e.g. TARGET, GTEx) in the `data` directory, and the sample group is specified in the `config.yaml` file.
+You may want to use symbolic links to point to the location of data files on your machine, if they are not stored in the project directory.
+
+For example, a symbolic link is used in this workflow could be created with
+
+```
+ln -s /mnt/bulk data
+```
 
 The Snakemake workflow specified in `Snakefile` is used to trim fastq sequence files, 
 align and index trimmed files, and run the Shiba splicing workflow to produce outputs for each individual sample.
@@ -98,4 +99,13 @@ To run on a subset of samples, you can either specify the desired samples in the
 ```
 snakemake --cores 16 --config sample_group={sample group} samples="['sample1','sample2',...]"
 ```
+
+## Running the merge_results workflow
+
+Although Shiba can be run on multiple samples using `Snakefile` to produce PSI tables, 
+this method does not take advantage of the strategy Shiba employs to quantify unannotated splice events using a GTF constructed from input .bam files.
+To maximize the repertoire of transcripts annotated in the GTF and therefore the possible splice events quantified by Shiba for a given sample,
+`merge_results.smk` is run.
+
+Inputs to this workflow 
 

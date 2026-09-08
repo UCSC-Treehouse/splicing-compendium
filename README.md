@@ -107,5 +107,19 @@ this method does not take advantage of the strategy Shiba employs to quantify un
 To maximize the repertoire of transcripts annotated in the GTF and therefore the possible splice events quantified by Shiba for a given sample,
 `merge_results.smk` is run.
 
-Inputs to this workflow 
+Inputs to this workflow consist of:
+- Aligned, sorted, and indexed `.bam`s generated from `Snakefile`
+- Per-sample junction bedfiles generated from Shiba via `Snakefile`
 
+Outputs consist of:
+- Merged GTF created from all samples' `.bam` files and the reference GTF specified by `compendium_v1_merge_config.yaml`
+- Merged junction bedfile for all samples
+- Shiba-generated PSI tables produced from the above two files
+
+The workflow is run via the following command:
+
+```
+snakemake --snakefile merge_results.smk --profile pheonix-profile
+```
+
+Note that `pheonix-profile` points to a cluster-specific config file within the `pheonix-profile/` directory and may need to be reconfigured depending on the user's cluster.

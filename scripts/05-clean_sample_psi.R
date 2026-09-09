@@ -49,6 +49,9 @@ event_psi_paths <- file.path(one_sample_results_dir, event_files)
 # name file paths according to event type
 names(event_psi_paths) <- names(event_files)
 
+# output file path
+out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
+
 ### Read in PSI tables ###
 
 # read in one sample's event tables
@@ -60,7 +63,7 @@ event_tables <- event_psi_paths |>
   })
 
 # combine event tables into one, with additional column labeling event type
-all_events_table <- purrr::list_rbind(psi_results, names_to = "event_type")
+all_events_table <- purrr::list_rbind(event_tables, names_to = "event_type")
 
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
@@ -74,3 +77,9 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
   dplyr::filter(
     event_type != "RI"
   )
+
+# join tables by pos_id column
+annotated_matrix <- dplyr::left_join(sample_matrix,
+  all_events_table,
+  by = "pos_id",
+)

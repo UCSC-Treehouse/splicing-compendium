@@ -21,7 +21,9 @@ library(rtracklayer)
 ## directories ##
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
 # define the data directories
+references_dir <- file.path(repo_root, "references")
 results_dir <- file.path(repo_root, "results")
 merged_shiba_dir <- file.path(results_dir, "merged_shiba")
 target_persample_pilot_results_dir <- file.path(merged_shiba_dir, "v1.1_reuse_table_target_pilot")
@@ -32,6 +34,9 @@ one_sample_results_dir <- file.path(sample_psi_dir, "SRR1559043")
 merged_matrix_dir <- file.path(target_persample_pilot_results_dir, "merged_persample_psi")
 
 ## files ##
+
+# gtf file for converting ensg id to gene names
+gtf_file <- file.path(references_dir, "gencode.v47.primary_assembly.annotation.gtf")
 
 # merged psi sample matrix
 merged_matrix_file <- file.path(merged_matrix_dir, "PSI_matrix_sample.txt")
@@ -54,6 +59,18 @@ names(event_psi_paths) <- names(event_files)
 
 # output file path
 out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
+
+### Read in GTF and extract gene names ###
+# import gtf
+gtf <- import(gtf_file)
+
+# make a named vector of gene names to IDs
+gene_names <- setNames(gtf$gene_name, gtf$gene_id)
+
+# remove the gtf after names are extracted
+rm(gtf)
+# garbage collector to clear memory
+gc()
 
 ### Read in PSI tables ###
 
@@ -85,4 +102,18 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
 annotated_matrix <- dplyr::left_join(sample_matrix,
   all_events_table,
   by = c("pos_id", "event_type")
-)
+) |>
+  # make gene name column based off gene IDs
+  dplyr::mutate(
+    gene_name = gene_names[gene_id],
+    # make PSI value columns numeric (PSI cols are just sample accession IDs)
+    across(contains("SRR"), \(x) as.numeric(x))
+  ) |>
+  # arrange descriptive columns to the front for ease of reading
+  dplyr::arrange(
+    event_type,
+    label,
+    gene_name,
+    gene_id,
+    pos_id
+  )

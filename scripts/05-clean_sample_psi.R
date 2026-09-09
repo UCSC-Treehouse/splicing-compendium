@@ -10,6 +10,9 @@
 # - Creates an "event type" column in the merged sample PSI matrix and removes RI events
 # - rbinds the tables by pos_id
 
+### Load libraries ###
+library(rtracklayer)
+
 ### Read in options ###
 # options should consist of config version (directory where to grab the files from)
 
@@ -81,5 +84,5 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
 # join tables by pos_id column
 annotated_matrix <- dplyr::left_join(sample_matrix,
   all_events_table,
-  by = "pos_id",
+  by = c("pos_id", "event_type")
 )

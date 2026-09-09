@@ -10,6 +10,9 @@
 # - Creates an "event type" column in the merged sample PSI matrix and removes RI events
 # - rbinds the tables by pos_id
 
+### Read in options ###
+# options should consist of config version (directory where to grab the files from)
+
 ### Read in files and directories ###
 
 ## directories ##
@@ -48,6 +51,7 @@ names(event_psi_paths) <- names(event_files)
 
 ### Read in PSI tables ###
 
+# read in one sample's event tables
 event_tables <- event_psi_paths |>
   purrr::map(\(path){
     readr::read_tsv(path, col_types = readr::cols(.default = "c")) |>
@@ -55,5 +59,18 @@ event_tables <- event_psi_paths |>
       dplyr::select(pos_id, gene_id, label)
   })
 
-# combine psi tables into one, with additional column labeling event type
-psi_table <- purrr::list_rbind(psi_results, names_to = "event_type")
+# combine event tables into one, with additional column labeling event type
+all_events_table <- purrr::list_rbind(psi_results, names_to = "event_type")
+
+# read in merged sample matrix
+sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
+  # should I make all columns starting with "SRR" default decimal? these are the PSI value cols
+  # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
+  # split by underscore and keep first element (the event type)
+  dplyr::mutate(
+    event_type = stringr::str_split_i(event_id, "_", 1)
+  ) |>
+  # remove retained intron events from matrix
+  dplyr::filter(
+    event_type != "RI"
+  )

@@ -14,7 +14,7 @@
 
 ### Load libraries ###
 suppressPackageStartupMessages({
-  library(rtracklayer),
+  library(rtracklayer)
   library(optparse)
 })
 
@@ -69,7 +69,7 @@ target_persample_pilot_results_dir <- file.path(merged_shiba_dir, opt$version_di
 sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
 
 # merged PSI results
-merged_matrix_dir <- file.path(target_persample_pilot_results_dir, opt$output_dir)
+merged_matrix_dir <- file.path(opt$output_dir)
 
 ## files ##
 
@@ -108,6 +108,8 @@ names(event_psi_paths) <- names(event_files)
 # output file path
 out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
 
+message("file paths loaded")
+
 ### Read in GTF and extract gene names ###
 # import gtf
 gtf <- import(gtf_file)
@@ -119,6 +121,8 @@ gene_names <- setNames(gtf$gene_name, gtf$gene_id)
 rm(gtf)
 # garbage collector to clear memory
 gc()
+
+message("gene names extracted from GTF")
 
 ### Read in PSI tables ###
 
@@ -132,6 +136,8 @@ event_tables <- event_psi_paths |>
 
 # combine event tables into one, with additional column labeling event type
 all_events_table <- purrr::list_rbind(event_tables, names_to = "event_type")
+
+message("event tables from one sample merged")
 
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
@@ -148,6 +154,8 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
   # remove event_id col (uninformative)
   dplyr::select(-event_id)
 
+message("RI events removed from merged matrix")
+
 # join tables by pos_id column
 annotated_matrix <- dplyr::left_join(sample_matrix,
   all_events_table,
@@ -157,7 +165,7 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
   dplyr::mutate(
     gene_name = gene_names[gene_id],
     # make PSI value columns numeric (PSI cols are just sample accession IDs)
-    across(contains("SRR"), \(x) as.numeric(x))
+    dplyr::across(contains("SRR"), \(x) as.numeric(x))
   ) |>
   # arrange descriptive columns to the front for ease of reading
   dplyr::relocate(
@@ -167,6 +175,8 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
     gene_id,
     pos_id
   )
+
+message("cleaned matrix created")
 
 ## Write output ##
 readr::write_tsv(annotated_matrix, out_matrix)

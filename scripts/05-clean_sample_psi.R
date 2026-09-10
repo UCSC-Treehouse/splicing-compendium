@@ -96,7 +96,9 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
   # remove retained intron events from matrix
   dplyr::filter(
     event_type != "RI"
-  )
+  ) |>
+  # remove event_id col (uninformative)
+  dplyr::select(-event_id)
 
 # join tables by pos_id column
 annotated_matrix <- dplyr::left_join(sample_matrix,
@@ -110,7 +112,7 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
     across(contains("SRR"), \(x) as.numeric(x))
   ) |>
   # arrange descriptive columns to the front for ease of reading
-  dplyr::arrange(
+  dplyr::relocate(
     event_type,
     label,
     gene_name,

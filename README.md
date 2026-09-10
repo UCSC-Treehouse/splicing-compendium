@@ -12,7 +12,7 @@ The datasets used in this project are under controlled access on dbGaP. They con
 (Acute Lymphoblastic Leukemia, Acute Myeloid Leukemia, Wilms Tumor, Clear Cell Sarcoma, Rhabdoid Tumor, and Neuroblastoma). 
 Osteosarcoma samples are excluded for now, due to their complex transcriptomes and the relative rarity of bone RNA-seq samples.
 
-## Cloning the repo
+## Setting up the environment
 
 The environment for this project is managed with Pixi.
 After cloning the repo, the environment can be set up with the following commands:

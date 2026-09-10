@@ -245,6 +245,22 @@ rule merge_persample_psi_matrix:
         Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
         """
 
+rule clean_merged_sample_matrix:
+    input:
+        "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
+    output:
+        "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
+    params:
+        out_dir = subpath(output, parent=True)
+    priority: 1
+    resources:
+        mem_mb = 200000,
+        runtime = 480
+    shell:
+        """
+        Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
+        """
+
 rule calculate_merged_psi:
     input:
         events_dir = "<merged_shiba_results>/events",

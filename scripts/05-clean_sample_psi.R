@@ -14,7 +14,8 @@
 
 ### Load libraries ###
 suppressPackageStartupMessages({
-  library(rtracklayer)
+  library(rtracklayer),
+  library(optparse)
 })
 
 ### Read in options ###
@@ -68,7 +69,7 @@ target_persample_pilot_results_dir <- file.path(merged_shiba_dir, opt$version_di
 sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
 
 # merged PSI results
-merged_matrix_dir <- file.path(target_persample_pilot_results_dir, opt$out_dir)
+merged_matrix_dir <- file.path(target_persample_pilot_results_dir, opt$output_dir)
 
 ## files ##
 

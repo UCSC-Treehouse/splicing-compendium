@@ -251,14 +251,17 @@ rule clean_merged_sample_matrix:
     output:
         "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
     params:
-        out_dir = subpath(output, parent=True)
+        sample_sheet = config["sample_sheet"],
+        version = config["version"],
+        out_dir = subpath(output, parent=True),
+        gtf_path = config["reference_gtf"]
     priority: 1
     resources:
         mem_mb = 200000,
         runtime = 480
     shell:
         """
-        Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
+        Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir} --gtf={params.gtf_path}
         """
 
 rule calculate_merged_psi:

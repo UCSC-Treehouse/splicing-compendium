@@ -10,11 +10,50 @@
 # - Creates an "event type" column in the merged sample PSI matrix and removes RI events
 # - rbinds the tables by pos_id
 
+# usage: Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
+
 ### Load libraries ###
-library(rtracklayer)
+suppressPackageStartupMessages({
+  library(rtracklayer)
+})
 
 ### Read in options ###
-# options should consist of config version (directory where to grab the files from)
+# set up options to Rscript with optparse
+option_list <- list(
+  make_option(
+    opt_str = "--sample_sheet",
+    type = "character",
+    action = "store",
+    help = "path to sample sheet with list of sample IDs"
+  ),
+  make_option(
+    opt_str = "--version_dir",
+    type = "character",
+    action = "store",
+    help = "name of version directory of separate PSI results"
+  ),
+  make_option(
+    opt_str = "--output_dir",
+    type = "character",
+    action = "store",
+    help = "name of output directory of merged PSI results"
+  ),
+  make_option(
+    opt_str = "--gtf",
+    type = "character",
+    action = "store",
+    help = "path to reference annotation file"
+  )
+)
+
+# Parse options
+opt <- parse_args(OptionParser(option_list = option_list))
+
+## Validate output options ##
+# user must provide sample_sheet and version_dir to script
+if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir)) {
+  stop("Specify --sample_sheet, --version_dir, and --output_dir.")
+}
 
 ### Read in files and directories ###
 
@@ -23,23 +62,31 @@ library(rtracklayer)
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
 # define the data directories
-references_dir <- file.path(repo_root, "references")
 results_dir <- file.path(repo_root, "results")
 merged_shiba_dir <- file.path(results_dir, "merged_shiba")
-target_persample_pilot_results_dir <- file.path(merged_shiba_dir, "v1.1_reuse_table_target_pilot")
+target_persample_pilot_results_dir <- file.path(merged_shiba_dir, opt$version_dir)
 sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
-one_sample_results_dir <- file.path(sample_psi_dir, "SRR1559043")
 
 # merged PSI results
-merged_matrix_dir <- file.path(target_persample_pilot_results_dir, "merged_persample_psi")
+merged_matrix_dir <- file.path(target_persample_pilot_results_dir, opt$out_dir)
 
 ## files ##
 
 # gtf file for converting ensg id to gene names
-gtf_file <- file.path(references_dir, "gencode.v47.primary_assembly.annotation.gtf")
+gtf_file <- file.path(opt$gtf)
 
 # merged psi sample matrix
 merged_matrix_file <- file.path(merged_matrix_dir, "PSI_matrix_sample.txt")
+
+# sample sheet file with sample names
+samples_file <- file.path(opt$sample_sheet)
+# read in sample sheet and create list of samples from samples column
+samples <- readr::read_tsv(samples_file,
+col_types = readr::cols(.default = "c")) |>
+  dplyr::pull(sample)
+
+# path to psi results of one sample from sample sheet
+one_sample_results_dir <- file.path(sample_psi_dir, samples[[1]])
 
 # define list of PSI event table results files corresponding to event types quantified by Shiba bulk analysis
 event_files <- c(

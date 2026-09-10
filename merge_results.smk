@@ -33,7 +33,8 @@ JUNCTION_BEDS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/merged_persample_psi"
+        matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt",
+        cleaned_matrix = "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
 
 rule bam2gtf:
     input:
@@ -131,7 +132,6 @@ rule merge_junctions:
         rm -rf $tempdir
         """
 
-
 rule merge_junctions_persample:
     input: JUNCTION_BEDS
     # output is one bedfile per sample, all in a single directory
@@ -226,14 +226,15 @@ rule calculate_sample_psi:
             {output.shiba_psi_out}
         """
 
-rule merge_persample_psi:
+rule merge_persample_psi_matrix:
     input:
         persample_psi_dir = expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
     output:
-        directory("<merged_shiba_results>/merged_persample_psi")
+        "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
     params:
         sample_sheet = config["sample_sheet"],
-        version = config["version"]
+        version = config["version"],
+        out_dir = subpath(output, parent=True)
     priority: 1
     threads: 15 # not currently in use
     resources:
@@ -241,7 +242,7 @@ rule merge_persample_psi:
         runtime = 480
     shell:
         """
-        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output}
+        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
         """
 
 rule calculate_merged_psi:

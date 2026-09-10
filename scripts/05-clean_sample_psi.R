@@ -119,3 +119,6 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
     gene_id,
     pos_id
   )
+
+## Write output ##
+readr::write_tsv(annotated_matrix, out_matrix)

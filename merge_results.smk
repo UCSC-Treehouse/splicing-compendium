@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-configfile: "config/target_pilot_merge_config.yaml"
+configfile: "config/compendium_v1_merge_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])

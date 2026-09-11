@@ -108,7 +108,7 @@ message("file paths loaded")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- import(gtf_file)
+gtf <- rtracklayer::import(gtf_file, filter = list(type = "gene"))
 
 # make a named vector of gene names to IDs
 gene_names <- setNames(gtf$gene_name, gtf$gene_id)
@@ -137,18 +137,12 @@ message("event tables from one sample merged")
 
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
-  # should I make all columns starting with "SRR" default decimal? these are the PSI value cols
   # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
   # split by underscore and keep first element (the event type)
-  dplyr::mutate(
-    event_type = stringr::str_split_i(event_id, "_", 1)
-  ) |>
   # remove retained intron events from matrix
-  dplyr::filter(
-    event_type != "RI"
-  ) |>
-  # remove event_id col (uninformative)
-  dplyr::select(-event_id)
+  dplyr::filter(string
+    stringr::str_starts(event_type, "RI_", negate = TRUE)
+  )
 
 message("RI events removed from merged matrix")
 
@@ -159,9 +153,7 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
 ) |>
   # make gene name column based off gene IDs
   dplyr::mutate(
-    gene_name = gene_names[gene_id],
-    # make PSI value columns numeric (PSI cols are just sample accession IDs)
-    dplyr::across(contains("SRR"), \(x) as.numeric(x))
+    gene_name = gene_names[gene_id]
   ) |>
   # arrange descriptive columns to the front for ease of reading
   dplyr::relocate(

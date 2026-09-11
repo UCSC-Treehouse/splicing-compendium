@@ -40,6 +40,12 @@ option_list <- list(
     help = "path to merged PSI results"
   ),
   make_option(
+    opt_str = "--output",
+    type = "character",
+    action = "store",
+    help = "path to output matrix"
+  )
+  make_option(
     opt_str = "--gtf",
     type = "character",
     action = "store",
@@ -52,8 +58,8 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
-if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir)) {
-  stop("Specify --sample_sheet, --version_dir, --in_matrix, and --gtf.")
+if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$gtf)) {
+  stop("Specify --sample_sheet, --version_dir, --in_matrix, --output, and --gtf.")
 }
 
 ### Read in files and directories ###
@@ -64,16 +70,13 @@ if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$outpu
 results_dir <- file.path(opt$version_dir)
 sample_psi_dir <- file.path(results_dir, "sample_psi")
 
-# merged PSI results
-merged_matrix_dir <- file.path(repo_root, opt$output_dir)
-
 ## files ##
+
+# merged PSI results
+merged_matrix <- file.path(opt$in_matrix)
 
 # gtf file for converting ensg id to gene names
 gtf_file <- file.path(repo_root, opt$gtf)
-
-# merged psi sample matrix
-merged_matrix_file <- file.path(merged_matrix_dir, "PSI_matrix_sample.txt")
 
 # sample sheet file with sample names
 samples_file <- file.path(repo_root, opt$sample_sheet)
@@ -102,7 +105,7 @@ event_psi_paths <- file.path(one_sample_results_dir, event_files)
 names(event_psi_paths) <- names(event_files)
 
 # output file path
-out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
+out_matrix <- file.path(opt$output)
 
 message("file paths loaded")
 

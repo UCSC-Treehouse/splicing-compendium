@@ -69,18 +69,18 @@ target_persample_pilot_results_dir <- file.path(merged_shiba_dir, opt$version_di
 sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
 
 # merged PSI results
-merged_matrix_dir <- file.path(opt$output_dir)
+merged_matrix_dir <- file.path(repo_root, opt$output_dir)
 
 ## files ##
 
 # gtf file for converting ensg id to gene names
-gtf_file <- file.path(opt$gtf)
+gtf_file <- file.path(repo_root, opt$gtf)
 
 # merged psi sample matrix
 merged_matrix_file <- file.path(merged_matrix_dir, "PSI_matrix_sample.txt")
 
 # sample sheet file with sample names
-samples_file <- file.path(opt$sample_sheet)
+samples_file <- file.path(repo_root, opt$sample_sheet)
 # read in sample sheet and create list of samples from samples column
 samples <- readr::read_tsv(samples_file,
 col_types = readr::cols(.default = "c")) |>

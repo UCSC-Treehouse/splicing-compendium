@@ -61,8 +61,8 @@ if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$outpu
 ## directories ##
 
 # define the data directories
-target_persample_pilot_results_dir <- file.path(opt$version_dir)
-sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
+results_dir <- file.path(opt$version_dir)
+sample_psi_dir <- file.path(results_dir, "sample_psi")
 
 # merged PSI results
 merged_matrix_dir <- file.path(repo_root, opt$output_dir)

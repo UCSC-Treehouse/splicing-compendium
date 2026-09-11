@@ -90,15 +90,10 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
   # should I make all columns starting with "SRR" default decimal? these are the PSI value cols
   # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
   # split by underscore and keep first element (the event type)
-  dplyr::mutate(
-    event_type = stringr::str_split_i(event_id, "_", 1)
-  ) |>
   # remove retained intron events from matrix
-  dplyr::filter(
-    event_type != "RI"
-  ) |>
-  # remove event_id col (uninformative)
-  dplyr::select(-event_id)
+  dplyr::filter(string
+    stringr::str_starts(event_type, "RI_", negate = TRUE)
+  )
 
 # join tables by pos_id column
 annotated_matrix <- dplyr::left_join(sample_matrix,

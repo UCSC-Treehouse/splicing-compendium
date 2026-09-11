@@ -22,16 +22,10 @@ suppressPackageStartupMessages({
 # set up options to Rscript with optparse
 option_list <- list(
   make_option(
-    opt_str = "--sample_sheet",
+    opt_str = "--one_sample_psi",
     type = "character",
     action = "store",
-    help = "path to sample sheet with list of sample IDs"
-  ),
-  make_option(
-    opt_str = "--version_dir",
-    type = "character",
-    action = "store",
-    help = "name of version directory of separate PSI results"
+    help = "name of directory to one sample's persample PSI results"
   ),
   make_option(
     opt_str = "--in_matrix",
@@ -58,32 +52,21 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
-if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$gtf)) {
-  stop("Specify --sample_sheet, --version_dir, --in_matrix, --output, and --gtf.")
+if ((is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$one_sample_psi) || is.null(opt$gtf)) {
+  stop("Specify --in_matrix, --output, --one_sample_psi, and --gtf.")
 }
 
 ### Read in files and directories ###
 
 ## directories ##
 
-# define the data directories
-results_dir <- file.path(opt$version_dir)
-sample_psi_dir <- file.path(results_dir, "sample_psi")
+# path to psi results of one sample from sample sheet
+one_sample_results_dir <- file.path(opt$one_sample_psi)
 
 ## files ##
 
 # merged PSI results
 merged_matrix <- file.path(opt$in_matrix)
-
-# read in sample sheet and create list of samples from samples column
-samples <- readr::read_tsv(
-  opt$sample_sheet,
-  col_types = readr::cols(.default = "c")
- ) |>
-  dplyr::pull(sample)
-
-# path to psi results of one sample from sample sheet
-one_sample_results_dir <- file.path(sample_psi_dir, samples[[1]])
 
 # define list of PSI event table results files corresponding to event types quantified by Shiba bulk analysis
 event_files <- c(

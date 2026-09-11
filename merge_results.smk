@@ -247,7 +247,8 @@ rule merge_persample_psi_matrix:
 
 rule clean_merged_sample_matrix:
     input:
-        merged_matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
+        merged_matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt",
+        one_sample_psi_results = f"<merged_shiba_results>/sample_psi/{SAMPLES[0]}"
     output:
         cleaned_matrix = "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
     params:
@@ -260,7 +261,7 @@ rule clean_merged_sample_matrix:
         runtime = 30
     shell:
         """
-        Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --in_matrix={input.merged_matrix} --output={output.cleaned_matrix} --gtf={params.gtf_path}
+        Rscript scripts/05-clean_sample_psi.R --one_sample_psi={input.one_sample_psi_results} --in_matrix={input.merged_matrix} --output={output.cleaned_matrix} --gtf={params.gtf_path}
         """
 
 rule calculate_merged_psi:

@@ -103,8 +103,6 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
   # make gene name column based off gene IDs
   dplyr::mutate(
     gene_name = gene_names[gene_id],
-    # make PSI value columns numeric (PSI cols are just sample accession IDs)
-    across(contains("SRR"), \(x) as.numeric(x))
   ) |>
   # arrange descriptive columns to the front for ease of reading
   dplyr::relocate(

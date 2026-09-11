@@ -62,7 +62,7 @@ out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- import(gtf_file)
+gtf <- rtracklayer::import(gtf_file, filter = list(type = "gene"))
 
 # make a named vector of gene names to IDs
 gene_names <- setNames(gtf$gene_name, gtf$gene_id)

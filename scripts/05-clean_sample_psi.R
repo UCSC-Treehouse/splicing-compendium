@@ -87,7 +87,6 @@ all_events_table <- purrr::list_rbind(event_tables, names_to = "event_type")
 
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
-  # should I make all columns starting with "SRR" default decimal? these are the PSI value cols
   # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
   # split by underscore and keep first element (the event type)
   # remove retained intron events from matrix

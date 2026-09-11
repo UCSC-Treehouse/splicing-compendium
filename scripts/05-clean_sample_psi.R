@@ -22,22 +22,22 @@ suppressPackageStartupMessages({
 # set up options to Rscript with optparse
 option_list <- list(
   make_option(
-    opt_str = "--sample_sheet",
+    opt_str = "--one_sample_psi",
     type = "character",
     action = "store",
-    help = "path to sample sheet with list of sample IDs"
+    help = "name of directory to one sample's persample PSI results"
   ),
   make_option(
-    opt_str = "--version_dir",
+    opt_str = "--in_matrix",
     type = "character",
     action = "store",
-    help = "name of version directory of separate PSI results"
+    help = "path to merged PSI results"
   ),
   make_option(
-    opt_str = "--output_dir",
+    opt_str = "--output",
     type = "character",
     action = "store",
-    help = "name of output directory of merged PSI results"
+    help = "path to output matrix"
   ),
   make_option(
     opt_str = "--gtf",
@@ -52,42 +52,21 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
-if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir)) {
-  stop("Specify --sample_sheet, --version_dir, and --output_dir.")
+if (is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$one_sample_psi) || is.null(opt$gtf)) {
+  stop("Specify --in_matrix, --output, --one_sample_psi, and --gtf.")
 }
 
 ### Read in files and directories ###
 
 ## directories ##
-# find the root-level repo directory so we can access the other files
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
-# define the data directories
-results_dir <- file.path(repo_root, "results")
-merged_shiba_dir <- file.path(results_dir, "merged_shiba")
-target_persample_pilot_results_dir <- file.path(merged_shiba_dir, opt$version_dir)
-sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
-
-# merged PSI results
-merged_matrix_dir <- file.path(repo_root, opt$output_dir)
+# path to psi results of one sample from sample sheet
+one_sample_results_dir <- file.path(opt$one_sample_psi)
 
 ## files ##
 
-# gtf file for converting ensg id to gene names
-gtf_file <- file.path(repo_root, opt$gtf)
-
-# merged psi sample matrix
-merged_matrix_file <- file.path(merged_matrix_dir, "PSI_matrix_sample.txt")
-
-# sample sheet file with sample names
-samples_file <- file.path(repo_root, opt$sample_sheet)
-# read in sample sheet and create list of samples from samples column
-samples <- readr::read_tsv(samples_file,
-col_types = readr::cols(.default = "c")) |>
-  dplyr::pull(sample)
-
-# path to psi results of one sample from sample sheet
-one_sample_results_dir <- file.path(sample_psi_dir, samples[[1]])
+# merged PSI results
+merged_matrix_file <- file.path(opt$in_matrix)
 
 # define list of PSI event table results files corresponding to event types quantified by Shiba bulk analysis
 event_files <- c(
@@ -106,13 +85,13 @@ event_psi_paths <- file.path(one_sample_results_dir, event_files)
 names(event_psi_paths) <- names(event_files)
 
 # output file path
-out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
+out_matrix <- file.path(opt$output)
 
 message("file paths loaded")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- import(gtf_file)
+gtf <- rtracklayer::import(opt$gtf)
 
 # make a named vector of gene names to IDs
 gene_names <- setNames(gtf$gene_name, gtf$gene_id)
@@ -141,9 +120,7 @@ message("event tables from one sample merged")
 
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
-  # should I make all columns starting with "SRR" default decimal? these are the PSI value cols
   # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
-  # split by underscore and keep first element (the event type)
   dplyr::mutate(
     event_type = stringr::str_split_i(event_id, "_", 1)
   ) |>
@@ -152,7 +129,7 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
     event_type != "RI"
   ) |>
   # remove event_id col (uninformative)
-  dplyr::select(-event_id)
+  dplyr::select(!event_id)
 
 message("RI events removed from merged matrix")
 
@@ -163,9 +140,7 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
 ) |>
   # make gene name column based off gene IDs
   dplyr::mutate(
-    gene_name = gene_names[gene_id],
-    # make PSI value columns numeric (PSI cols are just sample accession IDs)
-    dplyr::across(contains("SRR"), \(x) as.numeric(x))
+    gene_name = gene_names[gene_id]
   ) |>
   # arrange descriptive columns to the front for ease of reading
   dplyr::relocate(

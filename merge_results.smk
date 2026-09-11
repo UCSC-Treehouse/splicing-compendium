@@ -7,7 +7,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-configfile: "config/compendium_v1_merge_config.yaml"
+configfile: "config/target_pilot_merge_config.yaml"
 
 # read in configfile values
 sample_table = pd.read_table(config["sample_sheet"])
@@ -172,7 +172,7 @@ rule merge_junctions_persample:
           ((n ++))
         done
 
-        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir {params.output_dir}
+        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir={params.output_dir}
 
         # remove tempdir of deduplicated junctions
         rm -rf $tempdir
@@ -230,16 +230,16 @@ rule merge_persample_psi_matrix:
     input:
         persample_psi_dir = expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
     output:
-        "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
+        merged_matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
     params:
         sample_sheet = config["sample_sheet"],
         version = config["version"],
-        out_dir = subpath(output, parent=True)
+        out_dir = subpath(output.merged_matrix, parent=True)
     priority: 1
     threads: 15 # not currently in use
     resources:
-        mem_mb = 200000,
-        runtime = 480
+        mem_mb = 20000,
+        runtime = 30
     shell:
         """
         Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
@@ -249,16 +249,16 @@ rule clean_merged_sample_matrix:
     input:
         "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
     output:
-        "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
+        cleaned_matrix = "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
     params:
         sample_sheet = config["sample_sheet"],
         version = config["version"],
-        out_dir = subpath(output, parent=True),
+        out_dir = subpath(output.cleaned_matrix, parent=True),
         gtf_path = config["reference_gtf"]
     priority: 1
     resources:
-        mem_mb = 200000,
-        runtime = 480
+        mem_mb = 20000,
+        runtime = 30
     shell:
         """
         Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir} --gtf={params.gtf_path}

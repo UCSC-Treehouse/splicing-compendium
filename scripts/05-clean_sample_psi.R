@@ -78,11 +78,11 @@ merged_matrix <- file.path(opt$in_matrix)
 # gtf file for converting ensg id to gene names
 gtf_file <- file.path(opt$gtf)
 
-# sample sheet file with sample names
-samples_file <- file.path(opt$sample_sheet)
 # read in sample sheet and create list of samples from samples column
-samples <- readr::read_tsv(samples_file,
-col_types = readr::cols(.default = "c")) |>
+samples <- readr::read_tsv(
+  opt$sample_sheet,
+  col_types = readr::cols(.default = "c")
+ ) |>
   dplyr::pull(sample)
 
 # path to psi results of one sample from sample sheet

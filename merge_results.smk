@@ -242,7 +242,7 @@ rule merge_persample_psi_matrix:
         runtime = 30
     shell:
         """
-        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output.merged_matrix}
+        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
         """
 
 rule clean_merged_sample_matrix:

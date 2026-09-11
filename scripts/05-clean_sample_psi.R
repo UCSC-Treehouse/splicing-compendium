@@ -75,9 +75,6 @@ sample_psi_dir <- file.path(results_dir, "sample_psi")
 # merged PSI results
 merged_matrix <- file.path(opt$in_matrix)
 
-# gtf file for converting ensg id to gene names
-gtf_file <- file.path(opt$gtf)
-
 # read in sample sheet and create list of samples from samples column
 samples <- readr::read_tsv(
   opt$sample_sheet,
@@ -111,7 +108,7 @@ message("file paths loaded")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- rtracklayer::import(gtf_file, filter = list(type = "gene"))
+gtf <- rtracklayer::import(opt$gtf, filter = list(type = "gene"))
 
 # make a named vector of gene names to IDs
 gene_names <- setNames(gtf$gene_name, gtf$gene_id)

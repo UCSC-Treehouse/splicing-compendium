@@ -238,8 +238,8 @@ rule merge_persample_psi_matrix:
     priority: 1
     threads: 15 # not currently in use
     resources:
-        mem_mb = 20000,
-        runtime = 30
+        mem_mb = 200000,
+        runtime = 480
     shell:
         """
         Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
@@ -257,8 +257,8 @@ rule clean_merged_sample_matrix:
         gtf_path = config["reference_gtf"]
     priority: 1
     resources:
-        mem_mb = 20000,
-        runtime = 30
+        mem_mb = 50000,
+        runtime = 60
     shell:
         """
         Rscript scripts/05-clean_sample_psi.R --one_sample_psi={input.one_sample_psi_results} --in_matrix={input.merged_matrix} --output={output.cleaned_matrix} --gtf={params.gtf_path}

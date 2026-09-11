@@ -66,7 +66,7 @@ one_sample_results_dir <- file.path(opt$one_sample_psi)
 ## files ##
 
 # merged PSI results
-merged_matrix <- file.path(opt$in_matrix)
+merged_matrix_file <- file.path(opt$in_matrix)
 
 # define list of PSI event table results files corresponding to event types quantified by Shiba bulk analysis
 event_files <- c(

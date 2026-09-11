@@ -52,7 +52,7 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
-if ((is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$one_sample_psi) || is.null(opt$gtf)) {
+if (is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$one_sample_psi) || is.null(opt$gtf)) {
   stop("Specify --in_matrix, --output, --one_sample_psi, and --gtf.")
 }
 
@@ -121,11 +121,15 @@ message("event tables from one sample merged")
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
   # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
-  # split by underscore and keep first element (the event type)
+  dplyr::mutate(
+    event_type = stringr::str_split_i(event_id, "_", 1)
+  ) |>
   # remove retained intron events from matrix
-  dplyr::filter(string
-    stringr::str_starts(event_type, "RI_", negate = TRUE)
-  )
+  dplyr::filter(
+    event_type != "RI"
+  ) |>
+  # remove event_id col (uninformative)
+  dplyr::select(!event_id)
 
 message("RI events removed from merged matrix")
 

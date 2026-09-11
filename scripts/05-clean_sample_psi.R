@@ -44,7 +44,7 @@ option_list <- list(
     type = "character",
     action = "store",
     help = "path to output matrix"
-  )
+  ),
   make_option(
     opt_str = "--gtf",
     type = "character",
@@ -108,7 +108,7 @@ message("file paths loaded")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- rtracklayer::import(opt$gtf, filter = list(type = "gene"))
+gtf <- rtracklayer::import(opt$gtf)
 
 # make a named vector of gene names to IDs
 gene_names <- setNames(gtf$gene_name, gtf$gene_id)

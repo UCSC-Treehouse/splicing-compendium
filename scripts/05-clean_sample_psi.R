@@ -34,10 +34,10 @@ option_list <- list(
     help = "name of version directory of separate PSI results"
   ),
   make_option(
-    opt_str = "--output_dir",
+    opt_str = "--in_matrix",
     type = "character",
     action = "store",
-    help = "name of output directory of merged PSI results"
+    help = "path to merged PSI results"
   ),
   make_option(
     opt_str = "--gtf",
@@ -53,19 +53,15 @@ opt <- parse_args(OptionParser(option_list = option_list))
 ## Validate output options ##
 # user must provide sample_sheet and version_dir to script
 if ((is.null(opt$sample_sheet) || is.null(opt$version_dir)) || is.null(opt$output_dir)) {
-  stop("Specify --sample_sheet, --version_dir, and --output_dir.")
+  stop("Specify --sample_sheet, --version_dir, --in_matrix, and --gtf.")
 }
 
 ### Read in files and directories ###
 
 ## directories ##
-# find the root-level repo directory so we can access the other files
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
 # define the data directories
-results_dir <- file.path(repo_root, "results")
-merged_shiba_dir <- file.path(results_dir, "merged_shiba")
-target_persample_pilot_results_dir <- file.path(merged_shiba_dir, opt$version_dir)
+target_persample_pilot_results_dir <- file.path(opt$version_dir)
 sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
 
 # merged PSI results

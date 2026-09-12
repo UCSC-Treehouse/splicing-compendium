@@ -10,36 +10,63 @@
 # - Creates an "event type" column in the merged sample PSI matrix and removes RI events
 # - rbinds the tables by pos_id
 
+# usage: Rscript scripts/05-clean_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
+
 ### Load libraries ###
-library(rtracklayer)
+suppressPackageStartupMessages({
+  library(rtracklayer)
+  library(optparse)
+})
 
 ### Read in options ###
-# options should consist of config version (directory where to grab the files from)
+# set up options to Rscript with optparse
+option_list <- list(
+  make_option(
+    opt_str = "--one_sample_psi",
+    type = "character",
+    action = "store",
+    help = "name of directory to one sample's persample PSI results"
+  ),
+  make_option(
+    opt_str = "--in_matrix",
+    type = "character",
+    action = "store",
+    help = "path to merged PSI results"
+  ),
+  make_option(
+    opt_str = "--output",
+    type = "character",
+    action = "store",
+    help = "path to output matrix"
+  ),
+  make_option(
+    opt_str = "--gtf",
+    type = "character",
+    action = "store",
+    help = "path to reference annotation file"
+  )
+)
+
+# Parse options
+opt <- parse_args(OptionParser(option_list = option_list))
+
+## Validate output options ##
+# user must provide sample_sheet and version_dir to script
+if (is.null(opt$in_matrix) || is.null(opt$output) || is.null(opt$one_sample_psi) || is.null(opt$gtf)) {
+  stop("Specify --in_matrix, --output, --one_sample_psi, and --gtf.")
+}
 
 ### Read in files and directories ###
 
 ## directories ##
-# find the root-level repo directory so we can access the other files
-repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
-# define the data directories
-references_dir <- file.path(repo_root, "references")
-results_dir <- file.path(repo_root, "results")
-merged_shiba_dir <- file.path(results_dir, "merged_shiba")
-target_persample_pilot_results_dir <- file.path(merged_shiba_dir, "v1.1_reuse_table_target_pilot")
-sample_psi_dir <- file.path(target_persample_pilot_results_dir, "sample_psi")
-one_sample_results_dir <- file.path(sample_psi_dir, "SRR1559043")
-
-# merged PSI results
-merged_matrix_dir <- file.path(target_persample_pilot_results_dir, "merged_persample_psi")
+# path to psi results of one sample from sample sheet
+one_sample_results_dir <- file.path(opt$one_sample_psi)
 
 ## files ##
 
-# gtf file for converting ensg id to gene names
-gtf_file <- file.path(references_dir, "gencode.v47.primary_assembly.annotation.gtf")
-
-# merged psi sample matrix
-merged_matrix_file <- file.path(merged_matrix_dir, "PSI_matrix_sample.txt")
+# merged PSI results
+merged_matrix_file <- file.path(opt$in_matrix)
 
 # define list of PSI event table results files corresponding to event types quantified by Shiba bulk analysis
 event_files <- c(
@@ -58,11 +85,13 @@ event_psi_paths <- file.path(one_sample_results_dir, event_files)
 names(event_psi_paths) <- names(event_files)
 
 # output file path
-out_matrix <- file.path(merged_matrix_dir, "cleaned_psi_matrix.txt")
+out_matrix <- file.path(opt$output)
+
+message("file paths loaded")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- rtracklayer::import(gtf_file, filter = list(type = "gene"))
+gtf <- rtracklayer::import(opt$gtf)
 
 # make a named vector of gene names to IDs
 gene_names <- setNames(gtf$gene_name, gtf$gene_id)
@@ -71,6 +100,8 @@ gene_names <- setNames(gtf$gene_name, gtf$gene_id)
 rm(gtf)
 # garbage collector to clear memory
 gc()
+
+message("gene names extracted from GTF")
 
 ### Read in PSI tables ###
 
@@ -85,6 +116,8 @@ event_tables <- event_psi_paths |>
 # combine event tables into one, with additional column labeling event type
 all_events_table <- purrr::list_rbind(event_tables, names_to = "event_type")
 
+message("event tables from one sample merged")
+
 # read in merged sample matrix
 sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.default = "c")) |>
   # split event_id (shiba-assigned event ID with values like SE_1, SE_2) into just event type acronym
@@ -98,6 +131,8 @@ sample_matrix <- readr::read_tsv(merged_matrix_file, col_types = readr::cols(.de
   # remove event_id col (uninformative)
   dplyr::select(!event_id)
 
+message("RI events removed from merged matrix")
+
 # join tables by pos_id column
 annotated_matrix <- dplyr::left_join(sample_matrix,
   all_events_table,
@@ -105,7 +140,7 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
 ) |>
   # make gene name column based off gene IDs
   dplyr::mutate(
-    gene_name = gene_names[gene_id],
+    gene_name = gene_names[gene_id]
   ) |>
   # arrange descriptive columns to the front for ease of reading
   dplyr::relocate(
@@ -115,6 +150,8 @@ annotated_matrix <- dplyr::left_join(sample_matrix,
     gene_id,
     pos_id
   )
+
+message("cleaned matrix created")
 
 ## Write output ##
 readr::write_tsv(annotated_matrix, out_matrix)

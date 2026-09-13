@@ -12,8 +12,17 @@ params:
   use_cache: TRUE
 ---
 
+## Introduction
+
+This exploratory notebook performs alternative splice analysis on arbitrary reference and query groups from the cancer types present in the TARGET pilot samples.
+Alternative splice analysis consists of:
+
+- 
+
 ## Set up
+
 ## load libraries
+
 ```{r}
 # load libraries
 library(ggplot2)
@@ -42,7 +51,6 @@ plot_theme = list(
 )
 ```
 
-
 ## Directories and files
 
 ```{r}
@@ -52,7 +60,6 @@ data_dir <- file.path("data")
 target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
 # target subset combined psi results
 combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
-
 
 # output
 wilcox_results_file <- file.path(data_dir, "wilcox_test_results.tsv")
@@ -69,6 +76,7 @@ psi_combined <- readRDS(combined_psi_file)
 ```
 
 ## Combine PSI table with TARGET metadata to associate samples with cancer type
+
 ```{r}
 
 # We only care about body site and run fields in target metadata
@@ -126,16 +134,14 @@ cancer_type_psi_table_subset <- cancer_type_psi_table_filtered |>
 
 ```
 
-
-
 Calculate Wilcoxon ranksum for PSI distributions
-
 
 ```{r}
 use_cached_wilcox <-file.exists(wilcox_results_file) && params$use_cache
 ```
 
 Run wilcoxon ranksum test
+
 ```{r}
 if (use_cached_wilcox) {
   wilcox_test_events <- readr::read_tsv(wilcox_results_file)
@@ -157,6 +163,7 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
 
 Filter for distributions that failed the wilcoxon test to see if they look like biologically interesting distributions.
 Make a series of histograms faceted by pos_id
+
 ```{r}
 #| label: fig-hist_fail_wilcox_test_dists
 #| fig-width: 11
@@ -179,8 +186,10 @@ ggplot(fail_wilcox_psi, aes(x = PSI, y = group, fill = group)) +
        x = "PSI value",
        y = "Number of samples") 
 ```
-These actually look fairly reasonable for a wilcox test to fail. 
+
+These actually look fairly reasonable for a wilcox test to fail.
 Check what it looks like when the wilcox test is successful
+
 ```{r}
 #| label: fig-hist_sig_wilcox_test_dists
 #| fig-width: 11
@@ -203,6 +212,5 @@ ggplot(pass_wilcox_psi, aes(x = PSI, y = 0, fill = group)) +
        x = "PSI value",
        y = "Density") 
 ```
+
 I used ridgeplots because stacked histograms made it hard to figure out where the ref and query distributions were
-
-

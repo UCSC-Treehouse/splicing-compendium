@@ -10,6 +10,8 @@ editor_options:
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 params:
   use_cache: TRUE
+  ref: "all"
+  query: "TARGET: Kidney\\, Wilms Tumor (WT)" 
   min_samples: 5
   padj: 0.05
   dPSI: 0.15
@@ -109,8 +111,15 @@ cancer_type_psi_table <- psi_combined |>
   # assign group type (ref vs query)
     dplyr::mutate(
     group = dplyr::case_when(
-      study_name ==  "TARGET: Kidney\\, Wilms Tumor (WT)" ~ "query",
-      study_name !=  "TARGET: Kidney\\, Wilms Tumor (WT)" ~ "ref"
+      # set query group as specified in params
+      study_name == params$query ~ "query",
+      # if ref group is "all", all cancer/tissue types other than query group is set as ref group
+      if (params$ref == "all") {
+        study_name != params$query ~ "ref"
+        # otherwise, use user-supplied ref group name as ref group
+      } else {
+        study_name == params$ref ~ "ref"
+      }
     )
   )
 
@@ -121,10 +130,11 @@ colnames(cancer_type_psi_table)
 Filter to positions where there are sufficient samples.
 
 ```{r filter_min_observations}
-# require at least min_samples for each group to have non-NA PSI values
+# require at least min_samples for each group to have non-NA PSI values for a given splice event
 cancer_type_psi_table_filtered <- cancer_type_psi_table |>
   tidyr::drop_na(PSI) |>
   dplyr::group_by(pos_id) |>
+  # count number of samples in each group with non-NA PSI values for a given splice event
   dplyr::mutate(
     ref_count = sum(group == "ref"), 
     query_count = sum(group == "query")

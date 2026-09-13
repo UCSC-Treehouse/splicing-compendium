@@ -1,0 +1,261 @@
+---
+title: Add clinical metadata to TARGET compendium v1 sample sheet
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable 
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+This notebook adds clinical metadata to the TARGET accessions sheet. Clinical metadata is obtained from the [UCSC Xena browser metadata hub](https://xenabrowser.net/datapages/?hub=https://gdc.xenahubs.net:443). Metadata related to clinical attributes of the sample are split into two files for each TARGET cancer type in the linked page.
+
+- "Survival data" - Contains the survival information of each TARGET sample within the specified cancer type (e.g. overall survival, overall survival time)
+
+- "Survival data" - Contains the survival information of each TARGET sample within the specified cancer type (e.g. overall survival, overall survival time)
+
+We plan to include the following metadata fields in the accessions sheet:
+
+- Age at dx
+
+- Race/ethnicity
+
+- Sex
+
+- Survival
+
+- Sequencing center
+
+Prior to combining survival and phenotype metadata to existing TARGET accession metadata, the survival and phenotype information is filtered to meet the above criteria.
+
+## Setup
+
+### Read in directories and files
+
+```{r directories_and_files}
+
+## Define paths to directories ##
+
+# find the project directory
+base_dir <- here::here()
+
+# define directory paths
+# accession metadata dir
+metadata_dir <- file.path(base_dir, "metadata")
+# clinical TARGET metadata directory
+clinical_target_dir <- file.path(metadata_dir, "clinical", "target")
+# filtered accessions directory
+gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+# sample sheet dir of samples that were downloaded and processed
+config_dir <- file.path(base_dir, "config")
+
+## Define paths to input files ##
+
+# full TARGET dataset SRA accessions and metadata
+target_sra_path <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
+# final list of accessions that were downloaded and processed, including pilot accessions
+compendium_samples_path <- file.path(config_dir, "sample_sheet.tsv")
+
+# TARGET clinical metadata files
+# Define list of TARGET clinical metadata files
+target_clinical_files <- c(
+  all_p1_clinical = "TARGET-ALL-P1.clinical.tsv",
+  all_p2_clinical = "TARGET-ALL-P2.clinical.tsv",
+  all_p3_clinical = "TARGET-ALL-P3.clinical.tsv",
+  aml_clinical = "TARGET-AML.clinical.tsv",
+  nbl_clinical = "TARGET-NBL.clinical.tsv",
+  rt_clinical = "TARGET-RT.clinical.tsv",
+  wt_clinical = "TARGET-WT.clinical.tsv",
+  ccsk_clinical = "TARGET-CCSK.clinical.tsv"
+)
+
+target_survival_files <- c(
+  all_p1_survival = "TARGET-ALL-P1.survival.tsv",
+  all_p2_survival = "TARGET-ALL-P2.survival.tsv",
+  all_p3_survival = "TARGET-ALL-P3.survival.tsv",
+  aml_survival = "TARGET-AML.survival.tsv",
+  nbl_survival = "TARGET-NBL.survival.tsv",
+  rt_survival = "TARGET-RT.survival.tsv",
+  wt_survival = "TARGET-WT.survival.tsv",
+  ccsk_clinical = "TARGET-CCSK.survival.tsv"
+)
+
+# construct TARGET clinical metadata paths
+target_clinical_metadata_paths <-file.path(clinical_target_dir, target_clinical_files)
+names(target_clinical_metadata_paths) <- names(target_clinical_files)
+target_survival_metadata_paths <- file.path(clinical_target_dir, target_survival_files)
+names(target_survival_files) <- names(target_survival_files)
+
+## Output ##
+# define path to output file
+target_clinical_metadata_output <- file.path(gtex_target_metadata_dir, "target_accessions_clinical.tsv")
+```
+
+Read in files
+
+```{r read_files}
+
+## Sample sheets ##
+
+# SRA accessions tables - target_sra "Run" column is to be associated with compendium_samples "sample" column
+# target SRA table
+target_sra <- readr::read_csv(target_sra_path, col_types = readr::cols(.default = "c"))
+# sample sheet of what was downloaded and processed
+compendium_samples <- readr::read_tsv(compendium_samples_path, col_types = readr::cols( .default = "c"))
+
+## Clinical metadata ##
+
+# read in metadata paths
+target_clinical_metadata <- target_clinical_metadata_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default = "c"))
+  }) |> 
+  purrr::list_rbind()
+
+target_survival_metadata <- target_survival_metadata_paths |>
+  purrr::map(\(path){
+    readr::read_tsv(path, col_types=readr::cols(.default="c"))
+  }) |>
+  purrr::list_rbind()
+
+```
+
+The "sample" column in the survival and clinical metadata tables have entries that look like: TARGET-10-PAMDRM-09A
+
+The "sample" column in the metadata table correspond to the "biospecimen_repository_sample_id" column in the target accessions table, which looks like: TARGET-10-PAMDRM-09A-01D
+
+The sample IDs are harmonized in these metadata files by removing the last substring of "biospecimen_repository_sample_id" by "-".
+
+Then, the TARGET accessions metadata is combined with the accessions sheet and the TARGET SRA metadata is filtered for accessions corresponding to samples that were downloaded and processed.
+
+## Combine TARGET clinical and survival metadata
+
+Combine each TARGET cancer type's clinical and survival metadata and filter for accessions that are present in the compendium
+
+```{r combine_metadata}
+
+# combine target clinical and survival metadata
+target_metadata <- dplyr::full_join(
+  target_clinical_metadata,
+  target_survival_metadata,
+  by = "sample"
+)
+
+# make a list of target accessions that were downloaded and processed for the compendium
+target_downloaded <- compendium_samples |>
+  dplyr::filter(group == "target") |>
+  dplyr::pull(sample)
+
+# filter target accessions for accessions that are in the compendium sample sheet
+target_sra_metadata <- target_sra |>
+  dplyr::filter(Run %in% target_downloaded) |>
+  # derive target sample ID from sample ID 
+  dplyr::mutate(
+    # remove the hyphen followed by characters that are not hyphens that are at the end of the string
+    target_sample_id = sub("-[^-]+$", "", biospecimen_repository_sample_id)
+  )
+```
+
+There are some cases where more than one sample in the compendium that corresponds to one entry in the clinical metadata. In these cases, the sample comes from the same patient. These cases are handled by duplicating the clinical metadata for the samples that come from the same patient (don't assume one-to-one relationship in merge).
+
+## Merge TARGET accessions with clinical metadata
+
+```{r merge_accessions_with_metadata}
+# merge target accessions with clinical metadata 
+target_clinical_accessions <- dplyr::left_join(
+  target_sra_metadata,
+  target_metadata, 
+  by = dplyr::join_by(
+    target_sample_id == sample),
+  relationship = "many-to-many"
+    )
+```
+
+## Combine target metadata with SRA metadata for downloaded samples and select columns to include
+
+```{r combine_metadata_with_sra}
+# merge target accessions with clinical metadata 
+target_clinical_accessions <- target_clinical_accessions |>
+  # select for columns that are relevant to clinical metadata
+  dplyr::select(
+    target_sample_id, # from dbgap metadata, shared with clinical metadata
+    Run, # from dbgap metadata
+    age_at_diagnosis_days = age_at_diagnosis.diagnoses, 
+    # selected over age_at_index.demographic due to having unrounded numbers
+    age_at_earliest_diagnosis_in_years.diagnoses.xena_derived, 
+    race.demographic,
+    gender.demographic,
+    OS,
+    OS.time,
+    disease_type, # e.g. neoplasms, lymphoid leukemias
+    race.demographic,
+    gender.demographic,
+    ethnicity.demographic,
+    project_id.project, # TARGET hyphenated by cancer type acronym (e.g. TARGET-CCSK)
+    name.project, # cancer type spelled out in long form (e.g. high-risk wilms tumor)
+    classification_of_tumor.diagnoses, # e.g. primary, not reported
+    primary_diagnosis.diagnoses, # cancer diagnosis of sample
+    sample_type.samples, # type of tumor (primary, recurrent)
+    tissue_type.samples, # tumor or normal
+    `_PATIENT`,  # patient id of sample
+    # these columns are from the dbGaP SRA metadata
+    BioProject,
+    BioSample,
+    biospecimen_repository,
+    biospecimen_repository_sample_id,
+    `Center Name`, # not all samples are sequenced at the same centers
+    Experiment,
+    `dbGaP accession`,
+    Instrument, # not all samples are sequenced with same instrument
+    `Sample Name`,
+    `SRA Study`,
+    study_name,
+    submitted_subject_id,
+    histological_type,
+    body_site
+  ) 
+```
+
+Check for samples without entries in any of the selected clinical metadata fields
+
+```{r}
+target_clinical_accessions |> dplyr::filter(
+  if_all(
+      c(
+        age_at_diagnosis_days,
+        age_at_earliest_diagnosis_in_years.diagnoses.xena_derived,
+        disease_type,
+        race.demographic,
+        gender.demographic,
+        ethnicity.demographic,
+        project_id.project,
+        name.project,
+        classification_of_tumor.diagnoses,
+        primary_diagnosis.diagnoses,
+        sample_type.samples,
+        tissue_type.samples,
+        OS.time,
+        OS,
+        `_PATIENT`
+      ),
+      is.na
+    )
+  ) |>
+  
+  # summarize the studies samples with missing information come fro
+  dplyr::summarise(
+    .by = study_name,
+    n = dplyr::n()
+  )
+
+```
+
+All samples in the compendium have clinical data accounted for. Some ALL expansion phase 2 samples appear to be in the Xena browsers [ALL Phase 3](https://xenabrowser.net/datapages/?host=https%3A%2F%2Fgdc.xenahubs.net&dataset=TARGET-ALL-P3.clinical.tsv&allSamples=true&removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu%3A443) metadata, instead of the phase 2 metadata as expected.
+
+## Write output
+
+```{r write_output}
+readr::write_tsv(target_clinical_accessions, target_clinical_metadata_output, col_names = TRUE)
+```

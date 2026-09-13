@@ -8,6 +8,8 @@ editor_options:
   markdown:
     wrap: sentence
 date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  use_cache: TRUE
 ---
 
 **Question:** Does merging separate splice tables cause us to lose out on the trustworthiness of unannotated events to an extent that it impacts many samples?
@@ -24,7 +26,7 @@ As part of tracking differences between the two tables, we have labeled NA value
 - NA: NA values from merging the separate and combined tables.
   These NAs represent splice events that are only found in one analysis method (combined vs. separate)
 
-We are particularly interested in the impact merging separate tables has on unannotated event detection, since this is why we chose to use Shiba over other tools.
+We are particularly interested in the impact merging separate tables has on unannotated event detection, since this is one novelty of using Shiba.
 
 **Targeted questions this notebook is trying to answer:**
 
@@ -102,7 +104,7 @@ psi_distributions <- function(
 }
 
 # create summary table of events detected
-make_event_summary <- function (events_table) { 
+make_event_summary <- function (events_table) {
   events_table |>
     dplyr::summarise(
       .by = c(event_type, label),
@@ -114,7 +116,7 @@ make_event_summary <- function (events_table) {
       shared_percent = shared_count / total * 100,
       combined_only_percent = combined_only_count / total * 100,
       separate_only_percent = separate_only_count / total * 100,
-  )
+    )
 }
 
 # plot event summary frequencies as percent and raw counts bar plots
@@ -234,15 +236,19 @@ event_summary <- function(
 # Create summary table of number and percentage of events in each PSI-NA matchup category
 na_comparison_summary <- function(long_df) {
   long_df |>
-    # try to get rid of the NA NAs here
-    tidyr::drop_na() |>
     dplyr::mutate(
       match_category =
         dplyr::case_when(
           separate == -1 & combined == -1 ~ "both Shiba NAs",
+          separate == -1 & is.na(combined) ~ "no event in combined, Shiba NA in separate",
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
-          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in combined table",
+          is.na(separate) & combined == -1 ~ "no event in separate, Shiba NA in combined",
+          is.na(separate) & combined == -2 ~ "no event in separate, dropped in combined",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in separate table",
+          separate == -2 & is.na(combined) ~ "no event in combined, dropped in separate",
+          separate >= 0 & combined >= 0 ~ "PSI quantified in both"
         )
     ) |>
     dplyr::summarise(
@@ -256,7 +262,7 @@ na_comparison_summary <- function(long_df) {
 }
 
 # plot PSI distributions of events with numeric PSI values in combined tables but are dropped in separate tables
-psi_values_lost_in_separate <- function(na_comparison_df) {
+psi_values_lost_in_tables <- function(na_comparison_df, match_queried) {
   na_comparison_df |>
     # drop NAs from putting together the separate and combined tables
     tidyr::drop_na() |>
@@ -266,15 +272,17 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
         dplyr::case_when(
           separate == -1 & combined == -1 ~ "both Shiba NAs",
           separate == -2 & combined == -1 ~ "separate dropped, combined shiba NA",
-          separate >= 0 & combined >= 0 ~ "both numeric PSIs",
-          separate == -2 & combined >= 0 ~ "numeric PSI dropped in separate table"
+          separate >= 0 & combined >= 0 ~ "PSI quantified in both",
+          separate == -2 & combined >= 0 ~ "PSI quantified in combined, dropped in separate table",
+          is.na(separate) & combined >= 0 ~ "PSI only quantified in combined table",
+          separate >= 0 & is.na(combined) ~ "PSI only quantified in separate table"
         )
     ) |>
     # plot only events in combined table with numeric PSIs that are dropped in the separate table
-    dplyr::filter(match_category == "numeric PSI dropped in separate table",) |>
+    dplyr::filter(match_category == match_queried,) |>
       ggplot(aes(combined, fill = event_type)) +
       geom_histogram(bins = 20) +
-      facet_wrap(vars(event_type, label)) +
+      facet_wrap(vars(label)) +
     scale_fill_manual(values = cbPalette) +
       plot_theme +
       # make facet labels bigger
@@ -287,26 +295,30 @@ psi_values_lost_in_separate <- function(na_comparison_df) {
 ## Directories and files
 
 ```{r}
+## directories ##
 # find the root-level repo directory so we can access the other files
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-
 # define the data directories
 exploration_dir <- file.path(repo_root, "exploration")
 merge_exploration_dir <- file.path(exploration_dir, "merging-psi-tables")
 target_pilot_dir <- file.path(merge_exploration_dir, "target_pilot")
-
+#output dir for long tables
+target_pilot_output <- file.path(exploration_dir, "psi_tables")
 # directory of shiba results produced from the same shiba run
 combined_dir <- file.path(target_pilot_dir, "shiba_combined", "results")
-
 # psi table directory
 combined_splice_results_dir <- file.path(combined_dir, "splicing")
-
 # Directory of PSI table, merged from separate shiba runs
 separate_psi_table_dir <- file.path(target_pilot_dir, "merged_results")
 
+# Check output dir exists; if not, create it
+if (!dir.exists(target_pilot_output)) {
+  dir.create(target_pilot_output)
+}
+
+## files ##
 # merged PSI file of two samples obtained from merge-shiba-psi-tables.qmd
 separate_psi_file <- file.path(separate_psi_table_dir, "merged_psi_table.tsv")
-
 # define list of PSI results files corresponding to event types quantified by Shiba bulk analysis
 psi_files <- c(
   se = "PSI_SE.txt",
@@ -323,6 +335,9 @@ psi_files <- c(
 shiba_psi_paths <-file.path(combined_splice_results_dir, psi_files)
 names(shiba_psi_paths) <- names(psi_files)
 
+## output ##
+# long df output file of combined and separate PSI tables
+long_df_output <- file.path(target_pilot_output, "long_psi_df.rds")
 ```
 
 Read in files
@@ -403,13 +418,33 @@ all_methods_summary <- all_events |> dplyr::summarise(
 all_methods_summary
 ```
 
+Although the majority of splice events (inclusive of NA values) are shared between methods, there are about twice as many splice events only in the separate method's table than the combined method.
+
 Print summary of counts and percentages across each method, broken down by event type
 
 ```{r}
 # event-level summary of the number of each splice event type in each splice table
-all_events_summary <- make_event_summary(all_events)
-all_events_summary
+all_events_summary <- all_events |> dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
+
+all_events_summary |> dplyr::select(
+  total,
+  shared_percent,
+  combined_only_percent,
+  separate_only_percent)
 ```
+
+Out of all the event types, annotated skipped exons and annotated multiple skipped exon types are the most shared between the two methods (above 90%).
+In contrast, unannotated events of these types are only shared at 65% and 58% respectively.
 
 Plot event-level (one count per unique event) summary of event frequency across methods and event types
 
@@ -424,66 +459,6 @@ plot_event_summary(all_events_summary)
 The majority of annotated event types are shared between both tables, although there are more splice events unique to the separate table (green) than the combined table (red).
 Inflated values in the separate tables may be due to -2 NAs which arise in the Shiba processing of separate samples when when genes without multiple transcripts are dropped.
 
-### What specific event types are impacted (missed) by the separate tables method?
-
-These following plots answer the question for me better than the above summary plots.
-
-```{r}
-#| label: fig-combined_only_splice_events
-#| fig-width: 11
-#| fig-height: 8
-
-combined_only_summary <- all_events_summary |>
-  dplyr::select(event_type, label, combined_only_count, total, combined_only_percent)
-
-long_summary_df <- combined_only_summary |>
-    tidyr::pivot_longer(
-      cols = c(
-        combined_only_count,
-        combined_only_percent
-      ),
-      # extract percents and counts into separate columns
-      names_to = c("category", ".value"),
-      names_pattern = "(.+)_(percent|count)"
-    )
-
-# create raw counts grouped barplot
-counts_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = count)) +
-    geom_bar(stat = "identity") +
-      scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    labs(
-      title = "# annotated and unannotated splice events only in combined table",
-      x = "Event Type",
-      y = "Number of events"
-    ) +
-    facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
-    theme(strip.text = element_text(size = 15))
-
-# create percents grouped barplot
-percents_plot <- ggplot(long_summary_df, aes(fill = event_type, x = event_type, y = percent)) +
-    geom_bar(position = "dodge", stat = "identity") +
-      scale_fill_manual(values = cbPalette) +
-    plot_theme +
-    labs(
-      title = "% annotated and unannotated splice events only in combined table",
-      x = "Annotation status of event",
-      y = "Percent of all events"
-    ) +
-    facet_wrap(vars(label)) +
-    scale_x_discrete(guide = guide_axis(angle = 45)) +
-    theme(strip.text = element_text(size = 15))
-
-
-percents_plot /
-  counts_plot + plot_layout(guides = "collect")
-```
-
-I think of these as "percent of each event category missed in the separate tables".
-In the worst cases, 30% of unannotated events might be only in the combined table (FIVE events).
-Losing 30% of unannotated real events seems rough.
-
 ### How many events remain if we filter for events with PSI values in a minimum number of samples?
 
 - Of splice events with high numbers of NA values, how many of these events only have a numeric PSI value in one (or a very low amount of) samples?
@@ -497,7 +472,7 @@ all_events <- all_events |>
     # count the number of PSI values that are not one of our NA types
     n_quantified_separate = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0, 
+      dplyr::pick(dplyr::ends_with("_PSI_separate")) >= 0,
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
@@ -510,11 +485,11 @@ all_events <- all_events |>
       # elect sample PSI values that have -2 NA type
       dplyr::pick(dplyr::ends_with("_PSI_separate")) == -2
     ),
-    ## count PSI value types in combined table ##    
+    ## count PSI value types in combined table ##
     # count the number of PSI values that are not one of our NA types
     n_quantified_combined = rowSums(
       # select sample PSI values that are not one of our NA types
-      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0, 
+      dplyr::pick(dplyr::ends_with("_PSI_combined")) >= 0,
       # ignore NA values (events only in separate or combined tables)
       na.rm = TRUE),
     # count the number of PSI values dropped due to insufficient reads
@@ -529,11 +504,6 @@ all_events <- all_events |>
     )
   )
 
-# check what summary looks like
-all_events |>
-  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
-                n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
-  head()
 ```
 
 Filter for minimum samples with numeric PSI values in the separate table and check n_quantified.
@@ -543,38 +513,41 @@ The resulting summaries of this filtered table will be incomplete, as it will no
 # event-level summary of the number of each splice event type in each splice table
 all_events_min_samples <- all_events |>
   # filter for events where there are numeric PSI values in at least 5 samples
-  dplyr::filter(n_quantified_separate >= min_samples | n_quantified_combined >= min_samples)
+  dplyr::filter(n_quantified_separate >= min_samples)
 
 # check what summary columns look like
 all_events_min_samples  |>
-  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate, 
+  dplyr::select(pos_id, n_quantified_separate, n_shiba_na_separate, n_dropped_separate,
                 n_quantified_combined, n_shiba_na_combined, n_dropped_combined) |>
   dplyr::arrange((n_quantified_separate)) |>
   head()
 ```
 
-#### Plot event distributions of the filtered separate table
+`n_quantified_separate` and `n_quantified_combined` columns have min values of 5, so filtering appears to be correct.
+
+Plot event distributions of the filtered table
 
 ```{r}
-#| label: fig-splice_events_breakdown_5_samples_separate
+#| label: fig-splice_events_breakdown_5_samples
 #| fig-width: 11
 #| fig-height: 8
 
-# event-level summary of the number of each splice event type in min_sample filtered separate table
-events_summary_min_separate_samples <- all_events_min_samples |>
+# event-level summary of the number of each splice event type in each splice table
+all_events_summary_min_samples <- all_events_min_samples |>
   # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
-  # filter for events where min_samples are in separate table only
-  dplyr::filter(n_quantified_separate >= min_samples) |> 
-  make_event_summary()
+  dplyr::summarise(
+    .by = c(event_type, label),
+    # count number of events in each event type and annotation category
+    total = dplyr::n(),
+    shared_count = sum(shared_event),
+    combined_only_count = sum(combined_event) - shared_count,
+    separate_only_count = sum(separate_event) - shared_count,
+    shared_percent = shared_count / total * 100,
+    combined_only_percent = combined_only_count / total * 100,
+    separate_only_percent = separate_only_count / total * 100,
+)
 
-plot_event_summary(events_summary_min_separate_samples )
-```
-
-Print table of splice event counts of filtered combined table
-
-```{r}
-events_summary_min_separate_samples |>
-  dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)
+plot_event_summary(all_events_summary_min_samples)
 ```
 
 Observations:
@@ -582,41 +555,26 @@ Observations:
 - Although most events are shared after applying this filter and we still have unannotated events, we also still have events only found in the separate table.
   These events are harder to deal with because they may be real events mislabeled by Shiba, or they may be unreal events (we cannot easily tell)
 
-#### Plot event distributions of the filtered combined table
+- Additionally, we still see that most unannotated events are no longer present after this filtering.
+
+Print table of splice event counts of filtered table
 
 ```{r}
-#| label: fig-splice_events_breakdown_5_samples_combined
-#| fig-width: 11
-#| fig-height: 8
-
-# event-level summary of the number of each splice event type in min_sample filtered combined table
-events_summary_min_combined_samples <- all_events_min_samples |>
-  # this data frame still may include -1 and -2 NA values for other splice events but the sample-level analysis later will tell us more
-  # filter for events where min_samples are in separate table only
-  dplyr::filter(n_quantified_combined >= min_samples) |> 
-  make_event_summary()
-
-plot_event_summary(events_summary_min_combined_samples)
-```
-
-Print table of splice event counts of filtered combined table
-
-```{r}
-events_summary_min_combined_samples |>
+all_events_summary_min_samples |>
   dplyr::select(event_type, label, shared_count, separate_only_count, combined_only_count)
 ```
 
 Observations:
 
-- We can see that the filtered combined table results in more shared events that are unannotated, compared to the filtered separate table (by maybe 5x, looking at the Y axis scale).
+- Once the "splice event with numeric value in at least 5 samples" filter is applied, there are no longer splice events only in the combined method's PSI table.
 
-- There are also a high number of combined_only events that are missed in the separate tables, even after filtering for combined events that are present in min_samples.
-  There are \~5,000 skipped exon events only in the combined table that are in min_samples that are missed in the separate tables.
-  That's more than the total number of skipped exon events remaining in the min_samples filtered separate table.
+- The combined method is expected capture more events found in fewer samples, due to calculating splice events usage defined from a more complete set of events.
 
 ## How many of each splice event types are quantified?
 
-Histogram of quantified events
+This section plots the distributions of splice events quantified in each method.
+
+### Histogram of quantified events
 
 ```{r}
 #| label: fig-num_quantified_psi
@@ -627,6 +585,7 @@ number_events_dist(all_events, "n_quantified_separate", "Number of quantified PS
 
 number_events_dist(all_events, "n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
+
 
 Check skipped exon quantified PSI histograms
 
@@ -644,10 +603,11 @@ all_events |>
   number_events_dist("n_quantified_combined", "Number of quantified PSI values in combined table") + plot_layout(guides = "collect")
 ```
 
-As expected, we have more observations of quantified unannotated PSI values in the combined table (higher bars at the end of the X axis).
+As expected, we have more observations of quantified unannotated PSI values in the combined table (higher bars at the end of the X axis) in both sets of histograms.
 More critically, the unannotated observations in the combined table that we lose in the separate tables seem to be quantified in most of the TARGET pilot samples.
 
-Histogram of events dropped by Shiba due to insufficient read counts
+### Histogram of events dropped by Shiba due to insufficient read counts
+The following histograms show the counts of PSI values that are DROPPED in each method.
 
 ```{r}
 #| label: fig-num_low_read_na
@@ -658,61 +618,138 @@ number_events_dist(all_events, "n_shiba_na_separate", "Number of PSIs dropped du
 
 number_events_dist(all_events, "n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
 ```
+There appear to be more events dropped across more samples in the combined results compared to the separate results.
+However, I think this is because the combined method captures more "rare" (e.g. present in only one sample) splice events.
+This would increase the overall pool of possible loci that could be sequenced so sparsely that they do not actually make it into PSI calculation.
 
-These histograms are now counting events that are lost (number of -1 values).
-In the histogram of PSI values dropped due to low read counts in the combined table, most events that are dropped are dropped in almost all the samples.
-We see fewer events dropped due to low read counts in general in the separate tables, but this might be because the events that would have been dropped are missing from the separate are also missing due to the GTF (-2 NAs).
+### Histogram of events dropped due to genes being thrown out in separate method
 
-Check PSI values dropped from insufficient read histograms for skipped exons
+I do not plot this for the combined table because they are all 0 (we only define what is dropped due to insufficient transcript representation based off what transcripts are missing when individual separate tables are merged).
 
 ```{r}
-#| label: fig-num_low_read_na_se
+#| label: fig-num_low_transcript_na
 #| fig-width: 11
 #| fig-height: 8
 
-all_events |>
-  dplyr::filter(event_type == "se") |>
-  number_events_dist("n_shiba_na_separate", "Number of PSIs dropped due to insufficient read counts in separate table") /
-
-all_events |>
-  dplyr::filter(event_type == "se") |>
-  number_events_dist("n_shiba_na_combined", "Number of PSIs dropped due to insufficient read counts in combined table") + plot_layout(guides = "collect")
+number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to gene being thrown out in separate table")
 ```
+This category of missing values are inflated in unannotated events in the separate table.
 
-The same trend regarding unannotated events is seen here as in @fig-num_low_read_na.
-We also see a higher number of annotated events dropped in all samples in the combined tables.
-I suspect the reason for these two observations is because the combined tables have a larger dictionary of possible splice events due to the merged GTF.
-So all these splice events not found in the separate tables have the potential to have -1 values.
+## How many of each splice event types are quantified?
 
-Check histograms of events dropped in separate tables (-2 values).
-These histograms plot the number of splice events dropped in splice tables made form the separate Shiba runs method.
-These events should correspond to splice events that only have one transcript annotated in the sample's GTF and so are dropped by Shiba.
+## Examine sample-level splice events
+
+### Make long df of events
+
+Pivot longer for plotting sample-level splice event info
+
+Check if result exists in cache
 
 ```{r}
-#| label: fig-num_separate_table_na
+use_cached_long <- file.exists(long_df_output) && params$use_cache
+```
+
+```{r}
+# Pivot all events df longer
+# Each row corresponds to a splice event found in one sample, so there are multiple rows of splice events with the same sample ID
+if (use_cached_long) {
+  long_all_events <- readr::read_rds(long_df_output)
+} else {
+long_all_events <- pivot_long(all_events)
+}
+
+# print column names
+colnames(long_all_events)
+```
+
+### Write output
+
+Write long table into output
+
+```{r}
+# long df
+saveRDS(long_all_events, file = long_df_output)
+
+```
+
+### Examine relationships between of PSI and NA values of combined and separate tables
+
+#### Are PSI values of events that are shared between each method identical?
+
+```{r}
+long_psi_in_both_df <- long_all_events |> dplyr::filter(combined > 0 & separate > 0)
+identical(long_psi_in_both_df$combined, long_psi_in_both_df$combined)
+```
+Yes, PSI values of shared events in both methods are identical.
+
+#### How well correlated are the PSI values and NAs in each splice table type?
+
+To better understand patterns behind what PSI values are missing in each method, this notebook categorizes PSI values into "match categories",
+based on what the value (or NA type) for that position is in each method's PSI table.
+
+Summarize how many of each of these match categories are present in the pilot tables
+
+```{r}
+important_categories <- c(
+  "PSI quantified in both",
+  "NA in separate, quantified in combined",
+  "NA in combined, quantified in separate",
+  "PSI quantified in combined, dropped in separate table")
+
+na_comparison_summary(long_all_events) |>
+  # arrange most important categories to the front
+  dplyr::arrange(match(match_category, important_categories))
+```
+
+We care most about "PSI quantified in both", "NA in separate, quantified in combined", "NA in combined, quantified in separate", and "PSI quantified in combined, dropped in separate table" categories.
+These categories of match types have explanations for why PSI values may be missing.
+
+- Events we expect are real and are captured in both methods: PSI quantified in both
+- Events we expect are real and are missed or miscategorized in the separate method: NA in separate, quantified in combined
+- Events that may be real and miscategorized (but are difficult to confirm): NA in combined, quantified in separate
+- Events we expect are real but are missed in the separate method due to how events are defined in the GTF: PSI quantified in combined, dropped in separate table
+
+In this table, most mismatches (35%) stem from cases where the splice event is dropped in the separate table due to only one gene being detected in the GTF,
+but there are too few junction counts for a splice event in that gene for the event to be assigned a PSI value in the combined table.
+This category is not concerning, as these events would not appear in the "canonical" Shiba method.
+
+The most concerning mismatch types in this table are "PSI quantified in combined, dropped in separate table" (9%) and "PSI only quantified in combined table" (4%),
+as these represent missing splice events due to differences between each method.
+Although the overall percent appears small, only 16% of PSI values are quantified in both tables, so we are missing about as many events as we can detect with this method.
+
+Summarize how many of each of these match categories are present in the pilot tables, filtered for events with numeric PSI in min_samples
+
+### Make filtered df long
+
+```{r}
+
+long_min_sample_all_events <- pivot_long(all_events_min_samples)
+
+# create summary table of match categories
+na_comparison_summary(long_min_sample_all_events) |>
+  # arrange most important categories to the front
+  dplyr::arrange(match(match_category, important_categories))
+```
+
+When we apply the min_samples filter, there is a smaller ratio of concerning mismatches in PSI values between the methods.
+47% of PSIs are shared, compared to 3% of "PSI quantified in combined, dropped in separate table".
+There are no splice events in this filtered dataframe in the "PSI only quantified in combined table" category.
+
+#### Plot PSI distribution of PSI values lost in each method
+
+This plot shows the distribution of the "true" values of -2 ("gene dropped") NAs in the combined table.
+
+##### Quantified PSI values dropped in separate tables due to lack of transcript diversity
+
+```{r}
+#| label: fig-psi_dist_of_combined_only_events
 #| fig-width: 11
 #| fig-height: 8
 
-number_events_dist(all_events, "n_dropped_separate", "# PSIs dropped due to insufficient transcripts in separate table")
-  
-# I do not plot this for the combined table because they are all 0 (we only define what is dropped in the separate tables based off what is missing when individual separate tables are merged)
+# plot PSI distributions of events in combined dataframe
+psi_values_lost_in_tables(long_all_events, "PSI quantified in combined, dropped in separate table")
 ```
 
-Histogram of events missing in separate tables for skipped exon events
+The PSI values of the "gene dropped" NAs span the full range of PSI values, so we miss out entirely on a wide range of values using the separate method.
 
-```{r}
-#| label: fig-num_separate_table_na_se
-#| fig-width: 11
-#| fig-height: 8
-
-all_events |>
-  dplyr::filter(event_type == "se") |>
-  number_events_dist("n_dropped_separate", "# PSIs dropped in separate table")
-```
-
-Missing values are present in both annotated and unannotated events.
-The annotated events that are missed in the separate method are mainly in only a few ( n \< 5 ) samples.
-In contrast, almost all unannotated events that are dropped are present in over 75/88 samples.
-In both @fig-num_separate_table_na and @fig-num_separate_table_na_se, the events that are dropped are absent in most samples.
-
-Because of the extent of missing splice events in the separate method, the conclusion from this analysis is that we need to revise the method to allow for splice events that have only one transcript and events that are only found in one sample to be quantified in the final workflow.
+Following this analysis, we concluded that the Shiba splice compendium workflow needed to be modified to allow for the "gene dropped" NA values to be quantified.

@@ -40,3 +40,12 @@ exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/*
 # Exclude experiment.tsv files to show before and after scrambling
 !exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/experiment_scratch.tsv
 !exploration/merged_shiba_target_pilot/shiba_gtf_to_event_pilot_tests/scrambled_experiment.tsv
+
+# v1 target pilot results
+exploration/v1_workflow_target_pilot_results/
+exploration/v1_psi_tables/long_psi_df.rd
+exploration/dedup_target_pilot_combined_results/
+exploration/v1_target_pilot_rep2/
+exploration/pilot_gtfs/
+exploration/withlogs_v1_pilot_rep1/
+exploration/withlogs_v1_pilot_rep2/

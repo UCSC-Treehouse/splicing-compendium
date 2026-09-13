@@ -1,81 +1,225 @@
-### merge junctions.bed files produced by separate shiba runs ###
-# usage: Rscript 03-merge_separate_junctions.R
+### merge junction bedfiles produced by separate Shiba runs ###
+#
+# Reads every *.bed junction count file in --junctions and combines them so that all samples use the same set of junctions.
+# If a sample does not have a particular junction, it is treated as having zero reads for that junction.
+#
+# The sample name for each file is taken from the header of its final column
+# (Shiba names that column after the sample), not from the filename.
+#
+# There are two output modes, depending on which output argument is given
+#
+# --output <file.bed>
+#   - One merged wide table: chr, start, end, ID, then one count column per sample. Must end in .bed.
+#
+# --output_dir <dir>
+#  - A unified junctions.bed file with all junctions present in any sample.
+#  - One <sample>_junction_counts.tsv per sample, all within the specified output directory.
+#
+#
+# usage:
+#   Rscript 03-merge_separate_junctions.R --junctions junction_dir/ --output merged.bed
+#   Rscript 03-merge_separate_junctions.R --junctions junction_dir/ --output_dir split/
 
-# Load library
-library("optparse")
-library("duckplyr")
+# Load Packages
+suppressPackageStartupMessages({
+  library(optparse)
+  library(dplyr)
+  library(duckplyr)
+  library(dbplyr)
+})
+
 
 # Set up options to Rscript with optparse
-option_list <-list(
+option_list <- list(
+  make_option(
+    "--threads",
+    type = "integer",
+    default = parallel::detectCores(),
+    help = "DuckDB worker threads"
+    ),
+
   make_option(
     opt_str = "--junctions",
     type = "character",
     action = "store",
-    help = "Input directory of deduplicated junction bedfiles"),
+    help = "Input directory of deduplicated junction bedfiles"
+  ),
 
   make_option(
     opt_str = "--output",
+    dest = "output_file",
     type = "character",
-    help = "Specify output path for merged junction counts bedfile.")
+    help = paste(
+      "Specify output path for a single merged junction counts bedfile",
+      "(must end in .bed). Mutually exclusive with --output_dir."
+    )
+  ),
+
+  make_option(
+    opt_str = "--output_dir",
+    type = "character",
+    help = paste(
+      "Specify output directory for per-sample junction counts bedfiles.",
+      "One <sample>.bed is written per sample, all sharing the same",
+      "union set of junctions (missing counts filled with 0).",
+      "Mutually exclusive with --output."
+    )
   )
+)
 
 # Parse options
 opt <- parse_args(OptionParser(option_list = option_list))
 
-## File paths ##
-# Read in deduplicated junctions bed paths from temp dir into a vector
-# each element of list looks like tempdir/1_junctions.bed
-junction_paths <- list.files(path = opt$junctions, pattern = ".bed", full.names = TRUE)
+## Validate output options ##
+# exactly one of --output / --output_dir
+if (!xor(is.null(opt$output_file), is.null(opt$output_dir))) {
+  stop("Specify exactly one of --output (a .bed file) or --output_dir.")
+}
 
-## read in files and merge ##
-# read in junctions.bed files created from separate Shiba runs
-merged_junctions <- purrr::map(junction_paths, \(file) {
-  # read in separate bedfiles for each sample
-  junctions <- readr::read_tsv(
-    file,
-    # make sure columns are types that we expect
-    col_types = readr::cols(
-      .default = "d",
-      ID = "c",
-      chr = "c",
-      start = "d",
-      end = "d"
-    )
-  )
-  # check if there are NAs in bedfile and print rows with NAs
-  if (anyNA(junctions)) {
-    # select rows in bedfile with NAs for printing
-    na_bed_rows <- junctions[!complete.cases(junctions), ]
+output_merged <- !is.null(opt$output_file)
+
+if (output_merged) {
+  # merged mode: must be a .bed file path, not an existing directory
+  if (!grepl("\\.bed$", opt$output_file, ignore.case = TRUE)) {
+    stop("--output must be a file path ending in .bed: ", opt$output_file)
+  }
+  if (dir.exists(opt$output_file)) {
     stop(
-      paste0("NAs found in bedfile", "\n"),
-      readr::format_tsv(a_bed_rows)
+      "--output is an existing directory, expected a .bed file: ",
+      opt$output_file
     )
   }
+} else {
+  # separate mode: must be a directory (created if it does not exist)
+  if (file.exists(opt$output_dir) && !dir.exists(opt$output_dir)) {
+    stop("--output_dir exists but is not a directory: ", opt$output_dir)
+  }
+  dir.create(opt$output_dir, recursive = TRUE, showWarnings = FALSE)
+  if (!dir.exists(opt$output_dir)) {
+    stop("Could not create --output_dir: ", opt$output_dir)
+  }
+}
 
-  # return junctions object to merge
-  junctions
+## File paths ##
+junction_paths <- list.files(
+  path = opt$junctions,
+  pattern = "\\.bed",
+  full.names = TRUE
+)
 
+# Get sample names from junction file headers
+# with file path as names
+sample_df <- junction_paths |>
+  purrr::set_names() |>
+  purrr::map_chr(\(path) {
+    colnames <- readr::read_tsv(
+      path,
+      n_max = 0,
+      col_types = readr::cols(.default = "c")
+    ) |>
+      names()
+    # get the last value
+    colnames[length(colnames)]
   }) |>
-  # merge junctions tables from multiple samples
-  # the resulting table separates junction counts from each sample by columns with the sample ID
-  purrr::reduce(
-    \(x, y) duckplyr::full_join(
-      x, y,
-      by = c("chr", "start", "end", "ID")
-    )
+  tibble::enframe(
+    name = "path",
+    value = "sample"
   )
 
+
+## read in files and merge ##
+# have duckdb read all files into a single long table
+long_junctions <- read_csv_duckdb(
+  junction_paths,
+  options = list(
+    delim = "\t",
+    union_by_name = TRUE,
+    header = TRUE,
+    # add a column with the filename for later pivot
+    filename = TRUE,
+    # override sample column name to "count" for consistent structure
+    names = list(c("chr", "start", "end", "ID", "count")),
+    types = list(c(
+      chr = "VARCHAR",
+      start = "INTEGER",
+      end = "INTEGER",
+      ID = "VARCHAR",
+      count = "INTEGER"
+    ))
+  )
+) |>
+  # replace filename with sample name
+  left_join(sample_df, by = c("filename" = "path")) |>
+  select(!filename)
+
+# turn long table into a 'tbl' duckdb table reference
+lj_tbl <- duckplyr::as_tbl(long_junctions)
+# extract duckdb connection object for raw sql statement execution
+con <- dbplyr::remote_con(lj_tbl)
+
+# use threads for the rule
+DBI::dbExecute(con, sprintf("PRAGMA threads=%d", opt$threads))
+
+
+# the union of junctions seen in any sample
+# (this replaces the pivot: every output file uses this same row set)
+all_junctions <- long_junctions |>
+  distinct(chr, start, end, ID) |>
+  arrange(chr, start, end)
+
 # Check if junction IDs are duplicated
-if (any(duplicated(merged_junctions$ID))) {
-  dup_rows <- merged_junctions[duplicated(merged_junctions$ID),]
+dup_rows <- all_junctions |>
+  summarise(n = n(), .by = ID) |>
+  filter(n > 1) |>
+  collect()
+
+if (nrow(dup_rows) > 0) {
   # quit and send error message about duplicates
-  stop(paste0("Found duplicate junction ID: ", "\n"),
-       readr::format_tsv(dup_rows)
-       )
-    }
+  stop(
+    paste0("Found duplicate junction ID: ", "\n"),
+    readr::format_tsv(dup_rows)
+  )
+}
 
-# convert junctions not found in a sample from NA to 0
-merged_junctions[is.na(merged_junctions)] <- 0
+nm <- as.character(dbplyr::remote_name(lj_tbl))
+pivot_sql <- glue::glue_sql(
+  'PIVOT {`nm`} ON sample USING coalesce(first(count), 0) GROUP BY chr, "start", "end", ID',
+  .con = con
+)
 
-## Save merged junction counts as output
-readr::write_tsv(merged_junctions, opt$output)
+# materialize the pivot ONCE, reuse for every output file
+wide <- tbl(con, sql(pivot_sql)) |>
+  arrange(chr, start, end) |>
+  compute() |>
+  as_duckdb_tibble(prudence = "stingy")
+
+if (output_merged) {
+  ## Merged mode: one wide table with a column per sample ##
+
+   wide |>
+    duckplyr::compute_csv(
+      opt$output_file,
+      options = list(delim = "\t", header = TRUE))
+
+} else {
+  ## Separate mode: one count file per sample + junction bed ##
+
+  wide |>
+    select(chr, start, end, ID) |>
+    duckplyr::compute_csv(
+      file.path(
+        opt$output_dir, "all_junctions.bed"
+      ),
+      options = list(delim = "\t", header = TRUE)
+    )
+
+  # create one count file per sample
+  purrr::walk(sample_df$sample, \(sample_name) {
+    wide |>
+      select(all_of(sample_name)) |>
+      duckplyr::compute_csv(
+        file.path(opt$output_dir, paste0(sample_name, "_junction_counts.tsv")),
+        options = list(delim = "\t", header = TRUE)
+      )
+  })
+}

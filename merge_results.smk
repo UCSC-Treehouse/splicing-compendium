@@ -287,3 +287,11 @@ rule calculate_merged_psi:
         {output.shiba_psi_out}/*.txt
 
         """
+
+rule zip_results:
+    input:
+        merged_gtf = "<merged_shiba_results>/merged_gtf.gtf",
+        merged_junctions = "<merged_shiba_results>/merged_junctions.bed",
+        pre_merge_gtf_dir = "<merged_shiba_results>/pre-merge",
+        events_dir = "<merged_shiba_results>/events",
+        merged_junctions_dir = "<merged_shiba_results>/merged_junctions"

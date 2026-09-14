@@ -87,6 +87,8 @@ Replace [sample group] with the dataset to be downloaded (e.g. `target`, `gtex`)
 
 ## Running the main Snakemake workflow
 
+<img width="2126" height="1646" alt="biorxiv_fullpage_pipeline_workflow_only" src="https://github.com/user-attachments/assets/22a09d4d-7d36-4921-bbe2-027743c71cd9" />
+
 Input data files for the main snakemake workflow consist of raw sequence `.fastq` files, which are expected to be found in the `data` directory of this project.
 Output files consist of Shiba results generated for each individual sample, and will be written to the `results` directory.
 Data files are organized by the sample group (e.g. TARGET, GTEx) in the `data` directory, and the sample group is specified in the `config.yaml` file.

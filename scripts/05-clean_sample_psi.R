@@ -91,7 +91,7 @@ message("file paths loaded")
 
 ### Read in GTF and extract gene names ###
 # import gtf
-gtf <- rtracklayer::import(opt$gtf)
+gtf <- rtracklayer::import(opt$gtf, feature.type = "gene")
 
 
 genes_df <- data.frame(name = gtf$gene_name, id = gtf$gene_id) |>

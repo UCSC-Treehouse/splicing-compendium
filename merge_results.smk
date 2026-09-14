@@ -258,7 +258,7 @@ rule clean_merged_sample_matrix:
     priority: 1
     resources:
         mem_mb = 80000,
-        runtime = 600
+        runtime = 60
     shell:
         """
         Rscript scripts/05-clean_sample_psi.R --one_sample_psi={input.one_sample_psi_results} --in_matrix={input.merged_matrix} --output={output.cleaned_matrix} --gtf={params.gtf_path}

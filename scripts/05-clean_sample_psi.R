@@ -93,8 +93,12 @@ message("file paths loaded")
 # import gtf
 gtf <- rtracklayer::import(opt$gtf)
 
+
+genes_df <- data.frame(name = gtf$gene_name, id = gtf$gene_id) |>
+  dplyr::distinct()
+
 # make a named vector of gene names to IDs
-gene_names <- setNames(gtf$gene_name, gtf$gene_id)
+gene_names <- setNames(genes_df$name, genes_df$id)
 
 # remove the gtf after names are extracted
 rm(gtf)

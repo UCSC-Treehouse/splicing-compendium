@@ -33,7 +33,8 @@ JUNCTION_BEDS = expand(
 # create all rule with expanded wildcards because cannot run target rules with wildcards
 rule all:
     input:
-        "<merged_shiba_results>/merged_persample_psi"
+        matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt",
+        cleaned_matrix = "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
 
 rule bam2gtf:
     input:
@@ -131,7 +132,6 @@ rule merge_junctions:
         rm -rf $tempdir
         """
 
-
 rule merge_junctions_persample:
     input: JUNCTION_BEDS
     # output is one bedfile per sample, all in a single directory
@@ -172,7 +172,7 @@ rule merge_junctions_persample:
           ((n ++))
         done
 
-        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir {params.output_dir}
+        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir={params.output_dir}
 
         # remove tempdir of deduplicated junctions
         rm -rf $tempdir
@@ -226,22 +226,42 @@ rule calculate_sample_psi:
             {output.shiba_psi_out}
         """
 
-rule merge_persample_psi:
+rule merge_persample_psi_matrix:
     input:
         persample_psi_dir = expand("<merged_shiba_results>/sample_psi/{sample}", sample = SAMPLES)
     output:
-        directory("<merged_shiba_results>/merged_persample_psi")
+        merged_matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt"
     params:
         sample_sheet = config["sample_sheet"],
-        version = config["version"]
+        version = config["version"],
+        out_dir = subpath(output.merged_matrix, parent=True)
     priority: 1
     threads: 15 # not currently in use
     resources:
-        mem_mb = 1000000,
-        runtime = 720
+        mem_mb = 200000,
+        runtime = 480
     shell:
         """
-        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={output}
+        Rscript scripts/04-merge_sample_psi.R --sample_sheet={params.sample_sheet} --version_dir={params.version} --output_dir={params.out_dir}
+        """
+
+rule clean_merged_sample_matrix:
+    input:
+        merged_matrix = "<merged_shiba_results>/merged_persample_psi/PSI_matrix_sample.txt",
+        one_sample_psi_results = f"<merged_shiba_results>/sample_psi/{SAMPLES[0]}"
+    output:
+        cleaned_matrix = "<merged_shiba_results>/merged_persample_psi/cleaned_psi_matrix.txt"
+    params:
+        sample_sheet = config["sample_sheet"],
+        version = config["version"],
+        gtf_path = config["reference_gtf"]
+    priority: 1
+    resources:
+        mem_mb = 80000,
+        runtime = 60
+    shell:
+        """
+        Rscript scripts/05-clean_sample_psi.R --one_sample_psi={input.one_sample_psi_results} --in_matrix={input.merged_matrix} --output={output.cleaned_matrix} --gtf={params.gtf_path}
         """
 
 rule calculate_merged_psi:

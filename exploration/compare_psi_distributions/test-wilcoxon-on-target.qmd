@@ -220,14 +220,14 @@ p_dPSI_table <- wilcox_test_events |>
   dplyr::select(pos_id, p, p_adj) |>
   # merge wilcox test p values with dPSI table
   dplyr::full_join(dPSI_table, by = "pos_id")
+
+colnames(p_dPSI_table)
 ```
 
 ## write output
 ```{r}
 readr::write_tsv(p_dPSI_table, diff_splice_results)
 ```
-
-The above output should include all columns expected to be exported from splice compendium differential splice analysis.
 
 ### Plot significant wilcox test distributions
 Plot PSI distributions of splice events with significantly different distributions between query and reference groups.

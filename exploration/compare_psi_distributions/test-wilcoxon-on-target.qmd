@@ -26,10 +26,7 @@ P-values are corrected for multiple testing using the Benjamini-Hochberg method.
 
 2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
 
-3. Visualizing splice events by significance and magnitude of differential splicing: Volcano plots are created to plot the adjusted p-value and dPSI values of each splice event type between the query and reference groups.
-One Volcano plot is created for all splice event types, and separate volcano plots are provided to split splice event types by category.
-
-4. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters. 
+3. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters. 
 These splice events are ranked in decreasing dPSI magnitude.
 
 ## Set up
@@ -187,13 +184,6 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
   readr::write_tsv(wilcox_test_events, wilcox_results_file)
 }
 ```
-### Write diffsplice results to output
-```{r write_output}
-readr::write_tsv(wilcox_test_events)
-```
-
-
-
 
 ### Calculate magnitude of differential splicing (dPSI) values
 ```{r calculated_dPSI}

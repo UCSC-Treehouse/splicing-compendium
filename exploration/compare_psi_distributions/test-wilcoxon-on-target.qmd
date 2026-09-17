@@ -68,7 +68,7 @@ data_dir <- file.path("data")
 # target subset metadata
 target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
 # target subset combined psi results
-combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
+combined_psi_file <- file.path(data_dir, "cleaned_psi_matrix.txt")
 
 # output
 wilcox_results_file <- file.path(data_dir, "wilcox_test_results.tsv")
@@ -82,7 +82,7 @@ diff_splice_results <- file.path(data_dir, "target_pilot_diffsplice.tsv")
 target_metadata <- readr::read_csv(target_metadata_file, col_types = c(.default = "c"))
 
 # combined PSI results from notebook 01-target_subset_psi_value_comparison
-psi_combined <- readRDS(combined_psi_file)
+psi_combined <- readr::read_tsv(combined_psi_file, col_types = c(.default = "c"))
 ```
 
 ## Combine PSI table with TARGET metadata to associate samples with cancer type
@@ -98,8 +98,7 @@ filtered_target_metadata <- target_metadata |>
 # columns correspond to PSI quantification for a specific splice event position for that accession ID
 cancer_type_psi_table <- psi_combined |>
   tidyr::pivot_longer(
-    cols = contains("_PSI"),
-    names_pattern = "(.*)_PSI",
+    cols = contains("SRR"),
     names_to = "Run",
     values_to = "PSI"
     ) |>

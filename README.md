@@ -2,7 +2,8 @@
 
 The code in this repository uses [Shiba (Kubota 2025)](https://github.com/Sika-Zheng-Lab/Shiba) to generate transcriptome-wide alternative splicing profiles for pediatric cancer research.
 The work is described in our manuscript on biorxiv at LINK HERE.
-Splice data quantified for the samples analyzed in this compendium can be downloaded at ZENODO LINK/DOI.
+Splice data (matrix of PSI values for each sample, accompanied by chromosome coordinates, annotation status of splice event, splice event type, gene ID, and gene name) quantified for the samples analyzed in this compendium can be downloaded at [10.5281/zenodo.22737043
+](https://zenodo.org/records/22737043).
 Clinical and tissue type metadata for samples present in this resource can be found at the Zenodo link, or at [metadata/combined_compendium_metadata.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/combined_compendium_metadata.tsv).
 
 The datasets used in this project are under controlled access on dbGaP. They consist of:
@@ -85,6 +86,8 @@ Other index files may be added later.
 Replace [sample group] with the dataset to be downloaded (e.g. `target`, `gtex`)
 
 ## Running the main Snakemake workflow
+
+<img width="2126" height="1646" alt="biorxiv_fullpage_pipeline_workflow_only" src="https://github.com/user-attachments/assets/22a09d4d-7d36-4921-bbe2-027743c71cd9" />
 
 Input data files for the main snakemake workflow consist of raw sequence `.fastq` files, which are expected to be found in the `data` directory of this project.
 Output files consist of Shiba results generated for each individual sample, and will be written to the `results` directory.

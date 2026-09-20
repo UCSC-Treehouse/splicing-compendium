@@ -103,3 +103,49 @@ in_psi_file <- file.path(results_dir, opt$in_psi)
 
 # output
 diff_splice_results <- file.path(results_dir, opt$out_file)
+
+## read in files ##
+# read in compendium metadata
+metadata <- readr::read_csv(metadata_file, col_types = c(.default = "c")) |>
+  # filter for ref and query groups to save memory
+  # to preserve the origin of the metadata info, original tissue type columns are labeled target_study_name
+  # or body_site (for gtex)
+  # the only shared column with tissue type info is the plot_tissue_type column
+  dplyr::filter(
+    plot_tissue_type %in% c(opt$reference_group, opt$query_group)
+  ) |>
+  # select only tissue type and accession ID columns
+  dplyr::select(plot_tissue_type, Run)
+
+# read in psi results
+long_psi_matrix <- readr::read_csv(in_psi_file, col_types = c(.default = "c")) |>
+  # pivot longer to allow accession IDs (PSI column names) to be associated with tissue type from metadata
+  tidyr::pivot_longer(
+    cols = contains("_PSI"),
+    names_pattern = "(.*)_PSI",
+    names_to = "Run",
+    values_to = "PSI"
+  ) |>
+  # filter to positions where there are sufficient samples for calculating differential splicing
+  dplyr::group_by(pos_id) |>
+  # count number of samples in each group with non-NA PSI values for a given splice event
+  dplyr::mutate(
+    ref_count = sum(plot_tissue_type == opt$reference_group),
+    query_count = sum(plot_tissue_type == opt$query_group)
+  ) |>
+  dplyr::filter(
+    ref_count >= opt$min_samples,
+    query_count >= opt$min_samples
+  ) |>
+  # filter out events where all PSI values are identical (nothing different to compare)
+  dplyr::filter(any(PSI != PSI[1])) |>
+  dplyr::ungroup()
+
+# associate accession IDs to tissue type info
+dplyr::inner_join(
+  filtered_target_metadata,
+  long_psi_matrix,
+  by = c("Run")
+)
+
+## calculate significance of differential splicing ##

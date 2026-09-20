@@ -8,10 +8,7 @@
 #
 # 2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
 #
-# 3. Visualizing splice events by significance and magnitude of differential splicing: Volcano plots are created to plot the adjusted p-value and dPSI values of each splice event type between the query and reference groups.
-# One Volcano plot is created for all splice event types, and separate volcano plots are provided to split splice event types by category.
-#
-# 4. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters.
+# 3. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters.
 # These splice events are ranked in decreasing dPSI magnitude.
 
 ### Setup ###
@@ -90,13 +87,19 @@ option_list <- list(
 )
 
 ## directories and files ##
-data_dir <- file.path("data")
+# however since users can download both metadata and psi input from zenodo, they may not be in metadata or results dirs
+# should I instead have user supply the full path to their input files?
+# or explain in script that the files have to be in specific directories?
+# directories
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+metadata_dir <- file.path(repo_root, "metadata")
+results_dir <- file.path(repo_root, "results")
 
+# files
 # metadata file
-target_metadata_file <- file.path(data_dir, "SraRunTable-TARGET.csv")
+metadata_file <- file.path(metadata_dir, opt$metadata_file)
 # target subset combined psi results
-combined_psi_file <- file.path(data_dir, "combined_psi_results.rds")
+in_psi_file <- file.path(results_dir, opt$in_psi)
 
 # output
-wilcox_results_file <- file.path(data_dir, "wilcox_test_results.tsv")
-diff_splice_results <- file.path(data_dir, "target_pilot_diffsplice.tsv")
+diff_splice_results <- file.path(results_dir, opt$out_file)

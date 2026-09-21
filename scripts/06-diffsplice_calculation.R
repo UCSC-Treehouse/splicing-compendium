@@ -3,7 +3,7 @@
 # This notebook performs differential analysis on splice event usage (PSI) values generated from the splice compendium workflow.
 # The analyses included in this notebook consist of:
 #
-#   1. Statistical test for differential splicing: A Wilcoxon ranksum test is used to compare the PSI value distributions for splice events used in a reference and query group of samples.
+# 1. Statistical test for differential splicing: A Wilcoxon ranksum test is used to compare the PSI value distributions for splice events used in a reference and query group of samples.
 # P-values are corrected for multiple testing using the Benjamini-Hochberg method.
 #
 # 2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
@@ -149,3 +149,37 @@ dplyr::inner_join(
 )
 
 ## calculate significance of differential splicing ##
+# run wilcoxon ranksum test
+wilcox_test_events <- cancer_type_psi_table_filtered |>
+  dplyr::group_by(pos_id) |>
+  rstatix::wilcox_test(
+    PSI ~ group,
+    ref.group = "ref"
+  ) |>
+  # add multiple testing adjustment
+  dplyr::mutate(
+    p_adj = p.adjust(p, method = "BH")
+  )
+
+### Calculate magnitude of differential splicing (dPSI) values
+# Calculate median PSIs for each splice event, per group
+dPSI_table <- cancer_type_psi_table_filtered |>
+  dplyr::group_by(pos_id, group) |>
+  dplyr::mutate(
+    median_PSI =
+      median(PSI)
+  ) |>
+  # Calculate dPSI values by taking the difference between the ref and query group medians
+  dplyr::group_by(pos_id) |>
+  dplyr::mutate(
+    dPSI = unique(median_PSI[group == "query"]) - unique(median_PSI[group == "ref"])
+  )
+
+# Merge dPSI values with p values from wilcox differential splicing test
+p_dPSI_table <- wilcox_test_events |>
+  # select for informative columns from wilcox test
+  dplyr::select(pos_id, p, p_adj) |>
+  # merge wilcox test p values with dPSI table
+  dplyr::full_join(dPSI_table, by = "pos_id")
+
+readr::write_tsv(p_dPSI_table, diff_splice_results)

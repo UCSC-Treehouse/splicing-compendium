@@ -1,7 +1,7 @@
 # Treehouse Splice Compendium repo
 
 The code in this repository uses [Shiba (Kubota 2025)](https://github.com/Sika-Zheng-Lab/Shiba) to generate transcriptome-wide alternative splicing profiles for pediatric cancer research.
-The work is described in our manuscript on biorxiv at LINK HERE.
+The work is described in our manuscript on biorxiv at [ https://doi.org/10.64898/2026.09.14.750241]( https://doi.org/10.64898/2026.09.14.750241).
 Splice data (matrix of PSI values for each sample, accompanied by chromosome coordinates, annotation status of splice event, splice event type, gene ID, and gene name) quantified for the samples analyzed in this compendium can be downloaded at [10.5281/zenodo.22737043
 ](https://zenodo.org/records/22737043).
 Clinical and tissue type metadata for samples present in this resource can be found at the Zenodo link, or at [metadata/combined_compendium_metadata.tsv](https://github.com/UCSC-Treehouse/splicing-compendium/blob/main/metadata/combined_compendium_metadata.tsv).

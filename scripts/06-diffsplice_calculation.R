@@ -118,6 +118,8 @@ metadata <- readr::read_csv(metadata_file, col_types = c(.default = "c")) |>
   # select only tissue type and accession ID columns
   dplyr::select(plot_tissue_type, Run)
 
+message("metadata read in")
+
 # read in psi results
 long_psi_matrix <- readr::read_csv(in_psi_file, col_types = c(.default = "c")) |>
   # pivot longer to allow accession IDs (PSI column names) to be associated with tissue type from metadata
@@ -142,12 +144,16 @@ long_psi_matrix <- readr::read_csv(in_psi_file, col_types = c(.default = "c")) |
   dplyr::filter(any(PSI != PSI[1])) |>
   dplyr::ungroup()
 
+message("PSI matrix read in")
+
 # associate accession IDs to tissue type info
 dplyr::inner_join(
   filtered_target_metadata,
   long_psi_matrix,
   by = c("Run")
 )
+
+message("accession IDs merged with tissue type info")
 
 ## calculate significance of differential splicing ##
 # run wilcoxon ranksum test
@@ -161,6 +167,8 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
   dplyr::mutate(
     p_adj = p.adjust(p, method = "BH")
   )
+
+message("wilcoxon's ranksum calculated for ref and query groups")
 
 ### Calculate magnitude of differential splicing (dPSI) values
 # Calculate median PSIs for each splice event, per group
@@ -176,6 +184,8 @@ dPSI_table <- cancer_type_psi_table_filtered |>
     dPSI = unique(median_PSI[group == "query"]) - unique(median_PSI[group == "ref"])
   )
 
+message("dPSI calculated for ref and query groups")
+
 # Merge dPSI values with p values from wilcox differential splicing test
 p_dPSI_table <- wilcox_test_events |>
   # select for informative columns from wilcox test
@@ -183,4 +193,8 @@ p_dPSI_table <- wilcox_test_events |>
   # merge wilcox test p values with dPSI table
   dplyr::full_join(dPSI_table, by = "pos_id")
 
+message("dPSI merged with p values")
+
 readr::write_tsv(p_dPSI_table, diff_splice_results)
+
+message("results written to output")

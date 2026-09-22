@@ -86,6 +86,9 @@ option_list <- list(
   )
 )
 
+# Parse options
+opt <- parse_args(OptionParser(option_list = option_list))
+
 ## directories and files ##
 # however since users can download both metadata and psi input from zenodo, they may not be in metadata or results dirs
 # should I instead have user supply the full path to their input files?

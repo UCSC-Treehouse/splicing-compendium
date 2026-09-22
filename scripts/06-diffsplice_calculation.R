@@ -99,7 +99,8 @@ results_dir <- file.path(repo_root, "results")
 # metadata file
 metadata_file <- file.path(metadata_dir, opt$metadata_file)
 # target subset combined psi results
-in_psi_file <- file.path(results_dir, opt$in_psi)
+# maybe set version (splice_compendium_v1) as option?
+in_psi_file <- file.path(results_dir, "merged_shiba", "splice_compendium_v1", "merged_persample_psi", opt$in_psi)
 
 # output
 diff_splice_results <- file.path(results_dir, opt$out_file)

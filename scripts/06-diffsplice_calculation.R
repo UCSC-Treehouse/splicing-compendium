@@ -110,16 +110,16 @@ diff_splice_results <- file.path(results_dir, opt$out_file)
 
 ## read in files ##
 # read in compendium metadata
-metadata <- readr::read_csv(metadata_file, col_types = c(.default = "c")) |>
+metadata <- readr::read_tsv(metadata_file, col_types = c(.default = "c")) |>
+  # select only tissue type and accession ID columns
+  dplyr::select(plot_tissue_type, Run) |>
   # filter for ref and query groups to save memory
   # to preserve the origin of the metadata info, original tissue type columns are labeled target_study_name
   # or body_site (for gtex)
   # the only shared column with tissue type info is the plot_tissue_type column
   dplyr::filter(
     plot_tissue_type %in% c(opt$reference_group, opt$query_group)
-  ) |>
-  # select only tissue type and accession ID columns
-  dplyr::select(plot_tissue_type, Run)
+  )
 
 message("metadata read in")
 

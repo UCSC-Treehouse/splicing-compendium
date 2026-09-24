@@ -1,0 +1,34 @@
+---
+title: "Explore Treehouse PolyA Compendium"
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+We are interested in adding more datasets to the Treehouse Splice Compendium prior to submitting the manuscript to a journal.
+Currently, the priorities are to include samples in the Treehouse polyA compendia,
+with healthy comparators from dGTEx.
+
+This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and explores how many samples in each disease type are represented.
+
+## Setup
+Files and directories
+```{r files_and_directories}
+## Directories ##
+
+
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

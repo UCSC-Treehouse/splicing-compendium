@@ -15,20 +15,102 @@ Currently, the priorities are to include samples in the Treehouse polyA compendi
 with healthy comparators from dGTEx.
 
 This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and explores how many samples in each disease type are represented.
+Additionally, it reads in sample metadata from the first release of the developmental GTEx (dGTEx) project to explore how many RNAseq samples of what normal tissue types are represented.
 
 ## Setup
+Libraries
+```{r}
+library(ggplot2)
+```
+
 Files and directories
 ```{r files_and_directories}
 ## Directories ##
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+metadata_dir <- file.path(repo_root, "metadata")
 
+## Files ##
+# Treehouse polyA compendium with disease type of samples
+polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv")
+# dgtex metadata with library prep and tissue type info
+dgtex_metadata_file <- file.path(metadata_dir, "dGTEx_Analysis_2026-01-30_v1_Sample_Attributes_Dataset_DS_open.xlsx")
 
+## Read in files ##
+polya_metadata_df <- readr::read_tsv(polya_clinical_file)
 ```
-
-You can add options to executable code like this
+Summarize number of pedaya samples in polyA compendium by disease type
+```{r}
+polya_metadata_df |>
+  dplyr::summarise(.by = source_name,
+                   n = dplyr::n())
+```
+So we want to exclude samples from TARGET and TCGA 
 
 ```{r}
-#| echo: false
-2 * 2
+polya_summary_min_sample <- polya_metadata_df |>
+  # filter for human pedaya samples not in TARGET and TCGA
+  dplyr::filter(pedaya == "yes",
+                organism == "Homo sapiens",
+                ! source_name %in% c("TARGET", "TCGA")) |>
+  dplyr::summarise(.by = c(disease),
+                   n = dplyr::n()) |>
+  # filter for diseases with at least 15 samples to make plot readable
+  dplyr::filter( n >= 15)
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+Plot polyA compendium samples with n >= 15 
+
+```{r}
+#| label: fig-treehouse_polya_samples
+#| fig-width: 9
+#| fig-height: 7
+
+# plot histogram
+ggplot(polya_summary_min_sample, 
+       # sort x axis by descending y axis value
+       aes(x = reorder(disease, -n),
+           y = n)) +
+  geom_col() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+        ) +
+  labs(
+    x = "Treehouse polyA compendium disease"
+  ) +
+  # add N observations to bars
+  geom_text(
+    aes(label = n), 
+    hjust = 0.5,
+    vjust = -1
+    ) 
+```
+Can Treehouse polyA compendium samples of rarer diseases be grouped into larger categories?
+Filter for compendium samples with under 15 samples
+```{r}
+polya_summary_less_than_min_sample <- polya_metadata_df |>
+  # filter for human pedaya samples not in TARGET and TCGA
+  dplyr::filter(pedaya == "yes",
+                organism == "Homo sapiens",
+                ! source_name %in% c("TARGET", "TCGA")) |>
+  dplyr::summarise(.by = c(disease),
+                   n = dplyr::n()) |>
+  # filter for diseases with under 15 samples
+  dplyr::filter( n < 15)
+
+# count how many uniquely labeled disease types here have less than 15 samples
+nrow(polya_summary_less_than_min_sample)
+```
+
+There are altogether many samples in the compendium that are in a category with less than 15 samples.
+Most of these are weird sarcomas, which will likely be hard to find a comparator for.
+
+Below is a list of diseases that I think are easy to find comparators for/handle, from me eyeballing:
+
+fibrolamellar hepatocellular carcinoma ( n = 4 ); undifferentiated hepatic sarcoma ( n = 2); kidney clear cell carcinoma (1) ; hepatocellular carcinoma (4); clear cell sarcoma of the kidney (1): kidney
+colon adenocarcinoma ( n = 3 ) : colon
+wilms tumor ( n = 13 ) : kidney
+gastrointestinal stromal tumor ( n = 3) : stomach?
+alveolar soft part sarcoma ( n = 3 ); lung adenocarcinoma (1) : lung?
+melanoma (n = 9) : skin
+retinoblastoma ( n = 2 ): eye

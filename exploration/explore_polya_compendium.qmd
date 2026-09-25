@@ -15,7 +15,7 @@ Currently, the priorities are to include samples in the Treehouse polyA compendi
 with healthy comparators from dGTEx.
 
 This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and explores how many samples in each disease type are represented.
-Additionally, it reads in sample metadata from the first release of the developmental GTEx (dGTEx) project to explore how many RNAseq samples of what normal tissue types are represented.
+Additionally, it reads in sample metadata from the first release of the developmental GTEx (dGTEx) project to explore how many RNA-seq samples of what normal tissue types are represented.
 
 ## Setup
 Libraries
@@ -47,10 +47,11 @@ polya_metadata_df |>
   dplyr::summarise(.by = source_name,
                    n = dplyr::n())
 ```
-So we want to exclude samples from TARGET and TCGA 
+I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse, 
+TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples.
 
 ```{r}
-polya_metadata_df |>
+polya_summary_min_sample <- polya_metadata_df |>
   # filter for human pedaya samples not in TARGET and TCGA
   dplyr::filter(pedaya == "yes",
                 organism == "Homo sapiens",
@@ -60,6 +61,8 @@ polya_metadata_df |>
   # filter for diseases with at least 15 samples to make plot readable
   dplyr::filter( n >= 15) |>
   dplyr::arrange(desc(n))
+
+polya_summary_min_sample
 ```
 
 Check how many samples in total fit these criteria
@@ -70,9 +73,10 @@ sum(polya_summary_min_sample$n)
 
 Altogether, there are ~1500 samples in the Treehouse PolyA compendium that fit these criteria.
 This seems like a good set to start with since it is over double the number of tumor samples currently in the splice compendium.
+We might want to discuss if we want to further filter out samples that are not unique to Treehouse (e.g. CBTN)
 
 Can Treehouse polyA compendium samples of rarer diseases be grouped into larger categories?
-Filter for compendium samples with under 15 samples
+Filter for compendium samples with under 15 samples to see
 ```{r}
 polya_summary_less_than_min_sample <- polya_metadata_df |>
   # filter for human pedaya samples not in TARGET and TCGA
@@ -91,7 +95,7 @@ nrow(polya_summary_less_than_min_sample)
 There are altogether many samples in the compendium that are in a category with less than 15 samples.
 Most of these are weird sarcomas, which will likely be hard to find a comparator for.
 
-Below is a list of diseases that I think are easy to find comparators for/handle, from me eyeballing:
+Below are some diseases that I think are easy to find comparators for/handle, from me eyeballing:
 
 fibrolamellar hepatocellular carcinoma ( n = 4 ); undifferentiated hepatic sarcoma ( n = 2); hepatocellular carcinoma (4): Liver
 
@@ -109,13 +113,14 @@ melanoma (n = 9) : skin
 
 retinoblastoma ( n = 2 ): eye
 
-However, I'm not sure if it's worth the trouble aside from wilms tumor, considering there are plenty of samples with more N in their disease type
+However, I'm not sure if it's worth the trouble aside from wilms tumor (which can be added to the splice compendium's existing WT category), considering there are plenty of samples with more N in their disease type
 
 Explore comparator tissue types in dGTEx v1
 
 RNA libraries appear to be stranded "Illumina Tru-Seq Strand Specific Large Insert RNA Sequencing (75M pairs) v1 - DRAGEN"
 
 Currently stranded libraries fail with Shiba: https://github.com/Sika-Zheng-Lab/Shiba/issues/100
+
 
 ```{r}
 dgtex_rna_summary <- dgtex_metadata_df |>

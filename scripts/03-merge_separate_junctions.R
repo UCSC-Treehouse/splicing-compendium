@@ -71,22 +71,30 @@ merge_junctions <- function(merged_bed_df, junction_path) {
 # Set up options
 option_list <- list(
   make_option(
-    opt_str = "--junctions",
+    opt_str = c("-j", "--junctions"),
     help = "Input directory of deduplicated junction bedfiles"
   ),
 
   make_option(
-    opt_str = "--output_dir",
+    opt_str = c("-o", "--output_dir"),
     help = paste(
       "Specify output directory for per-sample junction counts bedfiles.",
       "One <sample>.bed is written per sample, all sharing the same",
       "union set of junctions (missing counts filled with 0)."
     )
+  ),
+
+  make_option(
+    opt_str = c("-t", "--threads"),
+    type = "integer",
+    default = parallel::detectCores(),
+    help = "Number of threads to use for duckdb processing [default is system core count: %default]"
   )
 )
 
 # Parse options
 opt <- parse_args(OptionParser(option_list = option_list))
+
 
 # output_dir must be a directory (created if it does not exist)
 if (file.exists(opt$output_dir) && !dir.exists(opt$output_dir)) {
@@ -96,6 +104,9 @@ dir.create(opt$output_dir, recursive = TRUE, showWarnings = FALSE)
 if (!dir.exists(opt$output_dir)) {
   stop("Could not create --output_dir: ", opt$output_dir)
 }
+
+# set duckdb threads
+duckplyr::db_exec(paste0("SET threads TO ", opt$threads))
 
 ## File paths ##
 junction_paths <- list.files(

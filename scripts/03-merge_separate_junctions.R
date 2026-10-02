@@ -64,8 +64,7 @@ merge_junctions <- function(merged_bed_df, junction_path) {
     select(chr, start, end, ID)
 
   # combine it with the old, keeping only distinct rows
-  merged_df <- bind_rows(merged_bed_df, junction_df) |>
-    distinct()
+  merged_df <- union(merged_bed_df, junction_df)
 }
 
 

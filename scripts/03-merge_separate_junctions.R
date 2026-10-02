@@ -34,20 +34,21 @@ suppressPackageStartupMessages({
 ## Define functions
 
 # define a function to read junction files with duckdb
-read_junctions_duckdb <- function(path, count_col = "count") {
-  # the count column name is optional, defaulting to "count" if not specified.
+# count column is always given the name `"count"`
+read_junctions_duckdb <- function(path) {
   junctions <- read_csv_duckdb(
     path,
     options = list(
       delim = "\t",
       header = TRUE,
       # any additional columns will still be read with their headers
-      names = list(c("chr", "start", "end", "ID")),
+      names = list(c("chr", "start", "end", "ID", "count")),
       types = list(c(
         chr = "VARCHAR",
         start = "INTEGER",
         end = "INTEGER",
-        ID = "VARCHAR"
+        ID = "VARCHAR",
+        count = "INTEGER"
       ))
     )
   )
@@ -172,15 +173,16 @@ sample_df |>
   purrr::pwalk(\(sample, path) {
     sample_counts <- left_join(
       all_junctions,
-      read_junctions_duckdb(path, sample),
+      read_junctions_duckdb(path),
       by = join_by(chr, start, end, ID)
     ) |>
       # sorting can be lost in the join, so re-sort
       arrange(chr, start, end) |>
-      # fill in zero counts for the sample column and select just that column
+      # fill in zero counts for the count column and select just that column
       # 0L to ensure integer type, not double
-      mutate(!!sym(sample) := coalesce(!!sym(sample), 0L)) |>
-      select(!!sym(sample))
+      mutate(count = coalesce(count, 0L)) |>
+      # rename counts with sample name
+      select("{sample}" := count)
 
     # write the output table for the sample
     duckplyr::compute_csv(

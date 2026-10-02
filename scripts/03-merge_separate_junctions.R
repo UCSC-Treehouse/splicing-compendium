@@ -34,7 +34,7 @@ suppressPackageStartupMessages({
 ## Define functions
 
 # define a function to read junction files with duckdb
-# count column is always given the name `"count"`
+# count column is always given the name `count`
 read_junctions_duckdb <- function(path) {
   junctions <- read_csv_duckdb(
     path,
@@ -69,10 +69,10 @@ merge_junctions <- function(merged_bed_df, junction_path) {
 }
 
 
-# Set up options to Rscript with optparse
+# Set up options
 option_list <- list(
   make_option(
-    opt_str = "--junctions_dir",
+    opt_str = "--junctions",
     help = "Input directory of deduplicated junction bedfiles"
   ),
 

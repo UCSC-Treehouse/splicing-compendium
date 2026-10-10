@@ -1,0 +1,200 @@
+---
+title: "Test Wilcoxon ranksums on TARGET subset"
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable
+editor_options:
+  markdown:
+    wrap: sentence
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+params:
+  ref: "Whole Blood"
+  query: "AML"
+  min_samples: 5
+  gene: "EZH2"
+  event: "SE"
+  pos_id_to_plot: 10
+---
+
+## Introduction
+This notebook performs differential analysis on splice event usage (PSI) values generated from the splice compendium workflow. 
+The analyses included in this notebook consist of:
+
+1. Statistical test for differential splicing: A Wilcoxon ranksum test is used to compare the PSI value distributions for splice events used in a reference and query group of samples.
+P-values are corrected for multiple testing using the Benjamini-Hochberg method.
+
+2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
+
+3. Visualizing splice events by significance and magnitude of differential splicing: Volcano plots are created to plot the adjusted p-value and dPSI values of each splice event type between the query and reference groups.
+One Volcano plot is created for all splice event types, and separate volcano plots are provided to split splice event types by category.
+
+4. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters. 
+These splice events are ranked in decreasing dPSI magnitude.
+
+## Set up
+## load libraries
+```{r libraries_and_theme}
+# load libraries
+library(ggplot2)
+library(duckplyr)
+
+set.seed(1)
+
+# define global size for plots
+global_size <- 20
+
+# define plot theme (size) presets
+plot_theme = list(
+ theme_bw(),
+ theme(
+   legend.position = "right",
+   axis.title = element_text(size = global_size),
+   plot.title = element_text(size = global_size),
+   axis.text = element_text(size = global_size),
+   axis.text.x = element_text(
+     hjust = 1,
+     margin = margin(t = 0, r = 80, b = 0, l = 0),
+     size = global_size
+   ),
+   legend.title = element_text(size=global_size),
+   legend.text=element_text(size=global_size - 8)
+ )
+)
+```
+
+## Directories and files
+
+```{r dirs_and_files}
+# directories
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+metadata_dir <- file.path(repo_root, "metadata")
+results_dir <- file.path(repo_root, "results")
+splice_results_dir <- file.path(results_dir, "merged_shiba", "splice_compendium_v1")
+
+# compendium metadata file
+metadata_file <- file.path(metadata_dir, "combined_compendium_metadata.tsv")
+# compendium psi results
+psi_file <- file.path(splice_results_dir, "cleaned_psi_matrix.txt")
+```
+
+## read in files
+
+```{r read_in_files}
+# initialize duckdb connection
+con <- duckplyr:::get_default_duckdb_connection()
+
+# read in compendium metadata
+metadata <- readr::read_tsv(metadata_file, col_types = readr::cols_only(plot_tissue_type = "c", Run = "c"))
+
+```
+pivot psi table long so accession IDs can be merged with metadata names
+```{r pivot_long}
+# initialize duckdb connection
+con <- duckplyr:::get_default_duckdb_connection()
+
+# make the CSV visible to SQL under the name "psi"
+# make sure PSI values are read in as double for plotting
+DBI::dbExecute(con, sprintf(
+ "CREATE OR REPLACE VIEW psi AS
+   SELECT
+     COLUMNS(c -> NOT contains(c, 'SRR')),
+     TRY_CAST(COLUMNS(c -> contains(c, 'SRR')) AS DOUBLE)
+   FROM read_csv_auto(%s)",
+  DBI::dbQuoteString(con, psi_file)
+))
+
+# obtain accessions in ref/query groups from metadata
+ref_query_accessions <- metadata |>
+  dplyr::filter(plot_tissue_type %in% c(params$ref, params$query)) |>
+  dplyr::pull(Run)
+
+# turn the accessions vector into a list to pass into sql query
+col_list <- paste(DBI::dbQuoteIdentifier(con, ref_query_accessions), 
+                  collapse = ", ")
+
+# write sql query to pivot duckdb object long
+sql_query <- sprintf("
+  UNPIVOT psi
+  ON %s
+  INTO
+    NAME Run
+    VALUE psi
+",
+# perform pivot only on accession IDs of interest
+col_list)
+
+# use sql to pivot psi matrix long
+long_psi <- dplyr::tbl(con, dplyr::sql(sql_query)) |>
+  # remove columns corresponding to non-ref or query samples
+  dplyr::select(!contains("SRR")) |>
+  dplyr::filter(
+    gene_name == params$gene,
+    event_type == params$event
+  )
+
+```
+```{r filter_long}
+long_psi_filtered <- long_psi |>
+  # join with metadata to associate tissue type label with sample IDs
+  dplyr::left_join(
+    metadata,
+    by = "Run",
+    # copy metadata into temp table so it shares same source as psi
+    copy = "temp-table") |>
+  # assign ref/query labels to each sample
+  dplyr::mutate(
+    group = dplyr::case_when(
+      plot_tissue_type == params$query ~ "cancer",
+      plot_tissue_type == params$ref ~ "healthy"
+    )
+  ) |>
+  dplyr::group_by(pos_id) |>
+  # count number of samples in each group with non-NA PSI values for a given splice event
+  dplyr::mutate(
+    ref_count = sum(group == "healthy"), 
+    query_count = sum(group == "cancer")
+  ) |>
+  dplyr::filter(
+    ref_count >= params$min_samples, 
+    query_count >= params$min_samples
+  )|>
+  # filter out events where all PSI values are identical (nothing different to compare)
+  # dplyr::filter(any(psi != psi[1])) |>
+  dplyr::ungroup()
+```
+
+### Plot splice distributions
+Filter for N position IDs for gene of interest to save memory
+
+```{r}
+set.seed(0)
+# create list of pos_ids
+pos_id_list <-  long_psi_filtered |>
+  dplyr::pull(pos_id) |>
+  unique() |>
+  # pick N random pos_ids from list 
+  sample(size = params$pos_id_to_plot)
+
+plot_long_psi_filtered <- long_psi_filtered |>
+  dplyr::filter(pos_id %in% pos_id_list) |>
+  dplyr::collect()
+
+```
+Plot N PSi distributions 
+```{r plot_dist}
+#| label: fig-hist_dists
+#| fig-width: 10
+#| fig-height: 20
+
+ggplot(plot_long_psi_filtered, aes(x = psi, y = plot_tissue_type, fill = group)) +
+  ggridges::geom_density_ridges(stat = "binline", bins = 20, alpha = 0.5) + 
+  facet_wrap(~ pos_id,
+             nrow = params$pos_id_to_plot,
+             ncol = 1) + 
+  labs(title = "PSI distributions of splice events",
+       x = "PSI value",
+       y = "Density") +
+  plot_theme +
+  theme(legend.position = "bottom")
+```

@@ -149,6 +149,7 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
     ref.group = "ref"
   ) |>
   # add multiple testing adjustment
+  dplyr::ungroup() |>
   dplyr::mutate(
     p_adj = p.adjust(p, method = "BH")
   )

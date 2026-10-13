@@ -159,15 +159,14 @@ message("wilcoxon's ranksum calculated for ref and query groups")
 ### Calculate magnitude of differential splicing (dPSI) values
 # Calculate median PSIs for each splice event, per group
 dPSI_table <- cancer_type_psi_table_filtered |>
-  dplyr::group_by(pos_id, group) |>
-  dplyr::mutate(
-    median_PSI =
-      median(PSI)
+  dplyr::summarize(
+    median_PSI = median(PSI),
+    .by = c(pos_id, plot_tissue_type)
   ) |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
   dplyr::group_by(pos_id) |>
   dplyr::mutate(
-    dPSI = unique(median_PSI[group == "query"]) - unique(median_PSI[group == "ref"])
+    dPSI = median_PSI[plot_tissue_type == "query"]) - median_PSI[plot_tissue_type == "ref"]
   )
 
 message("dPSI calculated for ref and query groups")

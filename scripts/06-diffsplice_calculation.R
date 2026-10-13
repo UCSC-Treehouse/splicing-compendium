@@ -19,33 +19,8 @@ suppressPackageStartupMessages({
 })
 
 ## read in options
-# order: input, output, required arguments, optional arguments
+# order: input files, output file, required arguments, optional arguments
 option_list <- list(
-  make_option(
-    opt_str = "--reference_group",
-    type = "character",
-    action = "store",
-    required = TRUE,
-    help = "name of tissue type to serve as reference group for differential splicing analysis.
-    see metadata file or notebooks/compendium_summary/compendium_v1_summary.md for all possible tissue types in compendium."
-  ),
-  make_option(
-    opt_str = "--query_group",
-    type = "character",
-    action = "store",
-    required = TRUE,
-    help = "name of tissue type to serve as query group for differential splicing analysis.
-    see metadata file or notebooks/compendium_summary/compendium_v1_summary.md for all possible tissue types in compendium."
-  ),
-  make_option(
-    opt_str = "--min_samples",
-    type = "character",
-    action = "store",
-    required = FALSE,
-    default = 5,
-    help = "minimum number of samples in reference or query group that must have quantified (non-NA) PSI values for differential splicing to be calculated for an event.
-    default = 5"
-  ),
   make_option(
     opt_str = "--metadata_file",
     type = "character",
@@ -66,6 +41,31 @@ option_list <- list(
     action = "store",
     required = TRUE,
     help = "file name of output dPSI table with p values"
+  ),
+  make_option(
+    opt_str = "--reference_group",
+    type = "character",
+    action = "store",
+    required = TRUE,
+    help = "name of tissue type to serve as reference group for differential splicing analysis.
+    see metadata file or notebooks/compendium_summary/compendium_v1_summary.md for all possible tissue types in compendium."
+  ),
+  make_option(
+    opt_str = "--query_group",
+    type = "character",
+    action = "store",
+    required = TRUE,
+    help = "name of tissue type to serve as query group for differential splicing analysis.
+    see metadata file or notebooks/compendium_summary/compendium_v1_summary.md for all possible tissue types in compendium."
+  ),
+  make_option(
+    opt_str = "--min_samples",
+    type = "character",
+    action = "store",
+    required = TRUE,
+    default = 5,
+    help = "minimum number of samples in reference or query group that must have quantified (non-NA) PSI values for differential splicing to be calculated for an event.
+    default = 5"
   )
 )
 
@@ -166,7 +166,7 @@ dPSI_table <- cancer_type_psi_table_filtered |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
   dplyr::group_by(pos_id) |>
   dplyr::mutate(
-    dPSI = median_PSI[plot_tissue_type == "query"]) - median_PSI[plot_tissue_type == "ref"]
+    dPSI = median_PSI[plot_tissue_type == "query"] - median_PSI[plot_tissue_type == "ref"]
   )
 
 message("dPSI calculated for ref and query groups")

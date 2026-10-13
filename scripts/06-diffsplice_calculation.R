@@ -104,7 +104,7 @@ metadata <- readr::read_tsv(
 message("metadata read in")
 
 # read in psi results
-long_psi_matrix <- readr::read_csv(in_psi_file, col_types = c(.default = "c")) |>
+long_psi_matrix <- readr::read_tsv(in_psi_file, col_types = c(.default = "c")) |>
   # pivot longer to allow accession IDs (PSI column names) to be associated with tissue type from metadata
   tidyr::pivot_longer(
     cols = contains("SRR"),

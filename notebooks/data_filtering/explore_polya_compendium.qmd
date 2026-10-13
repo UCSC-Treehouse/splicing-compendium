@@ -12,15 +12,11 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 We are interested in adding more datasets to the Treehouse Splice Compendium prior to submitting the manuscript to a journal. Currently, the priorities are to include samples in the Treehouse PolyA compendia, with healthy comparators from dGTEx.
 
-This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and filters for samples to download to process for Splice Compendium v2.
-The input files to this notebook are:
+This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and filters for samples to download to process for Splice Compendium v2. The input files to this notebook are:
 
-polya_clinical_file: [Treehouse PolyA Compendium v25 clinical metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351), which contains clinical (disease, age at dx, sample source) information associated with a unique th_dataset_id.
-This file has more samples than recorded in treehouse_files_on_aws, likely because it also contains files from published datasets (TARGET, TCGA, CBTN) in addition to Treehouse samples.
+polya_clinical_file: [Treehouse PolyA Compendium v25 clinical metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351), which contains clinical (disease, age at dx, sample source) information associated with a unique th_dataset_id. This file has more samples than recorded in treehouse_files_on_aws, likely because it also contains files from published datasets (TARGET, TCGA, CBTN) in addition to Treehouse samples.
 
-treehouse_files_on_aws: An internal log of sequence files in Treehouse storage.
-Fields consist of date, time, bytes, and path.
-Treehouse IDs for associating files with those in the PolyA compendium are within the values for path.
+treehouse_files_on_aws: An internal log of sequence files in Treehouse storage. Fields consist of date, time, bytes, and path. Treehouse IDs for associating files with those in the PolyA compendium are within the values for path.
 
 ## Setup
 
@@ -76,10 +72,9 @@ treehouse_aws_df <- read.table(
 
 ## Clean and merge Treehouse sequence metadata
 
-Split "path" column in AWS file into filetype and treehouse ID fields 
+Split "path" column in AWS file into filetype and treehouse ID fields
 
-Filetypes in Treehouse storage are: .sra, .sra.vdbcache, sequence.txt.gz, markdown.txt, .fastq, and .bam
-.bam files processed by Treehouse should contained unmapped reads.
+Filetypes in Treehouse storage are: .sra, .sra.vdbcache, sequence.txt.gz, markdown.txt, .fastq, and .bam .bam files processed by Treehouse should contained unmapped reads.
 
 ```{r clean_aws_df}
 cleaned_aws_df <- treehouse_aws_df  |>
@@ -97,8 +92,7 @@ cleaned_aws_df <- treehouse_aws_df  |>
   )
 ```
 
-Merge treehouse polyA compendium metadata with aws file information to associate file size with compendium samples.
-This information will be used to inform download batching strategy and estimate AWS file transfer costs. 
+Merge treehouse polyA compendium metadata with aws file information to associate file size with compendium samples. This information will be used to inform download batching strategy and estimate AWS file transfer costs.
 
 ```{r merge_compendium_with_aws}
 merged_compendium_aws_df <- polya_metadata_df |> 
@@ -123,10 +117,7 @@ merged_compendium_aws_df <- polya_metadata_df |>
   )
 ```
 
-Filter samples prior to summarizing
-For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse.
-TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples.
-We could consider downloading more of TARGET (e.g. osteosarcomas) that were not downloaded previously for Splice Compendium v1.
+Filter samples prior to summarizing For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse. TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples. We could consider downloading more of TARGET (e.g. osteosarcomas) that were not downloaded previously for Splice Compendium v1.
 
 ```{r}
 filtered_compendium_aws_df <- merged_compendium_aws_df |>
@@ -141,12 +132,12 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
   )
 ```
 
-## Summarize filtered data 
+## Summarize filtered data
 
-2,337 files pass the above filters.
-The below summary tables will provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
+2,337 files pass the above filters. The below summary tables will provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
 
 sex/disease breakdown of diltered polyA compendium files
+
 ```{r }
 
 #| label: fig-age_sex_dist
@@ -164,8 +155,8 @@ filtered_compendium_aws_df |>
 
 
 ```
-Much of the compendium is composed of unusual sarcomas (n = 1 or n < 5).
-The majority of the compendium after these filters consist of medulloblastoma, osteosarcoma, glioma, and Ewing's sarcoma.
+
+Much of the compendium is composed of unusual sarcomas (n = 1 or n \< 5). The majority of the compendium after these filters consist of medulloblastoma, osteosarcoma, glioma, and Ewing's sarcoma.
 
 Print summary of files by data source and total bytes
 
@@ -179,17 +170,12 @@ filtered_compendium_aws_df |>
   )
 
 ```
-~1.8TB of data should be accessible on SRA. 
-Some of these files are listed as .sra in glacier, so the estimated filesize may be smaller than the zipped fastqs.
-This group represents data that I can try downloading now, since we have sra-toolkit in our pixi environment.
 
-"unavailable" indicates the data originate from individual collaborators, such as collaborators.
-These files should be downloadable on glacier, but the sequence files may need to be deposited in a repository prior to publication of their splice values.
+\~1.8TB of data should be accessible on SRA. Some of these files are listed as .sra in glacier, so the estimated filesize may be smaller than the zipped fastqs. This group represents data that I can try downloading now, since we have sra-toolkit in our pixi environment.
 
-Output a list of file accessions per data source.
-My assumption is that I will need a separate download script for each different data source 
-(or at least go through a different system to download the data).
-But a list of accessions should help.
+"unavailable" indicates the data originate from individual collaborators, such as collaborators. These files should be downloadable on glacier, but the sequence files may need to be deposited in a repository prior to publication of their splice values.
+
+Output a list of file accessions per data source. My assumption is that I will need a separate download script for each different data source (or at least go through a different system to download the data). But a list of accessions should help.
 
 ```{r write_accessions_output}
 
@@ -228,5 +214,3 @@ for_export_compendium_df |>
   readr::write_tsv(treehouse_collaborator_ids)
 
 ```
-
-

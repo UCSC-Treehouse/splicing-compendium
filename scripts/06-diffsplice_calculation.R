@@ -145,7 +145,7 @@ message("accession IDs merged with tissue type info")
 wilcox_test_events <- cancer_type_psi_table_filtered |>
   dplyr::group_by(pos_id) |>
   rstatix::wilcox_test(
-    PSI ~ group,
+    PSI ~ plot_tissue_type,
     ref.group = "ref"
   ) |>
   # add multiple testing adjustment

@@ -19,6 +19,7 @@ suppressPackageStartupMessages({
 })
 
 ## read in options
+# order: input, output, required arguments, optional arguments
 option_list <- list(
   make_option(
     opt_str = "--reference_group",
@@ -92,7 +93,9 @@ diff_splice_results <- file.path(results_dir, opt$out_file)
 
 ## read in files ##
 # read in compendium metadata
-metadata <- readr::read_tsv(metadata_file, col_types = c(.default = "c")) |>
+metadata <- readr::read_tsv(
+  metadata_file, 
+  col_types = readr::cols_only(plot_tissue_type = "c", Run = "c")) |>
   # select only tissue type and accession ID columns
   dplyr::select(plot_tissue_type, Run) |>
   # filter for ref and query groups to save memory

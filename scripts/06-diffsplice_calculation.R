@@ -7,9 +7,6 @@
 # P-values are corrected for multiple testing using the Benjamini-Hochberg method.
 #
 # 2. Calculating the magnitude of differential splicing: The magnitude of differential splicing is calculated for each splice event by taking the difference between the median PSI value between the query and reference group.
-#
-# 3. Filtering splice event types by significance score and ranking by magnitude of differential splicing: splice event position IDs, their dPSI, and adjusted p-values are finally exported as a TSV based on user-defined adjusted p-value and dPSI filters.
-# These splice events are ranked in decreasing dPSI magnitude.
 
 ### Setup ###
 
@@ -93,7 +90,7 @@ diff_splice_results <- file.path(results_dir, opt$out_file)
 ## read in files ##
 # read in compendium metadata
 metadata <- readr::read_tsv(
-  metadata_file, 
+  metadata_file,
   col_types = readr::cols_only(plot_tissue_type = "c", Run = "c")) |>
   # select only tissue type and accession ID columns
   dplyr::select(plot_tissue_type, Run) |>

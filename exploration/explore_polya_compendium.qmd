@@ -10,45 +10,67 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 ## Introduction
 
-We are interested in adding more datasets to the Treehouse Splice Compendium prior to submitting the manuscript to a journal.
-Currently, the priorities are to include samples in the Treehouse polyA compendia,
-with healthy comparators from dGTEx.
+We are interested in adding more datasets to the Treehouse Splice Compendium prior to submitting the manuscript to a journal. Currently, the priorities are to include samples in the Treehouse PolyA compendia, with healthy comparators from dGTEx.
 
-This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and explores how many samples in each disease type are represented.
-Additionally, it reads in sample metadata from the first release of the developmental GTEx (dGTEx) project to explore how many RNA-seq samples of what normal tissue types are represented.
+This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and filters for samples to download to process for Splice Compendium v2.
+The input files to this notebook are:
+
+polya_clinical_file: [Treehouse PolyA Compendium v25 clinical metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351), which contains clinical (disease, age at dx, sample source) information associated with a unique th_dataset_id
+treehouse_files_on_aws: An internal log of sequence files in Treehouse storage.
+This file contains more files than are in the Treehouse PolyA Compendium.
+Fields consist of date, time, bytes, and path.
+Treehouse IDs for associating files with those in the PolyA compendium are within the values for path.
 
 ## Setup
+
 Libraries
+
 ```{r}
 library(ggplot2)
 ```
 
 Files and directories
+
 ```{r files_and_directories}
 ## Directories ##
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 metadata_dir <- file.path(repo_root, "metadata")
 
 ## Files ##
-# Treehouse polyA compendium with disease type of samples
+# Treehouse polyA compendium with disease type of samples and treehouse ID
 polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv")
-# dgtex metadata with library prep and tissue type info
-dgtex_metadata_file <- file.path(metadata_dir, "dGTEx_Analysis_2026-01-30_v1_Sample_Attributes_Dataset_DS_open.xlsx")
+# record of files on AWS, with file type information and file size.
+# to be associated with polya_clinical_file by treehouse ID
+treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive-treehouse-ucsc-edu_primary.txt")
 ```
+
 Read in files
+
 ```{r}
 ## Read in files ##
 polya_metadata_df <- readr::read_tsv(polya_clinical_file)
-dgtex_metadata_df <- readxl::read_xlsx(dgtex_metadata_file)
+
+# this file is separated by spaces
+treehouse_aws_df <- read.table(
+  treehouse_aws_summary_file, 
+  sep = "", 
+  header = FALSE, 
+  col.names = c(
+    "date",
+    "time",
+    "bytes",
+    "path"))
 ```
+
 Summarize number of pedaya samples in polyA compendium by disease type
+
 ```{r}
 polya_metadata_df |>
   dplyr::summarise(.by = source_name,
                    n = dplyr::n())
 ```
-I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse, 
-TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples.
+
+I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse, TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples.
 
 ```{r}
 polya_summary_min_sample <- polya_metadata_df |>
@@ -71,12 +93,10 @@ Check how many samples in total fit these criteria
 sum(polya_summary_min_sample$n)
 ```
 
-Altogether, there are ~1500 samples in the Treehouse PolyA compendium that fit these criteria.
-This seems like a good set to start with since it is over double the number of tumor samples currently in the splice compendium.
-We might want to discuss if we want to further filter out samples that are not unique to Treehouse (e.g. CBTN)
+Altogether, there are \~1500 samples in the Treehouse PolyA compendium that fit these criteria. This seems like a good set to start with since it is over double the number of tumor samples currently in the splice compendium. We might want to discuss if we want to further filter out samples that are not unique to Treehouse (e.g. CBTN)
 
-Can Treehouse polyA compendium samples of rarer diseases be grouped into larger categories?
-Filter for compendium samples with under 15 samples to see
+Can Treehouse polyA compendium samples of rarer diseases be grouped into larger categories? Filter for compendium samples with under 15 samples to see
+
 ```{r}
 polya_summary_less_than_min_sample <- polya_metadata_df |>
   # filter for human pedaya samples not in TARGET and TCGA
@@ -92,72 +112,3 @@ polya_summary_less_than_min_sample <- polya_metadata_df |>
 nrow(polya_summary_less_than_min_sample)
 ```
 
-There are altogether many samples in the compendium that are in a category with less than 15 samples.
-Most of these are weird sarcomas, which will likely be hard to find a comparator for.
-
-Below are some diseases that I think are easy to find comparators for/handle, from me eyeballing:
-
-fibrolamellar hepatocellular carcinoma ( n = 4 ); undifferentiated hepatic sarcoma ( n = 2); hepatocellular carcinoma (4): Liver
-
-kidney clear cell carcinoma (1) ; clear cell sarcoma of the kidney (1): kidney
-
-colon adenocarcinoma ( n = 3 ) : colon
-
-wilms tumor ( n = 13 ) : kidney (can add to existing WT samples in splice compendium)
-
-gastrointestinal stromal tumor ( n = 3) : stomach?
-
-alveolar soft part sarcoma ( n = 3 ); lung adenocarcinoma (1) : lung?
-
-melanoma (n = 9) : skin
-
-retinoblastoma ( n = 2 ): eye
-
-However, I'm not sure if it's worth the trouble aside from wilms tumor (which can be added to the splice compendium's existing WT category), considering there are plenty of samples with more N in their disease type
-
-Explore comparator tissue types in dGTEx v1
-
-RNA libraries appear to be stranded "Illumina Tru-Seq Strand Specific Large Insert RNA Sequencing (75M pairs) v1 - DRAGEN"
-
-Currently stranded libraries fail with Shiba: https://github.com/Sika-Zheng-Lab/Shiba/issues/100
-
-
-```{r}
-dgtex_rna_summary <- dgtex_metadata_df |>
-  dplyr::filter(
-    ANALYTE_TYPE == "RNA:Total RNA"
-  ) |>
-  # select for tissue type column and sample ID column only for now
-  dplyr::select(
-    SAMPLE_ID,
-    SMTS
-  ) |>
-  dplyr::summarise(
-    .by = SMTS,
-    n = dplyr::n()
-  )
-```
-
-Plot samples in dGTEx
-```{r}
-#| label: fig-dgtex_sample_dist_bar
-#| fig-width: 8
-#| fig-height: 7
-
-ggplot(data = dgtex_rna_summary, mapping = aes(x = reorder(SMTS, n), y = n )) +
-  geom_col() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_text(
-    aes(label = paste0(n)), 
-    hjust = 0.5,
-    vjust = -1
-  ) +
-  labs(
-    x = "Tissue type",
-    y = "Number of samples",
-    title = "dGTEx"
-  )
-```
-The total number of samples in each dGTEx tisue is quite small.
-Maybe over half of the tissue types have under 15 samples.
-So maybe I need to supplement this set with GTEx tissues from PEDAYA donors?

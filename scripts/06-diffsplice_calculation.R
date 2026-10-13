@@ -53,7 +53,7 @@ option_list <- list(
     help = "file name of metadata with tissue/disease type information"
   ),
   make_option(
-    opt_str = "--in_psi",
+    opt_str = "--psi_file",
     type = "character",
     action = "store",
     required = TRUE,

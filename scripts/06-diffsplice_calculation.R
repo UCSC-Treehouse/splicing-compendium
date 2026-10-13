@@ -75,14 +75,13 @@ opt <- parse_args(OptionParser(option_list = option_list))
 # or explain in script that the files have to be in specific directories?
 # directories
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
-metadata_dir <- file.path(repo_root, "metadata")
 results_dir <- file.path(repo_root, "results")
 
 # files
 # metadata file
 metadata_file <- opt$metadata_file
 # target subset combined psi results
-in_psi_file <- opt$in_psi
+in_psi_file <- opt$psi_file
 
 # output
 diff_splice_results <- file.path(results_dir, opt$out_file)

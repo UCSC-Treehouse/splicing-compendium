@@ -24,12 +24,6 @@ Treehouse IDs for associating files with those in the PolyA compendium are withi
 
 ## Setup
 
-Libraries
-
-```{r}
-library(ggplot2)
-```
-
 Files and directories
 
 ```{r files_and_directories}
@@ -47,6 +41,10 @@ treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive
 # output accessions 
 # list of SRA accessions fof polyA compendium files
 sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
+ega_accessions <- file.path(metadata_dir, "ega_polya_compendium_accessions.txt")
+# these files should only have treehouse IDs rather than "accession" IDs
+treehouse_collaborator_ids <-file.path(metadata_dir, "collaborator_polya_compendium_ids.txt")
+cbtn_accessions <- file.path(metadata_dir, "cbtn_polya_compendium_accessions.txt")
 
 ```
 
@@ -146,7 +144,30 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
 ## Summarize filtered data 
 
 2,337 files pass the above filters.
-The below summary tables will provide information on how many files originate from what data source, the file size of each file categorized by data source, and sex/disease type breakdowns of the samples.
+The below summary tables will provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
+
+sex/disease breakdown of diltered polyA compendium files
+```{r }
+
+#| label: fig-age_sex_dist
+#| fig-width: 8
+#| fig-height: 20
+
+filtered_compendium_aws_df |>
+  dplyr::summarise(
+    .by = c(disease, sex),
+    n_samples = dplyr::n()
+  ) |>
+  dplyr::arrange(desc(n_samples)) |>
+  # there are 101 rows, so print head for ease of viewing
+  head()
+
+
+```
+Much of the compendium is composed of unusual sarcomas (n = 1 or n < 5).
+The majority of the compendium after these filters consist of medulloblastoma, osteosarcoma, glioma, and Ewing's sarcoma.
+
+Print summary of files by data source and total bytes
 
 ```{r data_source_file}
 
@@ -159,7 +180,9 @@ filtered_compendium_aws_df |>
 
 ```
 ~1.8TB of data should be accessible on SRA. 
+Some of these files are listed as .sra in glacier, so the estimated filesize may be smaller than the zipped fastqs.
 This group represents data that I can try downloading now, since we have sra-toolkit in our pixi environment.
+
 "unavailable" indicates the data originate from individual collaborators, such as collaborators.
 These files should be downloadable on glacier, but the sequence files may need to be deposited in a repository prior to publication of their splice values.
 
@@ -169,6 +192,40 @@ My assumption is that I will need a separate download script for each different 
 But a list of accessions should help.
 
 ```{r write_accessions_output}
+
+# prep filtered df for exporting file accessions
+for_export_compendium_df <- filtered_compendium_aws_df |>
+  dplyr::select(
+    th_dataset_id,
+    study_accession,
+    source_name
+  )
+
+# export accessions lists to output
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "Sequence Read Archive"
+  ) |>
+  readr::write_tsv(sra_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "EGA"
+  ) |>
+  readr::write_tsv(ega_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "CBTN"
+  ) |>
+  readr::write_tsv(cbtn_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "unavailable"
+  ) |>
+  readr::write_tsv(treehouse_collaborator_ids)
 
 ```
 

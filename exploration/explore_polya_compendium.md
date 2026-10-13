@@ -1,27 +1,32 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-09-24
+2026-10-13
 
 ## Introduction
 
 We are interested in adding more datasets to the Treehouse Splice
 Compendium prior to submitting the manuscript to a journal. Currently,
-the priorities are to include samples in the Treehouse polyA compendia,
+the priorities are to include samples in the Treehouse PolyA compendia,
 with healthy comparators from dGTEx.
 
 This notebook reads in the clinical metadata from the v25 Treehouse
-PolyA Compendium and explores how many samples in each disease type are
-represented. Additionally, it reads in sample metadata from the first
-release of the developmental GTEx (dGTEx) project to explore how many
-RNA-seq samples of what normal tissue types are represented.
+PolyA Compendium and filters for samples to download to process for
+Splice Compendium v2. The input files to this notebook are:
+
+polya_clinical_file: [Treehouse PolyA Compendium v25 clinical
+metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351),
+which contains clinical (disease, age at dx, sample source) information
+associated with a unique th_dataset_id. This file has more samples than
+recorded in treehouse_files_on_aws, likely because it also contains
+files from published datasets (TARGET, TCGA, CBTN) in addition to
+Treehouse samples.
+
+treehouse_files_on_aws: An internal log of sequence files in Treehouse
+storage. Fields consist of date, time, bytes, and path. Treehouse IDs
+for associating files with those in the PolyA compendium are within the
+values for path.
 
 ## Setup
-
-Libraries
-
-``` r
-library(ggplot2)
-```
 
 Files and directories
 
@@ -31,206 +36,221 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 metadata_dir <- file.path(repo_root, "metadata")
 
 ## Files ##
-# Treehouse polyA compendium with disease type of samples
+# Treehouse polyA compendium with disease type of samples and treehouse ID
 polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv")
-# dgtex metadata with library prep and tissue type info
-dgtex_metadata_file <- file.path(metadata_dir, "dGTEx_Analysis_2026-01-30_v1_Sample_Attributes_Dataset_DS_open.xlsx")
+# record of files on AWS, with file type information and file size.
+# to be associated with polya_clinical_file by treehouse ID
+treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive-treehouse-ucsc-edu_primary.txt")
+
+# output accessions 
+# list of SRA accessions fof polyA compendium files
+sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
+ega_accessions <- file.path(metadata_dir, "ega_polya_compendium_accessions.txt")
+# these files should only have treehouse IDs rather than "accession" IDs
+treehouse_collaborator_ids <-file.path(metadata_dir, "collaborator_polya_compendium_ids.txt")
+cbtn_accessions <- file.path(metadata_dir, "cbtn_polya_compendium_accessions.txt")
 ```
 
 Read in files
 
 ``` r
 ## Read in files ##
-polya_metadata_df <- readr::read_tsv(polya_clinical_file)
+# age_at_dx have "unknown" when age is unknown so cannot set coltype as double
+polya_metadata_df <- readr::read_tsv(polya_clinical_file,
+                                     col_types = readr::cols(
+                                       .default = "c"
+                                     ))
+
+# this file is separated by spaces
+treehouse_aws_df <- read.table(
+  treehouse_aws_summary_file,
+  sep = "", 
+  header = FALSE, 
+  col.names = c(
+    "date",
+    "time",
+    "bytes",
+    "path"),
+  colClasses = c(
+    bytes = "double"
+  )
+  )
 ```
 
-    Rows: 13359 Columns: 12
-    ── Column specification ────────────────────────────────────────────────────────
-    Delimiter: "\t"
-    chr (12): th_dataset_id, age_at_dx, disease, icd_disease, organism, pedaya, ...
+## Clean and merge Treehouse sequence metadata
 
-    ℹ Use `spec()` to retrieve the full column specification for this data.
-    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+Split “path” column in AWS file into filetype and treehouse ID fields
+
+Filetypes in Treehouse storage are: .sra, .sra.vdbcache,
+sequence.txt.gz, markdown.txt, .fastq, and .bam .bam files processed by
+Treehouse should contained unmapped reads.
 
 ``` r
-dgtex_metadata_df <- readxl::read_xlsx(dgtex_metadata_file)
+cleaned_aws_df <- treehouse_aws_df  |>
+  dplyr::mutate(
+    filename = stringr::str_split_i(path, "/", -1),
+    suffix = dplyr::case_when(
+      stringr::str_detect(filename, "fastq") ~ "fastq",
+      stringr::str_detect(filename, "fq") ~ "fastq",
+      stringr::str_detect(filename, "bam") ~ "bam",
+      stringr::str_detect(filename, "sra") ~ "sra",
+      stringr::str_detect(filename, "swp") ~ "swp",
+      stringr::str_detect(filename, "txt") ~ "txt"
+    ),
+    th_dataset_id = stringr::str_split_i(path, "/", 3)
+  )
 ```
 
-Summarize number of pedaya samples in polyA compendium by disease type
+Merge treehouse polyA compendium metadata with aws file information to
+associate file size with compendium samples. This information will be
+used to inform download batching strategy and estimate AWS file transfer
+costs.
 
 ``` r
-polya_metadata_df |>
-  dplyr::summarise(.by = source_name,
-                   n = dplyr::n())
-```
-
-| source_name           |    n |
-|:----------------------|-----:|
-| unavailable           |  452 |
-| EGA                   |  202 |
-| CBTN                  |   29 |
-| Sequence Read Archive |  713 |
-| St. Jude Cloud        |  708 |
-| ICGC                  |  109 |
-| TARGET                | 1340 |
-| TCGA                  | 9806 |
-
-I will exclude samples from TARGET and TCGA, since these are datasets
-not unique to Treehouse, TARGET is in Splice Compendium v1, and TCGA is
-primarily composed of adult samples.
-
-``` r
-polya_summary_min_sample <- polya_metadata_df |>
-  # filter for human pedaya samples not in TARGET and TCGA
-  dplyr::filter(pedaya == "yes",
-                organism == "Homo sapiens",
-                ! source_name %in% c("TARGET", "TCGA")) |>
-  dplyr::summarise(.by = c(disease),
-                   n = dplyr::n()) |>
-  # filter for diseases with at least 15 samples to make plot readable
-  dplyr::filter( n >= 15) |>
-  dplyr::arrange(desc(n))
-
-polya_summary_min_sample
-```
-
-| disease                            |   n |
-|:-----------------------------------|----:|
-| acute lymphoblastic leukemia       | 355 |
-| glioma                             | 260 |
-| osteosarcoma                       | 146 |
-| medulloblastoma                    | 118 |
-| ependymoma                         | 101 |
-| embryonal rhabdomyosarcoma         |  93 |
-| acute megakaryoblastic leukemia    |  93 |
-| Ewing sarcoma                      |  89 |
-| alveolar rhabdomyosarcoma          |  72 |
-| acute myeloid leukemia             |  65 |
-| neuroblastoma                      |  48 |
-| choroid plexus carcinoma           |  26 |
-| lymphoma                           |  22 |
-| supratentorial embryonal tumor NOS |  19 |
-| adrenocortical carcinoma           |  19 |
-| hepatoblastoma                     |  17 |
-
-Check how many samples in total fit these criteria
-
-``` r
-sum(polya_summary_min_sample$n)
-```
-
-    [1] 1543
-
-Altogether, there are ~1500 samples in the Treehouse PolyA compendium
-that fit these criteria. This seems like a good set to start with since
-it is over double the number of tumor samples currently in the splice
-compendium. We might want to discuss if we want to further filter out
-samples that are not unique to Treehouse (e.g. CBTN)
-
-Can Treehouse polyA compendium samples of rarer diseases be grouped into
-larger categories? Filter for compendium samples with under 15 samples
-to see
-
-``` r
-polya_summary_less_than_min_sample <- polya_metadata_df |>
-  # filter for human pedaya samples not in TARGET and TCGA
-  dplyr::filter(pedaya == "yes",
-                organism == "Homo sapiens",
-                ! source_name %in% c("TARGET", "TCGA")) |>
-  dplyr::summarise(.by = c(disease),
-                   n = dplyr::n()) |>
-  # filter for diseases with under 15 samples
-  dplyr::filter( n < 15)
-
-# count how many uniquely labeled disease types here have less than 15 samples
-nrow(polya_summary_less_than_min_sample)
-```
-
-    [1] 85
-
-There are altogether many samples in the compendium that are in a
-category with less than 15 samples. Most of these are weird sarcomas,
-which will likely be hard to find a comparator for.
-
-Below are some diseases that I think are easy to find comparators
-for/handle, from me eyeballing:
-
-fibrolamellar hepatocellular carcinoma ( n = 4 ); undifferentiated
-hepatic sarcoma ( n = 2); hepatocellular carcinoma (4): Liver
-
-kidney clear cell carcinoma (1) ; clear cell sarcoma of the kidney (1):
-kidney
-
-colon adenocarcinoma ( n = 3 ) : colon
-
-wilms tumor ( n = 13 ) : kidney (can add to existing WT samples in
-splice compendium)
-
-gastrointestinal stromal tumor ( n = 3) : stomach?
-
-alveolar soft part sarcoma ( n = 3 ); lung adenocarcinoma (1) : lung?
-
-melanoma (n = 9) : skin
-
-retinoblastoma ( n = 2 ): eye
-
-However, I’m not sure if it’s worth the trouble aside from wilms tumor
-(which can be added to the splice compendium’s existing WT category),
-considering there are plenty of samples with more N in their disease
-type
-
-Explore comparator tissue types in dGTEx v1
-
-RNA libraries appear to be stranded “Illumina Tru-Seq Strand Specific
-Large Insert RNA Sequencing (75M pairs) v1 - DRAGEN”
-
-Currently stranded libraries fail with Shiba:
-https://github.com/Sika-Zheng-Lab/Shiba/issues/100
-
-``` r
-dgtex_rna_summary <- dgtex_metadata_df |>
-  dplyr::filter(
-    ANALYTE_TYPE == "RNA:Total RNA"
-  ) |>
-  # select for tissue type column and sample ID column only for now
+merged_compendium_aws_df <- polya_metadata_df |> 
+  dplyr::left_join(cleaned_aws_df,
+                   by = "th_dataset_id") |>
+  # select relevant columns for downstream filtering and summary of samples
   dplyr::select(
-    SAMPLE_ID,
-    SMTS
+    th_dataset_id,
+    age_at_dx,
+    disease,
+    organism,
+    pedaya,
+    sex,
+    study_accession,
+    source_name,
+    bytes,
+    suffix
   ) |>
-  dplyr::summarise(
-    .by = SMTS,
-    n = dplyr::n()
+  # turn bytes column back into double for summing later on
+  dplyr::mutate(
+    bytes = as.double(bytes)
   )
 ```
 
-Plot samples in dGTEx
+Filter samples prior to summarizing For now, I will exclude samples from
+TARGET and TCGA, since these are datasets not unique to Treehouse.
+TARGET is in Splice Compendium v1, and TCGA is primarily composed of
+adult samples. We could consider downloading more of TARGET
+(e.g. osteosarcomas) that were not downloaded previously for Splice
+Compendium v1.
 
 ``` r
-ggplot(data = dgtex_rna_summary, mapping = aes(x = reorder(SMTS, n), y = n )) +
-  geom_col() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  geom_text(
-    aes(label = paste0(n)), 
-    hjust = 0.5,
-    vjust = -1
-  ) +
-  labs(
-    x = "Tissue type",
-    y = "Number of samples",
-    title = "dGTEx"
+filtered_compendium_aws_df <- merged_compendium_aws_df |>
+  dplyr::filter(
+    # exclude TARGET and TCGA for now
+    ! source_name %in% c("TARGET", "TCGA"),
+    # filter for pedaya (age at dx < 30 years)
+    pedaya == "yes",
+    organism == "Homo sapiens",
+    # sanity check - some aws files are dummies with 0 bytes
+    bytes > 0
   )
 ```
 
-<div id="fig-dgtex_sample_dist_bar">
+## Summarize filtered data
 
-<img
-src="explore_polya_compendium_files/figure-commonmark/fig-dgtex_sample_dist_bar-1.png"
-id="fig-dgtex_sample_dist_bar" />
+2,337 files pass the above filters. The below summary tables will
+provide information on the sex/disease type breakdowns of the filtered
+samples, how many files originate from what data source, and the file
+size of each file categorized by data source.
 
-Figure 1
+sex/disease breakdown of diltered polyA compendium files
 
-</div>
+``` r
+#| label: fig-age_sex_dist
+#| fig-width: 8
+#| fig-height: 20
 
-The total number of samples in each dGTEx tisue is quite small. Maybe
-over half of the tissue types have under 15 samples. So maybe I need to
-supplement this set with GTEx tissues from PEDAYA donors?
+filtered_compendium_aws_df |>
+  dplyr::summarise(
+    .by = c(disease, sex),
+    n_samples = dplyr::n()
+  ) |>
+  dplyr::arrange(desc(n_samples)) |>
+  # there are 101 rows, so print head for ease of viewing
+  head()
+```
+
+| disease         | sex    | n_samples |
+|:----------------|:-------|----------:|
+| medulloblastoma | male   |       124 |
+| osteosarcoma    | female |       114 |
+| osteosarcoma    | male   |        73 |
+| medulloblastoma | female |        53 |
+| Ewing sarcoma   | male   |        51 |
+| glioma          | female |        44 |
+
+Much of the compendium is composed of unusual sarcomas (n = 1 or n \<
+5). The majority of the compendium after these filters consist of
+medulloblastoma, osteosarcoma, glioma, and Ewing’s sarcoma.
+
+Print summary of files by data source and total bytes
+
+``` r
+filtered_compendium_aws_df |>
+  dplyr::summarise(
+    .by = source_name,
+    n_samples = dplyr::n(),
+    total_bytes = sum(bytes)
+  )
+```
+
+| source_name           | n_samples |  total_bytes |
+|:----------------------|----------:|-------------:|
+| EGA                   |       229 | 1.633380e+12 |
+| unavailable           |       426 | 1.838511e+12 |
+| Sequence Read Archive |       442 | 3.643745e+12 |
+| CBTN                  |        18 | 1.188477e+11 |
+
+~1.8TB of data should be accessible on SRA. Some of these files are
+listed as .sra in glacier, so the estimated filesize may be smaller than
+the zipped fastqs. This group represents data that I can try downloading
+now, since we have sra-toolkit in our pixi environment.
+
+“unavailable” indicates the data originate from individual
+collaborators, such as collaborators. These files should be downloadable
+on glacier, but the sequence files may need to be deposited in a
+repository prior to publication of their splice values.
+
+Output a list of file accessions per data source. My assumption is that
+I will need a separate download script for each different data source
+(or at least go through a different system to download the data). But a
+list of accessions should help.
+
+``` r
+# prep filtered df for exporting file accessions
+for_export_compendium_df <- filtered_compendium_aws_df |>
+  dplyr::select(
+    th_dataset_id,
+    study_accession,
+    source_name
+  )
+
+# export accessions lists to output
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "Sequence Read Archive"
+  ) |>
+  readr::write_tsv(sra_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "EGA"
+  ) |>
+  readr::write_tsv(ega_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "CBTN"
+  ) |>
+  readr::write_tsv(cbtn_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "unavailable"
+  ) |>
+  readr::write_tsv(treehouse_collaborator_ids)
+```

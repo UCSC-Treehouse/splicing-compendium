@@ -43,6 +43,11 @@ polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tum
 # record of files on AWS, with file type information and file size.
 # to be associated with polya_clinical_file by treehouse ID
 treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive-treehouse-ucsc-edu_primary.txt")
+
+# output accessions 
+# list of SRA accessions fof polyA compendium files
+sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
+
 ```
 
 Read in files
@@ -57,14 +62,18 @@ polya_metadata_df <- readr::read_tsv(polya_clinical_file,
 
 # this file is separated by spaces
 treehouse_aws_df <- read.table(
-  treehouse_aws_summary_file, 
+  treehouse_aws_summary_file,
   sep = "", 
   header = FALSE, 
   col.names = c(
     "date",
     "time",
     "bytes",
-    "path"))
+    "path"),
+  colClasses = c(
+    bytes = "double"
+  )
+  )
 ```
 
 ## Clean and merge Treehouse sequence metadata
@@ -109,6 +118,10 @@ merged_compendium_aws_df <- polya_metadata_df |>
     source_name,
     bytes,
     suffix
+  ) |>
+  # turn bytes column back into double for summing later on
+  dplyr::mutate(
+    bytes = as.double(bytes)
   )
 ```
 
@@ -124,7 +137,9 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
     ! source_name %in% c("TARGET", "TCGA"),
     # filter for pedaya (age at dx < 30 years)
     pedaya == "yes",
-    organism == "Homo sapiens"
+    organism == "Homo sapiens",
+    # sanity check - some aws files are dummies with 0 bytes
+    bytes > 0
   )
 ```
 
@@ -137,35 +152,24 @@ The below summary tables will provide information on how many files originate fr
 
 filtered_compendium_aws_df |>
   dplyr::summarise(
-    .by = data_source
+    .by = source_name,
+    n_samples = dplyr::n(),
+    total_bytes = sum(bytes)
   )
 
+```
+~1.8TB of data should be accessible on SRA. 
+This group represents data that I can try downloading now, since we have sra-toolkit in our pixi environment.
+"unavailable" indicates the data originate from individual collaborators, such as collaborators.
+These files should be downloadable on glacier, but the sequence files may need to be deposited in a repository prior to publication of their splice values.
+
+Output a list of file accessions per data source.
+My assumption is that I will need a separate download script for each different data source 
+(or at least go through a different system to download the data).
+But a list of accessions should help.
+
+```{r write_accessions_output}
 
 ```
 
 
-Filter for fastq files in PolyA compendium and output a list of accessions My assumption is that I want fastqs so I can make sure they are trimmed/aligned the same way caveat: need to check if these are raw fastqs or if they have undergone any trimming prior to glacier
-
-```{r}
-fastq_glacier <- nice_archived_files |>
-  dplyr::filter(th_dataset_id %in% polya_metadata_df$th_dataset_id) |>
-  dplyr::left_join(polya_metadata_df, by = dplyr::join_by(th_dataset_id)) |>
-  # remove files with 0 bytes
-  dplyr::filter(! th_dataset_id %in% c("EGAR00001742135_20160517-DASS9-MM3036-1_S3_R1_001.fastq", "TEST"),
-                bytes > 0)
-```
-
-There are 559 fastq files from polyA compendium on glacier. Of samples whose data source_name is "unavailable", there are also no accession IDs, so I assume these samples are only availible on glacier/only we have access to them? So long as no additional paperwork is needed for me to process these files, these may be the second easiest dataset to start downloading (assuming we just pay for transfer and ask Ellen to transfer them)
-
-Print a table breakdown of fastq samples on glacier and their data sources
-
-```{r}
-fastq_glacier |>
-  dplyr::summarise(
-    .by = c(source_name, suffix),
-    n = dplyr::n(),
-    sum_bytes = sum(bytes)
-  )
-```
-
-I am assuming once I align theses fastqs, they will live on Ceph for the foreseeable future (since we already paid for Ceph storage and redownloading will incur more costs)

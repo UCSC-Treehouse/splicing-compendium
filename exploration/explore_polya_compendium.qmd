@@ -15,9 +15,10 @@ We are interested in adding more datasets to the Treehouse Splice Compendium pri
 This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and filters for samples to download to process for Splice Compendium v2.
 The input files to this notebook are:
 
-polya_clinical_file: [Treehouse PolyA Compendium v25 clinical metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351), which contains clinical (disease, age at dx, sample source) information associated with a unique th_dataset_id
+polya_clinical_file: [Treehouse PolyA Compendium v25 clinical metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351), which contains clinical (disease, age at dx, sample source) information associated with a unique th_dataset_id.
+This file has more samples than recorded in treehouse_files_on_aws, likely because it also contains files from published datasets (TARGET, TCGA, CBTN) in addition to Treehouse samples.
+
 treehouse_files_on_aws: An internal log of sequence files in Treehouse storage.
-This file contains more files than are in the Treehouse PolyA Compendium.
 Fields consist of date, time, bytes, and path.
 Treehouse IDs for associating files with those in the PolyA compendium are within the values for path.
 
@@ -48,7 +49,11 @@ Read in files
 
 ```{r}
 ## Read in files ##
-polya_metadata_df <- readr::read_tsv(polya_clinical_file)
+# age_at_dx have "unknown" when age is unknown so cannot set coltype as double
+polya_metadata_df <- readr::read_tsv(polya_clinical_file,
+                                     col_types = readr::cols(
+                                       .default = "c"
+                                     ))
 
 # this file is separated by spaces
 treehouse_aws_df <- read.table(
@@ -62,53 +67,105 @@ treehouse_aws_df <- read.table(
     "path"))
 ```
 
-Summarize number of pedaya samples in polyA compendium by disease type
+## Clean and merge Treehouse sequence metadata
 
-```{r}
-polya_metadata_df |>
-  dplyr::summarise(.by = source_name,
-                   n = dplyr::n())
+Split "path" column in AWS file into filetype and treehouse ID fields 
+
+Filetypes in Treehouse storage are: .sra, .sra.vdbcache, sequence.txt.gz, markdown.txt, .fastq, and .bam
+.bam files processed by Treehouse should contained unmapped reads.
+
+```{r clean_aws_df}
+cleaned_aws_df <- treehouse_aws_df  |>
+  dplyr::mutate(
+    filename = stringr::str_split_i(path, "/", -1),
+    suffix = dplyr::case_when(
+      stringr::str_detect(filename, "fastq") ~ "fastq",
+      stringr::str_detect(filename, "fq") ~ "fastq",
+      stringr::str_detect(filename, "bam") ~ "bam",
+      stringr::str_detect(filename, "sra") ~ "sra",
+      stringr::str_detect(filename, "swp") ~ "swp",
+      stringr::str_detect(filename, "txt") ~ "txt"
+    ),
+    th_dataset_id = stringr::str_split_i(path, "/", 3)
+  )
 ```
 
-I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse, TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples.
+Merge treehouse polyA compendium metadata with aws file information to associate file size with compendium samples.
+This information will be used to inform download batching strategy and estimate AWS file transfer costs. 
 
-```{r}
-polya_summary_min_sample <- polya_metadata_df |>
-  # filter for human pedaya samples not in TARGET and TCGA
-  dplyr::filter(pedaya == "yes",
-                organism == "Homo sapiens",
-                ! source_name %in% c("TARGET", "TCGA")) |>
-  dplyr::summarise(.by = c(disease),
-                   n = dplyr::n()) |>
-  # filter for diseases with at least 15 samples to make plot readable
-  dplyr::filter( n >= 15) |>
-  dplyr::arrange(desc(n))
-
-polya_summary_min_sample
+```{r merge_compendium_with_aws}
+merged_compendium_aws_df <- polya_metadata_df |> 
+  dplyr::left_join(cleaned_aws_df,
+                   by = "th_dataset_id") |>
+  # select relevant columns for downstream filtering and summary of samples
+  dplyr::select(
+    th_dataset_id,
+    age_at_dx,
+    disease,
+    organism,
+    pedaya,
+    sex,
+    study_accession,
+    source_name,
+    bytes,
+    suffix
+  )
 ```
 
-Check how many samples in total fit these criteria
+Filter samples prior to summarizing
+For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse.
+TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples.
+We could consider downloading more of TARGET (e.g. osteosarcomas) that were not downloaded previously for Splice Compendium v1.
 
 ```{r}
-sum(polya_summary_min_sample$n)
+filtered_compendium_aws_df <- merged_compendium_aws_df |>
+  dplyr::filter(
+    # exclude TARGET and TCGA for now
+    ! source_name %in% c("TARGET", "TCGA"),
+    # filter for pedaya (age at dx < 30 years)
+    pedaya == "yes",
+    organism == "Homo sapiens"
+  )
 ```
 
-Altogether, there are \~1500 samples in the Treehouse PolyA compendium that fit these criteria. This seems like a good set to start with since it is over double the number of tumor samples currently in the splice compendium. We might want to discuss if we want to further filter out samples that are not unique to Treehouse (e.g. CBTN)
+## Summarize filtered data 
 
-Can Treehouse polyA compendium samples of rarer diseases be grouped into larger categories? Filter for compendium samples with under 15 samples to see
+2,337 files pass the above filters.
+The below summary tables will provide information on how many files originate from what data source, the file size of each file categorized by data source, and sex/disease type breakdowns of the samples.
+
+```{r data_source_file}
+
+filtered_compendium_aws_df |>
+  dplyr::summarise(
+    .by = data_source
+  )
+
+
+```
+
+
+Filter for fastq files in PolyA compendium and output a list of accessions My assumption is that I want fastqs so I can make sure they are trimmed/aligned the same way caveat: need to check if these are raw fastqs or if they have undergone any trimming prior to glacier
 
 ```{r}
-polya_summary_less_than_min_sample <- polya_metadata_df |>
-  # filter for human pedaya samples not in TARGET and TCGA
-  dplyr::filter(pedaya == "yes",
-                organism == "Homo sapiens",
-                ! source_name %in% c("TARGET", "TCGA")) |>
-  dplyr::summarise(.by = c(disease),
-                   n = dplyr::n()) |>
-  # filter for diseases with under 15 samples
-  dplyr::filter( n < 15)
-
-# count how many uniquely labeled disease types here have less than 15 samples
-nrow(polya_summary_less_than_min_sample)
+fastq_glacier <- nice_archived_files |>
+  dplyr::filter(th_dataset_id %in% polya_metadata_df$th_dataset_id) |>
+  dplyr::left_join(polya_metadata_df, by = dplyr::join_by(th_dataset_id)) |>
+  # remove files with 0 bytes
+  dplyr::filter(! th_dataset_id %in% c("EGAR00001742135_20160517-DASS9-MM3036-1_S3_R1_001.fastq", "TEST"),
+                bytes > 0)
 ```
 
+There are 559 fastq files from polyA compendium on glacier. Of samples whose data source_name is "unavailable", there are also no accession IDs, so I assume these samples are only availible on glacier/only we have access to them? So long as no additional paperwork is needed for me to process these files, these may be the second easiest dataset to start downloading (assuming we just pay for transfer and ask Ellen to transfer them)
+
+Print a table breakdown of fastq samples on glacier and their data sources
+
+```{r}
+fastq_glacier |>
+  dplyr::summarise(
+    .by = c(source_name, suffix),
+    n = dplyr::n(),
+    sum_bytes = sum(bytes)
+  )
+```
+
+I am assuming once I align theses fastqs, they will live on Ceph for the foreseeable future (since we already paid for Ceph storage and redownloading will incur more costs)

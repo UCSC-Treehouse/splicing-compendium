@@ -65,24 +65,6 @@ option_list <- list(
     action = "store",
     required = TRUE,
     help = "file name of output dPSI table with p values"
-  ),
-  make_option(
-    opt_str = "--padj",
-    type = "character",
-    action = "store",
-    default = 0.05,
-    required = FALSE,
-    help = "adjusted p-value threshold for defining significantly differentially spliced events.
-    default = 0.05"
-  ),
-  make_option(
-    opt_str = "--dpsi",
-    type = "character",
-    action = "store",
-    default = 0.15,
-    required = FALSE,
-    help = "dPSI threshold for defining differentially spliced events.
-    default = 0.15"
   )
 )
 

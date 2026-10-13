@@ -124,8 +124,6 @@ long_psi_matrix <- readr::read_csv(in_psi_file, col_types = c(.default = "c")) |
     ref_count >= opt$min_samples,
     query_count >= opt$min_samples
   ) |>
-  # filter out events where all PSI values are identical (nothing different to compare)
-  dplyr::filter(any(PSI != PSI[1])) |>
   dplyr::ungroup()
 
 message("PSI matrix read in")

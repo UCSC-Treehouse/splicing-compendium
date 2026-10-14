@@ -91,47 +91,6 @@ rule merge_gtfs:
         rm $manifest
         """
 
-rule merge_junctions:
-    input: JUNCTION_BEDS
-    output: "<merged_shiba_results>/merged_junctions.bed"
-    priority: 10
-    threads: 15
-    resources:
-        mem_mb = 2200000,
-        runtime = 720
-    shell:
-        """
-        tempdir=$(mktemp -d)
-        # initialize a number for identifying the temp junction files
-        n=1
-
-        for file in {input}; do
-            # Remove duplicated fields in bedfiles separated by ";" inside the tab-delimited bedfile
-            awk 'BEGIN{{FS=OFS="\t"}} {{ # set tab as delimiter
-              for (i = 1; i <= NF; i++) {{
-                  if ($i ~ /;/) {{ # only process fields containing ";"
-                      n = split($i, parts, ";") # split into parts on semicolons
-                      new = parts[1]
-                      for (j = 2; j <= n; j++) {{
-                          if (parts[j] != parts[j-1]) {{ # skip consecutive duplicates
-                              new = new ";" parts[j] # reassemble if values are different
-                          }}
-                      }}
-                      $i = new
-                  }}
-              }}
-              print
-          }}' $file > $tempdir/$n.bed
-
-          ((n ++))
-        done
-
-        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output={output}
-
-        # remove tempdir of deduplicated junctions
-        rm -rf $tempdir
-        """
-
 rule merge_junctions_persample:
     input: JUNCTION_BEDS
     # output is one bedfile per sample, all in a single directory
@@ -172,7 +131,10 @@ rule merge_junctions_persample:
           ((n ++))
         done
 
-        Rscript scripts/03-merge_separate_junctions.R --junctions=$tempdir --output_dir={params.output_dir}
+        Rscript scripts/03-merge_separate_junctions.R \
+          --junctions "$tempdir" \
+          --output_dir "{params.output_dir}" \
+          --threads {threads}
 
         # remove tempdir of deduplicated junctions
         rm -rf $tempdir

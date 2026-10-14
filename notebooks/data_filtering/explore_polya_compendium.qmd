@@ -79,7 +79,7 @@ Filetypes in Treehouse storage are: .sra, .sra.vdbcache, sequence.txt.gz, markdo
 ```{r clean_aws_df}
 cleaned_aws_df <- treehouse_aws_df  |>
   dplyr::mutate(
-    filename = stringr::str_split_i(path, "/", -1),
+    filename = basename(path),
     suffix = dplyr::case_when(
       stringr::str_detect(filename, "fastq") ~ "fastq",
       stringr::str_detect(filename, "fq.gz") ~ "fastq",

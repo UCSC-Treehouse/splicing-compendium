@@ -1,8 +1,20 @@
 #!/bin/bash
 
+#SBATCH --mem=40gb
+#SBATCH --partition=medium
+#SBATCH --job-name=diffsplice_compendium
+#SBATCH --time=3:00:00
+#SBATCH --account=standard
+#SBATCH --mail-user=celiang@ucsc.edu
+#SBATCH --mail-type=FAIL,END
+#SBATCH --output logs/treehouse_poly_sra_download_%j.txt
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+
 # Download script of RNA sequence data in the Treehouse PolyA compendium that are also on SRA
-# usage: scripts/01-treehouse_polyA_SRA_fastq-download.sh {groupname}
-# example: scripts/01-treehouse_polyA_SRA_fastq-download.sh treehouse_polya_sra
+# usage: sbatch scripts/01-treehouse_polyA_SRA_fastq-download.sh {groupname}
+# example: sbatch scripts/01-treehouse_polyA_SRA_fastq-download.sh treehouse_polya_sra
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail

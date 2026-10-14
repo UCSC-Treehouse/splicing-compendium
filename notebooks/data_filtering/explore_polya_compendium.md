@@ -1,6 +1,6 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-10-13
+2026-10-14
 
 ## Introduction
 
@@ -11,7 +11,7 @@ with healthy comparators from dGTEx.
 
 This notebook reads in the clinical metadata from the v25 Treehouse
 PolyA Compendium and filters for samples to download to process for
-Splice Compendium v2. The input files to this notebook are:
+Splice Compendium v1.2. The input files to this notebook are:
 
 polya_clinical_file: [Treehouse PolyA Compendium v25 clinical
 metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351),
@@ -91,7 +91,7 @@ cleaned_aws_df <- treehouse_aws_df  |>
     filename = stringr::str_split_i(path, "/", -1),
     suffix = dplyr::case_when(
       stringr::str_detect(filename, "fastq") ~ "fastq",
-      stringr::str_detect(filename, "fq") ~ "fastq",
+      stringr::str_detect(filename, "fq.gz") ~ "fastq",
       stringr::str_detect(filename, "bam") ~ "bam",
       stringr::str_detect(filename, "sra") ~ "sra",
       stringr::str_detect(filename, "swp") ~ "swp",

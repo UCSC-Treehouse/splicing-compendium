@@ -104,6 +104,13 @@ jama_sample_vector <- readLines(
 vasquez_sample_vector <- readxl::read_xlsx(vasquez_sample_id_file) |>
   dplyr::pull(`Patient ID`)
 ```
+Note: JAMA sample IDs are sample IDs, while CKCC2 IDs are patient IDs, which can be derived from the sample ID.
+```{r}
+jama_sample_vector |> head()
+
+vasquez_sample_vector |> head()
+```
+
 
 ## Clean and merge Treehouse sequence metadata
 

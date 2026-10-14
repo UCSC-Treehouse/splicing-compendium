@@ -131,6 +131,22 @@ vasquez_sample_vector <- readxl::read_xlsx(vasquez_sample_id_file) |>
   dplyr::pull(`Patient ID`)
 ```
 
+Note: JAMA sample IDs are sample IDs, while CKCC2 IDs are patient IDs,
+which can be derived from the sample ID.
+
+``` r
+jama_sample_vector |> head()
+```
+
+    [1] "TH01_0053_S01" "TH01_0054_S01" "TH01_0055_S01" "TH01_0061_S01"
+    [5] "TH01_0062_S01" "TH01_0063_S01"
+
+``` r
+vasquez_sample_vector |> head()
+```
+
+    [1] "TH34_1149" "TH34_1150" "TH34_1162" "TH34_1163" "TH34_1179" "TH34_1238"
+
 ## Clean and merge Treehouse sequence metadata
 
 Split “path” column in AWS file into filetype and Treehouse ID fields

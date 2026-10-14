@@ -1,0 +1,256 @@
+# Explore Treehouse PolyA Compendium
+Cindy Liang (celiang@ucsc.edu)
+2026-10-14
+
+## Introduction
+
+We are interested in adding more datasets to the Treehouse Splice
+Compendium prior to submitting the manuscript to a journal. Currently,
+the priorities are to include samples in the Treehouse PolyA compendia,
+with healthy comparators from dGTEx.
+
+This notebook reads in the clinical metadata from the v25 Treehouse
+PolyA Compendium and filters for samples to download to process for
+Splice Compendium v1.2. The input files to this notebook are:
+
+polya_clinical_file: [Treehouse PolyA Compendium v25 clinical
+metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351),
+which contains clinical (disease, age at dx, sample source) information
+associated with a unique th_dataset_id. This file has more samples than
+recorded in treehouse_files_on_aws, likely because it also contains
+files from published datasets (TARGET, TCGA, CBTN) in addition to
+Treehouse samples.
+
+treehouse_files_on_aws: An internal log of sequence files in Treehouse
+storage. Fields consist of date, time, bytes, and path. Treehouse IDs
+for associating files with those in the PolyA compendium are within the
+values for path.
+
+## Setup
+
+Files and directories
+
+``` r
+## Directories ##
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+metadata_dir <- file.path(repo_root, "metadata")
+
+## Files ##
+# Treehouse polyA compendium with disease type of samples and treehouse ID
+polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv")
+# record of files on AWS, with file type information and file size.
+# to be associated with polya_clinical_file by treehouse ID
+treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive-treehouse-ucsc-edu_primary.txt")
+
+# output accessions 
+# list of SRA accessions fof polyA compendium files
+sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
+ega_accessions <- file.path(metadata_dir, "ega_polya_compendium_accessions.txt")
+# these files should only have treehouse IDs rather than "accession" IDs
+treehouse_collaborator_ids <-file.path(metadata_dir, "collaborator_polya_compendium_ids.txt")
+cbtn_accessions <- file.path(metadata_dir, "cbtn_polya_compendium_accessions.txt")
+```
+
+Read in files
+
+``` r
+## Read in files ##
+# age_at_dx have "unknown" when age is unknown so cannot set coltype as double
+polya_metadata_df <- readr::read_tsv(polya_clinical_file,
+                                     col_types = readr::cols(
+                                       .default = "c"
+                                     ))
+
+# this file is separated by spaces
+treehouse_aws_df <- read.table(
+  treehouse_aws_summary_file,
+  sep = "", 
+  header = FALSE, 
+  col.names = c(
+    "date",
+    "time",
+    "bytes",
+    "path"),
+  colClasses = c(
+    bytes = "double"
+  )
+  )
+```
+
+## Clean and merge Treehouse sequence metadata
+
+Split “path” column in AWS file into filetype and treehouse ID fields
+
+Filetypes in Treehouse storage are: .sra, .sra.vdbcache,
+sequence.txt.gz, markdown.txt, .fastq, and .bam .bam files processed by
+Treehouse should contained unmapped reads.
+
+``` r
+cleaned_aws_df <- treehouse_aws_df  |>
+  dplyr::mutate(
+    filename = stringr::str_split_i(path, "/", -1),
+    suffix = dplyr::case_when(
+      stringr::str_detect(filename, "fastq") ~ "fastq",
+      stringr::str_detect(filename, "fq.gz") ~ "fastq",
+      stringr::str_detect(filename, "bam") ~ "bam",
+      stringr::str_detect(filename, "sra") ~ "sra",
+      stringr::str_detect(filename, "swp") ~ "swp",
+      stringr::str_detect(filename, "txt") ~ "txt"
+    ),
+    th_dataset_id = stringr::str_split_i(path, "/", 3)
+  )
+```
+
+Merge treehouse polyA compendium metadata with aws file information to
+associate file size with compendium samples. This information will be
+used to inform download batching strategy and estimate AWS file transfer
+costs.
+
+``` r
+merged_compendium_aws_df <- polya_metadata_df |> 
+  dplyr::left_join(cleaned_aws_df,
+                   by = "th_dataset_id") |>
+  # select relevant columns for downstream filtering and summary of samples
+  dplyr::select(
+    th_dataset_id,
+    age_at_dx,
+    disease,
+    organism,
+    pedaya,
+    sex,
+    study_accession,
+    source_name,
+    bytes,
+    suffix
+  ) |>
+  # turn bytes column back into double for summing later on
+  dplyr::mutate(
+    bytes = as.double(bytes)
+  )
+```
+
+Filter samples prior to summarizing For now, I will exclude samples from
+TARGET and TCGA, since these are datasets not unique to Treehouse.
+TARGET is in Splice Compendium v1, and TCGA is primarily composed of
+adult samples. We could consider downloading more of TARGET
+(e.g. osteosarcomas) that were not downloaded previously for Splice
+Compendium v1.
+
+``` r
+filtered_compendium_aws_df <- merged_compendium_aws_df |>
+  dplyr::filter(
+    # exclude TARGET and TCGA for now
+    ! source_name %in% c("TARGET", "TCGA"),
+    # filter for pedaya (age at dx < 30 years)
+    pedaya == "yes",
+    organism == "Homo sapiens",
+    # sanity check - some aws files are dummies with 0 bytes
+    bytes > 0
+  )
+```
+
+## Summarize filtered data
+
+2,337 files pass the above filters. The below summary tables will
+provide information on the sex/disease type breakdowns of the filtered
+samples, how many files originate from what data source, and the file
+size of each file categorized by data source.
+
+sex/disease breakdown of diltered polyA compendium files
+
+``` r
+#| label: fig-age_sex_dist
+#| fig-width: 8
+#| fig-height: 20
+
+filtered_compendium_aws_df |>
+  dplyr::summarise(
+    .by = c(disease, sex),
+    n_samples = dplyr::n()
+  ) |>
+  dplyr::arrange(desc(n_samples)) |>
+  # there are 101 rows, so print head for ease of viewing
+  head()
+```
+
+| disease         | sex    | n_samples |
+|:----------------|:-------|----------:|
+| medulloblastoma | male   |       124 |
+| osteosarcoma    | female |       114 |
+| osteosarcoma    | male   |        73 |
+| medulloblastoma | female |        53 |
+| Ewing sarcoma   | male   |        51 |
+| glioma          | female |        44 |
+
+Much of the compendium is composed of unusual sarcomas (n = 1 or n \<
+5). The majority of the compendium after these filters consist of
+medulloblastoma, osteosarcoma, glioma, and Ewing’s sarcoma.
+
+Print summary of files by data source and total bytes
+
+``` r
+filtered_compendium_aws_df |>
+  dplyr::summarise(
+    .by = source_name,
+    n_samples = dplyr::n(),
+    total_bytes = sum(bytes)
+  )
+```
+
+| source_name           | n_samples |  total_bytes |
+|:----------------------|----------:|-------------:|
+| EGA                   |       229 | 1.633380e+12 |
+| unavailable           |       426 | 1.838511e+12 |
+| Sequence Read Archive |       442 | 3.643745e+12 |
+| CBTN                  |        18 | 1.188477e+11 |
+
+~1.8TB of data should be accessible on SRA. Some of these files are
+listed as .sra in glacier, so the estimated filesize may be smaller than
+the zipped fastqs. This group represents data that I can try downloading
+now, since we have sra-toolkit in our pixi environment.
+
+“unavailable” indicates the data originate from individual
+collaborators, such as collaborators. These files should be downloadable
+on glacier, but the sequence files may need to be deposited in a
+repository prior to publication of their splice values.
+
+Output a list of file accessions per data source. My assumption is that
+I will need a separate download script for each different data source
+(or at least go through a different system to download the data). But a
+list of accessions should help.
+
+``` r
+# prep filtered df for exporting file accessions
+for_export_compendium_df <- filtered_compendium_aws_df |>
+  dplyr::select(
+    th_dataset_id,
+    study_accession,
+    source_name
+  )
+
+# export accessions lists to output
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "Sequence Read Archive"
+  ) |>
+  readr::write_tsv(sra_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "EGA"
+  ) |>
+  readr::write_tsv(ega_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "CBTN"
+  ) |>
+  readr::write_tsv(cbtn_accessions)
+
+for_export_compendium_df |>
+  dplyr::filter(
+    source_name == "unavailable"
+  ) |>
+  readr::write_tsv(treehouse_collaborator_ids)
+```

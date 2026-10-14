@@ -259,7 +259,8 @@ collaborator_source_compendium_df |>
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
     .by = c(publication_origin, `partner`),
-    n_patients = length(unique(th_patient_id))
+    # note: some samples come from the same patient
+    n_samples = length(unique(th_dataset_id))
   )
 ```
 

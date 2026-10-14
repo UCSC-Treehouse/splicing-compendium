@@ -355,7 +355,8 @@ collaborator_source_compendium_df |>
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
     .by = c(publication_origin, `partner`),
-    n_patients = length(unique(th_patient_id))
+    # note: some samples come from the same patient
+    n_samples = length(unique(th_dataset_id))
   )
 ```
 
@@ -366,17 +367,17 @@ individual collaborator
 
 <div class="cell-output-display">
 
-| publication_origin | partner | n_patients |
+| publication_origin | partner | n_samples |
 |:---|:---|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 30 |
+| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 35 |
 | jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 3 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 74 |
-| NA | Nationwide Children’s | 9 |
-| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 4 |
+| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 94 |
+| NA | Nationwide Children’s | 10 |
+| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 5 |
 | NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
 | NA | Sameer Agnihotri University of Pittsburgh | 1 |
-| NA | Samples associated with Stanford Clinical Registry | 11 |
-| NA | Alejandro at Stanford (incl pdx) | 2 |
+| NA | Samples associated with Stanford Clinical Registry | 12 |
+| NA | Alejandro at Stanford (incl pdx) | 4 |
 
 </div>
 

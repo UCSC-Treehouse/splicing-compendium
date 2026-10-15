@@ -27,8 +27,9 @@ psi_matrix <- readr::read_tsv(splice_results)
 # subset splice compendium by one GTEx and one TARGET disease type for testing downstream analysis scripts
 
 subsetted_matrix <- psi_matrix |>
-  # make a dataframe consisting of a random 1000 position IDs for testing
-  dplyr::slice_sample(by = pos_id, n = 1000)
+  # make a dataframe consisting of a random 1000 position IDs per event type for testing
+  dplyr::group_by(event_type) |>
+  dplyr::slice_sample(n = 1000)
 
 # write subsetted file to output
 readr::write_tsv(subsetted_matrix, subsetted_results)

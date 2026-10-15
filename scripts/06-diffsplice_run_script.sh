@@ -2,10 +2,10 @@
 # shell script for running diffsplice script through slurm
 # usage: sbatch scripts/06-diffsplice_run_script.sh
 
-#SBATCH --mem=40gb
+#SBATCH --mem=10gb
 #SBATCH --partition=long
 #SBATCH --job-name=diffsplice_compendium
-#SBATCH --time=16:00:00
+#SBATCH --time=2:00:00
 #SBATCH --account=standard
 #SBATCH --mail-user=celiang@ucsc.edu
 #SBATCH --mail-type=FAIL,END
@@ -15,4 +15,4 @@
 #SBATCH --cpus-per-task=1
 
 # run the rscript
-Rscript scripts/06-diffsplice_calculation.R --reference_group "Whole Blood" --query_group AML --metadata_file metadata/combined_compendium_metadata.tsv --psi_file results/merged_shiba/splice_compendium_v1/merged_persample_psi/cleaned_psi_matrix.txt --out_file test_diffsplice.tsv
+Rscript scripts/06-diffsplice_calculation.R --reference_group "Whole Blood" --query_group AML --metadata_file metadata/combined_compendium_metadata.tsv --psi_file test_files/subsetted_splice_matrix.txt --out_file test_diffsplice.tsv

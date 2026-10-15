@@ -109,7 +109,6 @@ long_psi_matrix <- readr::read_tsv(
   # only select position ID and gene name columns to save memory
   col_select = c(
     "pos_id",
-    "gene_name",
     any_of(metadata$Run)
   )) |>
   # pivot longer to allow accession IDs (PSI column names) to be associated with tissue type from metadata

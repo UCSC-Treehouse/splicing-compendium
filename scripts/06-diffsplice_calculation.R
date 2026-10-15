@@ -23,7 +23,7 @@ option_list <- list(
     type = "character",
     action = "store",
     required = TRUE,
-    help = "relative file path of metadata with tissue/disease type information"
+    help = "file path of metadata with tissue/disease type information"
   ),
   make_option(
     opt_str = "--psi_file",
@@ -37,7 +37,7 @@ option_list <- list(
     type = "character",
     action = "store",
     required = TRUE,
-    help = "file name of output dPSI table with p values"
+    help = "file path of output dPSI table with p values"
   ),
   make_option(
     opt_str = "--reference_group",

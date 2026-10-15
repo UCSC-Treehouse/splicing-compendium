@@ -2,10 +2,10 @@
 # shell script for running diffsplice script through slurm
 # usage: sbatch scripts/06-diffsplice_run_script.sh
 
-#SBATCH --mem=10gb
+#SBATCH --mem=5gb
 #SBATCH --partition=long
 #SBATCH --job-name=diffsplice_compendium
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 #SBATCH --account=standard
 #SBATCH --mail-user=celiang@ucsc.edu
 #SBATCH --mail-type=FAIL,END

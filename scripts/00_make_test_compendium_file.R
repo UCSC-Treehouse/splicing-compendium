@@ -12,7 +12,7 @@ results_dir <- file.path(repo_root, "results")
 test_dir <- file.path(repo_root, "test_files")
 
 # files
-splice_results <- file.path(results_dir, "merged_shiba", "splice_compendium_v1", "cleaned_psi_matrix.txt")
+splice_results <- file.path(results_dir, "merged_shiba", "splice_compendium_v1", "merged_persample_psi", "cleaned_psi_matrix.txt")
 subsetted_results <- file.path(test_dir, "subsetted_splice_matrix.txt")
 
 # create directories if they don't exist
@@ -27,9 +27,8 @@ psi_matrix <- readr::read_tsv(splice_results)
 # subset splice compendium by one GTEx and one TARGET disease type for testing downstream analysis scripts
 
 subsetted_matrix <- psi_matrix |>
-  # make a dataframe consisting of a random 1000 position IDs per event type for testing
-  dplyr::group_by(event_type) |>
-  dplyr::slice_sample(n = 1000)
+  # make a dataframe consisting of a random 10 position IDs per event type for testing
+  dplyr::slice_sample(by = event_type, n = 10)
 
 # write subsetted file to output
 readr::write_tsv(subsetted_matrix, subsetted_results)

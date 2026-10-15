@@ -124,7 +124,7 @@ message("PSI matrix read in")
 
 # associate accession IDs to tissue type info and filter based on IDs with min sample size
 cancer_type_psi_table_filtered <- dplyr::inner_join(
-  filtered_target_metadata,
+  metadata,
   long_psi_matrix,
   by = c("Run")
 ) |>

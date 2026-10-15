@@ -30,7 +30,7 @@ option_list <- list(
     type = "character",
     action = "store",
     required = TRUE,
-    help = "relative file path of PSI matrix with gene names and sample accession IDs to calculate differential splicing"
+    help = "file path of PSI matrix with gene names and sample accession IDs to calculate differential splicing"
   ),
   make_option(
     opt_str = "--out_file",

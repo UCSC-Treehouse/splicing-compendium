@@ -75,7 +75,7 @@ time for ID in $(awk -F '\t' 'NR>1{print $6}' "${accessions_file}"); do
         fi
 
         # download fastq file for each accession
-        fasterq-dump --temp $group_dir $ID --threads 1 --outdir $fastq_dir || true
+        fasterq-dump $ID --temp $group_dir --threads 1 --outdir $fastq_dir || true
 
         # Check if fastq file exists
         # If file is missing, record error in fastq-dump step and move on to next accession
@@ -83,6 +83,7 @@ time for ID in $(awk -F '\t' 'NR>1{print $6}' "${accessions_file}"); do
             # record the accession ID not downloaded
             echo -e "$ID\tfasterq-dump" >> $error_log_file
             continue
+        else echo "fastq files not found"
         fi
 
         # zip fastqs to save space

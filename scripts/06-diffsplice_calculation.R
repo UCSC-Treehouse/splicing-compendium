@@ -166,9 +166,13 @@ dPSI_table <- cancer_type_psi_table_filtered |>
     .by = c(pos_id, plot_tissue_type)
   ) |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
-  dplyr::group_by(pos_id) |>
+  dplyr::pivot_wider(
+    names_from = plot_tissue_type,
+    names_prefix = "median_PSI_",
+    values_from = median_PSI
+  ) |>
   dplyr::mutate(
-    dPSI = median_PSI[plot_tissue_type == "query"] - median_PSI[plot_tissue_type == "ref"]
+    dPSI = median_PSI_query - median_PSI_ref
   )
 
 message("dPSI calculated for ref and query groups")

@@ -432,7 +432,7 @@ collaborator_source_compendium_df |>
 
 <div id="tbl-polya_v25_individual_collaborator_samples">
 
-Table 4: Number of unique patients in the polyA v25 compendium from each
+Table 4: Number of unique samples in the polyA v25 compendium from each
 individual collaborator
 
 <div class="cell-output-display">
@@ -548,3 +548,101 @@ for_export_compendium_df |>
   dplyr::arrange(publication_origin) |>
   readr::write_tsv(publication_only_th_collaborator_ids)
 ```
+
+Create a table of collaborator origin of JAMA samples not in polyA
+compendium. These are likely collaborators we need to reach out to to
+request for data to be deposited.
+
+``` r
+dplyr::tibble(jama_sample_vector) |>
+  dplyr::mutate(
+    TH_ID = stringr::str_split_i(jama_sample_vector, "_", 1)
+  ) |>
+  dplyr::right_join(
+    th_dataset_id_partner_df
+  ) |>
+  dplyr::summarise(
+    .by = partner,
+    n_samples = dplyr::n()
+  )
+```
+
+    Joining with `by = join_by(TH_ID)`
+
+<div id="tbl-jama_by_collaborator_source">
+
+Table 6: Number of JAMA samples broken down by collaborator
+
+<div class="cell-output-display">
+
+| partner | n_samples |
+|:---|---:|
+| CHOC and CHOC/Nant | 23 |
+| PNOC UCSF (Mueller) | 24 |
+| Alejandro at Stanford (incl pdx) | 66 |
+| BC-POG | 31 |
+| MSK (via Alejandro at Stanford) | 1 |
+| UCSF (Solomon) | 1 |
+| Sanford | 1 |
+| St Jude/EGAD00001001098 | 1 |
+| EGAD00001000356, in two parts | 1 |
+| EGAD0001002680 | 1 |
+| EGAD0001001666 | 1 |
+| phs000709 READLEN subset | 1 |
+| dbGap fibrolamellar phs00709.v1.p1 | 1 |
+| Monje DIPG phs00900.v1.p1 | 1 |
+| CBTTC HGG-PA-01 | 1 |
+| dbGap OS phs00699.v1.p1 | 1 |
+| Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 1 |
+| ICGC EGAD00001000158 MAGIC | 1 |
+| ICGC EGAD00001000328 PedBrain | 1 |
+| ICGC EGAD00001000617 PedBrain | 1 |
+| ICGC EGAD00001001620 PedBrain | 1 |
+| ICGC EGAD00001001944 PedBrain | 1 |
+| ICGC/EGAD00001000648 | 1 |
+| SRA scrape (4 Ewings) | 1 |
+| St. Jude Cloud (PCGP, etc) | 1 |
+| Osteosarcoma EGAD00001000826 | 1 |
+| Merker/Stanford (via Alejandro at Stanford) | 1 |
+| Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 1 |
+| Embryonal rhabdosarcoma SRP040454 | 1 |
+| Pediatric rhabdomyosarcoma phs000720.v2.p1 | 1 |
+| Ewing sarcoma phs000768.v2.p1 | 1 |
+| Peds-MiOncoSeq phs000673.v2.p1 | 1 |
+| EGAD00001001927 CNS-PNETs | 1 |
+| EGAD00001003279 ICGC/PCGP medulloblastoma | 1 |
+| Samples associated with Stanford Clinical Registry | 1 |
+| Chris Jones ICR HGG-DIPG data | 1 |
+| EGAD00001004070 - HERBY, ICR via EGA | 1 |
+| Pediatric posterior fossa ependymomas (SRP092501) | 1 |
+| Nationwide Children’s | 1 |
+| SRP126664: Synovial Sarcoma (SS18-SSX Fusion Oncoprotein as SS driver) | 1 |
+| Sick Kids | 1 |
+| EGAD00001004135 Synovial Sarcoma | 1 |
+| one-off, catch all | 1 |
+| UCSF Germline non-cancer | 1 |
+| University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
+| Commercial cell lines grown in-house at Treehouse | 1 |
+| Sameer Agnihotri University of Pittsburgh | 1 |
+| Bang Huang, Albert Einstein College of Medicine, Montefiore Medical Center | 1 |
+| Reference/Control samples | 1 |
+| Modelling Multi-Dimensional ClinOmics for Precision Therapy of Children and Adolescent Young Adults with Relapsed and Refractory Cancer: A report from the Center for Cancer Research. phs001052 | 1 |
+| UCSF CCGL - Patrick Devine | 1 |
+| Systematic profiling of synovial sarcoma transcriptome (SRP244471) | 1 |
+| French Sarcoma Group: Genomic and transcriptomic comparison of post-radiation versus sporadic sarcomas (SRP057793) & (SRP113755) | 1 |
+| Institut Curie (SRP052896) | 1 |
+| Development and Verification of an RNA Sequencing (RNA-Seq) Assay for the Detection of Gene Fusions in Tumors (SRP133789) | 1 |
+| Children’s Cancer Therapy Development Institute, Beaverton, OR (CC-TDI) (SRP110289) | 1 |
+| Masonic Cancer Center (SRP090849) | 1 |
+| Nanjing Jinlin Hospital (SRP261425) | 1 |
+| Tanya Heim and Kurt Weiss - University of Pittsburgh | 1 |
+| UCSF Meningioma Data - William Chen | 1 |
+| Kids First Data Resource Center | 1 |
+| Stephen Macnally - Beaumont Hospital, Ireland | 1 |
+| Karolinska Institute (SRP518111) | 1 |
+| Baylor College of Medicine (SRP514375) | 1 |
+| University of Colorado Anschutz Medical Campus | 1 |
+
+</div>
+
+</div>

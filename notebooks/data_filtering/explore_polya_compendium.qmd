@@ -296,7 +296,7 @@ Count number of individual samples whose data come from individual collaborators
 
 ```{r summarize_collaborator_samples}
 #| label: tbl-polya_v25_individual_collaborator_samples
-#| tbl-cap: "Number of unique patients in the polyA v25 compendium from each individual collaborator"
+#| tbl-cap: "Number of unique samples in the polyA v25 compendium from each individual collaborator"
 
 # summarize number of unique patients whose samples are from collaborators
 collaborator_source_compendium_df |>  
@@ -380,4 +380,24 @@ for_export_compendium_df |>
   dplyr::arrange(publication_origin) |>
   readr::write_tsv(publication_only_th_collaborator_ids)
 
+```
+
+Create a table of collaborator origin of JAMA samples not in polyA compendium.
+These are likely collaborators we need to reach out to to request for data to be deposited.
+
+```{r}
+#| label: tbl-jama_by_collaborator_source
+#| tbl-cap: "Number of JAMA samples broken down by collaborator"
+
+dplyr::tibble(jama_sample_vector) |>
+  dplyr::mutate(
+    TH_ID = stringr::str_split_i(jama_sample_vector, "_", 1)
+  ) |>
+  dplyr::right_join(
+    th_dataset_id_partner_df
+  ) |>
+  dplyr::summarise(
+    .by = partner,
+    n_samples = dplyr::n()
+  )
 ```

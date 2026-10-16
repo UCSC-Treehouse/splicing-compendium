@@ -30,6 +30,8 @@ JAMA Treehouse IDs are obtained from JAMA_TH_IDs.tsv document through:
 awk 'NR > 1 {print $1}' JAMA_TH_IDs.tsv > JAMA_TH_ID_column.txt
 ```
 
+**Jama_REDCap_Donor_Sample_20260730.tsv**: REDCap record of JAMA samples in Treehouse's internal database, with MEND QC information.
+
 This notebook produces output files of accession IDs of Treehouse PolyA Compendium v25 files, separated by dataset of origin. Accessions from these files will be used as input for downstream downloading scripts.
 
 Additionally, this notebook produces summary tables breaking down individual contributors of origin for samples in the Treehouse PolyA Compendium, and samples from the Vaske 2019 and Vasquez 2025 papers.
@@ -144,6 +146,8 @@ jama_redcap_data |>
                    n = dplyr::n())
 ```
 
+113/144 samples pass MEND QC, so I should expect to see 113 JAMA samples in the polyA compendium.
+
 ## Clean and merge Treehouse sequence metadata
 
 Split "path" column in AWS file into filetype and Treehouse ID fields
@@ -200,13 +204,13 @@ merged_compendium_aws_df <- polya_metadata_df |>
 
 Filter samples prior to summarizing. For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse. TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples. We could consider downloading more of TARGET (e.g. osteosarcomas) that were not downloaded previously for Splice Compendium v1.
 
+At this stage, I will not filter for pedaya, as some samples have inconsistently annotated pedaya and/or age_at_dx (some samples with pedaya age_at_dx are labeled "unknown" pedaya and some samples have "unknown" age_at_dx but I assume are pediatric based off the study area of collaborators where samples are from
+
 ```{r filter_compendium_df}
 filtered_compendium_aws_df <- merged_compendium_aws_df |>
   dplyr::filter(
     # exclude TARGET and TCGA for now
     ! source_name %in% c("TARGET", "TCGA"),
-    # filter for pedaya (age at dx < 30 years)
-    as.numeric(age_at_dx) < 30,
     organism == "Homo sapiens",
     # sanity check - some aws files are dummies with 0 bytes
     bytes > 0
@@ -215,7 +219,7 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
 
 ## Summarize filtered data
 
-2,337 files pass the above filters. The below summary tables will provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
+937 files pass the above filters. The below summary tables will provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
 
 sex/disease breakdown of filtered polyA compendium files
 
@@ -237,6 +241,9 @@ filtered_compendium_aws_df |>
 Much of the compendium is composed of unusual sarcomas (n = 1 or n \< 5). The majority of the compendium after these filters consist of medulloblastoma, osteosarcoma, glioma, and Ewing's sarcoma.
 
 Print summary of files by data source and total bytes
+
+There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. These are cases where multiple fastq pairs are associated with the same sample.\
+The strategy for processing these files is to concatenate the fastqs into a single read1 / read2 pair, prior to trimming and alignment.
 
 ```{r data_source_file}
 #| label: tbl-polya_v25_source_filesize_summary
@@ -302,18 +309,7 @@ collaborator_source_compendium_df |>
   )
 ```
 
-In total, we have sequences from 135 samples originating from individual collaborators.
-
-There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. These are cases where multiple fastq pairs are associated with the same sample.\
-The strategy for processing these files is to concatenate the fastqs into a single read1 / read2 pair, prior to trimming and alignment.
-
-```{r}
-collaborator_source_compendium_df |>
-  dplyr::filter(publication_origin == "ckcc2_vasquez_2025") |>
-  dplyr::pull(th_dataset_id) |>
-  unique() |>
-  length()
-```
+In total, we have sequences from 193 samples originating from individual collaborators. 36/34 expected samples are from the CKCC2 study, while only 3/113 expected samples are from the JAMA study.
 
 Count number of individual patients whose data come from individual collaborators
 
@@ -330,20 +326,6 @@ collaborator_source_compendium_df |>
     # note: some samples come from the same patient
     n_patients = length(unique(th_patient_id))
   )
-```
-
-Who among CKCC2 study is not pedaya?
-
-```{r}
-collaborator_source_compendium_df |>
-  dplyr::filter(publication_origin == "ckcc2_vasquez_2025") |>
-  dplyr::select(th_dataset_id, age_at_dx, pedaya, th_patient_id)
-```
-
-```{r}
-polya_metadata_df |>
-  dplyr::filter(th_dataset_id == "TH34_1455_S01") |>
-  dplyr::select(age_at_dx, pedaya)
 ```
 
 ## Output a list of file accessions per data source

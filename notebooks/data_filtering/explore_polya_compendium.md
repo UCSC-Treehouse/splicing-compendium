@@ -1,6 +1,6 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-10-14
+2026-10-15
 
 ## Introduction
 
@@ -43,6 +43,9 @@ JAMA Treehouse IDs are obtained from JAMA_TH_IDs.tsv document through:
 
     awk 'NR > 1 {print $1}' JAMA_TH_IDs.tsv > JAMA_TH_ID_column.txt
 
+**Jama_REDCap_Donor_Sample_20260730.tsv**: REDCap record of JAMA samples
+in Treehouse’s internal database, with MEND QC information.
+
 This notebook produces output files of accession IDs of Treehouse PolyA
 Compendium v25 files, separated by dataset of origin. Accessions from
 these files will be used as input for downstream downloading scripts.
@@ -70,6 +73,8 @@ treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive
 thid_partner_file <- file.path(metadata_dir, "TH_dataset_ID_by_collaborator_THIDs.tsv")
 jama_sample_id_file <- file.path(metadata_dir, "JAMA_TH_ID_column.txt")
 vasquez_sample_id_file <- file.path(metadata_dir, "41698_2025_852_MOESM2_ESM.xlsx")
+
+jama_redcap_file <- file.path(metadata_dir, "jama_REDCap_Donor_Sample_20260730.tsv")
 
 # output accessions 
 # list of SRA accessions fof polyA compendium files
@@ -129,6 +134,17 @@ jama_sample_vector <- readLines(
 # vector of treehouse sample IDs in CCK2 / Vasquez 2025 publiation
 vasquez_sample_vector <- readxl::read_xlsx(vasquez_sample_id_file) |>
   dplyr::pull(`Patient ID`)
+
+# list of JAMA samples on redcap 
+jama_redcap_data <- readr::read_tsv(
+  jama_redcap_file,
+  col_types = readr::cols_only(
+    th_donor_id = "c", 
+    site_id = "c",
+    th_sampleid = "c",
+    qc = "n",
+    umend = "n")
+  )
 ```
 
 Note: JAMA sample IDs are sample IDs, while CKCC2 IDs are patient IDs,
@@ -146,6 +162,35 @@ vasquez_sample_vector |> head()
 ```
 
     [1] "TH34_1149" "TH34_1150" "TH34_1162" "TH34_1163" "TH34_1179" "TH34_1238"
+
+Out of all JAMA samples, check how many have no QC data (assume they are
+not in polyA compendium for this reason)
+
+samples pass MEND QC if they have \>= 10M MEND reads : “The RNA-Seq data
+must contain at least 10 million mapped exonic, non-duplicate (MEND)
+reads.” [(Beale
+2025)](https://www.nature.com/articles/s41597-025-05376-z)
+
+``` r
+jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+    dplyr::case_when(
+      umend > 10000000 ~ TRUE,
+      umend < 10000000 ~ FALSE
+    )
+    )|>
+  dplyr::summarise(.by = c(qc, pass_mend),
+                   n = dplyr::n())
+```
+
+|  qc | pass_mend |   n |
+|----:|:----------|----:|
+|   5 | TRUE      | 113 |
+|   6 | NA        |  31 |
+
+113/144 samples pass MEND QC, so I should expect to see 113 JAMA samples
+in the polyA compendium.
 
 ## Clean and merge Treehouse sequence metadata
 
@@ -187,7 +232,6 @@ merged_compendium_aws_df <- polya_metadata_df |>
     age_at_dx,
     disease,
     organism,
-    pedaya,
     sex,
     study_accession,
     source_name,
@@ -214,13 +258,17 @@ adult samples. We could consider downloading more of TARGET
 (e.g. osteosarcomas) that were not downloaded previously for Splice
 Compendium v1.
 
+At this stage, I will not filter for pedaya, as some samples have
+inconsistently annotated pedaya and/or age_at_dx (some samples with
+pedaya age_at_dx are labeled “unknown” pedaya and some samples have
+“unknown” age_at_dx but I assume are pediatric based off the study area
+of collaborators where samples are from
+
 ``` r
 filtered_compendium_aws_df <- merged_compendium_aws_df |>
   dplyr::filter(
     # exclude TARGET and TCGA for now
     ! source_name %in% c("TARGET", "TCGA"),
-    # filter for pedaya (age at dx < 30 years)
-    pedaya == "yes",
     organism == "Homo sapiens",
     # sanity check - some aws files are dummies with 0 bytes
     bytes > 0
@@ -229,10 +277,10 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
 
 ## Summarize filtered data
 
-2,337 files pass the above filters. The below summary tables will
-provide information on the sex/disease type breakdowns of the filtered
-samples, how many files originate from what data source, and the file
-size of each file categorized by data source.
+937 files pass the above filters. The below summary tables will provide
+information on the sex/disease type breakdowns of the filtered samples,
+how many files originate from what data source, and the file size of
+each file categorized by data source.
 
 sex/disease breakdown of filtered polyA compendium files
 
@@ -255,12 +303,12 @@ Table 1: Top 6 sex/disease categories with the most files
 
 | disease         | sex    | n_samples |
 |:----------------|:-------|----------:|
-| medulloblastoma | male   |       124 |
-| osteosarcoma    | female |       114 |
-| osteosarcoma    | male   |        73 |
-| medulloblastoma | female |        53 |
-| Ewing sarcoma   | male   |        51 |
-| glioma          | female |        44 |
+| osteosarcoma    | male   |       147 |
+| medulloblastoma | male   |       136 |
+| osteosarcoma    | female |       129 |
+| medulloblastoma | female |        69 |
+| Ewing sarcoma   | male   |        59 |
+| Ewing sarcoma   | female |        51 |
 
 </div>
 
@@ -271,6 +319,12 @@ Much of the compendium is composed of unusual sarcomas (n = 1 or n \<
 medulloblastoma, osteosarcoma, glioma, and Ewing’s sarcoma.
 
 Print summary of files by data source and total bytes
+
+There are some cases where the same Treehouse sample ID appears multiple
+times, but the bytes are different. These are cases where multiple fastq
+pairs are associated with the same sample.  
+The strategy for processing these files is to concatenate the fastqs
+into a single read1 / read2 pair, prior to trimming and alignment.
 
 ``` r
 filtered_compendium_aws_df |>
@@ -291,9 +345,9 @@ bytes per file
 
 | source_name           | n_files |  total_bytes | bytes_per_file |
 |:----------------------|--------:|-------------:|---------------:|
-| EGA                   |     229 | 1.633380e+12 |     7132662745 |
-| unavailable           |     426 | 1.838511e+12 |     4315753676 |
-| Sequence Read Archive |     442 | 3.643745e+12 |     8243767154 |
+| EGA                   |     257 | 1.831246e+12 |     7125471192 |
+| unavailable           |     482 | 2.109279e+12 |     4376098149 |
+| Sequence Read Archive |     892 | 5.337788e+12 |     5984067633 |
 | CBTN                  |      18 | 1.188477e+11 |     6602652465 |
 
 </div>
@@ -347,21 +401,21 @@ individual collaborator
 
 | publication_origin | partner | n_files |
 |:---|:---|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 134 |
+| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 136 |
 | jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 6 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 188 |
+| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 240 |
 | NA | Nationwide Children’s | 40 |
 | NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 16 |
 | NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 8 |
 | NA | Sameer Agnihotri University of Pittsburgh | 2 |
-| NA | Samples associated with Stanford Clinical Registry | 24 |
+| NA | Samples associated with Stanford Clinical Registry | 26 |
 | NA | Alejandro at Stanford (incl pdx) | 8 |
 
 </div>
 
 </div>
 
-Count number of individual patients whose data come from individual
+Count number of individual samples whose data come from individual
 collaborators
 
 ``` r
@@ -376,7 +430,7 @@ collaborator_source_compendium_df |>
   )
 ```
 
-<div id="tbl-polya_v25_individual_collaborator_patients">
+<div id="tbl-polya_v25_individual_collaborator_samples">
 
 Table 4: Number of unique patients in the polyA v25 compendium from each
 individual collaborator
@@ -385,28 +439,61 @@ individual collaborator
 
 | publication_origin | partner | n_samples |
 |:---|:---|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 35 |
+| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 36 |
 | jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 3 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 94 |
+| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 120 |
 | NA | Nationwide Children’s | 10 |
 | NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 5 |
 | NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
 | NA | Sameer Agnihotri University of Pittsburgh | 1 |
-| NA | Samples associated with Stanford Clinical Registry | 12 |
+| NA | Samples associated with Stanford Clinical Registry | 13 |
 | NA | Alejandro at Stanford (incl pdx) | 4 |
 
 </div>
 
 </div>
 
-In total, we have sequences from 135 patients originating from
-individual collaborators.
+In total, we have sequences from 193 samples originating from individual
+collaborators. 36/34 expected samples are from the CKCC2 study, while
+only 3/113 expected samples are from the JAMA study.
 
-There are some cases where the same Treehouse sample ID appears multiple
-times, but the bytes are different. These are cases where multiple fastq
-pairs are associated with the same sample.  
-The strategy for processing these files is to concatenate the fastqs
-into a single read1 / read2 pair, prior to trimming and alignment.
+Count number of individual patients whose data come from individual
+collaborators
+
+``` r
+# summarize number of unique patients whose samples are from collaborators
+collaborator_source_compendium_df |>  
+  # filter for samples from collaborators only
+  dplyr::filter(source_name == "unavailable") |>
+  dplyr::summarise(
+    .by = c(publication_origin, `partner`),
+    # note: some samples come from the same patient
+    n_patients = length(unique(th_patient_id))
+  )
+```
+
+<div id="tbl-polya_v25_individual_collaborator_patients">
+
+Table 5: Number of unique patients in the polyA v25 compendium from each
+individual collaborator
+
+<div class="cell-output-display">
+
+| publication_origin | partner | n_patients |
+|:---|:---|---:|
+| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 31 |
+| jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 3 |
+| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 97 |
+| NA | Nationwide Children’s | 9 |
+| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 4 |
+| NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
+| NA | Sameer Agnihotri University of Pittsburgh | 1 |
+| NA | Samples associated with Stanford Clinical Registry | 12 |
+| NA | Alejandro at Stanford (incl pdx) | 2 |
+
+</div>
+
+</div>
 
 ## Output a list of file accessions per data source
 

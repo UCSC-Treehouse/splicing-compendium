@@ -116,9 +116,7 @@ long_psi_matrix <- readr::read_tsv(
     cols = contains("SRR"),
     names_to = "Run",
     values_to = "PSI"
-  ) |>
-  # filter to positions where there are sufficient samples for calculating differential splicing
-  dplyr::group_by(pos_id) |>
+  )
 
 message("PSI matrix read in")
 
@@ -128,11 +126,13 @@ cancer_type_psi_table_filtered <- dplyr::inner_join(
   long_psi_matrix,
   by = c("Run")
 ) |>
+dplyr::group_by(pos_id) |>
 # count number of samples in each group with non-NA PSI values for a given splice event
 dplyr::mutate(
-  ref_count = sum(plot_tissue_type == opt$reference_group),
-  query_count = sum(plot_tissue_type == opt$query_group)
+  ref_count = sum(plot_tissue_type == opt$reference_group & !is.na(PSI)),
+  query_count = sum(plot_tissue_type == opt$query_group & !is.na(PSI))
   ) |>
+  # filter to positions where there are sufficient samples for calculating differential splicing
   dplyr::filter(
     ref_count >= opt$min_samples,
     query_count >= opt$min_samples
@@ -148,7 +148,7 @@ wilcox_test_events <- cancer_type_psi_table_filtered |>
   dplyr::group_by(pos_id) |>
   rstatix::wilcox_test(
     PSI ~ plot_tissue_type,
-    ref.group = "ref"
+    ref.group = opt$reference_group
   ) |>
   # add multiple testing adjustment
   dplyr::ungroup() |>

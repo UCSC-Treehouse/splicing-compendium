@@ -66,6 +66,7 @@ cbtn_accessions <- file.path(metadata_dir, "cbtn_polya_compendium_accessions.txt
 # these files should only have treehouse IDs rather than "accession" IDs
 treehouse_collaborator_ids <-file.path(metadata_dir, "collaborator_polya_compendium_ids.txt")
 publication_only_th_collaborator_ids <- file.path(metadata_dir, "pub_only_collaborator_ids.txt")
+jama_samples_by_collaborator <- file.path(metadata_dir, "jama_samples_by_collaborator_count.txt")
 
 ```
 
@@ -328,6 +329,26 @@ collaborator_source_compendium_df |>
   )
 ```
 
+Create a table of collaborator origin of JAMA samples not in polyA compendium.
+These are likely collaborators we need to reach out to to request for data to be deposited.
+
+```{r}
+#| label: tbl-jama_by_collaborator_source
+#| tbl-cap: "Number of JAMA samples broken down by collaborator"
+
+jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
+  dplyr::mutate(
+    TH_ID = stringr::str_split_i(jama_sample_vector, "_", 1)
+  ) |>
+  dplyr::right_join(
+    th_dataset_id_partner_df
+  ) |>
+  dplyr::summarise(
+    .by = partner,
+    n_samples = dplyr::n()
+  )
+```
+
 ## Output a list of file accessions per data source
 
 My assumption is that I will need a separate download script for each different data source (or at least go through a different system to download the data).
@@ -380,24 +401,9 @@ for_export_compendium_df |>
   dplyr::arrange(publication_origin) |>
   readr::write_tsv(publication_only_th_collaborator_ids)
 
+jama_samples_by_collaborator_df |>
+  readr::write_tsv(jama_samples_by_collaborator)
+
 ```
 
-Create a table of collaborator origin of JAMA samples not in polyA compendium.
-These are likely collaborators we need to reach out to to request for data to be deposited.
 
-```{r}
-#| label: tbl-jama_by_collaborator_source
-#| tbl-cap: "Number of JAMA samples broken down by collaborator"
-
-dplyr::tibble(jama_sample_vector) |>
-  dplyr::mutate(
-    TH_ID = stringr::str_split_i(jama_sample_vector, "_", 1)
-  ) |>
-  dplyr::right_join(
-    th_dataset_id_partner_df
-  ) |>
-  dplyr::summarise(
-    .by = partner,
-    n_samples = dplyr::n()
-  )
-```

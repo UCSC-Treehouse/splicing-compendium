@@ -54,6 +54,8 @@ thid_partner_file <- file.path(metadata_dir, "TH_dataset_ID_by_collaborator_THID
 jama_sample_id_file <- file.path(metadata_dir, "JAMA_TH_ID_column.txt")
 vasquez_sample_id_file <- file.path(metadata_dir, "41698_2025_852_MOESM2_ESM.xlsx")
 
+jama_redcap_file <- file.path(metadata_dir, "jama_REDCap_Donor_Sample_20260730.tsv")
+
 # output accessions 
 # list of SRA accessions fof polyA compendium files
 sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
@@ -103,14 +105,44 @@ jama_sample_vector <- readLines(
 # vector of treehouse sample IDs in CCK2 / Vasquez 2025 publiation
 vasquez_sample_vector <- readxl::read_xlsx(vasquez_sample_id_file) |>
   dplyr::pull(`Patient ID`)
+
+# list of JAMA samples on redcap 
+jama_redcap_data <- readr::read_tsv(
+  jama_redcap_file,
+  col_types = readr::cols_only(
+    th_donor_id = "c", 
+    site_id = "c",
+    th_sampleid = "c",
+    qc = "n",
+    umend = "n")
+  )
+  
 ```
+
 Note: JAMA sample IDs are sample IDs, while CKCC2 IDs are patient IDs, which can be derived from the sample ID.
+
 ```{r}
 jama_sample_vector |> head()
 
 vasquez_sample_vector |> head()
 ```
 
+Out of all JAMA samples, check how many have no QC data (assume they are not in polyA compendium for this reason)
+
+samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must contain at least 10 million mapped exonic, non-duplicate (MEND) reads." [(Beale 2025)](https://www.nature.com/articles/s41597-025-05376-z)
+
+```{r}
+jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+    dplyr::case_when(
+      umend > 10000000 ~ TRUE,
+      umend < 10000000 ~ FALSE
+    )
+    )|>
+  dplyr::summarise(.by = c(qc, pass_mend),
+                   n = dplyr::n())
+```
 
 ## Clean and merge Treehouse sequence metadata
 
@@ -147,7 +179,6 @@ merged_compendium_aws_df <- polya_metadata_df |>
     age_at_dx,
     disease,
     organism,
-    pedaya,
     sex,
     study_accession,
     source_name,
@@ -175,7 +206,7 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
     # exclude TARGET and TCGA for now
     ! source_name %in% c("TARGET", "TCGA"),
     # filter for pedaya (age at dx < 30 years)
-    pedaya == "yes",
+    as.numeric(age_at_dx) < 30,
     organism == "Homo sapiens",
     # sanity check - some aws files are dummies with 0 bytes
     bytes > 0
@@ -254,10 +285,10 @@ collaborator_source_compendium_df |>
   )
 ```
 
-Count number of individual patients whose data come from individual collaborators
+Count number of individual samples whose data come from individual collaborators
 
-```{r summarize_collaborator_patients}
-#| label: tbl-polya_v25_individual_collaborator_patients
+```{r summarize_collaborator_samples}
+#| label: tbl-polya_v25_individual_collaborator_samples
 #| tbl-cap: "Number of unique patients in the polyA v25 compendium from each individual collaborator"
 
 # summarize number of unique patients whose samples are from collaborators
@@ -271,10 +302,49 @@ collaborator_source_compendium_df |>
   )
 ```
 
-In total, we have sequences from 135 patients originating from individual collaborators.
+In total, we have sequences from 135 samples originating from individual collaborators.
 
 There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. These are cases where multiple fastq pairs are associated with the same sample.\
 The strategy for processing these files is to concatenate the fastqs into a single read1 / read2 pair, prior to trimming and alignment.
+
+```{r}
+collaborator_source_compendium_df |>
+  dplyr::filter(publication_origin == "ckcc2_vasquez_2025") |>
+  dplyr::pull(th_dataset_id) |>
+  unique() |>
+  length()
+```
+
+Count number of individual patients whose data come from individual collaborators
+
+```{r summarize_collaborator_patients}
+#| label: tbl-polya_v25_individual_collaborator_patients
+#| tbl-cap: "Number of unique patients in the polyA v25 compendium from each individual collaborator"
+
+# summarize number of unique patients whose samples are from collaborators
+collaborator_source_compendium_df |>  
+  # filter for samples from collaborators only
+  dplyr::filter(source_name == "unavailable") |>
+  dplyr::summarise(
+    .by = c(publication_origin, `partner`),
+    # note: some samples come from the same patient
+    n_patients = length(unique(th_patient_id))
+  )
+```
+
+Who among CKCC2 study is not pedaya?
+
+```{r}
+collaborator_source_compendium_df |>
+  dplyr::filter(publication_origin == "ckcc2_vasquez_2025") |>
+  dplyr::select(th_dataset_id, age_at_dx, pedaya, th_patient_id)
+```
+
+```{r}
+polya_metadata_df |>
+  dplyr::filter(th_dataset_id == "TH34_1455_S01") |>
+  dplyr::select(age_at_dx, pedaya)
+```
 
 ## Output a list of file accessions per data source
 

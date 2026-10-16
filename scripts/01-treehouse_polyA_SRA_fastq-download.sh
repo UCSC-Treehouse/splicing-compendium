@@ -57,7 +57,7 @@ awk -F '\t' 'NR > 1 {print $6}' ${accessions_file}
 
 # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
 # read each item in the column as ID object
-time for ID in $(awk 'NR>1{print $1}' "${accessions_file}"); do
+time for ID in $(awk -F '\t' 'NR>1{print $6}' "${accessions_file}"); do
     # check that fastq or zipped fastq does not already exist
     if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
 

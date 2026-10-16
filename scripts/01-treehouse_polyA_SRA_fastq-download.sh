@@ -2,7 +2,7 @@
 
 # Download script of RNA sequence data in the Treehouse PolyA compendium that are also on SRA
 # usage: scripts/01-treehouse_polyA_SRA_fastq-download.sh {groupname}
-# example: scripts/01-treehouse_polyA_SRA_fastq-download.sh treehouse_polya_sra
+# example: bash scripts/01-treehouse_polyA_SRA_fastq-download.sh treehouse_polya_sra
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -27,7 +27,7 @@ sample_sheet="${config_dir}/${1}_samples.tsv"
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
 if [ "$1" == "treehouse_polya_sra" ]; then
-    accessions_file="${metadata_dir}/sra_polya_compendium_accessions.txt"
+    accessions_file="${metadata_dir}/test_sra_polya_accessions.txt"
 
 else
     echo "please use valid sample group"
@@ -49,18 +49,15 @@ error_log_file="${log_dir}/${current_datetime}_${1}_download_errors.txt"
 # Redirect stdout and stderr to log file and print to stdout
 exec > >(tee $log_file) 2>&1
 
-# Run filtering script to obtain accession IDs to download
-quarto render ${filtering}
-
 # print the set of accession IDs to be downloaded to spot-check
 # set field separator as tab
 # skip first line (header)
-# print second column (accession IDs)
-awk -F '\t' 'NR > 1 {print $2}' ${accessions_file}
+# print sixth column (accession IDs)
+awk -F '\t' 'NR > 1 {print $6}' ${accessions_file}
 
 # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
 # read each item in the column as ID object
-time awk -v NR>1 '{print $2}' "${accessions_file}" | while read -r ID; do
+time for ID in $(awk 'NR>1{print $1}' "${accessions_file}"); do
     # check that fastq or zipped fastq does not already exist
     if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
 

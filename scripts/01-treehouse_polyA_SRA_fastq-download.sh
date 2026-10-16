@@ -1,20 +1,8 @@
 #!/bin/bash
 
-#SBATCH --mem=40gb
-#SBATCH --partition=medium
-#SBATCH --job-name=diffsplice_compendium
-#SBATCH --time=3:00:00
-#SBATCH --account=standard
-#SBATCH --mail-user=celiang@ucsc.edu
-#SBATCH --mail-type=FAIL,END
-#SBATCH --output logs/treehouse_poly_sra_download_%j.txt
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-
 # Download script of RNA sequence data in the Treehouse PolyA compendium that are also on SRA
-# usage: sbatch scripts/01-treehouse_polyA_SRA_fastq-download.sh {groupname}
-# example: sbatch scripts/01-treehouse_polyA_SRA_fastq-download.sh treehouse_polya_sra
+# usage: scripts/01-treehouse_polyA_SRA_fastq-download.sh {groupname}
+# example: scripts/01-treehouse_polyA_SRA_fastq-download.sh treehouse_polya_sra
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -90,7 +78,7 @@ time awk -v NR>1 '{print $2}' "${accessions_file}" | while read -r ID; do
         fi
 
         # download fastq file for each accession
-        fasterq-dump --temp $group_dir $ID --threads 15 --outdir $fastq_dir || true
+        fasterq-dump --temp $group_dir $ID --threads 1 --outdir $fastq_dir || true
 
         # Check if fastq file exists
         # If file is missing, record error in fastq-dump step and move on to next accession

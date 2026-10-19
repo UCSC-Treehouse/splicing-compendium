@@ -347,6 +347,8 @@ jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
     .by = c(partner, TH_ID),
     n_samples = dplyr::n()
   )
+
+jama_samples_by_collaborator_df
 ```
 
 ## Output a list of file accessions per data source

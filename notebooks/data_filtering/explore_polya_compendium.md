@@ -500,10 +500,6 @@ Create a table of collaborator origin of JAMA samples not in polyA
 compendium. These are likely collaborators we need to reach out to to
 request for data to be deposited.
 
-<div id="tbl-jama_by_collaborator_source">
-
-Table 6: Number of JAMA samples broken down by collaborator
-
 ``` r
 jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
   dplyr::mutate(
@@ -518,9 +514,24 @@ jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
   )
 ```
 
-<div class="cell-output cell-output-stderr">
-
     Joining with `by = join_by(TH_ID)`
+
+``` r
+jama_samples_by_collaborator_df
+```
+
+<div id="tbl-jama_by_collaborator_source">
+
+Table 6: Number of JAMA samples broken down by collaborator
+
+<div class="cell-output-display">
+
+| partner                          | TH_ID | n_samples |
+|:---------------------------------|:------|----------:|
+| CHOC and CHOC/Nant               | TH01  |        23 |
+| PNOC UCSF (Mueller)              | TH02  |        24 |
+| Alejandro at Stanford (incl pdx) | TH03  |        66 |
+| BC-POG                           | TH06  |        31 |
 
 </div>
 

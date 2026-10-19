@@ -340,11 +340,11 @@ jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
   dplyr::mutate(
     TH_ID = stringr::str_split_i(jama_sample_vector, "_", 1)
   ) |>
-  dplyr::right_join(
+  dplyr::left_join(
     th_dataset_id_partner_df
   ) |>
   dplyr::summarise(
-    .by = partner,
+    .by = c(partner, TH_ID),
     n_samples = dplyr::n()
   )
 ```

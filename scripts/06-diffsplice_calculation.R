@@ -97,7 +97,7 @@ metadata <- readr::read_tsv(
   # or body_site (for gtex)
   # the only shared column with tissue type info is the plot_tissue_type column
   dplyr::filter(
-    plot_tissue_type %in% c("Whole Blood", "AML")
+    plot_tissue_type %in% c(opt$reference_group, opt$query_group)
   )
 
 message("metadata read in")
@@ -132,7 +132,7 @@ dplyr::mutate(
     plot_tissue_type == opt$reference_group ~ "ref",
     plot_tissue_type == opt$query_group ~ "query"
   )
-)
+) |>
 dplyr::group_by(pos_id) |>
 # count number of samples in each group with non-NA PSI values for a given splice event
 dplyr::mutate(

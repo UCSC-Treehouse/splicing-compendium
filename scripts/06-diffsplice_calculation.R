@@ -170,7 +170,7 @@ message("wilcoxon's ranksum calculated for ref and query groups")
 dPSI_table <- cancer_type_psi_table_filtered |>
   dplyr::summarize(
     median_PSI = median(PSI),
-    .by = c(pos_id, plot_tissue_type)
+    .by = c(pos_id, plot_tissue_type, group)
   ) |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
   tidyr::pivot_wider(

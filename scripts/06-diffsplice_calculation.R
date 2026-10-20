@@ -97,7 +97,7 @@ metadata <- readr::read_tsv(
   # or body_site (for gtex)
   # the only shared column with tissue type info is the plot_tissue_type column
   dplyr::filter(
-    plot_tissue_type %in% c(opt$reference_group, opt$query_group)
+    plot_tissue_type %in% c("Whole Blood", "AML")
   )
 
 message("metadata read in")
@@ -126,6 +126,13 @@ cancer_type_psi_table_filtered <- dplyr::inner_join(
   long_psi_matrix,
   by = c("Run")
 ) |>
+# label tissue types by whether they are ref or query grioup for ease of calculating dPSI
+dplyr::mutate(
+  group = dplyr::case_when(
+    plot_tissue_type == opt$reference_group ~ "ref",
+    plot_tissue_type == opt$query_group ~ "query"
+  )
+)
 dplyr::group_by(pos_id) |>
 # count number of samples in each group with non-NA PSI values for a given splice event
 dplyr::mutate(
@@ -134,8 +141,8 @@ dplyr::mutate(
   ) |>
   # filter to positions where there are sufficient samples for calculating differential splicing
   dplyr::filter(
-    ref_count >= opt$min_samples,
-    query_count >= opt$min_samples
+    ref_count >= 5,
+    query_count >= 5
     ) |>
     dplyr::ungroup()
 
@@ -166,8 +173,8 @@ dPSI_table <- cancer_type_psi_table_filtered |>
     .by = c(pos_id, plot_tissue_type)
   ) |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
-  dplyr::pivot_wider(
-    names_from = plot_tissue_type,
+  tidyr::pivot_wider(
+    names_from = group,
     names_prefix = "median_PSI_",
     values_from = median_PSI
   ) |>

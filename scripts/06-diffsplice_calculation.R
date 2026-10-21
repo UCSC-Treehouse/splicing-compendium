@@ -106,6 +106,7 @@ long_psi_matrix <- readr::read_tsv(
   # only select position ID and gene name columns to save memory
   col_select = c(
     "pos_id",
+    "gene_name",
     any_of(metadata$Run)
   )) |>
   # pivot longer to allow accession IDs (PSI column names) to be associated with tissue type from metadata
@@ -142,7 +143,6 @@ dplyr::mutate(
     query_count >= 5
     ) |>
     dplyr::ungroup()
-
 
 message("accession IDs merged with tissue type info and filtered")
 
@@ -190,6 +190,17 @@ p_dPSI_table <- wilcox_test_events |>
 
 message("dPSI merged with p values")
 
-readr::write_tsv(p_dPSI_table, diff_splice_results_file)
+# Add parent gene names of each splice event
+# obtain gene name and pos_id columns from filtered PSI table
+parent_genes <- cancer_type_psi_table_filtered |>
+  dplyr::select("gene_name", "pos_id")
+
+# add gene name column to diffsplice results table
+diffsplice_results <- p_dPSI_table |>
+  dplyr::left_join(
+    parent_genes,
+    by = "pos_id")
+
+readr::write_tsv(diffsplice_results, diff_splice_results_file)
 
 message("results written to output")

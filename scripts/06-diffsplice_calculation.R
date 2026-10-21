@@ -50,7 +50,7 @@ option_list <- list(
   ),
   make_option(
     opt_str = "--min_samples",
-    type = "character",
+    type = "numeric",
     action = "store",
     required = TRUE,
     default = 5,

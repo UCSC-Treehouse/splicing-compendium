@@ -15,4 +15,5 @@
 #SBATCH --cpus-per-task=1
 
 # run the rscript
-Rscript scripts/06-diffsplice_calculation.R --reference_group "Whole Blood" --query_group "AML" --metadata_file metadata/combined_compendium_metadata.tsv --psi_file results/merged_shiba/splice_compendium_v1/merged_persample_psi/cleaned_psi_matrix.txt --out_file real_diffsplice.tsv
+# have variable names
+Rscript scripts/06-diffsplice_calculation.R --reference_group "Whole Blood" --query_group "AML" --metadata_file metadata/combined_compendium_metadata.tsv --psi_file results/merged_shiba/splice_compendium_v1/merged_persample_psi/cleaned_psi_matrix.txt

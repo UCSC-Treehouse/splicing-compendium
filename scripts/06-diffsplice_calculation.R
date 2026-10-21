@@ -102,7 +102,10 @@ message("metadata read in")
 # read in psi results
 long_psi_matrix <- readr::read_tsv(
   in_psi_file,
-  col_types = c(pos_id = "c", gene_name = "c", .default = "n"),
+  col_types = c(
+    pos_id = "c",
+    gene_name = "c",
+    .default = "n"),
   # only select position ID and gene name columns to save memory
   col_select = c(
     "pos_id",
@@ -139,8 +142,8 @@ dplyr::mutate(
   ) |>
   # filter to positions where there are sufficient samples for calculating differential splicing
   dplyr::filter(
-    ref_count >= 5,
-    query_count >= 5
+    ref_count >= opt$min_samples,
+    query_count >= opt$min_samples
     ) |>
     dplyr::ungroup()
 
@@ -193,13 +196,20 @@ message("dPSI merged with p values")
 # Add parent gene names of each splice event
 # obtain gene name and pos_id columns from filtered PSI table
 parent_genes <- cancer_type_psi_table_filtered |>
+  dplyr::select("gene_name", "pos_id", "group") |>
+  # pivot so we get one row per pos_id for merging with diffsplice results
+  tidyr::pivot_wider(
+    names_from = group,
+    values_from = group
+  ) |>
   dplyr::select("gene_name", "pos_id")
 
 # add gene name column to diffsplice results table
 diffsplice_results <- p_dPSI_table |>
   dplyr::left_join(
     parent_genes,
-    by = "pos_id")
+    by = "pos_id") |>
+  dplyr::arrange(gene_name)
 
 readr::write_tsv(diffsplice_results, diff_splice_results_file)
 

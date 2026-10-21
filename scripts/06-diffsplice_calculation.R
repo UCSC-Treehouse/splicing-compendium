@@ -102,7 +102,7 @@ message("metadata read in")
 # read in psi results
 long_psi_matrix <- readr::read_tsv(
   in_psi_file,
-  col_types = c(pos_id = "c", .default = "n"),
+  col_types = c(pos_id = "c", gene_name = "c", .default = "n"),
   # only select position ID and gene name columns to save memory
   col_select = c(
     "pos_id",

@@ -33,13 +33,6 @@ option_list <- list(
     help = "file path of PSI matrix with gene names and sample accession IDs to calculate differential splicing"
   ),
   make_option(
-    opt_str = "--out_file",
-    type = "character",
-    action = "store",
-    required = TRUE,
-    help = "file path of output dPSI table with p values"
-  ),
-  make_option(
     opt_str = "--reference_group",
     type = "character",
     action = "store",
@@ -84,7 +77,11 @@ metadata_file <- opt$metadata_file
 in_psi_file <- opt$psi_file
 
 # output
-diff_splice_results <- file.path(results_dir, opt$out_file)
+# create output file name string from ref and query options
+ref_string <- gsub(" ", "_", opt$reference_group)
+query_string <- gsub(" ", "_", opt$query_group)
+out_name <- paste0("diffsplice_", ref_string, "_vs_", query_string, ".tsv")
+diff_splice_results_file <- file.path(results_dir, out_name)
 
 ## read in files ##
 # read in compendium metadata
@@ -136,7 +133,7 @@ dplyr::mutate(
 dplyr::group_by(pos_id) |>
 # count number of samples in each group with non-NA PSI values for a given splice event
 dplyr::mutate(
-  ref_count = sum(plot_tissue_type == "Whole Blood" & !is.na(PSI)),
+  ref_count = sum(plot_tissue_type == opt$reference_group & !is.na(PSI)),
   query_count = sum(plot_tissue_type == opt$query_group & !is.na(PSI))
   ) |>
   # filter to positions where there are sufficient samples for calculating differential splicing
@@ -168,9 +165,9 @@ message("wilcoxon's ranksum calculated for ref and query groups")
 ### Calculate magnitude of differential splicing (dPSI) values
 # Calculate median PSIs for each splice event, per group
 dPSI_table <- cancer_type_psi_table_filtered |>
+  dplyr::group_by(pos_id, group) |>
   dplyr::summarize(
-    median_PSI = median(PSI),
-    .by = c(pos_id, plot_tissue_type, group)
+    median_PSI = median(as.numeric(PSI), na.rm = TRUE)
   ) |>
   # Calculate dPSI values by taking the difference between the ref and query group medians
   tidyr::pivot_wider(
@@ -193,6 +190,6 @@ p_dPSI_table <- wilcox_test_events |>
 
 message("dPSI merged with p values")
 
-readr::write_tsv(p_dPSI_table, diff_splice_results)
+readr::write_tsv(p_dPSI_table, diff_splice_results_file)
 
 message("results written to output")

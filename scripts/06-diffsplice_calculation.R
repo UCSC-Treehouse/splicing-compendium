@@ -136,7 +136,7 @@ dplyr::mutate(
 dplyr::group_by(pos_id) |>
 # count number of samples in each group with non-NA PSI values for a given splice event
 dplyr::mutate(
-  ref_count = sum(plot_tissue_type == opt$reference_group & !is.na(PSI)),
+  ref_count = sum(plot_tissue_type == "Whole Blood" & !is.na(PSI)),
   query_count = sum(plot_tissue_type == opt$query_group & !is.na(PSI))
   ) |>
   # filter to positions where there are sufficient samples for calculating differential splicing

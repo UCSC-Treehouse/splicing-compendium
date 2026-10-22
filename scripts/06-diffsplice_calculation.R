@@ -196,13 +196,10 @@ message("dPSI merged with p values")
 # Add parent gene names of each splice event
 # obtain gene name and pos_id columns from filtered PSI table
 parent_genes <- cancer_type_psi_table_filtered |>
-  dplyr::select("gene_name", "pos_id", "group") |>
-  # pivot so we get one row per pos_id for merging with diffsplice results
-  tidyr::pivot_wider(
-    names_from = group,
-    values_from = group
-  ) |>
-  dplyr::select("gene_name", "pos_id")
+  dplyr::summarize(
+     gene_names = paste(sort(unique(gene_name)), collapse = ";"),
+     .by = pos_id
+  )
 
 # add gene name column to diffsplice results table
 diffsplice_results <- p_dPSI_table |>

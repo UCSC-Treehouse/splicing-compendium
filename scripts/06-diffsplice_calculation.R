@@ -55,7 +55,7 @@ option_list <- list(
     required = TRUE,
     default = 5,
     help = "minimum number of samples in reference or query group that must have quantified (non-NA) PSI values for differential splicing to be calculated for an event.
-    default = 5"
+    default = %default"
   )
 )
 

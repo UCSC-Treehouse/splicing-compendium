@@ -206,7 +206,7 @@ diffsplice_results <- p_dPSI_table |>
   dplyr::left_join(
     parent_genes,
     by = "pos_id") |>
-  dplyr::arrange(gene_name)
+  dplyr::arrange(gene_names)
 
 readr::write_tsv(diffsplice_results, diff_splice_results_file)
 

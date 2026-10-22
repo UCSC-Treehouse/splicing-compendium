@@ -15,5 +15,4 @@
 #SBATCH --cpus-per-task=1
 
 # run the rscript
-# have variable names
 Rscript scripts/06-diffsplice_calculation.R --min_samples 5 --reference_group "Whole Blood" --query_group "AML" --metadata_file metadata/combined_compendium_metadata.tsv --psi_file test_files/subsetted_splice_matrix.txt

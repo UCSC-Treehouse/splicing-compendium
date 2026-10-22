@@ -127,7 +127,7 @@ cancer_type_psi_table_filtered <- dplyr::inner_join(
   long_psi_matrix,
   by = c("Run")
 ) |>
-# label tissue types by whether they are ref or query grioup for ease of calculating dPSI
+# label tissue types by whether they are ref or query group for ease of calculating dPSI
 dplyr::mutate(
   group = dplyr::case_when(
     plot_tissue_type == opt$reference_group ~ "ref",

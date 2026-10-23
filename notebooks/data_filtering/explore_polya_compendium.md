@@ -1,6 +1,6 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-10-19
+2026-10-22
 
 ## Introduction
 
@@ -144,7 +144,9 @@ jama_redcap_data <- readr::read_tsv(
     site_id = "c",
     th_sampleid = "c",
     qc = "n",
-    umend = "n")
+    umend = "n",
+    # polyA samples are denoted with a value of "10" here
+    inv10_ribod  = "n")
   )
 ```
 
@@ -181,17 +183,36 @@ jama_redcap_data |>
       umend < 10000000 ~ FALSE
     )
     )|>
-  dplyr::summarise(.by = c(qc, pass_mend),
+  dplyr::summarise(.by = c(qc, pass_mend, inv10_ribod),
                    n = dplyr::n())
 ```
 
-|  qc | pass_mend |   n |
-|----:|:----------|----:|
-|   5 | TRUE      | 113 |
-|   6 | NA        |  31 |
+|  qc | pass_mend | inv10_ribod |   n |
+|----:|:----------|------------:|----:|
+|   5 | TRUE      |          10 |  88 |
+|   5 | TRUE      |           9 |  10 |
+|   5 | TRUE      |           1 |  15 |
+|   6 | NA        |          10 |  31 |
 
-113/144 samples pass MEND QC, so I should expect to see 113 JAMA samples
-in the polyA compendium.
+88/144 samples pass MEND QC and are polyA, so I should expect to see 88
+JAMA samples in the polyA compendium.
+
+Extract MEND-QC-pass samples in a vector
+
+``` r
+jamna_mend_qc_pass_ids <-  jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+      dplyr::case_when(
+        umend > 10000000 ~ TRUE,
+        umend < 10000000 ~ FALSE
+      )
+  )|>
+  dplyr::filter(
+    pass_mend == TRUE
+  ) |>
+  dplyr::pull(th_sampleid)
+```
 
 ## Clean and merge Treehouse sequence metadata
 
@@ -270,7 +291,6 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
   dplyr::filter(
     # exclude TARGET and TCGA for now
     ! source_name %in% c("TARGET", "TCGA"),
-    organism == "Homo sapiens",
     # sanity check - some aws files are dummies with 0 bytes
     bytes > 0
   )
@@ -331,9 +351,8 @@ into a single read1 / read2 pair, prior to trimming and alignment.
 filtered_compendium_aws_df |>
   dplyr::summarise(
     .by = source_name,
-    n_files = dplyr::n(),
-    total_bytes = sum(bytes),
-    bytes_per_file = sum(bytes)/dplyr::n()
+    n_datasets = length(unique(th_dataset_id)),
+    total_bytes = sum(bytes)
   )
 ```
 
@@ -344,12 +363,12 @@ bytes per file
 
 <div class="cell-output-display">
 
-| source_name           | n_files |  total_bytes | bytes_per_file |
-|:----------------------|--------:|-------------:|---------------:|
-| EGA                   |     257 | 1.831246e+12 |     7125471192 |
-| unavailable           |     482 | 2.109279e+12 |     4376098149 |
-| Sequence Read Archive |     892 | 5.337788e+12 |     5984067633 |
-| CBTN                  |      18 | 1.188477e+11 |     6602652465 |
+| source_name           | n_datasets |  total_bytes |
+|:----------------------|-----------:|-------------:|
+| EGA                   |         69 | 1.831246e+12 |
+| unavailable           |        193 | 2.109279e+12 |
+| Sequence Read Archive |        684 | 5.337788e+12 |
+| CBTN                  |          9 | 1.188477e+11 |
 
 </div>
 
@@ -379,7 +398,7 @@ collaborator_source_compendium_df <- filtered_compendium_aws_df |>
     by = c("study_id" = "TH_ID"))
 ```
 
-Count number of files (multiple per patient) from individual
+Count number of files (multiple per patient) and samples from individual
 collaborators
 
 ``` r
@@ -389,7 +408,8 @@ collaborator_source_compendium_df |>
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
     .by = c(publication_origin, `partner`),
-    n_files = dplyr::n()
+    n_files = dplyr::n(),
+    n_samples = length(unique(th_dataset_id))
   )
 ```
 
@@ -400,55 +420,17 @@ individual collaborator
 
 <div class="cell-output-display">
 
-| publication_origin | partner | n_files |
-|:---|:---|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 136 |
-| jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 6 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 240 |
-| NA | Nationwide Children’s | 40 |
-| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 16 |
-| NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 8 |
-| NA | Sameer Agnihotri University of Pittsburgh | 2 |
-| NA | Samples associated with Stanford Clinical Registry | 26 |
-| NA | Alejandro at Stanford (incl pdx) | 8 |
-
-</div>
-
-</div>
-
-Count number of individual samples whose data come from individual
-collaborators
-
-``` r
-# summarize number of unique patients whose samples are from collaborators
-collaborator_source_compendium_df |>  
-  # filter for samples from collaborators only
-  dplyr::filter(source_name == "unavailable") |>
-  dplyr::summarise(
-    .by = c(publication_origin, `partner`),
-    # note: some samples come from the same patient
-    n_samples = length(unique(th_dataset_id))
-  )
-```
-
-<div id="tbl-polya_v25_individual_collaborator_samples">
-
-Table 4: Number of unique samples in the polyA v25 compendium from each
-individual collaborator
-
-<div class="cell-output-display">
-
-| publication_origin | partner | n_samples |
-|:---|:---|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 36 |
-| jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 3 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 120 |
-| NA | Nationwide Children’s | 10 |
-| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 5 |
-| NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
-| NA | Sameer Agnihotri University of Pittsburgh | 1 |
-| NA | Samples associated with Stanford Clinical Registry | 13 |
-| NA | Alejandro at Stanford (incl pdx) | 4 |
+| publication_origin | partner | n_files | n_samples |
+|:---|:---|---:|---:|
+| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 136 | 36 |
+| jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 6 | 3 |
+| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 240 | 120 |
+| NA | Nationwide Children’s | 40 | 10 |
+| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 16 | 5 |
+| NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 8 | 1 |
+| NA | Sameer Agnihotri University of Pittsburgh | 2 | 1 |
+| NA | Samples associated with Stanford Clinical Registry | 26 | 13 |
+| NA | Alejandro at Stanford (incl pdx) | 8 | 4 |
 
 </div>
 
@@ -475,7 +457,7 @@ collaborator_source_compendium_df |>
 
 <div id="tbl-polya_v25_individual_collaborator_patients">
 
-Table 5: Number of unique patients in the polyA v25 compendium from each
+Table 4: Number of unique patients in the polyA v25 compendium from each
 individual collaborator
 
 <div class="cell-output-display">
@@ -522,7 +504,7 @@ jama_samples_by_collaborator_df
 
 <div id="tbl-jama_by_collaborator_source">
 
-Table 6: Number of JAMA samples broken down by collaborator
+Table 5: Number of JAMA samples broken down by collaborator
 
 <div class="cell-output-display">
 
@@ -536,6 +518,15 @@ Table 6: Number of JAMA samples broken down by collaborator
 </div>
 
 </div>
+
+Most of these samples are not in the PolyA compendium for a mixture of
+reasons
+
+CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed
+
+Double check from REDCap data which of these samples are ribo-D
+(potentially a third table) – an additional column to this summary as
+well as another column on how many samples pass MEND QC
 
 ## Output a list of file accessions per data source
 
@@ -557,7 +548,7 @@ for_export_compendium_df <- collaborator_source_compendium_df |>
   )
 
 # export accessions lists to output
-for_export_compendium_df |>
+sra_df <- for_export_compendium_df |>
   dplyr::filter(
     source_name == "Sequence Read Archive"
   ) |>
@@ -593,3 +584,6 @@ for_export_compendium_df |>
 jama_samples_by_collaborator_df |>
   readr::write_tsv(jama_samples_by_collaborator)
 ```
+
+Check more study accessions from piolya metadata for any other accession
+outside of project ID for SRA downloads

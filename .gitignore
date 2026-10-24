@@ -50,16 +50,6 @@ exploration/pilot_gtfs/
 exploration/withlogs_v1_pilot_rep1/
 exploration/withlogs_v1_pilot_rep2/
 
-metadata/GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv
 
-metadata/dGTEx_Analysis_2026-01-30_v1_Sample_Attributes_Dataset_DS_open.xlsx
-
-metadata/archived_files_on_archive-treehouse-ucsc-edu_primary.txt
-
-metadata/cbtn_polya_compendium_accessions.txt
-
-metadata/collaborator_polya_compendium_ids.txt
-
-metadata/ega_polya_compendium_accessions.txt
-
-metadata/sra_polya_compendium_accessions.txt
+# metadata directory
+metadata/*

@@ -1,6 +1,6 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-10-22
+2026-10-23
 
 ## Introduction
 
@@ -407,8 +407,7 @@ collaborator_source_compendium_df |>
   # filter for samples from collaborators only
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
-    .by = c(publication_origin, `partner`),
-    n_files = dplyr::n(),
+    .by = c(partner),
     n_samples = length(unique(th_dataset_id))
   )
 ```
@@ -420,17 +419,15 @@ individual collaborator
 
 <div class="cell-output-display">
 
-| publication_origin | partner | n_files | n_samples |
-|:---|:---|---:|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 136 | 36 |
-| jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 6 | 3 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 240 | 120 |
-| NA | Nationwide Children’s | 40 | 10 |
-| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 16 | 5 |
-| NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 8 | 1 |
-| NA | Sameer Agnihotri University of Pittsburgh | 2 | 1 |
-| NA | Samples associated with Stanford Clinical Registry | 26 | 13 |
-| NA | Alejandro at Stanford (incl pdx) | 8 | 4 |
+| partner | n_samples |
+|:---|---:|
+| Samples associated with Stanford Clinical Registry | 49 |
+| Alejandro at Stanford (incl pdx) | 7 |
+| Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 120 |
+| Nationwide Children’s | 10 |
+| Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 5 |
+| University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
+| Sameer Agnihotri University of Pittsburgh | 1 |
 
 </div>
 
@@ -439,6 +436,70 @@ individual collaborator
 In total, we have sequences from 193 samples originating from individual
 collaborators. 36/34 expected samples are from the CKCC2 study, while
 only 3/113 expected samples are from the JAMA study.
+
+``` r
+collaborator_source_compendium_df |>
+  # filter for samples from collaborators only
+  dplyr::filter(source_name == "unavailable") |>
+  dplyr::summarise(
+    .by = disease,
+    n_samples = length(unique(th_dataset_id))
+  ) |>
+    dplyr::arrange(n_samples) |>
+  dplyr::mutate(sum = sum(n_samples))
+```
+
+| disease                                    | n_samples | sum |
+|:-------------------------------------------|----------:|----:|
+| teratoma                                   |         1 | 193 |
+| acinar cell carcinoma                      |         1 | 193 |
+| colon adenocarcinoma                       |         1 | 193 |
+| myeloid neoplasm NOS                       |         1 | 193 |
+| dysembryoplastic neuroepithelial tumor     |         1 | 193 |
+| alveolar soft part sarcoma                 |         1 | 193 |
+| CIC rearranged sarcoma                     |         1 | 193 |
+| supratentorial embryonal tumor NOS         |         1 | 193 |
+| follicular neoplasm                        |         1 | 193 |
+| ganglioglioma                              |         1 | 193 |
+| sclerosing epithelioid fibrosarcoma        |         1 | 193 |
+| adrenocortical carcinoma                   |         1 | 193 |
+| endometrial stromal sarcoma                |         1 | 193 |
+| soft tissue sarcoma                        |         1 | 193 |
+| chronic myelogenous leukemia               |         1 | 193 |
+| nasopharyngeal carcinoma                   |         1 | 193 |
+| acute leukemia of ambiguous lineage        |         1 | 193 |
+| acute leukemia                             |         1 | 193 |
+| neuroepithelial tumor                      |         1 | 193 |
+| testicular germ cell tumor                 |         1 | 193 |
+| INI-deficient soft tissue sarcoma NOS      |         2 | 193 |
+| infantile fibrosarcoma                     |         2 | 193 |
+| undifferentiated sarcoma NOS               |         2 | 193 |
+| gastrointestinal stromal tumor             |         2 | 193 |
+| juvenile myelomonocytic leukemia           |         2 | 193 |
+| myoepithelial carcinoma                    |         2 | 193 |
+| spindle cell/sclerosing rhabdomyosarcoma   |         2 | 193 |
+| medulloblastoma                            |         2 | 193 |
+| undifferentiated hepatic sarcoma           |         2 | 193 |
+| synovial sarcoma                           |         2 | 193 |
+| embryonal tumor with multilayered rosettes |         2 | 193 |
+| clear cell carcinoma of cervix             |         2 | 193 |
+| thymic carcinoma                           |         2 | 193 |
+| malignant peripheral nerve sheath tumor    |         2 | 193 |
+| hepatocellular carcinoma                   |         3 | 193 |
+| acute myeloid leukemia                     |         3 | 193 |
+| rhabdomyosarcoma                           |         3 | 193 |
+| desmoplastic small round cell tumor        |         4 | 193 |
+| ependymoma                                 |         5 | 193 |
+| wilms tumor                                |         5 | 193 |
+| sarcoma                                    |         5 | 193 |
+| alveolar rhabdomyosarcoma                  |         6 | 193 |
+| neuroblastoma                              |         6 | 193 |
+| hepatoblastoma                             |         7 | 193 |
+| embryonal rhabdomyosarcoma                 |        10 | 193 |
+| Ewing sarcoma                              |        11 | 193 |
+| acute lymphoblastic leukemia               |        16 | 193 |
+| glioma                                     |        18 | 193 |
+| osteosarcoma                               |        43 | 193 |
 
 Count number of individual patients whose data come from individual
 collaborators

@@ -305,13 +305,25 @@ collaborator_source_compendium_df |>
   # filter for samples from collaborators only
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
-    .by = c(publication_origin, `partner`),
-    n_files = dplyr::n(),
+    .by = c(partner),
     n_samples = length(unique(th_dataset_id))
   )
+
 ```
 
 In total, we have sequences from 193 samples originating from individual collaborators. 36/34 expected samples are from the CKCC2 study, while only 3/113 expected samples are from the JAMA study.
+
+```{r}
+collaborator_source_compendium_df |>
+  # filter for samples from collaborators only
+  dplyr::filter(source_name == "unavailable") |>
+  dplyr::summarise(
+    .by = disease,
+    n_samples = length(unique(th_dataset_id))
+  ) |>
+    dplyr::arrange(n_samples) |>
+  dplyr::mutate(sum = sum(n_samples))
+```
 
 Count number of individual patients whose data come from individual collaborators
 

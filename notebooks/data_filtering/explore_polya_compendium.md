@@ -589,6 +589,31 @@ Double check from REDCap data which of these samples are ribo-D
 (potentially a third table) – an additional column to this summary as
 well as another column on how many samples pass MEND QC
 
+## Summarize samples from published data sources
+
+``` r
+merged_compendium_aws_df |>
+  dplyr::filter(
+    source_name %in% c("TARGET", "CBTN")
+  ) |>
+  dplyr::summarise(
+    .by = c(source_name, disease),
+    n = dplyr::n()
+  )
+```
+
+| source_name | disease                            |   n |
+|:------------|:-----------------------------------|----:|
+| CBTN        | medulloblastoma                    |   1 |
+| CBTN        | glioma                             |  31 |
+| CBTN        | supratentorial embryonal tumor NOS |   6 |
+| TARGET      | acute lymphoblastic leukemia       | 552 |
+| TARGET      | acute myeloid leukemia             | 457 |
+| TARGET      | neuroblastoma                      | 176 |
+| TARGET      | osteosarcoma                       |  77 |
+| TARGET      | wilms tumor                        | 139 |
+| TARGET      | rhabdoid tumor                     | 121 |
+
 ## Output a list of file accessions per data source
 
 My assumption is that I will need a separate download script for each

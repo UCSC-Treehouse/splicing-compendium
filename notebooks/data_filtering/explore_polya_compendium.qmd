@@ -369,6 +369,19 @@ CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed
 
 Double check from REDCap data which of these samples are ribo-D (potentially a third table) – an additional column to this summary as well as another column on how many samples pass MEND QC
 
+## Summarize samples from published data sources
+
+```{r}
+merged_compendium_aws_df |>
+  dplyr::filter(
+    source_name %in% c("TARGET", "CBTN")
+  ) |>
+  dplyr::summarise(
+    .by = c(source_name, disease),
+    n = dplyr::n()
+  )
+```
+
 ## Output a list of file accessions per data source
 
 My assumption is that I will need a separate download script for each different data source (or at least go through a different system to download the data).

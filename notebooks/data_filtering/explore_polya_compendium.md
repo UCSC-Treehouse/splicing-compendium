@@ -1,6 +1,6 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-10-23
+2026-10-28
 
 ## Introduction
 
@@ -10,8 +10,8 @@ the priorities are to include samples in the Treehouse PolyA compendia,
 with healthy comparators from dGTEx.
 
 This notebook reads in the clinical metadata from the v25 Treehouse
-PolyA Compendium and filters for samples to download to process for
-Splice Compendium v1.2. The input files to this notebook are:
+PolyA Compendium and filters for samples to download to process for the
+Treehouse Splice Compendium. The input files to this notebook are:
 
 **polya_clinical_file**: [Treehouse PolyA Compendium v25 clinical
 metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351),
@@ -30,29 +30,36 @@ what collaborators are associated with specific Treehouse dataset IDs
 
 **41698_2025_852_MOESM2_ESM.xlsx**: Supplementary data table 1 from
 [Vasquez et
-al. 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC11928651/#sec29)
-listing Treehouse sample IDs of 33 samples used in study.
+al. 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC11928651/#sec29)/CKCC2
+study listing Treehouse sample IDs of 33 samples used in study.
 
-**JAMA_TH_IDs.tsv**: space-separated file of 144 sample IDs used in
+**JAMA_TH_IDs.tsv**: Space-separated file of 144 sample IDs used in
 [Vaske et
 al. 2019](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2753519),
 pasted from eTable 3b in the paper’s
-[supplement](https://cdn.jamanetwork.com/ama/content_public/journal/jamanetworkopen/938206/zoi190533supp1_prod.pdf?Expires=1794613443&Signature=WLyr7rwB8MKSlrxifyxwoJ75UMi1ByrZUUi2X~k3JhloUTzZvJTDuBzkgS8mHOvixSNDp6kPS5ygqHaNk-EcwPNC6G9mG0VXY5ORDMVdrSlCGy2WujAvboi0lCObb3GEtNBXy0iuBOKPERC3FFQX7LI4xHPxm060Gzu3ColP91exQVd1w10XJYGA6cnn5GhqMCzpC~YBCPtalUlWqaGGmKaYzaUmDCWeTDN5W0~X~VsX8yZSHS8rbj18EciADgJdPawWGDI3ml0WGrgcgbD8V2tkG33t1DcE7gJwHJLogU9PfHYNvye8TOppM8lMbcZXSt40Npr7S~XfDFvv5XA4GQ__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA)
+[supplement](https://cdn.jamanetwork.com/ama/content_public/journal/jamanetworkopen/938206/zoi190533supp1_prod.pdf?Expires=1794613443&Signature=WLyr7rwB8MKSlrxifyxwoJ75UMi1ByrZUUi2X~k3JhloUTzZvJTDuBzkgS8mHOvixSNDp6kPS5ygqHaNk-EcwPNC6G9mG0VXY5ORDMVdrSlCGy2WujAvboi0lCObb3GEtNBXy0iuBOKPERC3FFQX7LI4xHPxm060Gzu3ColP91exQVd1w10XJYGA6cnn5GhqMCzpC~YBCPtalUlWqaGGmKaYzaUmDCWeTDN5W0~X~VsX8yZSHS8rbj18EciADgJdPawWGDI3ml0WGrgcgbD8V2tkG33t1DcE7gJwHJLogU9PfHYNvye8TOppM8lMbcZXSt40Npr7S~XfDFvv5XA4GQ__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA).
+This file is not directly used as input, but is used to derive
+`JAMA_TH_ID_column.txt`, which is read in.
 
-JAMA Treehouse IDs are obtained from JAMA_TH_IDs.tsv document through:
+**JAMA_TH_ID_column.txt:** This file contains a column of JAMA Treehouse
+sample IDs and is obtained from the above file through the following
+command:
 
     awk 'NR > 1 {print $1}' JAMA_TH_IDs.tsv > JAMA_TH_ID_column.txt
 
 **Jama_REDCap_Donor_Sample_20260730.tsv**: REDCap record of JAMA samples
 in Treehouse’s internal database, with MEND QC information.
 
-This notebook produces output files of accession IDs of Treehouse PolyA
-Compendium v25 files, separated by dataset of origin. Accessions from
-these files will be used as input for downstream downloading scripts.
+**Notebook output:**
 
-Additionally, this notebook produces summary tables breaking down
-individual contributors of origin for samples in the Treehouse PolyA
-Compendium, and samples from the Vaske 2019 and Vasquez 2025 papers.
+This notebook produces summary tables of samples of interest from the
+Treehouse PolyA Compendium and samples from the Vaske 2019 and Vasquez
+2025 papers.
+
+This notebook produces output files of accession IDs of Treehouse PolyA
+Compendium v25 files. One output file is created for each data source
+(e.g. SRA, TARGET, individual collaborators). Accessions from these
+files will be used as input for downstream downloading scripts.
 
 ## Setup
 
@@ -64,23 +71,25 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 metadata_dir <- file.path(repo_root, "metadata")
 
 ## Files ##
-# Treehouse polyA compendium with disease type of samples and treehouse ID
+# Treehouse polyA compendium metadata file (contains disease type of samples and treehouse ID)
 polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv")
-# record of files on AWS, with file type information and file size.
-# to be associated with polya_clinical_file by treehouse ID
+# record of files on AWS, with file type, path, and file size to be associated with polya_clinical_file by treehouse ID
 treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive-treehouse-ucsc-edu_primary.txt")
-# table associating Treehouse IDs with individual partner contributor source
+# file associating Treehouse IDs with the name of its Treehouse partner contributor
 thid_partner_file <- file.path(metadata_dir, "TH_dataset_ID_by_collaborator_THIDs.tsv")
+# Treehouse IDs of files in the JAMA (Vaske 2019) and CKCC2 (Vasquez 2025) papers
 jama_sample_id_file <- file.path(metadata_dir, "JAMA_TH_ID_column.txt")
 vasquez_sample_id_file <- file.path(metadata_dir, "41698_2025_852_MOESM2_ESM.xlsx")
-
+# REDCap metadata of JAMA samples, with MEND QC and library selection information
 jama_redcap_file <- file.path(metadata_dir, "jama_REDCap_Donor_Sample_20260730.tsv")
 
 # output accessions 
-# list of SRA accessions fof polyA compendium files
+# accessions of polyA compendium files from public datasets to download, one file per data source
 sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
 ega_accessions <- file.path(metadata_dir, "ega_polya_compendium_accessions.txt")
 cbtn_accessions <- file.path(metadata_dir, "cbtn_polya_compendium_accessions.txt")
+
+# accessions of Treehouse samples to download (generated by Treehouse or collaborators)
 # these files should only have treehouse IDs rather than "accession" IDs
 treehouse_collaborator_ids <-file.path(metadata_dir, "collaborator_polya_compendium_ids.txt")
 publication_only_th_collaborator_ids <- file.path(metadata_dir, "pub_only_collaborator_ids.txt")
@@ -91,7 +100,7 @@ Read in files
 
 ``` r
 ## Read in files ##
-# age_at_dx have "unknown" when age is unknown so cannot set coltype as double
+# age_at_dx have "unknown" when age is unknown so coltype must be a character
 polya_metadata_df <- readr::read_tsv(polya_clinical_file,
                                      col_types = readr::cols(
                                        .default = "c"
@@ -150,79 +159,19 @@ jama_redcap_data <- readr::read_tsv(
   )
 ```
 
-Note: JAMA sample IDs are sample IDs, while CKCC2 IDs are patient IDs,
-which can be derived from the sample ID.
+## Clean and merge Treehouse PolyA compendium sample metadata
+
+Treehouse PolyA compendium metadata must be merged with the AWS file log
+to obtain file size of polyA compendium samples.
+
+To clean the AWS file log, and obtain treehouse IDs to merge on, the
+`path` column must be split into file type and Treehouse ID fields.
+Filetypes in Treehouse storage are: `.sra`, `.sra.vdbcache`,
+`sequence.txt.gz`, `markdown.txt`, `.fastq`, .`fq.gz`, and `.bam`.
+`.bam` files processed by Treehouse should contained unmapped reads.
 
 ``` r
-jama_sample_vector |> head()
-```
-
-    [1] "TH01_0053_S01" "TH01_0054_S01" "TH01_0055_S01" "TH01_0061_S01"
-    [5] "TH01_0062_S01" "TH01_0063_S01"
-
-``` r
-vasquez_sample_vector |> head()
-```
-
-    [1] "TH34_1149" "TH34_1150" "TH34_1162" "TH34_1163" "TH34_1179" "TH34_1238"
-
-Out of all JAMA samples, check how many have no QC data (assume they are
-not in polyA compendium for this reason)
-
-samples pass MEND QC if they have \>= 10M MEND reads : “The RNA-Seq data
-must contain at least 10 million mapped exonic, non-duplicate (MEND)
-reads.” [(Beale
-2025)](https://www.nature.com/articles/s41597-025-05376-z)
-
-``` r
-jama_redcap_data |>
-  dplyr::mutate(
-    pass_mend =
-    dplyr::case_when(
-      umend > 10000000 ~ TRUE,
-      umend < 10000000 ~ FALSE
-    )
-    )|>
-  dplyr::summarise(.by = c(qc, pass_mend, inv10_ribod),
-                   n = dplyr::n())
-```
-
-|  qc | pass_mend | inv10_ribod |   n |
-|----:|:----------|------------:|----:|
-|   5 | TRUE      |          10 |  88 |
-|   5 | TRUE      |           9 |  10 |
-|   5 | TRUE      |           1 |  15 |
-|   6 | NA        |          10 |  31 |
-
-88/144 samples pass MEND QC and are polyA, so I should expect to see 88
-JAMA samples in the polyA compendium.
-
-Extract MEND-QC-pass samples in a vector
-
-``` r
-jamna_mend_qc_pass_ids <-  jama_redcap_data |>
-  dplyr::mutate(
-    pass_mend =
-      dplyr::case_when(
-        umend > 10000000 ~ TRUE,
-        umend < 10000000 ~ FALSE
-      )
-  )|>
-  dplyr::filter(
-    pass_mend == TRUE
-  ) |>
-  dplyr::pull(th_sampleid)
-```
-
-## Clean and merge Treehouse sequence metadata
-
-Split “path” column in AWS file into filetype and Treehouse ID fields
-
-Filetypes in Treehouse storage are: .sra, .sra.vdbcache,
-sequence.txt.gz, markdown.txt, .fastq, .fq.gz, and .bam. .bam files
-processed by Treehouse should contained unmapped reads.
-
-``` r
+# derive th_dataset_id and file type from file paths
 cleaned_aws_df <- treehouse_aws_df  |>
   dplyr::mutate(
     filename = basename(path),
@@ -238,7 +187,7 @@ cleaned_aws_df <- treehouse_aws_df  |>
   )
 ```
 
-Merge treehouse polyA compendium metadata with aws file information to
+Merge Treehouse PolyA Compendium metadata with aws file information to
 associate file size with compendium samples. This information will be
 used to inform download batching strategy and estimate AWS file transfer
 costs.
@@ -256,6 +205,7 @@ merged_compendium_aws_df <- polya_metadata_df |>
     organism,
     sex,
     study_accession,
+    study_dataset_id,
     source_name,
     bytes,
     suffix
@@ -276,15 +226,21 @@ merged_compendium_aws_df <- polya_metadata_df |>
 Filter samples prior to summarizing. For now, I will exclude samples
 from TARGET and TCGA, since these are datasets not unique to Treehouse.
 TARGET is in Splice Compendium v1, and TCGA is primarily composed of
-adult samples. We could consider downloading more of TARGET
-(e.g. osteosarcomas) that were not downloaded previously for Splice
-Compendium v1.
+adult samples. We can download the rest of TARGET (e.g. osteosarcomas)
+that were not processed for Splice Compendium v1 through the
+`sra-toolkit` script, so I will leave TARGET out of the summary (no need
+to include it in data transfer cost estimates).
 
-At this stage, I will not filter for pedaya, as some samples have
-inconsistently annotated pedaya and/or age_at_dx (some samples with
-pedaya age_at_dx are labeled “unknown” pedaya and some samples have
-“unknown” age_at_dx but I assume are pediatric based off the study area
-of collaborators where samples are from
+I will also not filter for PEDAYA, because some samples have
+inconsistently annotated `pedaya` and/or `age_at_dx` information. (some
+samples with \< 30 `age_at_dx` are labeled “unknown” in the `pedaya`
+field and some samples have “unknown” `age_at_dx` information. I assume
+all samples are pediatric based off the study area of collaborators
+where samples are from.
+
+CBTN samples appear to be on dbGaP under `phs002517.v5.p3` but I do not
+have access to it on dbGaP so must include these data in the S3 transfer
+estimate.
 
 ``` r
 filtered_compendium_aws_df <- merged_compendium_aws_df |>
@@ -296,14 +252,13 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
   )
 ```
 
-## Summarize filtered data
+## Summarize filtered PolyA Compendium samples
 
-937 files pass the above filters. The below summary tables will provide
-information on the sex/disease type breakdowns of the filtered samples,
-how many files originate from what data source, and the file size of
-each file categorized by data source.
+The below summary tables provide information on the sex/disease type
+breakdowns of the filtered samples, how many files originate from what
+data source, and the file size of each file categorized by data source.
 
-sex/disease breakdown of filtered polyA compendium files
+### Limited sex/disease breakdown of filtered polyA compendium files
 
 ``` r
 filtered_compendium_aws_df |>
@@ -335,11 +290,14 @@ Table 1: Top 6 sex/disease categories with the most files
 
 </div>
 
-Much of the compendium is composed of unusual sarcomas (n = 1 or n \<
-5). The majority of the compendium after these filters consist of
+Much of the compendium is composed of rare sarcomas (n = 1 or n \< 5).
+The majority of the compendium after these filters consist of
 medulloblastoma, osteosarcoma, glioma, and Ewing’s sarcoma.
 
-Print summary of files by data source and total bytes
+### PolyA Compendium files by data source and total bytes
+
+Generate summaries of PolyA Compendium files on glacier we will need to
+transfer off S3, for cost estimation.
 
 There are some cases where the same Treehouse sample ID appears multiple
 times, but the bytes are different. These are cases where multiple fastq
@@ -347,47 +305,90 @@ pairs are associated with the same sample.
 The strategy for processing these files is to concatenate the fastqs
 into a single read1 / read2 pair, prior to trimming and alignment.
 
+#### PolyA compendium data source summary
+
 ``` r
 filtered_compendium_aws_df |>
   dplyr::summarise(
     .by = source_name,
-    n_datasets = length(unique(th_dataset_id)),
+    n_samples = length(unique(th_dataset_id)),
+    n_files = dplyr::n(),
     total_bytes = sum(bytes)
+  ) |>
+  # calculate avg filesize for S3 cost estimator
+  dplyr::mutate(
+    avg_gb_per_file = total_bytes / n_files / 1000000000
   )
 ```
 
 <div id="tbl-polya_v25_source_filesize_summary">
 
-Table 2: Summary of polyA v25 compendium files, by data source and avg
+Table 2: Summary of polyA v25 compendium samples, by data source and avg
 bytes per file
 
 <div class="cell-output-display">
 
-| source_name           | n_datasets |  total_bytes |
-|:----------------------|-----------:|-------------:|
-| EGA                   |         69 | 1.831246e+12 |
-| unavailable           |        193 | 2.109279e+12 |
-| Sequence Read Archive |        684 | 5.337788e+12 |
-| CBTN                  |          9 | 1.188477e+11 |
+| source_name           | n_samples | n_files |  total_bytes | avg_gb_per_file |
+|:----------------------|----------:|--------:|-------------:|----------------:|
+| EGA                   |        69 |     257 | 1.831246e+12 |        7.125471 |
+| unavailable           |       193 |     482 | 2.109279e+12 |        4.376098 |
+| Sequence Read Archive |       684 |     892 | 5.337788e+12 |        5.984068 |
+| CBTN                  |         9 |      18 | 1.188477e+11 |        6.602652 |
 
 </div>
 
 </div>
 
-~1.8TB of data should be accessible on SRA. Some of these files are
-listed as .sra in glacier, so the estimated filesize may be smaller than
-the zipped fastqs. This group represents data that I can try downloading
-now, since we have sra-toolkit in our pixi environment.
+Most of the data in the PolyA Compendium from individual collaborators
+should be accessible on SRA. Some of these files are listed as `.sra` in
+glacier, so the estimated filesize may be smaller than the actual zipped
+`.fastq`s once SRA files are extracted. The SRA group represents data
+that I should be able to download with `sra-toolkit`, so I will exclude
+it from the S3 transfer costs.
 
 “unavailable” indicates the data originate from individual
-collaborators, such as collaborators. These files should be downloadable
-on glacier, but the sequence files may need to be deposited in a
-repository prior to publication of their splice values.
+collaborators, such as collaborators.
 
-## Summarize sequence files originating from individual collaborators
+#### TARGET & CBTN PolyA compendium disease type summary
 
-Merge filtered polyA compendium dataframe with information mapping
-treehouse ID to collaborator
+Summary of PolyA Compendium TARGET and CBTN samples by disease type
+
+``` r
+merged_compendium_aws_df |>
+  dplyr::filter(
+    source_name %in% c("TARGET", "CBTN")
+  ) |>
+  dplyr::summarise(
+    .by = c(source_name, disease),
+    n_samples = length(unique(th_dataset_id)),
+    n_files = dplyr::n()
+  )
+```
+
+| source_name | disease                            | n_samples | n_files |
+|:------------|:-----------------------------------|----------:|--------:|
+| CBTN        | medulloblastoma                    |         1 |       1 |
+| CBTN        | glioma                             |        22 |      31 |
+| CBTN        | supratentorial embryonal tumor NOS |         6 |       6 |
+| TARGET      | acute lymphoblastic leukemia       |       527 |     552 |
+| TARGET      | acute myeloid leukemia             |       374 |     457 |
+| TARGET      | neuroblastoma                      |       169 |     176 |
+| TARGET      | osteosarcoma                       |        75 |      77 |
+| TARGET      | wilms tumor                        |       130 |     139 |
+| TARGET      | rhabdoid tumor                     |        65 |     121 |
+
+Most CBTN samples are ribo-deplete, so there are fewer CBTN samples in
+the PolyA Compendium than TARGET samples. We are interested in adding
+osteosarcomas from TARGET to the splice compendium, in addition to the
+CBTN brain tumor samples. However, TARGET can be downloaded off dbGaP so
+will not be included in the cost estimate.
+
+#### Individual collaborator sample summary
+
+To obtain a summary of the collaborator of origin of samples wuth
+“unavailable” `source_name`, the filtered polyA compendium dataframe
+must be merged with the dataframe mapping Treehouse IDs to
+collaborators.
 
 ``` r
 # merge filtered compendium df with file info from aws with supplement labeling individual collaborator source of Treehouse IDs
@@ -407,9 +408,14 @@ collaborator_source_compendium_df |>
   # filter for samples from collaborators only
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
-    .by = c(partner),
-    n_samples = length(unique(th_dataset_id))
-  )
+    .by = c(partner, publication_origin),
+    n_samples = length(unique(th_dataset_id)),
+    n_patients = length(unique(th_patient_id))
+  ) |>
+  dplyr::mutate(
+    total_samples = sum(n_samples),
+    total_patients = sum(n_patients)
+  ) 
 ```
 
 <div id="tbl-polya_v25_individual_collaborator_files">
@@ -419,23 +425,28 @@ individual collaborator
 
 <div class="cell-output-display">
 
-| partner | n_samples |
-|:---|---:|
-| Samples associated with Stanford Clinical Registry | 49 |
-| Alejandro at Stanford (incl pdx) | 7 |
-| Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 120 |
-| Nationwide Children’s | 10 |
-| Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 5 |
-| University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
-| Sameer Agnihotri University of Pittsburgh | 1 |
+| partner | publication_origin | n_samples | n_patients | total_samples | total_patients |
+|:---|:---|---:|---:|---:|---:|
+| Samples associated with Stanford Clinical Registry | ckcc2_vasquez_2025 | 36 | 31 | 193 | 160 |
+| Alejandro at Stanford (incl pdx) | jama_vaske_2019 | 3 | 3 | 193 | 160 |
+| Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | NA | 120 | 97 | 193 | 160 |
+| Nationwide Children’s | NA | 10 | 9 | 193 | 160 |
+| Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | NA | 5 | 4 | 193 | 160 |
+| University of Arkansas Medical Sciences (Analiz Rodriguez) | NA | 1 | 1 | 193 | 160 |
+| Sameer Agnihotri University of Pittsburgh | NA | 1 | 1 | 193 | 160 |
+| Samples associated with Stanford Clinical Registry | NA | 13 | 12 | 193 | 160 |
+| Alejandro at Stanford (incl pdx) | NA | 4 | 2 | 193 | 160 |
 
 </div>
 
 </div>
 
 In total, we have sequences from 193 samples originating from individual
-collaborators. 36/34 expected samples are from the CKCC2 study, while
-only 3/113 expected samples are from the JAMA study.
+collaborators in the PolyA Compendium. 3/144 samples are from the JAMA
+paper, while 31/33 patients are from the CKCC2 paper.
+
+Disease breakdown of Treehouse polyA samples from individual
+collaborators
 
 ``` r
 collaborator_source_compendium_df |>
@@ -445,103 +456,168 @@ collaborator_source_compendium_df |>
     .by = disease,
     n_samples = length(unique(th_dataset_id))
   ) |>
-    dplyr::arrange(n_samples) |>
-  dplyr::mutate(sum = sum(n_samples))
+    dplyr::arrange(n_samples)
 ```
 
-| disease                                    | n_samples | sum |
-|:-------------------------------------------|----------:|----:|
-| teratoma                                   |         1 | 193 |
-| acinar cell carcinoma                      |         1 | 193 |
-| colon adenocarcinoma                       |         1 | 193 |
-| myeloid neoplasm NOS                       |         1 | 193 |
-| dysembryoplastic neuroepithelial tumor     |         1 | 193 |
-| alveolar soft part sarcoma                 |         1 | 193 |
-| CIC rearranged sarcoma                     |         1 | 193 |
-| supratentorial embryonal tumor NOS         |         1 | 193 |
-| follicular neoplasm                        |         1 | 193 |
-| ganglioglioma                              |         1 | 193 |
-| sclerosing epithelioid fibrosarcoma        |         1 | 193 |
-| adrenocortical carcinoma                   |         1 | 193 |
-| endometrial stromal sarcoma                |         1 | 193 |
-| soft tissue sarcoma                        |         1 | 193 |
-| chronic myelogenous leukemia               |         1 | 193 |
-| nasopharyngeal carcinoma                   |         1 | 193 |
-| acute leukemia of ambiguous lineage        |         1 | 193 |
-| acute leukemia                             |         1 | 193 |
-| neuroepithelial tumor                      |         1 | 193 |
-| testicular germ cell tumor                 |         1 | 193 |
-| INI-deficient soft tissue sarcoma NOS      |         2 | 193 |
-| infantile fibrosarcoma                     |         2 | 193 |
-| undifferentiated sarcoma NOS               |         2 | 193 |
-| gastrointestinal stromal tumor             |         2 | 193 |
-| juvenile myelomonocytic leukemia           |         2 | 193 |
-| myoepithelial carcinoma                    |         2 | 193 |
-| spindle cell/sclerosing rhabdomyosarcoma   |         2 | 193 |
-| medulloblastoma                            |         2 | 193 |
-| undifferentiated hepatic sarcoma           |         2 | 193 |
-| synovial sarcoma                           |         2 | 193 |
-| embryonal tumor with multilayered rosettes |         2 | 193 |
-| clear cell carcinoma of cervix             |         2 | 193 |
-| thymic carcinoma                           |         2 | 193 |
-| malignant peripheral nerve sheath tumor    |         2 | 193 |
-| hepatocellular carcinoma                   |         3 | 193 |
-| acute myeloid leukemia                     |         3 | 193 |
-| rhabdomyosarcoma                           |         3 | 193 |
-| desmoplastic small round cell tumor        |         4 | 193 |
-| ependymoma                                 |         5 | 193 |
-| wilms tumor                                |         5 | 193 |
-| sarcoma                                    |         5 | 193 |
-| alveolar rhabdomyosarcoma                  |         6 | 193 |
-| neuroblastoma                              |         6 | 193 |
-| hepatoblastoma                             |         7 | 193 |
-| embryonal rhabdomyosarcoma                 |        10 | 193 |
-| Ewing sarcoma                              |        11 | 193 |
-| acute lymphoblastic leukemia               |        16 | 193 |
-| glioma                                     |        18 | 193 |
-| osteosarcoma                               |        43 | 193 |
+| disease                                    | n_samples |
+|:-------------------------------------------|----------:|
+| teratoma                                   |         1 |
+| acinar cell carcinoma                      |         1 |
+| colon adenocarcinoma                       |         1 |
+| myeloid neoplasm NOS                       |         1 |
+| dysembryoplastic neuroepithelial tumor     |         1 |
+| alveolar soft part sarcoma                 |         1 |
+| CIC rearranged sarcoma                     |         1 |
+| supratentorial embryonal tumor NOS         |         1 |
+| follicular neoplasm                        |         1 |
+| ganglioglioma                              |         1 |
+| sclerosing epithelioid fibrosarcoma        |         1 |
+| adrenocortical carcinoma                   |         1 |
+| endometrial stromal sarcoma                |         1 |
+| soft tissue sarcoma                        |         1 |
+| chronic myelogenous leukemia               |         1 |
+| nasopharyngeal carcinoma                   |         1 |
+| acute leukemia of ambiguous lineage        |         1 |
+| acute leukemia                             |         1 |
+| neuroepithelial tumor                      |         1 |
+| testicular germ cell tumor                 |         1 |
+| INI-deficient soft tissue sarcoma NOS      |         2 |
+| infantile fibrosarcoma                     |         2 |
+| undifferentiated sarcoma NOS               |         2 |
+| gastrointestinal stromal tumor             |         2 |
+| juvenile myelomonocytic leukemia           |         2 |
+| myoepithelial carcinoma                    |         2 |
+| spindle cell/sclerosing rhabdomyosarcoma   |         2 |
+| medulloblastoma                            |         2 |
+| undifferentiated hepatic sarcoma           |         2 |
+| synovial sarcoma                           |         2 |
+| embryonal tumor with multilayered rosettes |         2 |
+| clear cell carcinoma of cervix             |         2 |
+| thymic carcinoma                           |         2 |
+| malignant peripheral nerve sheath tumor    |         2 |
+| hepatocellular carcinoma                   |         3 |
+| acute myeloid leukemia                     |         3 |
+| rhabdomyosarcoma                           |         3 |
+| desmoplastic small round cell tumor        |         4 |
+| ependymoma                                 |         5 |
+| wilms tumor                                |         5 |
+| sarcoma                                    |         5 |
+| alveolar rhabdomyosarcoma                  |         6 |
+| neuroblastoma                              |         6 |
+| hepatoblastoma                             |         7 |
+| embryonal rhabdomyosarcoma                 |        10 |
+| Ewing sarcoma                              |        11 |
+| acute lymphoblastic leukemia               |        16 |
+| glioma                                     |        18 |
+| osteosarcoma                               |        43 |
 
-Count number of individual patients whose data come from individual
-collaborators
+The majority of these samples are rare sarcomas with n = 1.
+Osteosarcomas and gliomas are the most represented diseases in this
+category of samples.
+
+## PolyA JAMA collaborator samples passing QC
+
+JAMA and CKCC2 samples represent pediatric patient tumor RNA-seq from
+individual collaborators hat have been studied in previous Treehouse
+publications (Vaske 2019 and Vasquez 2025). These samples are of high
+priority to include in the Splice Compendium because they have not yet
+been deposited to a data repository, so there is high utility for the
+pediatric community to have access to splice quantifications from these
+samples.
+
+To prioritize samples among this set for processing, we want to filter
+for samples that are polyA-selected, pass MEND QC, and have gene
+expression quantifications in the Treehouse PolyA Compendium.
+
+JAMA sample IDs from Vaske 2019 are in the form of sample IDs
+(`TH01_0054_S01`), while CKCC2 IDs from the Vasquez 2025 publication are
+in the form of patient IDs (`TH34_1149`), swhich can be derived from the
+sample ID column in the PolyA metadata file.
+
+Samples pass MEND QC if they have \>= 10M MEND reads : “The RNA-Seq data
+must contain at least 10 million mapped exonic, non-duplicate (MEND)
+reads.” [(Beale
+2025)](https://www.nature.com/articles/s41597-025-05376-z)
+
+Codes for library selection from Treehouse’s REDCap system are found in
+the `inv10_ribod` column, with 10 indicating polyA:
+
+![](images/Screenshot%202026-10-22%20at%2010.04.09%20PM.png)
+
+### Summarize JAMA samples that pass MEND QC and are PolyA
 
 ``` r
-# summarize number of unique patients whose samples are from collaborators
-collaborator_source_compendium_df |>  
-  # filter for samples from collaborators only
-  dplyr::filter(source_name == "unavailable") |>
-  dplyr::summarise(
-    .by = c(publication_origin, `partner`),
-    # note: some samples come from the same patient
-    n_patients = length(unique(th_patient_id))
-  )
+jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+      # Derive MEND QC status from umend column
+    dplyr::case_when(
+      umend > 10000000 ~ TRUE,
+      umend < 10000000 ~ FALSE
+    )
+    )|>
+  dplyr::summarise(.by = c(qc, pass_mend, inv10_ribod),
+                   n = dplyr::n())
 ```
 
-<div id="tbl-polya_v25_individual_collaborator_patients">
+|  qc | pass_mend | inv10_ribod |   n |
+|----:|:----------|------------:|----:|
+|   5 | TRUE      |          10 |  88 |
+|   5 | TRUE      |           9 |  10 |
+|   5 | TRUE      |           1 |  15 |
+|   6 | NA        |          10 |  31 |
 
-Table 4: Number of unique patients in the polyA v25 compendium from each
-individual collaborator
+88/144 JAMA samples pass MEND QC and are polyA, so I should expect to
+see 88 JAMA samples in the polyA compendium. 31 samples are poly-A
+selected but have no MEND QC information (assume fail QC by the qc
+column code).
 
-<div class="cell-output-display">
+### Check if JAMA PolyA QC-pass samples are on glacier
 
-| publication_origin | partner | n_patients |
-|:---|:---|---:|
-| ckcc2_vasquez_2025 | Samples associated with Stanford Clinical Registry | 31 |
-| jama_vaske_2019 | Alejandro at Stanford (incl pdx) | 3 |
-| NA | Alejandro at UCSF - July 2017 on, except for new samples from TH03 cases | 97 |
-| NA | Nationwide Children’s | 9 |
-| NA | Dr. Aru Narendran at Alberta Children’s Hospital (part of POETIC) | 4 |
-| NA | University of Arkansas Medical Sciences (Analiz Rodriguez) | 1 |
-| NA | Sameer Agnihotri University of Pittsburgh | 1 |
-| NA | Samples associated with Stanford Clinical Registry | 12 |
-| NA | Alejandro at Stanford (incl pdx) | 2 |
+``` r
+# obain vector of 88 jama sample IDs that are polyA and pass QC
+jama_pass_qc_ids <- jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+      # Derive MEND QC status from umend column
+    dplyr::case_when(
+      umend > 10000000 ~ TRUE,
+      umend < 10000000 ~ FALSE
+    )
+    )|>
+  dplyr::filter(
+    pass_mend == TRUE,
+    inv10_ribod == 10
+  ) |>
+  dplyr::pull(th_sampleid)
 
-</div>
+# check if these are on aws
+cleaned_aws_df |>
+  dplyr::filter(th_dataset_id %in% jama_pass_qc_ids) |>
+  dplyr::select(suffix, th_dataset_id, bytes) |>
+  # estimate avg GB per file
+  dplyr::mutate(
+    avg_file_gb = sum(bytes) / dplyr::n() / 1000000000)
+```
 
-</div>
+| suffix | th_dataset_id |      bytes | avg_file_gb |
+|:-------|:--------------|-----------:|------------:|
+| fastq  | TH03_0017_S01 | 3654727271 |    3.649437 |
+| fastq  | TH03_0017_S01 | 3782249037 |    3.649437 |
+| fastq  | TH03_0115_S01 | 4219968882 |    3.649437 |
+| fastq  | TH03_0115_S01 | 4672763571 |    3.649437 |
+| fastq  | TH03_0149_S01 | 2649541773 |    3.649437 |
+| fastq  | TH03_0149_S01 | 2917370820 |    3.649437 |
 
-Create a table of collaborator origin of JAMA samples not in polyA
-compendium. These are likely collaborators we need to reach out to to
-request for data to be deposited.
+We only have 3 samples from JAMA on glacier as well. This will make
+estimating file size difficult, but I will estimate based off the avg gb
+for these 6 fastqs.
+
+## All JAMA samples by collaborator
+
+Create a table of collaborator origin of JAMA samples. These are
+represent collaborators we need to reach out to to request for data to
+be deposited.
 
 ``` r
 jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
@@ -565,7 +641,7 @@ jama_samples_by_collaborator_df
 
 <div id="tbl-jama_by_collaborator_source">
 
-Table 5: Number of JAMA samples broken down by collaborator
+Table 4: Number of JAMA samples broken down by collaborator
 
 <div class="cell-output-display">
 
@@ -580,39 +656,9 @@ Table 5: Number of JAMA samples broken down by collaborator
 
 </div>
 
-Most of these samples are not in the PolyA compendium for a mixture of
-reasons
-
-CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed
-
-Double check from REDCap data which of these samples are ribo-D
-(potentially a third table) – an additional column to this summary as
-well as another column on how many samples pass MEND QC
-
-## Summarize samples from published data sources
-
-``` r
-merged_compendium_aws_df |>
-  dplyr::filter(
-    source_name %in% c("TARGET", "CBTN")
-  ) |>
-  dplyr::summarise(
-    .by = c(source_name, disease),
-    n = dplyr::n()
-  )
-```
-
-| source_name | disease                            |   n |
-|:------------|:-----------------------------------|----:|
-| CBTN        | medulloblastoma                    |   1 |
-| CBTN        | glioma                             |  31 |
-| CBTN        | supratentorial embryonal tumor NOS |   6 |
-| TARGET      | acute lymphoblastic leukemia       | 552 |
-| TARGET      | acute myeloid leukemia             | 457 |
-| TARGET      | neuroblastoma                      | 176 |
-| TARGET      | osteosarcoma                       |  77 |
-| TARGET      | wilms tumor                        | 139 |
-| TARGET      | rhabdoid tumor                     | 121 |
+CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed.
+Alejandro and PNOC UCSF JAMA samples are therefore sequence data we
+should have access to. 88/90 of these samples pass QC and are polyA.
 
 ## Output a list of file accessions per data source
 
@@ -630,6 +676,7 @@ for_export_compendium_df <- collaborator_source_compendium_df |>
     publication_origin,
     partner,
     study_accession,
+    study_dataset_id,
     source_name
   )
 
@@ -670,6 +717,3 @@ for_export_compendium_df |>
 jama_samples_by_collaborator_df |>
   readr::write_tsv(jama_samples_by_collaborator)
 ```
-
-Check more study accessions from piolya metadata for any other accession
-outside of project ID for SRA downloads

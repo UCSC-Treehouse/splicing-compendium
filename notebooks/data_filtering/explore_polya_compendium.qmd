@@ -127,58 +127,6 @@ jama_redcap_data <- readr::read_tsv(
   )
   
 ```
-
-## Summary of JAMA and CKCC2 samples within Treehouse PolyA Compendium
-
-JAMA and CKCC2 samples represent pediatric patient tumor RNA-seq that have been studied in previous Treehouse publications (Vaske 2019 and Vasquez 2025). These samples are of high priority to include in the Splice Compendium because they have not yet been deposited to a data repository, so there is high utility for the pediatric community to have access to splice quantifications from these samples.
-
-To prioritize samples among this set for processing, we want to filter for samples that are polyA-selected, pass MEND QC, and have gene expression quantifications in the Treehouse PolyA Compendium.
-
-JAMA sample IDs from Vaske 2019 are in the form of sample IDs (`TH01_0054_S01`), while CKCC2 IDs from the Vasquez 2025 publication are in the form of patient IDs (`TH34_1149`), swhich can be derived from the sample ID column in the PolyA metadata file.
-
-Samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must contain at least 10 million mapped exonic, non-duplicate (MEND) reads." [(Beale 2025)](https://www.nature.com/articles/s41597-025-05376-z)
-
-Codes for library selection from Treehouse's REDCap system are found in the `inv10_ribod` column, with 10 indicating polyA:
-
-![](images/Screenshot 2026-10-22 at 10.04.09 PM.png)
-
-### Summarize JAMA samples that pass MEND QC and are PolyA
-
-```{r}
-jama_redcap_data |>
-  dplyr::mutate(
-    pass_mend =
-      # Derive MEND QC status from umend column
-    dplyr::case_when(
-      umend > 10000000 ~ TRUE,
-      umend < 10000000 ~ FALSE
-    )
-    )|>
-  dplyr::summarise(.by = c(qc, pass_mend, inv10_ribod),
-                   n = dplyr::n())
-```
-
-88/144 JAMA samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium.
-31 samples are poly-A selected but have no MEND QC information (assume fail QC by the qc column code).
-
-Extract JAMA MEND-QC-pass samples in a vector
-
-```{r}
-jama_mend_qc_pass_ids <-  jama_redcap_data |>
-  dplyr::mutate(
-    pass_mend =
-      dplyr::case_when(
-        umend > 10000000 ~ TRUE,
-        umend < 10000000 ~ FALSE
-      )
-  )|>
-  dplyr::filter(
-    pass_mend == TRUE,
-    inv10_ribod == 10
-  ) |>
-  dplyr::pull(th_sampleid)
-```
-
 ## Clean and merge Treehouse PolyA compendium sample metadata
 
 Treehouse PolyA compendium metadata must be merged with the AWS file log to obtain file size of polyA compendium samples.
@@ -304,15 +252,16 @@ filtered_compendium_aws_df |>
   )
 
 ```
-Most of the data should be accessible on SRA. 
+Most of the data in the PolyA Compendium should be accessible on SRA. 
 Some of these files are listed as `.sra` in glacier, so the estimated filesize may be smaller than the actual zipped `.fastq`s once SRA files are extracted. 
 the SRA group represents data that I should be able to download with `sra-toolkit`, so I will exclude it from the S3 transfer costs.
 
 "unavailable" indicates the data originate from individual collaborators, such as collaborators.
 
-## Summarize sequence files originating from individual collaborators
+## Summarize Treehouse files originating from individual collaborators
 
-Merge filtered polyA compendium dataframe with information mapping treehouse ID to collaborator
+To obtain a summary of the collaborator of origin of samples wuth "unavailable" `source_name`, 
+the filtered polyA compendium dataframe must be merged with the dataframe mapping Treehouse IDs to collaborators.
 
 ```{r merge_with_collaborator_info}
 # merge filtered compendium df with file info from aws with supplement labeling individual collaborator source of Treehouse IDs
@@ -335,40 +284,68 @@ collaborator_source_compendium_df |>
   dplyr::filter(source_name == "unavailable") |>
   dplyr::summarise(
     .by = c(partner),
-    n_samples = length(unique(th_dataset_id))
-  )
+    n_samples = length(unique(th_dataset_id)),
+    n_patients = length(unique(th_patient_id))
+  ) |>
+  dplyr::mutate(
+    total_samples = sum(n_samples),
+    total_patients = sum(n_patients)
+  ) 
 
 ```
 
-In total, we have sequences from 193 samples originating from individual collaborators. 36/34 expected samples are from the CKCC2 study, while only 3/113 expected samples are from the JAMA study.
+In total, we have sequences from 193 samples originating from individual collaborators. 
+
+## Summary of polyA-selected JAMA collaborator samples passing QC
+
+JAMA and CKCC2 samples represent pediatric patient tumor RNA-seq from individual collaborators hat have been studied in previous Treehouse publications (Vaske 2019 and Vasquez 2025). 
+These samples are of high priority to include in the Splice Compendium because they have not yet been deposited to a data repository, so there is high utility for the pediatric community to have access to splice quantifications from these samples.
+
+To prioritize samples among this set for processing, we want to filter for samples that are polyA-selected, pass MEND QC, and have gene expression quantifications in the Treehouse PolyA Compendium.
+
+JAMA sample IDs from Vaske 2019 are in the form of sample IDs (`TH01_0054_S01`), while CKCC2 IDs from the Vasquez 2025 publication are in the form of patient IDs (`TH34_1149`), swhich can be derived from the sample ID column in the PolyA metadata file.
+
+Samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must contain at least 10 million mapped exonic, non-duplicate (MEND) reads." [(Beale 2025)](https://www.nature.com/articles/s41597-025-05376-z)
+
+Codes for library selection from Treehouse's REDCap system are found in the `inv10_ribod` column, with 10 indicating polyA:
+
+![](images/Screenshot 2026-10-22 at 10.04.09 PM.png)
+
+### Summarize JAMA samples that pass MEND QC and are PolyA
 
 ```{r}
-collaborator_source_compendium_df |>
-  # filter for samples from collaborators only
-  dplyr::filter(source_name == "unavailable") |>
-  dplyr::summarise(
-    .by = disease,
-    n_samples = length(unique(th_dataset_id))
-  ) |>
-    dplyr::arrange(n_samples) |>
-  dplyr::mutate(sum = sum(n_samples))
+jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+      # Derive MEND QC status from umend column
+    dplyr::case_when(
+      umend > 10000000 ~ TRUE,
+      umend < 10000000 ~ FALSE
+    )
+    )|>
+  dplyr::summarise(.by = c(qc, pass_mend, inv10_ribod),
+                   n = dplyr::n())
 ```
 
-Count number of individual patients whose data come from individual collaborators
+88/144 JAMA samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium.
+31 samples are poly-A selected but have no MEND QC information (assume fail QC by the qc column code).
 
-```{r summarize_collaborator_patients}
-#| label: tbl-polya_v25_individual_collaborator_patients
-#| tbl-cap: "Number of unique patients in the polyA v25 compendium from each individual collaborator"
+Extract JAMA MEND-QC-pass samples in a vector
 
-# summarize number of unique patients whose samples are from collaborators
-collaborator_source_compendium_df |>  
-  # filter for samples from collaborators only
-  dplyr::filter(source_name == "unavailable") |>
-  dplyr::summarise(
-    .by = c(publication_origin, `partner`),
-    # note: some samples come from the same patient
-    n_patients = length(unique(th_patient_id))
-  )
+```{r}
+jama_mend_qc_pass_ids <-  jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+      dplyr::case_when(
+        umend > 10000000 ~ TRUE,
+        umend < 10000000 ~ FALSE
+      )
+  )|>
+  dplyr::filter(
+    pass_mend == TRUE,
+    inv10_ribod == 10
+  ) |>
+  dplyr::pull(th_sampleid)
 ```
 
 Create a table of collaborator origin of JAMA samples not in polyA compendium. These are likely collaborators we need to reach out to to request for data to be deposited.
@@ -392,11 +369,7 @@ jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
 jama_samples_by_collaborator_df
 ```
 
-Most of these samples are not in the PolyA compendium for a mixture of reasons
-
-CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed
-
-Double check from REDCap data which of these samples are ribo-D (potentially a third table) – an additional column to this summary as well as another column on how many samples pass MEND QC
+Check 
 
 ## Summarize samples from published data sources
 
@@ -409,6 +382,24 @@ merged_compendium_aws_df |>
     .by = c(source_name, disease),
     n = dplyr::n()
   )
+```
+CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed.
+Alejandro and PNOC UCSF JAMA samples are therefore sequence data we should have access to.
+88/90 of these samples pass QC and are polyA.
+
+
+36/34 expected samples are from the CKCC2 study, while only 3/113 expected samples are from the JAMA study.
+
+```{r}
+collaborator_source_compendium_df |>
+  # filter for samples from collaborators only
+  dplyr::filter(source_name == "unavailable") |>
+  dplyr::summarise(
+    .by = disease,
+    n_samples = length(unique(th_dataset_id))
+  ) |>
+    dplyr::arrange(n_samples)
+
 ```
 
 ## Output a list of file accessions per data source

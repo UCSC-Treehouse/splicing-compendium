@@ -372,6 +372,38 @@ jama_redcap_data |>
 88/144 JAMA samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium.
 31 samples are poly-A selected but have no MEND QC information (assume fail QC by the qc column code).
 
+### Check if JAMA PolyA QC-pass samples are on glacier
+
+```{r}
+# obain vector of 88 jama sample IDs that are polyA and pass QC
+jama_pass_qc_ids <- jama_redcap_data |>
+  dplyr::mutate(
+    pass_mend =
+      # Derive MEND QC status from umend column
+    dplyr::case_when(
+      umend > 10000000 ~ TRUE,
+      umend < 10000000 ~ FALSE
+    )
+    )|>
+  dplyr::filter(
+    pass_mend == TRUE,
+    inv10_ribod == 10
+  ) |>
+  dplyr::pull(th_sampleid)
+
+# check if these are on aws
+cleaned_aws_df |>
+  dplyr::filter(th_dataset_id %in% jama_pass_qc_ids) |>
+  dplyr::select(suffix, th_dataset_id, bytes) |>
+  # estimate avg GB per file
+  dplyr::mutate(
+    avg_file_gb = sum(bytes) / dplyr::n() / 1000000000)
+  
+```
+
+We only have 3 samples from JAMA on glacier as well.
+This will make estimating file size difficult, but I will estimate based off the avg gb for these 6 fastqs.
+
 ## All JAMA samples by collaborator
 
 Create a table of collaborator origin of JAMA samples. 
@@ -458,4 +490,3 @@ jama_samples_by_collaborator_df |>
 
 ```
 
-Check more study accessions from piolya metadata for any other accession outside of project ID for SRA downloads

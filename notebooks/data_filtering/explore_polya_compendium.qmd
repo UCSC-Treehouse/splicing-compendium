@@ -20,7 +20,7 @@ This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compen
 
 **TH_dataset_ID_by_collaborator_THIDs.tsv**: Internal Treehouse key of what collaborators are associated with specific Treehouse dataset IDs
 
-**41698_2025_852_MOESM2_ESM.xlsx**: Supplementary data table 1 from [Vasquez et al. 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC11928651/#sec29) listing Treehouse sample IDs of 33 samples used in study.
+**41698_2025_852_MOESM2_ESM.xlsx**: Supplementary data table 1 from [Vasquez et al. 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC11928651/#sec29)/CKCC2 study listing Treehouse sample IDs of 33 samples used in study.
 
 **JAMA_TH_IDs.tsv**: Space-separated file of 144 sample IDs used in [Vaske et al. 2019](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2753519), pasted from eTable 3b in the paper's [supplement](https://cdn.jamanetwork.com/ama/content_public/journal/jamanetworkopen/938206/zoi190533supp1_prod.pdf?Expires=1794613443&Signature=WLyr7rwB8MKSlrxifyxwoJ75UMi1ByrZUUi2X~k3JhloUTzZvJTDuBzkgS8mHOvixSNDp6kPS5ygqHaNk-EcwPNC6G9mG0VXY5ORDMVdrSlCGy2WujAvboi0lCObb3GEtNBXy0iuBOKPERC3FFQX7LI4xHPxm060Gzu3ColP91exQVd1w10XJYGA6cnn5GhqMCzpC~YBCPtalUlWqaGGmKaYzaUmDCWeTDN5W0~X~VsX8yZSHS8rbj18EciADgJdPawWGDI3ml0WGrgcgbD8V2tkG33t1DcE7gJwHJLogU9PfHYNvye8TOppM8lMbcZXSt40Npr7S~XfDFvv5XA4GQ__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA). This file is not directly used as input, but is used to derive `JAMA_TH_ID_column.txt`, which is read in.
 
@@ -127,20 +127,28 @@ jama_redcap_data <- readr::read_tsv(
   )
   
 ```
+
 ## Summary of JAMA and CKCC2 samples within Treehouse PolyA Compendium
 
+JAMA and CKCC2 samples represent pediatric patient tumor RNA-seq that have been studied in previous Treehouse publications (Vaske 2019 and Vasquez 2025). These samples are of high priority to include in the Splice Compendium because they have not yet been deposited to a data repository, so there is high utility for the pediatric community to have access to splice quantifications from these samples.
 
+To prioritize samples among this set for processing, we want to filter for samples that are polyA-selected, pass MEND QC, and have gene expression quantifications in the Treehouse PolyA Compendium.
 
-Note: JAMA sample IDs are sample IDs (`TH01_0054_S01`), while CKCC2 IDs are patient IDs (`TH34_1149`), which can be derived from the sample ID column in the PolyA metadata file.
+JAMA sample IDs from Vaske 2019 are in the form of sample IDs (`TH01_0054_S01`), while CKCC2 IDs from the Vasquez 2025 publication are in the form of patient IDs (`TH34_1149`), swhich can be derived from the sample ID column in the PolyA metadata file.
 
-Out of all JAMA samples, check how many have no QC data (assume they are not in polyA compendium for this reason)
+Samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must contain at least 10 million mapped exonic, non-duplicate (MEND) reads." [(Beale 2025)](https://www.nature.com/articles/s41597-025-05376-z)
 
-samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must contain at least 10 million mapped exonic, non-duplicate (MEND) reads." [(Beale 2025)](https://www.nature.com/articles/s41597-025-05376-z)
+Codes for library selection from Treehouse's REDCap system are found in the `inv10_ribod` column, with 10 indicating polyA:
+
+![](images/Screenshot 2026-10-22 at 10.04.09 PM.png)
+
+### Summarize JAMA samples that pass MEND QC and are PolyA
 
 ```{r}
 jama_redcap_data |>
   dplyr::mutate(
     pass_mend =
+      # Derive MEND QC status from umend column
     dplyr::case_when(
       umend > 10000000 ~ TRUE,
       umend < 10000000 ~ FALSE
@@ -150,12 +158,13 @@ jama_redcap_data |>
                    n = dplyr::n())
 ```
 
-88/144 samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium.
+88/144 JAMA samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium.
+31 samples are poly-A selected but have no MEND QC information (assume fail QC by the qc column code).
 
-Extract MEND-QC-pass samples in a vector
+Extract JAMA MEND-QC-pass samples in a vector
 
 ```{r}
-jamna_mend_qc_pass_ids <-  jama_redcap_data |>
+jama_mend_qc_pass_ids <-  jama_redcap_data |>
   dplyr::mutate(
     pass_mend =
       dplyr::case_when(
@@ -164,18 +173,23 @@ jamna_mend_qc_pass_ids <-  jama_redcap_data |>
       )
   )|>
   dplyr::filter(
-    pass_mend == TRUE
+    pass_mend == TRUE,
+    inv10_ribod == 10
   ) |>
   dplyr::pull(th_sampleid)
 ```
 
-## Clean and merge Treehouse sequence metadata
+## Clean and merge Treehouse PolyA compendium sample metadata
 
-Split "path" column in AWS file into filetype and Treehouse ID fields
+Treehouse PolyA compendium metadata must be merged with the AWS file log to obtain file size of polyA compendium samples.
 
-Filetypes in Treehouse storage are: .sra, .sra.vdbcache, sequence.txt.gz, markdown.txt, .fastq, .fq.gz, and .bam. .bam files processed by Treehouse should contained unmapped reads.
+To clean the AWS file log, and obtain treehouse IDs to merge on,
+the `path` column must be split into file type and Treehouse ID fields. 
+Filetypes in Treehouse storage are: `.sra`, `.sra.vdbcache`, `sequence.txt.gz`, `markdown.txt`, `.fastq`, .`fq.gz`, and `.bam`. 
+`.bam` files processed by Treehouse should contained unmapped reads.
 
 ```{r clean_aws_df}
+# derive th_dataset_id and file type from file paths
 cleaned_aws_df <- treehouse_aws_df  |>
   dplyr::mutate(
     filename = basename(path),
@@ -191,7 +205,8 @@ cleaned_aws_df <- treehouse_aws_df  |>
   )
 ```
 
-Merge treehouse polyA compendium metadata with aws file information to associate file size with compendium samples. This information will be used to inform download batching strategy and estimate AWS file transfer costs.
+Merge Treehouse PolyA Compendium metadata with aws file information to associate file size with compendium samples. 
+This information will be used to inform download batching strategy and estimate AWS file transfer costs.
 
 ```{r merge_compendium_with_aws}
 merged_compendium_aws_df <- polya_metadata_df |> 
@@ -224,9 +239,14 @@ merged_compendium_aws_df <- polya_metadata_df |>
   )
 ```
 
-Filter samples prior to summarizing. For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse. TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples. We could consider downloading more of TARGET (e.g. osteosarcomas) that were not downloaded previously for Splice Compendium v1.
+Filter samples prior to summarizing. 
+For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse. 
+TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples. We can download the rest of TARGET (e.g. osteosarcomas) that were not processed for Splice Compendium v1 through the `sra-toolkit` script,
+so I will leave TARGET out of the summary (no need to include it in data transfer cost estimates).
 
-At this stage, I will not filter for pedaya, as some samples have inconsistently annotated pedaya and/or age_at_dx (some samples with pedaya age_at_dx are labeled "unknown" pedaya and some samples have "unknown" age_at_dx but I assume are pediatric based off the study area of collaborators where samples are from
+I will also not filter for PEDAYA, because some samples have inconsistently annotated `pedaya` and/or `age_at_dx` information. 
+(some samples with < 30 `age_at_dx` are labeled "unknown" in the `pedaya` field and some samples have "unknown" `age_at_dx` information. 
+I assume all samples are pediatric based off the study area of collaborators where samples are from.
 
 ```{r filter_compendium_df}
 filtered_compendium_aws_df <- merged_compendium_aws_df |>
@@ -238,11 +258,11 @@ filtered_compendium_aws_df <- merged_compendium_aws_df |>
   )
 ```
 
-## Summarize filtered data
+## Summarize filtered PolyA Compendium samples
 
-937 files pass the above filters. The below summary tables will provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
+The below summary tables provide information on the sex/disease type breakdowns of the filtered samples, how many files originate from what data source, and the file size of each file categorized by data source.
 
-sex/disease breakdown of filtered polyA compendium files
+### Sex/disease breakdown of filtered polyA compendium files
 
 ```{r }
 #| label: tbl-polya_v25_top_samples
@@ -259,29 +279,36 @@ filtered_compendium_aws_df |>
 
 ```
 
-Much of the compendium is composed of unusual sarcomas (n = 1 or n \< 5). The majority of the compendium after these filters consist of medulloblastoma, osteosarcoma, glioma, and Ewing's sarcoma.
+Much of the compendium is composed of rare sarcomas (n = 1 or n \< 5). The majority of the compendium after these filters consist of medulloblastoma, osteosarcoma, glioma, and Ewing's sarcoma.
 
-Print summary of files by data source and total bytes
+### PolyA Compendium files by data source and total bytes
 
-There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. These are cases where multiple fastq pairs are associated with the same sample.\
+There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. 
+These are cases where multiple fastq pairs are associated with the same sample.\
 The strategy for processing these files is to concatenate the fastqs into a single read1 / read2 pair, prior to trimming and alignment.
 
 ```{r data_source_file}
 #| label: tbl-polya_v25_source_filesize_summary
-#| tbl-cap: "Summary of polyA v25 compendium files, by data source and avg bytes per file"
+#| tbl-cap: "Summary of polyA v25 compendium samples, by data source and avg bytes per file"
 
 filtered_compendium_aws_df |>
   dplyr::summarise(
     .by = source_name,
-    n_datasets = length(unique(th_dataset_id)),
+    n_samples = length(unique(th_dataset_id)),
+    n_files = dplyr::n(),
     total_bytes = sum(bytes)
+  ) |>
+  # calculate avg filesize for S3 cost estimator
+  dplyr::mutate(
+    avg_gb_per_file = total_bytes / n_files / 1000000000
   )
 
 ```
+Most of the data should be accessible on SRA. 
+Some of these files are listed as `.sra` in glacier, so the estimated filesize may be smaller than the actual zipped `.fastq`s once SRA files are extracted. 
+the SRA group represents data that I should be able to download with `sra-toolkit`, so I will exclude it from the S3 transfer costs.
 
-\~1.8TB of data should be accessible on SRA. Some of these files are listed as .sra in glacier, so the estimated filesize may be smaller than the zipped fastqs. This group represents data that I can try downloading now, since we have sra-toolkit in our pixi environment.
-
-"unavailable" indicates the data originate from individual collaborators, such as collaborators. These files should be downloadable on glacier, but the sequence files may need to be deposited in a repository prior to publication of their splice values.
+"unavailable" indicates the data originate from individual collaborators, such as collaborators.
 
 ## Summarize sequence files originating from individual collaborators
 

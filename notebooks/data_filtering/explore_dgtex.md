@@ -1,6 +1,6 @@
 # Explore Treehouse PolyA Compendium
 Cindy Liang (celiang@ucsc.edu)
-2026-10-23
+2026-10-28
 
 ## Introduction
 
@@ -9,19 +9,18 @@ Compendium prior to submitting the manuscript to a journal. Currently,
 the priorities are to include samples in the Treehouse polyA compendia,
 with healthy comparators from dGTEx.
 
-This notebook reads in the clinical metadata from the v25 Treehouse
-PolyA Compendium and explores how many samples in each disease type are
-represented. Additionally, it reads in sample metadata from the first
-release of the developmental GTEx (dGTEx) project to explore how many
-RNA-seq samples of what normal tissue types are represented.
+This notebook reads sample metadata from the first release of the
+developmental GTEx (dGTEx) project to explore how many RNA-seq samples
+of what normal tissue types are represented. The dGTEx metadata does not
+have file size information, so I will be unable to incorporate these
+files into the glacier backup costs until I obtain dbGaP access to the
+files.
+
+RNA libraries from dGTEx are stranded from the metadata: “Illumina
+Tru-Seq Strand Specific Large Insert RNA Sequencing (75M pairs) v1 -
+DRAGEN”
 
 ## Setup
-
-Libraries
-
-``` r
-library(ggplot2)
-```
 
 Files and directories
 
@@ -43,13 +42,7 @@ Read in files
 dgtex_metadata_df <- readxl::read_xlsx(dgtex_metadata_file)
 ```
 
-Explore comparator tissue types in dGTEx v1
-
-RNA libraries appear to be stranded “Illumina Tru-Seq Strand Specific
-Large Insert RNA Sequencing (75M pairs) v1 - DRAGEN”
-
-Currently stranded libraries fail with Shiba:
-https://github.com/Sika-Zheng-Lab/Shiba/issues/100
+## Summarize comparator tissue types in dGTEx v1
 
 ``` r
 dgtex_rna_summary <- dgtex_metadata_df |>
@@ -59,40 +52,46 @@ dgtex_rna_summary <- dgtex_metadata_df |>
   # select for tissue type column and sample ID column only for now
   dplyr::select(
     SAMPLE_ID,
-    SMTS
+    Tissue_type = SMTS
   ) |>
   dplyr::summarise(
-    .by = SMTS,
-    n = dplyr::n()
+    .by = Tissue_type,
+    n_samples = dplyr::n()
   ) |>
-    dplyr::arrange(n)
+    dplyr::arrange(n_samples) |>
+  dplyr::mutate(
+    total_dGTEx = sum(n_samples)
+  )
 
 dgtex_rna_summary
 ```
 
-| SMTS            |   n |
-|:----------------|----:|
-| Thymus          |   1 |
-| Pituitary       |   2 |
-| Kidney          |   3 |
-| Brain           |   4 |
-| Uterus          |   4 |
-| Ovary           |   4 |
-| Pancreas        |   5 |
-| Adrenal Gland   |   6 |
-| Blood Vessel    |   7 |
-| Heart           |   7 |
-| Spleen          |   8 |
-| Nerve           |  10 |
-| Testis          |  10 |
-| Liver           |  11 |
-| Stomach         |  14 |
-| Thyroid         |  15 |
-| Esophagus       |  18 |
-| Lymph Node      |  18 |
-| Skin            |  22 |
-| Small Intestine |  24 |
-| Colon           |  25 |
-| Lung            |  36 |
-| Adipose Tissue  |  40 |
-| Muscle          |  48 |
+| Tissue_type     | n_samples | total_dGTEx |
+|:----------------|----------:|------------:|
+| Thymus          |         1 |         342 |
+| Pituitary       |         2 |         342 |
+| Kidney          |         3 |         342 |
+| Brain           |         4 |         342 |
+| Uterus          |         4 |         342 |
+| Ovary           |         4 |         342 |
+| Pancreas        |         5 |         342 |
+| Adrenal Gland   |         6 |         342 |
+| Blood Vessel    |         7 |         342 |
+| Heart           |         7 |         342 |
+| Spleen          |         8 |         342 |
+| Nerve           |        10 |         342 |
+| Testis          |        10 |         342 |
+| Liver           |        11 |         342 |
+| Stomach         |        14 |         342 |
+| Thyroid         |        15 |         342 |
+| Esophagus       |        18 |         342 |
+| Lymph Node      |        18 |         342 |
+| Skin            |        22 |         342 |
+| Small Intestine |        24 |         342 |
+| Colon           |        25 |         342 |
+| Lung            |        36 |         342 |
+| Adipose Tissue  |        40 |         342 |
+| Muscle          |        48 |         342 |
+
+The current version of dGTEx contains 342 samples, mostly represented by
+muscle, lung, and adipose tissue.

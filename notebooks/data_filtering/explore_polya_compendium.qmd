@@ -127,14 +127,12 @@ jama_redcap_data <- readr::read_tsv(
   )
   
 ```
+
 ## Clean and merge Treehouse PolyA compendium sample metadata
 
 Treehouse PolyA compendium metadata must be merged with the AWS file log to obtain file size of polyA compendium samples.
 
-To clean the AWS file log, and obtain treehouse IDs to merge on,
-the `path` column must be split into file type and Treehouse ID fields. 
-Filetypes in Treehouse storage are: `.sra`, `.sra.vdbcache`, `sequence.txt.gz`, `markdown.txt`, `.fastq`, .`fq.gz`, and `.bam`. 
-`.bam` files processed by Treehouse should contained unmapped reads.
+To clean the AWS file log, and obtain treehouse IDs to merge on, the `path` column must be split into file type and Treehouse ID fields. Filetypes in Treehouse storage are: `.sra`, `.sra.vdbcache`, `sequence.txt.gz`, `markdown.txt`, `.fastq`, .`fq.gz`, and `.bam`. `.bam` files processed by Treehouse should contained unmapped reads.
 
 ```{r clean_aws_df}
 # derive th_dataset_id and file type from file paths
@@ -153,8 +151,7 @@ cleaned_aws_df <- treehouse_aws_df  |>
   )
 ```
 
-Merge Treehouse PolyA Compendium metadata with aws file information to associate file size with compendium samples. 
-This information will be used to inform download batching strategy and estimate AWS file transfer costs.
+Merge Treehouse PolyA Compendium metadata with aws file information to associate file size with compendium samples. This information will be used to inform download batching strategy and estimate AWS file transfer costs.
 
 ```{r merge_compendium_with_aws}
 merged_compendium_aws_df <- polya_metadata_df |> 
@@ -187,14 +184,9 @@ merged_compendium_aws_df <- polya_metadata_df |>
   )
 ```
 
-Filter samples prior to summarizing. 
-For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse. 
-TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples. We can download the rest of TARGET (e.g. osteosarcomas) that were not processed for Splice Compendium v1 through the `sra-toolkit` script,
-so I will leave TARGET out of the summary (no need to include it in data transfer cost estimates).
+Filter samples prior to summarizing. For now, I will exclude samples from TARGET and TCGA, since these are datasets not unique to Treehouse. TARGET is in Splice Compendium v1, and TCGA is primarily composed of adult samples. We can download the rest of TARGET (e.g. osteosarcomas) that were not processed for Splice Compendium v1 through the `sra-toolkit` script, so I will leave TARGET out of the summary (no need to include it in data transfer cost estimates).
 
-I will also not filter for PEDAYA, because some samples have inconsistently annotated `pedaya` and/or `age_at_dx` information. 
-(some samples with < 30 `age_at_dx` are labeled "unknown" in the `pedaya` field and some samples have "unknown" `age_at_dx` information. 
-I assume all samples are pediatric based off the study area of collaborators where samples are from.
+I will also not filter for PEDAYA, because some samples have inconsistently annotated `pedaya` and/or `age_at_dx` information. (some samples with \< 30 `age_at_dx` are labeled "unknown" in the `pedaya` field and some samples have "unknown" `age_at_dx` information. I assume all samples are pediatric based off the study area of collaborators where samples are from.
 
 CBTN samples appear to be on dbGaP under `phs002517.v5.p3` but I do not have access to it on dbGaP so must include these data in the S3 transfer estimate.
 
@@ -235,8 +227,7 @@ Much of the compendium is composed of rare sarcomas (n = 1 or n \< 5). The major
 
 Generate summaries of PolyA Compendium files on glacier we will need to transfer off S3, for cost estimation.
 
-There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. 
-These are cases where multiple fastq pairs are associated with the same sample.\
+There are some cases where the same Treehouse sample ID appears multiple times, but the bytes are different. These are cases where multiple fastq pairs are associated with the same sample.\
 The strategy for processing these files is to concatenate the fastqs into a single read1 / read2 pair, prior to trimming and alignment.
 
 #### PolyA compendium data source summary
@@ -258,9 +249,8 @@ filtered_compendium_aws_df |>
   )
 
 ```
-Most of the data in the PolyA Compendium from individual collaborators should be accessible on SRA. 
-Some of these files are listed as `.sra` in glacier, so the estimated filesize may be smaller than the actual zipped `.fastq`s once SRA files are extracted. 
-The SRA group represents data that I should be able to download with `sra-toolkit`, so I will exclude it from the S3 transfer costs.
+
+Most of the data in the PolyA Compendium from individual collaborators should be accessible on SRA. Some of these files are listed as `.sra` in glacier, so the estimated filesize may be smaller than the actual zipped `.fastq`s once SRA files are extracted. The SRA group represents data that I should be able to download with `sra-toolkit`, so I will exclude it from the S3 transfer costs.
 
 "unavailable" indicates the data originate from individual collaborators, such as collaborators.
 
@@ -279,14 +269,12 @@ merged_compendium_aws_df |>
     n_files = dplyr::n()
   )
 ```
-Most CBTN samples are ribo-deplete, so there are fewer CBTN samples in the PolyA Compendium than TARGET samples.
-We are interested in adding osteosarcomas from TARGET to the splice compendium, in addition to the CBTN brain tumor samples.
-However, TARGET can be downloaded off dbGaP so will not be included in the cost estimate.
+
+Most CBTN samples are ribo-deplete, so there are fewer CBTN samples in the PolyA Compendium than TARGET samples. We are interested in adding osteosarcomas from TARGET to the splice compendium, in addition to the CBTN brain tumor samples. However, TARGET can be downloaded off dbGaP so will not be included in the cost estimate.
 
 #### Individual collaborator sample summary
 
-To obtain a summary of the collaborator of origin of samples wuth "unavailable" `source_name`, 
-the filtered polyA compendium dataframe must be merged with the dataframe mapping Treehouse IDs to collaborators.
+To obtain a summary of the collaborator of origin of samples wuth "unavailable" `source_name`, the filtered polyA compendium dataframe must be merged with the dataframe mapping Treehouse IDs to collaborators.
 
 ```{r merge_with_collaborator_info}
 # merge filtered compendium df with file info from aws with supplement labeling individual collaborator source of Treehouse IDs
@@ -319,8 +307,7 @@ collaborator_source_compendium_df |>
 
 ```
 
-In total, we have sequences from 193 samples originating from individual collaborators in the PolyA Compendium. 
-3/144 samples are from the JAMA paper, while 31/33 patients are from the CKCC2 paper.
+In total, we have sequences from 193 samples originating from individual collaborators in the PolyA Compendium. 3/144 samples are from the JAMA paper, while 31/33 patients are from the CKCC2 paper.
 
 Disease breakdown of Treehouse polyA samples from individual collaborators
 
@@ -336,13 +323,11 @@ collaborator_source_compendium_df |>
 
 ```
 
-The majority of these samples are rare sarcomas with n = 1.
-Osteosarcomas and gliomas are the most represented diseases in this category of samples.
+The majority of these samples are rare sarcomas with n = 1. Osteosarcomas and gliomas are the most represented diseases in this category of samples.
 
 ## PolyA JAMA collaborator samples passing QC
 
-JAMA and CKCC2 samples represent pediatric patient tumor RNA-seq from individual collaborators hat have been studied in previous Treehouse publications (Vaske 2019 and Vasquez 2025). 
-These samples are of high priority to include in the Splice Compendium because they have not yet been deposited to a data repository, so there is high utility for the pediatric community to have access to splice quantifications from these samples.
+JAMA and CKCC2 samples represent pediatric patient tumor RNA-seq from individual collaborators hat have been studied in previous Treehouse publications (Vaske 2019 and Vasquez 2025). These samples are of high priority to include in the Splice Compendium because they have not yet been deposited to a data repository, so there is high utility for the pediatric community to have access to splice quantifications from these samples.
 
 To prioritize samples among this set for processing, we want to filter for samples that are polyA-selected, pass MEND QC, and have gene expression quantifications in the Treehouse PolyA Compendium.
 
@@ -352,7 +337,7 @@ Samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must co
 
 Codes for library selection from Treehouse's REDCap system are found in the `inv10_ribod` column, with 10 indicating polyA:
 
-![](images/Screenshot 2026-10-22 at 10.04.09 PM.png)
+![](images/Screenshot 2026-10-22 at 10.04.09 PM-01.png){fig-align="center"}
 
 ### Summarize JAMA samples that pass MEND QC and are PolyA
 
@@ -369,8 +354,8 @@ jama_redcap_data |>
   dplyr::summarise(.by = c(qc, pass_mend, inv10_ribod),
                    n = dplyr::n())
 ```
-88/144 JAMA samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium.
-31 samples are poly-A selected but have no MEND QC information (assume fail QC by the qc column code).
+
+88/144 JAMA samples pass MEND QC and are polyA, so I should expect to see 88 JAMA samples in the polyA compendium. 31 samples are poly-A selected but have no MEND QC information (assume fail QC by the qc column code).
 
 ### Check if JAMA PolyA QC-pass samples are on glacier
 
@@ -401,13 +386,11 @@ cleaned_aws_df |>
   
 ```
 
-We only have 3 samples from JAMA on glacier as well.
-This will make estimating file size difficult, but I will estimate based off the avg gb for these 6 fastqs.
+We only have 3 samples from JAMA on glacier as well. This will make estimating file size difficult, but I will estimate based off the avg gb for these 6 fastqs.
 
 ## All JAMA samples by collaborator
 
-Create a table of collaborator origin of JAMA samples. 
-These are represent collaborators we need to reach out to to request for data to be deposited.
+Create a table of collaborator origin of JAMA samples. These are represent collaborators we need to reach out to to request for data to be deposited.
 
 ```{r}
 #| label: tbl-jama_by_collaborator_source
@@ -428,9 +411,7 @@ jama_samples_by_collaborator_df <- dplyr::tibble(jama_sample_vector) |>
 jama_samples_by_collaborator_df
 ```
 
-CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed.
-Alejandro and PNOC UCSF JAMA samples are therefore sequence data we should have access to.
-88/90 of these samples pass QC and are polyA.
+CHOC are all ribo-deplete and BC-POC fastqs cannot be accessed. Alejandro and PNOC UCSF JAMA samples are therefore sequence data we should have access to. 88/90 of these samples pass QC and are polyA.
 
 ## Output a list of file accessions per data source
 
@@ -489,4 +470,3 @@ jama_samples_by_collaborator_df |>
   readr::write_tsv(jama_samples_by_collaborator)
 
 ```
-

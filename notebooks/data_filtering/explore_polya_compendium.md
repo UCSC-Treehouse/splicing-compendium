@@ -542,8 +542,11 @@ reads.” [(Beale
 Codes for library selection from Treehouse’s REDCap system are found in
 the `inv10_ribod` column, with 10 indicating polyA:
 
-<img src="images/Screenshot%202026-10-22%20at%2010.04.09%20PM-01.png"
-data-fig-align="center" />
+10 - PolyA
+
+2 - QC fail
+
+7 - xenograft
 
 ### Summarize JAMA samples that pass MEND QC and are PolyA
 

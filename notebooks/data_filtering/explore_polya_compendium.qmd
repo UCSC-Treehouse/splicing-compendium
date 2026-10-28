@@ -337,7 +337,11 @@ Samples pass MEND QC if they have \>= 10M MEND reads : "The RNA-Seq data must co
 
 Codes for library selection from Treehouse's REDCap system are found in the `inv10_ribod` column, with 10 indicating polyA:
 
-![](images/Screenshot 2026-10-22 at 10.04.09 PM-01.png){fig-align="center"}
+10 - PolyA
+
+2 - QC fail
+
+7 - xenograft
 
 ### Summarize JAMA samples that pass MEND QC and are PolyA
 

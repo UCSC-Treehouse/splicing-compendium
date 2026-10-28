@@ -12,7 +12,7 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 We are interested in adding more datasets to the Treehouse Splice Compendium prior to submitting the manuscript to a journal. Currently, the priorities are to include samples in the Treehouse PolyA compendia, with healthy comparators from dGTEx.
 
-This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and filters for samples to download to process for Splice Compendium v1.2. The input files to this notebook are:
+This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compendium and filters for samples to download to process for the Treehouse Splice Compendium. The input files to this notebook are:
 
 **polya_clinical_file**: [Treehouse PolyA Compendium v25 clinical metadata](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE294351), which contains clinical (disease, age at dx, sample source) information associated with a unique `th_dataset_id`. This file has more samples than recorded in `treehouse_files_on_aws`, because Treehouse does not keep all of the TARGET files processed in the PolyA compendium on AWS.
 
@@ -22,9 +22,9 @@ This notebook reads in the clinical metadata from the v25 Treehouse PolyA Compen
 
 **41698_2025_852_MOESM2_ESM.xlsx**: Supplementary data table 1 from [Vasquez et al. 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC11928651/#sec29) listing Treehouse sample IDs of 33 samples used in study.
 
-**JAMA_TH_IDs.tsv**: space-separated file of 144 sample IDs used in [Vaske et al. 2019](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2753519), pasted from eTable 3b in the paper's [supplement](https://cdn.jamanetwork.com/ama/content_public/journal/jamanetworkopen/938206/zoi190533supp1_prod.pdf?Expires=1794613443&Signature=WLyr7rwB8MKSlrxifyxwoJ75UMi1ByrZUUi2X~k3JhloUTzZvJTDuBzkgS8mHOvixSNDp6kPS5ygqHaNk-EcwPNC6G9mG0VXY5ORDMVdrSlCGy2WujAvboi0lCObb3GEtNBXy0iuBOKPERC3FFQX7LI4xHPxm060Gzu3ColP91exQVd1w10XJYGA6cnn5GhqMCzpC~YBCPtalUlWqaGGmKaYzaUmDCWeTDN5W0~X~VsX8yZSHS8rbj18EciADgJdPawWGDI3ml0WGrgcgbD8V2tkG33t1DcE7gJwHJLogU9PfHYNvye8TOppM8lMbcZXSt40Npr7S~XfDFvv5XA4GQ__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA)
+**JAMA_TH_IDs.tsv**: Space-separated file of 144 sample IDs used in [Vaske et al. 2019](https://jamanetwork.com/journals/jamanetworkopen/fullarticle/2753519), pasted from eTable 3b in the paper's [supplement](https://cdn.jamanetwork.com/ama/content_public/journal/jamanetworkopen/938206/zoi190533supp1_prod.pdf?Expires=1794613443&Signature=WLyr7rwB8MKSlrxifyxwoJ75UMi1ByrZUUi2X~k3JhloUTzZvJTDuBzkgS8mHOvixSNDp6kPS5ygqHaNk-EcwPNC6G9mG0VXY5ORDMVdrSlCGy2WujAvboi0lCObb3GEtNBXy0iuBOKPERC3FFQX7LI4xHPxm060Gzu3ColP91exQVd1w10XJYGA6cnn5GhqMCzpC~YBCPtalUlWqaGGmKaYzaUmDCWeTDN5W0~X~VsX8yZSHS8rbj18EciADgJdPawWGDI3ml0WGrgcgbD8V2tkG33t1DcE7gJwHJLogU9PfHYNvye8TOppM8lMbcZXSt40Npr7S~XfDFvv5XA4GQ__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA). This file is not directly used as input, but is used to derive `JAMA_TH_ID_column.txt`, which is read in.
 
-JAMA Treehouse IDs are obtained from JAMA_TH_IDs.tsv document through:
+**JAMA_TH_ID_column.txt:** This file contains a column of JAMA Treehouse sample IDs and is obtained from the above file through the following command:
 
 ```         
 awk 'NR > 1 {print $1}' JAMA_TH_IDs.tsv > JAMA_TH_ID_column.txt
@@ -32,9 +32,11 @@ awk 'NR > 1 {print $1}' JAMA_TH_IDs.tsv > JAMA_TH_ID_column.txt
 
 **Jama_REDCap_Donor_Sample_20260730.tsv**: REDCap record of JAMA samples in Treehouse's internal database, with MEND QC information.
 
-This notebook produces output files of accession IDs of Treehouse PolyA Compendium v25 files, separated by dataset of origin. Accessions from these files will be used as input for downstream downloading scripts.
+**Notebook output:**
 
-Additionally, this notebook produces summary tables breaking down individual contributors of origin for samples in the Treehouse PolyA Compendium, and samples from the Vaske 2019 and Vasquez 2025 papers.
+This notebook produces summary tables of samples of interest from the Treehouse PolyA Compendium and samples from the Vaske 2019 and Vasquez 2025 papers.
+
+This notebook produces output files of accession IDs of Treehouse PolyA Compendium v25 files. One output file is created for each data source (e.g. SRA, TARGET, individual collaborators). Accessions from these files will be used as input for downstream downloading scripts.
 
 ## Setup
 
@@ -46,23 +48,25 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 metadata_dir <- file.path(repo_root, "metadata")
 
 ## Files ##
-# Treehouse polyA compendium with disease type of samples and treehouse ID
+# Treehouse polyA compendium metadata file (contains disease type of samples and treehouse ID)
 polya_clinical_file <- file.path(metadata_dir, "GSE294351_clinical_Treehouse-Tumor-Compendium-25.01-PolyA_20250131v1.tsv")
-# record of files on AWS, with file type information and file size.
-# to be associated with polya_clinical_file by treehouse ID
+# record of files on AWS, with file type, path, and file size to be associated with polya_clinical_file by treehouse ID
 treehouse_aws_summary_file <- file.path(metadata_dir, "archived_files_on_archive-treehouse-ucsc-edu_primary.txt")
-# table associating Treehouse IDs with individual partner contributor source
+# file associating Treehouse IDs with the name of its Treehouse partner contributor
 thid_partner_file <- file.path(metadata_dir, "TH_dataset_ID_by_collaborator_THIDs.tsv")
+# Treehouse IDs of files in the JAMA (Vaske 2019) and CKCC2 (Vasquez 2025) papers
 jama_sample_id_file <- file.path(metadata_dir, "JAMA_TH_ID_column.txt")
 vasquez_sample_id_file <- file.path(metadata_dir, "41698_2025_852_MOESM2_ESM.xlsx")
-
+# REDCap metadata of JAMA samples, with MEND QC and library selection information
 jama_redcap_file <- file.path(metadata_dir, "jama_REDCap_Donor_Sample_20260730.tsv")
 
 # output accessions 
-# list of SRA accessions fof polyA compendium files
+# accessions of polyA compendium files from public datasets to download, one file per data source
 sra_accessions <- file.path(metadata_dir, "sra_polya_compendium_accessions.txt")
 ega_accessions <- file.path(metadata_dir, "ega_polya_compendium_accessions.txt")
 cbtn_accessions <- file.path(metadata_dir, "cbtn_polya_compendium_accessions.txt")
+
+# accessions of Treehouse samples to download (generated by Treehouse or collaborators)
 # these files should only have treehouse IDs rather than "accession" IDs
 treehouse_collaborator_ids <-file.path(metadata_dir, "collaborator_polya_compendium_ids.txt")
 publication_only_th_collaborator_ids <- file.path(metadata_dir, "pub_only_collaborator_ids.txt")
@@ -74,7 +78,7 @@ Read in files
 
 ```{r}
 ## Read in files ##
-# age_at_dx have "unknown" when age is unknown so cannot set coltype as double
+# age_at_dx have "unknown" when age is unknown so coltype must be a character
 polya_metadata_df <- readr::read_tsv(polya_clinical_file,
                                      col_types = readr::cols(
                                        .default = "c"
@@ -123,14 +127,11 @@ jama_redcap_data <- readr::read_tsv(
   )
   
 ```
+## Summary of JAMA and CKCC2 samples within Treehouse PolyA Compendium
 
-Note: JAMA sample IDs are sample IDs, while CKCC2 IDs are patient IDs, which can be derived from the sample ID.
 
-```{r}
-jama_sample_vector |> head()
 
-vasquez_sample_vector |> head()
-```
+Note: JAMA sample IDs are sample IDs (`TH01_0054_S01`), while CKCC2 IDs are patient IDs (`TH34_1149`), which can be derived from the sample ID column in the PolyA metadata file.
 
 Out of all JAMA samples, check how many have no QC data (assume they are not in polyA compendium for this reason)
 
@@ -205,6 +206,7 @@ merged_compendium_aws_df <- polya_metadata_df |>
     organism,
     sex,
     study_accession,
+    study_dataset_id,
     source_name,
     bytes,
     suffix
@@ -397,6 +399,7 @@ for_export_compendium_df <- collaborator_source_compendium_df |>
     publication_origin,
     partner,
     study_accession,
+    study_dataset_id,
     source_name
   )
 

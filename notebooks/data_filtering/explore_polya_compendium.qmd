@@ -32,6 +32,8 @@ awk 'NR > 1 {print $1}' JAMA_TH_IDs.tsv > JAMA_TH_ID_column.txt
 
 **Jama_REDCap_Donor_Sample_20260730.tsv**: REDCap record of JAMA samples in Treehouse's internal database, with MEND QC information.
 
+**attic-backedup.202610289.txt**: Log of files backed up on attic. This file has JAMA samples missing from glacier, along with their file sizes and paths.
+
 **Notebook output:**
 
 This notebook produces summary tables of samples of interest from the Treehouse PolyA Compendium and samples from the Vaske 2019 and Vasquez 2025 papers.
@@ -59,6 +61,10 @@ jama_sample_id_file <- file.path(metadata_dir, "JAMA_TH_ID_column.txt")
 vasquez_sample_id_file <- file.path(metadata_dir, "41698_2025_852_MOESM2_ESM.xlsx")
 # REDCap metadata of JAMA samples, with MEND QC and library selection information
 jama_redcap_file <- file.path(metadata_dir, "jama_REDCap_Donor_Sample_20260730.tsv")
+# log of JAMA files on attic, with s3 paths and file sizes
+jama_attic_file <- file.path(metadata_dir, "attic-backedup.202610289.txt")
+# log of files in splice compendium with file sizes
+splice_compendium_files <- file.path(metadata_dir, "20261028_splicecompendium_alignments.txt")
 
 # output accessions 
 # accessions of polyA compendium files from public datasets to download, one file per data source
@@ -122,10 +128,28 @@ jama_redcap_data <- readr::read_tsv(
     th_sampleid = "c",
     qc = "n",
     umend = "n",
+    neworigfilepath = "c",
+    tr_method = "c",
+    pairsingle = "c",
+    strand = "c",
     # polyA samples are denoted with a value of "10" here
     inv10_ribod  = "n")
   )
-  
+
+splice_compendium_file_df <- read.table(
+  splice_compendium_files,
+  sep = "",
+  header = FALSE,
+  col.names = c(
+  "bytes",
+  "path"
+),
+colClasses = c(
+  bytes = "double"
+)
+)
+
+
 ```
 
 ## Clean and merge Treehouse PolyA compendium sample metadata
@@ -241,11 +265,13 @@ filtered_compendium_aws_df |>
     .by = source_name,
     n_samples = length(unique(th_dataset_id)),
     n_files = dplyr::n(),
-    total_bytes = sum(bytes)
+    group_bytes = sum(bytes)
   ) |>
   # calculate avg filesize for S3 cost estimator
   dplyr::mutate(
-    avg_gb_per_file = total_bytes / n_files / 1000000000
+    total_bytes = sum(group_bytes),
+    total_files = sum(n_files),
+    avg_gb_per_file = total_bytes / total_files / 1000000000
   )
 
 ```
@@ -474,3 +500,20 @@ jama_samples_by_collaborator_df |>
   readr::write_tsv(jama_samples_by_collaborator)
 
 ```
+
+```{r}
+jama_pass_qc_ids
+```
+
+Create tsv of JAMA samples that are polyA
+
+```{r}
+splice_compendium_file_df |>
+  dplyr::mutate(
+    sum_bytes = sum(bytes),
+    avg_gb_per_file = sum_bytes / dplyr::n() / 1000000000
+    
+  )
+```
+
+2GB/file avg for splice compendium if we include sj.out.tab; 20TB total

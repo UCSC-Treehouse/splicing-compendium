@@ -1,0 +1,99 @@
+---
+title: Obtain TARGET osteosarcoma SRA accessions
+author: "Cindy Liang (celiang@ucsc.edu)"
+format:
+  gfm:
+    df-print: kable 
+editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+---
+
+## Introduction
+
+This notebook produces a file with the TARGET osteosarcoma accession IDs, to be used to download the data.
+It will also print a summary of how much space files will take up.
+Does not exclude TARGET pilot samples from filtering, because the pilot did not include osteosarcomas.
+
+### Inputs
+
+- `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
+- `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
+
+We also use the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, which describes what library prep approach was used for some samples.
+
+## Setup
+
+Read in directory and file paths
+
+```{r}
+# find the project directory (splicing-compendium)
+# working directory is in scripts/
+base_dir <- here::here()
+
+# define metadata directory
+metadata_dir <- file.path(base_dir, "metadata")
+pilot_dir <- file.path(metadata_dir, "pilot_shiba_run")
+gtex_target_metadata_dir <- file.path(metadata_dir, "filter_target_gtex")
+
+## define paths to input files
+# TARGET accessions metadata from dbGaP
+target_sra_file <- file.path(gtex_target_metadata_dir, "SraRunTable-TARGET.csv")
+
+# define path to output files
+target_accession_path <-  file.path(gtex_target_metadata_dir, "target_osteo_accessions.tsv")
+
+# read in files
+# SRA metadata of TARGET samples
+target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
+```
+
+## Filter TARGET dataset for download
+
+```{r}
+target_filtered_sra <- target_sra |>
+  # filter for TARGET accessions
+  dplyr::filter(
+    # Filter for TARGET samples
+    biospecimen_repository == "NCI_TARGET",
+    study_name == "TARGET: Osteosarcoma (OS)",
+    # filter for samples with fastqs
+    grepl("fastq", `DATASTORE filetype`),
+    # filter for paired end reads
+    LibraryLayout == "PAIRED",
+    # Filter for RNA-seq
+    analyte_type == "RNA",
+    # don't exclude target pilot because no osteos there
+  ) |>
+  # transform Bytes column to numeric for estimating space
+  dplyr::mutate(Bytes = as.numeric(Bytes)) |>
+  # select for only relevant columns
+  dplyr::select(
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+  )
+
+# count how many rows there are to count number of expected samples
+paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+file_space <- sum(target_filtered_sra$Bytes) / 1e12
+paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Summarize samples by sequencing center of origin. 
+All osteosarcomas originate from the same sequencing center.
+
+```{r sequencing_center}
+target_filtered_sra |> dplyr::count(study_name, `Center Name`)
+```
+
+Export filtered TARGET accession file
+
+```{r}
+readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))
+```
+
+Print session info
+
+```{r}
+sessionInfo()
+```

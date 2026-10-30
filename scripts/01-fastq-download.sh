@@ -38,16 +38,19 @@ sample_sheet="${config_dir}/${1}_samples.tsv"
 if [ "$1" == "target" ]; then
     dbgap_key=$target_key
     filtering=$target_filtering
+    accessions_file="$metadata_dir/target_accessions.tsv"
 
 elif [ "$1" == "target_osteo" ]; then
     dbgap_key=$target_key
     filtering=$target_filtering
+    accessions_file="$metadata_dir/target_osteo_accessions.txt"
 
     echo "target osteo filtering"
 
 elif [ "$1" == "gtex" ]; then
     dbgap_key=$gtex_key
     filtering=$gtex_filtering
+    accessions_file="$metadata_dir/gtex_accessions.txt"
 
 else
     echo "please use valid sample group"
@@ -72,16 +75,23 @@ exec > >(tee $log_file) 2>&1
 # Run filtering script to obtain accession IDs to download
 quarto render ${filtering}
 
-if [["$1" == "target" || "$1" == "gtex"]]; then
+echo "filtering notebook rendered, accessions generated for $1"
 
-    # print accessions of the dataset
+if [["$1" == "target_osteo"]]; then
 
-    awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}_accessions.tsv"
+    echo "$1 read in for sra loop"
+
+    # print the set of accession IDs to be downloaded to spot-check
+    # set field separator as tab
+    # skip first line (header)
+    # print first column (accession IDs)
+    awk -F '\t' 'NR > 1 {print $1}' ${accessions_file}
 
     # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
-    time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}_accessions.tsv" | while read -r ID; do
+    # read each item in the column as ID object
+    time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
         # check that fastq or zipped fastq does not already exist
-        if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
+        if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
 
             # prefetch file dependencies if neither fastq nor zipped fastq exist
             # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
@@ -90,7 +100,7 @@ if [["$1" == "target" || "$1" == "gtex"]]; then
 
             # Check if prefetch file directory has been created
             # Lack of directory means prefetch has failed; skip to next accession
-            if [ ! -d "${fastq_dir}/$ID" ]; then
+            if [[ ! -d "${fastq_dir}/$ID" ]]; then
                 # record the accession ID not downloaded
                 echo -e "$ID\tprefetch" >> $error_log_file
                 continue
@@ -118,19 +128,20 @@ if [["$1" == "target" || "$1" == "gtex"]]; then
 
     done
 
-elif [["$1" == "target_osteo"]]; then
+fi
 
-    # print the set of accession IDs to be downloaded to spot-check
-    # set field separator as tab
-    # skip first line (header)
-    # print first column (accession IDs)
-    awk -F '\t' 'NR > 1 {print $1}' ${accessions_file}
+if [["$1" == "target" || "$1" == "gtex"]]; then
+
+    echo "batched accession download beginning"
+
+    # print accessions of the dataset
+
+    awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' ${accessions_file}
 
     # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
-    # read each item in the column as ID object
-    time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
+    time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' ${accessions_file} | while read -r ID; do
         # check that fastq or zipped fastq does not already exist
-        if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
+        if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
 
             # prefetch file dependencies if neither fastq nor zipped fastq exist
             # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
@@ -139,7 +150,7 @@ elif [["$1" == "target_osteo"]]; then
 
             # Check if prefetch file directory has been created
             # Lack of directory means prefetch has failed; skip to next accession
-            if [ ! -d "${fastq_dir}/$ID" ]; then
+            if [[ ! -d "${fastq_dir}/$ID" ]]; then
                 # record the accession ID not downloaded
                 echo -e "$ID\tprefetch" >> $error_log_file
                 continue

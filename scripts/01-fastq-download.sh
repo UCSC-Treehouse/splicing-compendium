@@ -107,7 +107,7 @@ if [[ "$1" == "target_osteo" ]]; then
             fi
 
             # download fastq file for each accession
-            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 15 --outdir $fastq_dir || true
+            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
 
             # Check if fastq file exists
             # If file is missing, record error in fastq-dump step and move on to next accession
@@ -157,7 +157,7 @@ if [[ "$1" == "target" || "$1" == "gtex" ]]; then
             fi
 
             # download fastq file for each accession
-            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 15 --outdir $fastq_dir || true
+            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
 
             # Check if fastq file exists
             # If file is missing, record error in fastq-dump step and move on to next accession

@@ -15,8 +15,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # dbGaP key files
-target_key="/home/ubuntu/prj_11732_D43588.ngc"
-gtex_key="/home/ubuntu/prj_9508_D43588.ngc"
+target_key="/private/home/celiang/ngc_keys/prj_11732_D43588.ngc"
+gtex_key="/private/home/celiang/ngc_keys/prj_9508_D43588.ngc"
 
 # Set time and date as variables
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
@@ -35,19 +35,19 @@ sample_sheet="${config_dir}/${1}_samples.tsv"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
-if [ "$1" == "target" ]; then
+if [[ "$1" == "target" ]]; then
     dbgap_key=$target_key
     filtering=$target_filtering
     accessions_file="$metadata_dir/target_accessions.tsv"
 
-elif [ "$1" == "target_osteo" ]; then
+elif [[ "$1" == "target_osteo" ]]; then
     dbgap_key=$target_key
     filtering=$target_filtering
     accessions_file="$metadata_dir/target_osteo_accessions.txt"
 
     echo "target osteo filtering"
 
-elif [ "$1" == "gtex" ]; then
+elif [[ "$1" == "gtex" ]]; then
     dbgap_key=$gtex_key
     filtering=$gtex_filtering
     accessions_file="$metadata_dir/gtex_accessions.txt"
@@ -77,7 +77,7 @@ quarto render ${filtering}
 
 echo "filtering notebook rendered, accessions generated for $1"
 
-if [["$1" == "target_osteo"]]; then
+if [[ "$1" == "target_osteo" ]]; then
 
     echo "$1 read in for sra loop"
 
@@ -130,7 +130,7 @@ if [["$1" == "target_osteo"]]; then
 
 fi
 
-if [["$1" == "target" || "$1" == "gtex"]]; then
+if [[ "$1" == "target" || "$1" == "gtex" ]]; then
 
     echo "batched accession download beginning"
 

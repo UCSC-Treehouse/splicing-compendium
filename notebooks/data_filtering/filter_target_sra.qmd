@@ -94,7 +94,42 @@ all_phase_two_exclude_list <- all_phase_two_ribo_d_to_remove$RNA_barcode_D
 
 ```
 
-### Filter TARGET data for 2026_09 release 
+### Filter TARGET accession metadata and assign strandedness based on sequencing year
+
+TARGET cancer samples are stranded or unstranded based off their tumor type and sequencing year.
+Original links to methods are now broken
+
+[ALL (phase 1 and 2), NBL, RT, WT](https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/all-nbl-rt-wt-mrnaseq-illumina.pdf
+): Samples are stranded or unstranded based off sequencing year.
+Pre-2014: Unstranded
+Post-2014: Stranded 
+
+AML: stranded https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/aml-aml-if-mrnaseq-illumina.pdf
+
+CCSK: stranded https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/ccsk-mrnaseq-illumina.pdf
+Are excluded anyway
+
+ALL phase 3: no info on strandedness (but we don't have these in compendium) https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/alal-mrnaseq-illumina.pdf
+
+Make a list of TARGET study_name strings of tumor types that are all stranded
+
+```{r}
+# AML CCSK
+# but we don't plan to have ccsk in final filtered set
+stranded_tumor_types <- c("TARGET: Acute Myeloid Leukemia (AML)")
+
+# ALL (phase 1 and 2), NBL, RT, WT
+mixed_stranded_tumor_types <- c(
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2",
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1",
+  "TARGET: Neuroblastoma (NBL)",
+  "TARGET: Kidney\\, Wilms Tumor (WT)",
+  "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
+)
+```
+
+Filter accessions metadata file for splice compendium TARGET set.
+Also label files by whether sequencing method documentation states they are stranded based on sequencing year.
 
 ```{r}
 target_filtered_sra <- target_sra |>
@@ -121,9 +156,24 @@ target_filtered_sra <- target_sra |>
   dplyr::mutate(Bytes = as.numeric(Bytes)) |>
   # select for only relevant columns
   dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`, create_date, ReleaseDate, `Sequencing_date (run)`, `Sequencing_Dates (run)`, Platform, `library (exp)`
+  ) |>
+  # derive sequencing year column from sequencing_date
+  dplyr::mutate(
+    sequencing_year = as.numeric(
+      stringr::str_split_i(`Sequencing_date (run)`, "-", 1)
+  ),
+    pre_2014 = dplyr::case_when(
+          sequencing_year < 2014 ~ TRUE,
+          sequencing_year > 2014 ~ FALSE
+    ),
+    strand_metadata = dplyr::case_when(
+      pre_2014 == TRUE & study_name %in% mixed_stranded_tumor_types ~ "unstranded",
+      pre_2014 == FALSE & study_name %in% mixed_stranded_tumor_types ~ "stranded",
+      study_name %in% stranded_tumor_types ~ "stranded"
   )
-
+  )
+  
 # count how many rows there are
 paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
 
@@ -135,18 +185,7 @@ paste0("About ", file_space, " terabytes of space will be taken up by file downl
 Summarize distribution of tumor types across TARGET samples:
 
 ```{r}
-target_filtered_sra |> dplyr::count(study_name, `Center Name`)
-```
-
-```{r}
-target_filtered_sra |>
-  dplyr::filter(
-    study_name == "TARGET: Osteosarcoma (OS)"
-  ) |>
-    dplyr::mutate(
-      total_samples = dplyr::n(),
-      total_gb = sum(Bytes) / 1000000000
-    )
+osteo_target_sra <- target_filtered_sra |> 
 ```
 
 ## Divide TARGET accessions into groups of 1.2TB samples
@@ -176,7 +215,7 @@ target_filtered_sra |>
   )
 ```
 
-### Filter TARGET data for 2027_XX release 
+### Filter TARGET data for 2027_XX release
 
 Filter TARGET dataset for osteosarcomas only, which we plan to download and process for the next splice compendium release.
 

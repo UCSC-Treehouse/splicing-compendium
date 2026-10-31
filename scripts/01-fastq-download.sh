@@ -2,11 +2,8 @@
 
 # Download script of RNA-seq for pediatric cancer splicing analysis
 ## 2027_xx ##
-# usage: bash scripts/01-fastq-download.sh target_osteo
-
-## 2026_09 ##
-# usage: scripts/01-fastq-download.sh [dataset] [batch number]
-# example for downloading the first 1.2TB batch of target: scripts/01-target-download.sh target 1
+# usage: bash scripts/01-fastq-download.sh [dataset]
+# with dataset being any of: target_osteo, target, gtex
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -24,10 +21,10 @@ current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 # Set paths as variables
 data_dir="../data"
 group_dir="${data_dir}/${1}"
-fastq_dir="${group_dir}/2027/fastq" # should I make a 2027 dir or keep these new osteo samples all together?
+fastq_dir="${group_dir}/fastq"
 log_dir="../logs/2027/${1}_download"
 metadata_dir="../metadata/filter_target_gtex"
-config_dir="../config/2027"
+config_dir="../config"
 notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
@@ -77,108 +74,53 @@ quarto render ${filtering}
 
 echo "filtering notebook rendered, accessions generated for $1"
 
-if [[ "$1" == "target_osteo" ]]; then
-
-    echo "$1 read in for sra loop"
-
-    # print the set of accession IDs to be downloaded to spot-check
-    # set field separator as tab
-    # skip first line (header)
-    # print first column (accession IDs)
-    awk -F '\t' 'NR > 1 {print $1}' ${accessions_file}
+# print the set of accession IDs to be downloaded to spot-check
+# set field separator as tab
+# skip first line (header)
+# print first column (accession IDs)
+awk -F '\t' 'NR > 1 {print $1}' ${accessions_file}
 
     # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
     # read each item in the column as ID object
-    time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
+time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
         # check that fastq or zipped fastq does not already exist
-        if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
+    if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
 
-            # prefetch file dependencies if neither fastq nor zipped fastq exist
-            # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
-            # continue even if an error is thrown
-            prefetch --ngc $dbgap_key --max-size 40000000000 --output-directory $fastq_dir $ID || true
+        # prefetch file dependencies if neither fastq nor zipped fastq exist
+        # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
+        # continue even if an error is thrown
+        prefetch --ngc $dbgap_key --max-size 40000000000 --output-directory $fastq_dir $ID || true
 
-            # Check if prefetch file directory has been created
-            # Lack of directory means prefetch has failed; skip to next accession
-            if [[ ! -d "${fastq_dir}/$ID" ]]; then
-                # record the accession ID not downloaded
-                echo -e "$ID\tprefetch" >> $error_log_file
-                continue
-            fi
-
-            # download fastq file for each accession
-            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
-
-            # Check if fastq file exists
-            # If file is missing, record error in fastq-dump step and move on to next accession
-            if [[ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq ]]; then
-                # record the accession ID not downloaded
-                echo -e "$ID\tfasterq-dump" >> $error_log_file
-                continue
-            fi
-
-            # zip fastqs to save space
-            # use default number of processes, which is 8 or number of online processors
-            pigz "${fastq_dir}"/${ID}_*.fastq
-
-            # offload prefetch prerequisites
-            rm -R "${fastq_dir}/${ID}"
-
+        # Check if prefetch file directory has been created
+        # Lack of directory means prefetch has failed; skip to next accession
+        if [[ ! -d "${fastq_dir}/$ID" ]]; then
+            # record the accession ID not downloaded
+            echo -e "$ID\tprefetch" >> $error_log_file
+            continue
         fi
 
-    done
+        # download fastq file for each accession
+        fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
 
-fi
-
-if [[ "$1" == "target" || "$1" == "gtex" ]]; then
-
-    echo "batched accession download beginning"
-
-    # print accessions of the dataset
-
-    awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' ${accessions_file}
-
-    # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
-    time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' ${accessions_file} | while read -r ID; do
-        # check that fastq or zipped fastq does not already exist
-        if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
-
-            # prefetch file dependencies if neither fastq nor zipped fastq exist
-            # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
-            # continue even if an error is thrown
-            prefetch --ngc $dbgap_key --max-size 40000000000 --output-directory $fastq_dir $ID || true
-
-            # Check if prefetch file directory has been created
-            # Lack of directory means prefetch has failed; skip to next accession
-            if [[ ! -d "${fastq_dir}/$ID" ]]; then
-                # record the accession ID not downloaded
-                echo -e "$ID\tprefetch" >> $error_log_file
-                continue
-            fi
-
-            # download fastq file for each accession
-            fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
-
-            # Check if fastq file exists
-            # If file is missing, record error in fastq-dump step and move on to next accession
-            if [[ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq ]]; then
-                # record the accession ID not downloaded
-                echo -e "$ID\tfasterq-dump" >> $error_log_file
-                continue
-            fi
-
-            # zip fastqs to save space
-            # use default number of processes, which is 8 or number of online processors
-            pigz "${fastq_dir}"/${ID}_*.fastq
-
-            # offload prefetch prerequisites
-            rm -R "${fastq_dir}/${ID}"
-
+        # Check if fastq file exists
+        # If file is missing, record error in fastq-dump step and move on to next accession
+        if [[ ! -f "${fastq_dir}"/${ID}_1.fastq || ! -f "${fastq_dir}"/${ID}_2.fastq ]]; then
+            # record the accession ID not downloaded
+            echo -e "$ID\tfasterq-dump" >> $error_log_file
+            continue
         fi
 
-    done
+        # zip fastqs to save space
+        # use default number of processes, which is 8 or number of online processors
+        pigz "${fastq_dir}"/${ID}_*.fastq
 
-fi
+        # offload prefetch prerequisites
+        rm -R "${fastq_dir}/${ID}"
+
+    fi
+
+done
+
 
 # create sample sheet file with "samples" column header
 echo "samples" > $sample_sheet

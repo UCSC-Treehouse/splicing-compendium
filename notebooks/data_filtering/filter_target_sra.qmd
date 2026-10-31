@@ -12,22 +12,18 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 
 The goals of this notebook are to filter the following SRA tables for files to download:
 
--   TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing differential splicing
+- TARGET SRA table, for pediatric cancer bulk RNA-seq to download. These sequences will be used as a query group for performing differential splicing
 
-Additionally, this notebook obtains an estimate of how much space files will take up. 
-There is 2.64Tb of free space on the huge OpenStack instance. 
-We have access to 5 more instances, which equate to 13.2TB of space
+Additionally, this notebook obtains an estimate of how much space files will take up. There is 2.64Tb of free space on the huge OpenStack instance. We have access to 5 more instances, which equate to 13.2TB of space
 
 Metadata used for this analysis are:
 
--   `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. 
-Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
--   `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
+- `SraRunTable-TARGET.csv`, metadata file of accession IDs for dbGaP samples with the TARGET dataset. Created by downloading the SRA run table on dbGaP, with the "phs000218" filter (parent phs ID for TARGET dataset)
+- `metadata/pilot_shiba_run/target_accessions.tsv` accessions file of TARGET sequences downloaded and analyzed from the pilot Shiba run, to exclude from this filtering
 
 We also use the [TARGET Molecular Characterization Platforms](https://www.cancer.gov/ccg/research/genome-sequencing/target/using-target-data/technology#all-phase-1) page, which describes what library prep approach was used for some samples.
 
-From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). 
-An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
+From Maryke's work, we also learned that a subset of the TARGET ALL phase 2 expansion is ribo-D. These samples are described in [Liu et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5535770/#S11). An excel sheet containing IDs for samples that were used in this study (which in the methods are described to have undergone ribo-depletion) has been downloaded from the Liu et al 2017 supplemental data.
 
 ## Setup
 
@@ -58,6 +54,7 @@ ribod_all_phase_two_samples <- file.path(gtex_target_metadata_dir, "41588_2017_B
 
 # define path to output files
 target_accession_path <-  file.path(gtex_target_metadata_dir, "target_accessions.tsv")
+target_osteo_accession_path <-  file.path(gtex_target_metadata_dir, "osteo_target_accessions.tsv")
 
 # read in files
 target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
@@ -97,7 +94,42 @@ all_phase_two_exclude_list <- all_phase_two_ribo_d_to_remove$RNA_barcode_D
 
 ```
 
-### Filter TARGET data
+### Filter TARGET accession metadata and assign strandedness based on sequencing year
+
+TARGET cancer samples are stranded or unstranded based off their tumor type and sequencing year.
+Original links to methods are now broken
+
+[ALL (phase 1 and 2), NBL, RT, WT](https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/all-nbl-rt-wt-mrnaseq-illumina.pdf
+): Samples are stranded or unstranded based off sequencing year.
+Pre-2014: Unstranded
+Post-2014: Stranded 
+
+AML: stranded https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/aml-aml-if-mrnaseq-illumina.pdf
+
+CCSK: stranded https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/ccsk-mrnaseq-illumina.pdf
+Are excluded anyway
+
+ALL phase 3: no info on strandedness (but we don't have these in compendium) https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/alal-mrnaseq-illumina.pdf
+
+Make a list of TARGET study_name strings of tumor types that are all stranded
+
+```{r}
+# AML CCSK
+# but we don't plan to have ccsk in final filtered set
+stranded_tumor_types <- c("TARGET: Acute Myeloid Leukemia (AML)")
+
+# ALL (phase 1 and 2), NBL, RT, WT
+mixed_stranded_tumor_types <- c(
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2",
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1",
+  "TARGET: Neuroblastoma (NBL)",
+  "TARGET: Kidney\\, Wilms Tumor (WT)",
+  "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
+)
+```
+
+Filter accessions metadata file for splice compendium TARGET set.
+Also label files by whether sequencing method documentation states they are stranded based on sequencing year.
 
 ```{r}
 target_filtered_sra <- target_sra |>
@@ -107,8 +139,6 @@ target_filtered_sra <- target_sra |>
     biospecimen_repository == "NCI_TARGET",
     # exclude cell line RNA-seq
     study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
-    # exclude osteosarcomas because they have a complex transcriptome and we have no bone GTEx comparator
-    study_name != "TARGET: Osteosarcoma (OS)",
     # filter for samples with fastqs
     grepl("fastq", `DATASTORE filetype`),
     # filter for paired end reads
@@ -126,9 +156,24 @@ target_filtered_sra <- target_sra |>
   dplyr::mutate(Bytes = as.numeric(Bytes)) |>
   # select for only relevant columns
   dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`, create_date, ReleaseDate, `Sequencing_date (run)`, `Sequencing_Dates (run)`, Platform, `library (exp)`
+  ) |>
+  # derive sequencing year column from sequencing_date
+  dplyr::mutate(
+    sequencing_year = as.numeric(
+      stringr::str_split_i(`Sequencing_date (run)`, "-", 1)
+  ),
+    pre_2014 = dplyr::case_when(
+          sequencing_year < 2014 ~ TRUE,
+          sequencing_year > 2014 ~ FALSE
+    ),
+    strand_metadata = dplyr::case_when(
+      pre_2014 == TRUE & study_name %in% mixed_stranded_tumor_types ~ "unstranded",
+      pre_2014 == FALSE & study_name %in% mixed_stranded_tumor_types ~ "stranded",
+      study_name %in% stranded_tumor_types ~ "stranded"
   )
-
+  )
+  
 # count how many rows there are
 paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
 
@@ -140,13 +185,12 @@ paste0("About ", file_space, " terabytes of space will be taken up by file downl
 Summarize distribution of tumor types across TARGET samples:
 
 ```{r}
-target_filtered_sra |> dplyr::count(study_name, `Center Name`)
+osteo_target_sra <- target_filtered_sra |> 
 ```
 
 ## Divide TARGET accessions into groups of 1.2TB samples
 
-For partitioning data onto OpenStack instances, we need to divide the TARGET accessions based on how much space they will take up. 
-So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
+For partitioning data onto OpenStack instances, we need to divide the TARGET accessions based on how much space they will take up. So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)
 
 ```{r}
 # define target sum of data
@@ -171,10 +215,52 @@ target_filtered_sra |>
   )
 ```
 
-Export filtered TARGET accession file
+### Filter TARGET data for 2027_XX release
+
+Filter TARGET dataset for osteosarcomas only, which we plan to download and process for the next splice compendium release.
+
+```{r}
+osteo_filtered_sra <- target_sra |>
+  # filter for TARGET accessions
+  dplyr::filter(
+    # Filter for TARGET samples
+    biospecimen_repository == "NCI_TARGET",
+    study_name == "TARGET: Osteosarcoma (OS)",
+    # filter for samples with fastqs
+    grepl("fastq", `DATASTORE filetype`),
+    # filter for paired end reads
+    LibraryLayout == "PAIRED",
+    # Filter for RNA-seq
+    analyte_type == "RNA",
+    # don't exclude target pilot because no osteos there
+  ) |>
+  # transform Bytes column to numeric for estimating space
+  dplyr::mutate(Bytes = as.numeric(Bytes)) |>
+  # select for only relevant columns
+  dplyr::select(
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+  )
+
+# count how many rows there are to count number of expected samples
+paste0("There are ", nrow(osteo_filtered_sra), " accessions matching the filters.")
+
+# estimate amount of space files will take up
+file_space <- sum(osteo_filtered_sra$Bytes) / 1e12
+paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+Summarize samples by sequencing center of origin. All osteosarcomas originate from the same sequencing center.
+
+```{r}
+osteo_filtered_sra |> dplyr::count(study_name, `Center Name`)
+```
+
+## Export filtered TARGET accession files
 
 ```{r}
 readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))
+readr::write_tsv(osteo_filtered_sra, file = file.path(target_osteo_accession_path ))
+
 ```
 
 Print session info

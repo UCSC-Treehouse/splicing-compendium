@@ -1,6 +1,6 @@
 # Filtering TARGET samples from SRA
 Cindy Liang (celiang@ucsc.edu)
-2026-04-09
+2026-11-01
 
 ## Introduction
 
@@ -67,6 +67,7 @@ ribod_all_phase_two_samples <- file.path(gtex_target_metadata_dir, "41588_2017_B
 
 # define path to output files
 target_accession_path <-  file.path(gtex_target_metadata_dir, "target_accessions.tsv")
+target_osteo_accession_path <-  file.path(gtex_target_metadata_dir, "osteo_target_accessions.tsv")
 
 # read in files
 target_sra <- readr::read_csv(target_sra_file, col_types = readr::cols(Bytes = "d", .default = "c"))
@@ -110,7 +111,47 @@ all_phase_two_ribo_d_to_remove <- all_phase_two_ribod |>
 all_phase_two_exclude_list <- all_phase_two_ribo_d_to_remove$RNA_barcode_D
 ```
 
-### Filter TARGET data
+### Filter TARGET accession metadata and assign strandedness based on sequencing year
+
+TARGET cancer samples are stranded or unstranded based off their tumor
+type and sequencing year. Original links to methods are now broken
+
+[ALL (phase 1 and 2), NBL, RT,
+WT](https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/all-nbl-rt-wt-mrnaseq-illumina.pdf):
+Samples are stranded or unstranded based off sequencing year. Pre-2014:
+Unstranded Post-2014: Stranded
+
+AML: stranded
+https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/aml-aml-if-mrnaseq-illumina.pdf
+
+CCSK: stranded
+https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/ccsk-mrnaseq-illumina.pdf
+Are excluded anyway
+
+ALL phase 3, osteosarcomas: no info on strandedness
+https://www.cancer.gov/ccg/research/structural-genomics/target/using-target-data/alal-mrnaseq-illumina.pdf
+
+Make a list of TARGET study_name strings of tumor types that are all
+stranded
+
+``` r
+# AML CCSK
+# we don't plan to have ccsk in final filtered set
+stranded_tumor_types <- c("TARGET: Acute Myeloid Leukemia (AML)")
+
+# ALL (phase 1 and 2), NBL, RT, WT
+mixed_stranded_tumor_types <- c(
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2",
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1",
+  "TARGET: Neuroblastoma (NBL)",
+  "TARGET: Kidney\\, Wilms Tumor (WT)",
+  "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
+)
+```
+
+Filter accessions metadata file for splice compendium TARGET set. Also
+label files by whether sequencing method documentation states they are
+stranded based on sequencing year.
 
 ``` r
 target_filtered_sra <- target_sra |>
@@ -120,8 +161,6 @@ target_filtered_sra <- target_sra |>
     biospecimen_repository == "NCI_TARGET",
     # exclude cell line RNA-seq
     study_name != "TARGET: Cancer Model Systems (MDLS): Cell Lines and Xenografts (including PPTP)",
-    # exclude osteosarcomas because they have a complex transcriptome and we have no bone GTEx comparator
-    study_name != "TARGET: Osteosarcoma (OS)",
     # filter for samples with fastqs
     grepl("fastq", `DATASTORE filetype`),
     # filter for paired end reads
@@ -139,14 +178,29 @@ target_filtered_sra <- target_sra |>
   dplyr::mutate(Bytes = as.numeric(Bytes)) |>
   # select for only relevant columns
   dplyr::select(
-    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`
+    Run, biospecimen_repository, `DATASTORE filetype`, body_site, Bytes, study_name, `DATASTORE provider`, analyte_type, `Assay Type`, `SRA Study`, BioProject, BioSample, LibraryLayout, LibrarySelection, `Center Name`, create_date, ReleaseDate, `Sequencing_date (run)`, `Sequencing_Dates (run)`, Platform, `library (exp)`
+  ) |>
+  # derive sequencing year column from sequencing_date
+  dplyr::mutate(
+    sequencing_year = as.numeric(
+      stringr::str_split_i(`Sequencing_date (run)`, "-", 1)
+  ),
+    pre_2014 = dplyr::case_when(
+          sequencing_year < 2014 ~ TRUE,
+          sequencing_year > 2014 ~ FALSE
+    ),
+    strand_metadata = dplyr::case_when(
+      pre_2014 == TRUE & study_name %in% mixed_stranded_tumor_types ~ "unstranded",
+      pre_2014 == FALSE & study_name %in% mixed_stranded_tumor_types ~ "stranded",
+      study_name %in% stranded_tumor_types ~ "stranded"
   )
-
+  )
+  
 # count how many rows there are
 paste0("There are ", nrow(target_filtered_sra), " accessions matching the filters.")
 ```
 
-    [1] "There are 1076 accessions matching the filters."
+    [1] "There are 1255 accessions matching the filters."
 
 ``` r
 # estimate amount of space files will take up
@@ -154,23 +208,33 @@ file_space <- sum(target_filtered_sra$Bytes) / 1e12
 paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
 ```
 
-    [1] "About 10.825550981914 terabytes of space will be taken up by file downloads."
+    [1] "About 11.581437832473 terabytes of space will be taken up by file downloads."
 
-Summarize distribution of tumor types across TARGET samples:
+Summarize distribution of tumor types across TARGET samples and their
+strandedness from metadata
 
 ``` r
-target_filtered_sra |> dplyr::count(study_name, `Center Name`)
+target_filtered_sra |> 
+  dplyr::summarise(
+    .by = c(study_name, strand_metadata),
+    n = dplyr::n()
+  )
 ```
 
-| study_name | Center Name | n |
+| study_name | strand_metadata | n |
 |:---|:---|---:|
-| TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | BCCAGSC | 304 |
-| TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1 | STJUDE | 3 |
-| TARGET: Acute Myeloid Leukemia (AML) | BCCAGSC | 371 |
-| TARGET: Acute Myeloid Leukemia (AML) | HAIB | 64 |
-| TARGET: Kidney, Rhabdoid Tumor (RT) | BCCAGSC | 66 |
-| TARGET: Kidney, Wilms Tumor (WT) | BCCAGSC | 122 |
-| TARGET: Neuroblastoma (NBL) | NCI-KHAN | 146 |
+| TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | stranded | 107 |
+| TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1 | NA | 3 |
+| TARGET: Acute Myeloid Leukemia (AML) | stranded | 435 |
+| TARGET: Kidney, Wilms Tumor (WT) | unstranded | 110 |
+| TARGET: Kidney, Wilms Tumor (WT) | NA | 12 |
+| TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | unstranded | 194 |
+| TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2 | NA | 3 |
+| TARGET: Kidney, Rhabdoid Tumor (RT) | unstranded | 28 |
+| TARGET: Kidney, Rhabdoid Tumor (RT) | NA | 28 |
+| TARGET: Neuroblastoma (NBL) | NA | 146 |
+| TARGET: Osteosarcoma (OS) | NA | 179 |
+| TARGET: Kidney, Rhabdoid Tumor (RT) | stranded | 10 |
 
 ## Divide TARGET accessions into groups of 1.2TB samples
 
@@ -213,13 +277,51 @@ target_filtered_sra |>
 |        6 | 109 |
 |        7 | 123 |
 |        8 | 108 |
-|        9 | 161 |
-|       10 |   4 |
+|        9 | 189 |
+|       10 | 155 |
 
-Export filtered TARGET accession file
+### Filter TARGET data for osteosarcomas
+
+Filter TARGET dataset for osteosarcomas only, which we plan to download
+and process for the next splice compendium release.
+
+``` r
+osteo_filtered_sra <- target_filtered_sra |>
+  # filter for TARGET accessions of osteosarcoma samples only
+  dplyr::filter(
+    study_name == "TARGET: Osteosarcoma (OS)"
+  )
+
+# count how many rows there are to count number of expected samples
+paste0("There are ", nrow(osteo_filtered_sra), " accessions matching the filters.")
+```
+
+    [1] "There are 179 accessions matching the filters."
+
+``` r
+# estimate amount of space files will take up
+file_space <- sum(osteo_filtered_sra$Bytes) / 1e12
+paste0("About ", file_space, " terabytes of space will be taken up by file downloads.")
+```
+
+    [1] "About 0.755886850559 terabytes of space will be taken up by file downloads."
+
+Summarize samples by sequencing center of origin. All osteosarcomas
+originate from the same sequencing center.
+
+``` r
+osteo_filtered_sra |> dplyr::count(study_name, `Center Name`)
+```
+
+| study_name                | Center Name |   n |
+|:--------------------------|:------------|----:|
+| TARGET: Osteosarcoma (OS) | NCI-MELTZER | 179 |
+
+## Export filtered TARGET accession files
 
 ``` r
 readr::write_tsv(target_filtered_sra, file = file.path(target_accession_path))
+readr::write_tsv(osteo_filtered_sra, file = file.path(target_osteo_accession_path ))
 ```
 
 Print session info
@@ -228,33 +330,32 @@ Print session info
 sessionInfo()
 ```
 
-    R version 4.4.2 (2024-10-31)
-    Platform: x86_64-conda-linux-gnu
-    Running under: Ubuntu 24.04 LTS
+    R version 4.4.3 (2025-02-28)
+    Platform: aarch64-apple-darwin20
+    Running under: macOS 27.0.1
 
     Matrix products: default
-    BLAS/LAPACK: /home/ubuntu/splicing-compendium/.pixi/envs/default/lib/libopenblasp-r0.3.30.so;  LAPACK version 3.12.0
+    BLAS:   /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRblas.0.dylib 
+    LAPACK: /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
 
     locale:
-     [1] LC_CTYPE=C.UTF-8       LC_NUMERIC=C           LC_TIME=C.UTF-8       
-     [4] LC_COLLATE=C.UTF-8     LC_MONETARY=C.UTF-8    LC_MESSAGES=C.UTF-8   
-     [7] LC_PAPER=C.UTF-8       LC_NAME=C              LC_ADDRESS=C          
-    [10] LC_TELEPHONE=C         LC_MEASUREMENT=C.UTF-8 LC_IDENTIFICATION=C   
+    [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
-    time zone: Etc/UTC
-    tzcode source: system (glibc)
+    time zone: America/Los_Angeles
+    tzcode source: internal
 
     attached base packages:
     [1] stats     graphics  grDevices utils     datasets  methods   base     
 
     loaded via a namespace (and not attached):
-     [1] crayon_1.5.3     vctrs_0.7.2      cli_3.6.5        knitr_1.51      
-     [5] rlang_1.1.7      xfun_0.57        generics_0.1.4   renv_1.1.7      
-     [9] jsonlite_2.0.0   glue_1.8.0       bit_4.6.0        rprojroot_2.1.1 
-    [13] htmltools_0.5.9  readxl_1.4.5     hms_1.1.4        rmarkdown_2.31  
-    [17] cellranger_1.1.0 evaluate_1.0.5   tibble_3.3.1     tzdb_0.5.0      
-    [21] fastmap_1.2.0    yaml_2.3.12      lifecycle_1.0.5  compiler_4.4.2  
-    [25] dplyr_1.2.0      pkgconfig_2.0.3  here_1.0.2       digest_0.6.39   
-    [29] R6_2.6.1         tidyselect_1.2.1 readr_2.2.0      parallel_4.4.2  
-    [33] vroom_1.7.0      pillar_1.11.1    magrittr_2.0.4   withr_3.0.2     
-    [37] tools_4.4.2      bit64_4.6.0-1   
+     [1] crayon_1.5.3      vctrs_0.7.3       cli_3.6.6         knitr_1.51       
+     [5] rlang_1.3.0       xfun_0.60         stringi_1.8.7     otel_0.2.0       
+     [9] generics_0.1.4    jsonlite_2.0.0    bit_4.6.0         glue_1.8.1       
+    [13] rprojroot_2.1.1   htmltools_0.5.9   readxl_1.5.0      hms_1.1.4        
+    [17] rmarkdown_2.31    cellranger_1.1.0  evaluate_1.0.5    tibble_3.3.1     
+    [21] tzdb_0.5.0        fastmap_1.2.0     yaml_2.3.12       lifecycle_1.0.5  
+    [25] stringr_1.6.0     compiler_4.4.3    dplyr_1.2.1       pkgconfig_2.0.3  
+    [29] here_1.0.2        rstudioapi_0.18.0 digest_0.6.39     R6_2.6.1         
+    [33] tidyselect_1.2.1  readr_2.2.0       parallel_4.4.3    vroom_1.7.1      
+    [37] pillar_1.11.1     magrittr_2.0.5    withr_3.0.3       tools_4.4.3      
+    [41] bit64_4.8.2      

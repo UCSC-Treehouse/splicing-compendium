@@ -39,7 +39,7 @@ if [[ "$1" == "target" ]]; then
 elif [[ "$1" == "target_osteo" ]]; then
     dbgap_key=$target_key
     filtering=$target_filtering
-    accessions_file="$metadata_dir/osteo_target_accessions.txt"
+    accessions_file="$metadata_dir/osteo_target_accessions.tsv"
 
     echo "target osteo filtering"
 

@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Download script of RNA-seq for pediatric cancer splicing analysis
-## 2027_xx ##
 # usage: bash scripts/01-fastq-download.sh [dataset]
 # with dataset being any of: target_osteo, target, gtex
 
@@ -74,18 +73,17 @@ quarto render ${filtering}
 
 echo "filtering notebook rendered, accessions generated for $1"
 
-# print the set of accession IDs to be downloaded to spot-check
+# print the set of accession IDs to be downloaded to spot-check files to be downloaded
 # set field separator as tab
 # skip first line (header)
 # print first column (accession IDs)
 awk -F '\t' 'NR > 1 {print $1}' ${accessions_file}
 
-    # iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
-    # read each item in the column as ID object
+# iterate through first column of accession metadata which has accession IDs
+# read each item in the column as ID object
 time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
-        # check that fastq or zipped fastq does not already exist
+    # check that fastq or zipped fastq does not already exist
     if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
-
         # prefetch file dependencies if neither fastq nor zipped fastq exist
         # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
         # continue even if an error is thrown
@@ -100,6 +98,7 @@ time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
         fi
 
         # download fastq file for each accession
+        # threads must be set to 1 here because files are downloaded on Ceph (slower spinning-disk system that cannt handle multithreading)
         fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
 
         # Check if fastq file exists
@@ -120,7 +119,6 @@ time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
     fi
 
 done
-
 
 # create sample sheet file with "samples" column header
 echo "samples" > $sample_sheet

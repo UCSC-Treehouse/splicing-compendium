@@ -20,6 +20,7 @@ this notebook performs over-representation analysis (ORA) on the parent genes of
 Libraries
 ```{r}
 library("ggplot2")
+library("msigdbr")
 ```
 
 Define directory and file paths
@@ -35,6 +36,8 @@ test_dir <- file.path(repo_root, "test_files")
 # whole blood vs AML splice results with diffspluce dpsi and p-adj
 diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
 
+# output ORA results
+out_file <- file.path(test_dir,  "ora_test.tsv")
 
 ```
 
@@ -42,9 +45,25 @@ Read in files
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
 ```
-
-Filter for differential splicing results within padj and significance thresholds
+## Retrieve gene sets for ORA
 ```{r}
+hs_msigdb_df <- msigdbr(species = "Homo sapiens")
+head(hs_msigdb_df)
+```
+
+
+## Data processing
+
+### Obtain gene lists for ORA.
+Background genes are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups
+```{r}
+detected_genes <- unique(diffsplice_results$gene_names)
+```
+
+
+Filter for differential splicing results within padj and significance thresholds and obtain diffsplice gene list
+```{r}
+# filter for significant diffsplice evennts
 filtered_diffsplice_results <- diffsplice_results |>
   dplyr::filter(
     p_adj < params$padj,
@@ -52,6 +71,9 @@ filtered_diffsplice_results <- diffsplice_results |>
   ) |>
   # rank significant diff splice events by abs(dPSI)
   dplyr::arrange(desc(abs(dPSI)))
+
+# obtain vector of significant diffsplice parent genes
+diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
 ## ORA on significant differentially spliced genes

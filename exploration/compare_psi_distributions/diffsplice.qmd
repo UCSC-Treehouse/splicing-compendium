@@ -88,18 +88,20 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
 ### ORA on significant differentially spliced genes
-I first tried just the BP gene set, but got 0 significant results, so switched to ALL
+Using the BP gene set, pvaluecutoff 0.05, and q cutoff 0.05, 
+only 1 gene set is returned as enriched in splicing (regulation of small GTPase mediated signal transduction).
+
+Using ALL gene sets, 21 are returned with these thresholds
 
 ```{r}
 go_enrich <- enrichGO(gene = diffsplice_genes,
                       universe = detected_genes,
                       OrgDb = "org.Hs.eg.db",
-                      keyType = 'ENSEMBL',
+                      keyType = 'SYMBOL',
                       readable = T,
                       ont = c("ALL"),
                       pvalueCutoff = 0.05,
-                      qvalueCutoff = 0.1)
-
+                      qvalueCutoff = 0.05)
 
 ```
 
@@ -108,4 +110,5 @@ Check enrichment results
 ```{r}
 df <- as.data.frame(go_enrich)
 ```
+
 

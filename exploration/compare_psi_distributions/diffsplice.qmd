@@ -12,6 +12,12 @@ params:
 
 ## directories and files
 
+Libraries
+```{r}
+library("ggplot2")
+```
+
+
 ```{r}
 ## directories
 # repo root
@@ -29,7 +35,8 @@ Read in files
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
 ```
-Filter for diffsplcie results within padj and significance thresholds
+
+Filter for differential splicing results within padj and significance thresholds
 ```{r}
 filtered_diffsplice_results <- diffsplice_results |>
   dplyr::filter(
@@ -42,8 +49,76 @@ filtered_diffsplice_results <- diffsplice_results |>
 
 Plotting
 
-Make a volcano plot
+### Plot volcano plot of differentially spliced events
+
+Transform filtered events dataframe for volcano plot
+
+```{r make_volcanoplot_df}
+# log-transform p-values for volcano plot
+# create dataframe of values for volcano plot
+for_plot_p_dPSI_table <- filtered_diffsplice_results |>
+  # take the negative log of p_adj for volcano plot
+  dplyr::mutate(
+    minus_log_padj = -log10(p_adj)
+    ) |>
+   # select only relevant columns for plotting
+   dplyr::select(pos_id, dPSI, p_adj, minus_log_padj, gene_names) |>
+   # Filter for unique row values for plotting
+   dplyr::distinct() |>
+  # assign columns colors for volcano plot
+  dplyr::mutate(
+    colors = dplyr::case_when(
+      dPSI > params$dpsi & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_increase",
+      dPSI < -params$dpsi & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_decrease"
+    )
+  )
+
+# rank significantly differentially spliced genes by dPSI magnitude
+top_15_genes <- for_plot_p_dPSI_table |>
+  dplyr::filter(p_adj < params$padj) |>
+  dplyr::arrange(abs(dPSI)) |>
+  dplyr::slice(1:15)
+
+# add gene label column
+for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
+  dplyr::mutate(gene_label = ifelse(
+    gene_names %in% top_15_genes & 
+      colors %in% c("sig_and_diff_increase", "sig_and_diff_decrease"),
+    gene_names,
+    ""))
+
+# print columns and one row as an example of final table contents
+for_plot_p_dPSI_table |> head(n = 1)
+```
+
+Plot
 ```{r}
+#| fig-width: 6
+#| #| fig-height: 8
+
+EnhancedVolcano::EnhancedVolcano(
+  for_plot_p_dPSI_table,
+  lab = for_plot_p_dPSI_table$gene_label,
+  x = "dPSI",
+  y = "p_adj",
+  title = "Volcano plot of reference and query group diff splicing",
+  subtitle = "",
+  legendLabels = c(
+    "NS", 
+    "deltaPSI > 10%", 
+    "FDR < 0.05", 
+    "deltaPSI > 10% and FDR < 0.05"),
+    pCutoff = params$padj,
+    pCutoffCol = "p_adj",
+    FCcutoff = params$dpsi,
+    pointSize = 1.0,
+    labSize = 6.0,
+    xlim = c(-1,1),
+    ylim = c(0,5),
+    drawConnectors = TRUE,
+    xlab = "deltaPSI",
+    ylab = "-Log(FDR)"
+    ) 
 
 ```
 

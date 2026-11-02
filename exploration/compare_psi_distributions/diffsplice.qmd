@@ -1,0 +1,49 @@
+---
+title: "diffsplice"
+format: html
+editor: visual
+params:
+  padj: 0.05
+  dpsi: 0.15
+
+---
+
+## setup
+
+## directories and files
+
+```{r}
+## directories
+# repo root
+repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+
+# test diffsplice results dir
+test_dir <- file.path(repo_root, "test_files")
+
+## files
+diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
+
+```
+
+Read in files
+```{r}
+diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
+```
+Filter for diffsplcie results within padj and significance thresholds
+```{r}
+filtered_diffsplice_results <- diffsplice_results |>
+  dplyr::filter(
+    p_adj < params$padj,
+    abs(dPSI) > params$dpsi
+  ) |>
+  # rank significant diff splice events by abs(dPSI)
+  dplyr::arrange(desc(abs(dPSI)))
+```
+
+Plotting
+
+Make a volcano plot
+```{r}
+
+```
+

@@ -21,6 +21,7 @@ Libraries
 ```{r}
 library("ggplot2")
 library("msigdbr")
+library(clusterProfiler)
 ```
 
 Define directory and file paths

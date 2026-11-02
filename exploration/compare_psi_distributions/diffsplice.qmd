@@ -1,12 +1,17 @@
 ---
-title: "diffsplice"
+title: "Biology vignette for splice compendium"
 format: html
 editor: visual
+author: celiang@ucsc.edu
 params:
   padj: 0.05
   dpsi: 0.15
 
 ---
+
+This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input.
+After filtering for splice events with user-defined padj and dPSI thresholds, 
+this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
 
 ## setup
 
@@ -17,7 +22,7 @@ Libraries
 library("ggplot2")
 ```
 
-
+Define directory and file paths
 ```{r}
 ## directories
 # repo root
@@ -27,7 +32,9 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 test_dir <- file.path(repo_root, "test_files")
 
 ## files
+# whole blood vs AML splice results with diffspluce dpsi and p-adj
 diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
+
 
 ```
 
@@ -47,9 +54,7 @@ filtered_diffsplice_results <- diffsplice_results |>
   dplyr::arrange(desc(abs(dPSI)))
 ```
 
-Plotting
-
-### Plot volcano plot of differentially spliced events
+## ORA on significant differentially spliced genes
 
 Transform filtered events dataframe for volcano plot
 
@@ -91,34 +96,5 @@ for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
 for_plot_p_dPSI_table |> head(n = 1)
 ```
 
-Plot
-```{r}
-#| fig-width: 6
-#| #| fig-height: 8
 
-EnhancedVolcano::EnhancedVolcano(
-  for_plot_p_dPSI_table,
-  lab = for_plot_p_dPSI_table$gene_label,
-  x = "dPSI",
-  y = "p_adj",
-  title = "Volcano plot of reference and query group diff splicing",
-  subtitle = "",
-  legendLabels = c(
-    "NS", 
-    "deltaPSI > 10%", 
-    "FDR < 0.05", 
-    "deltaPSI > 10% and FDR < 0.05"),
-    pCutoff = params$padj,
-    pCutoffCol = "p_adj",
-    FCcutoff = params$dpsi,
-    pointSize = 1.0,
-    labSize = 6.0,
-    xlim = c(-1,1),
-    ylim = c(0,5),
-    drawConnectors = TRUE,
-    xlab = "deltaPSI",
-    ylab = "-Log(FDR)"
-    ) 
-
-```
 

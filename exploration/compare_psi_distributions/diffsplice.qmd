@@ -45,21 +45,30 @@ Read in files
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
 ```
-## Retrieve gene sets for ORA
+## ORA
+
+### Retrieve gene lists and gene set collections for ORA
+Load msigdb gene sets
+Gene names are in the columns `gene_symbol` and `db_gene_symbol`
 ```{r}
 hs_msigdb_df <- msigdbr(species = "Homo sapiens")
 head(hs_msigdb_df)
 ```
+Filter msigdb for Hallmark gene set to start
+I am also throwing in C6: oncogenic signature gene sets
+Full collection of gene sets here: https://www.gsea-msigdb.org/gsea/msigdb/collections.jsp
 
-
-## Data processing
+```{r}
+gene_set_df <- hs_msigdb_df |> dplyr::filter(
+  gs_collection_name %in% c("Hallmark", "C6: oncogenic signature gene sets")
+)
+```
 
 ### Obtain gene lists for ORA.
 Background genes are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups
 ```{r}
 detected_genes <- unique(diffsplice_results$gene_names)
 ```
-
 
 Filter for differential splicing results within padj and significance thresholds and obtain diffsplice gene list
 ```{r}
@@ -76,47 +85,9 @@ filtered_diffsplice_results <- diffsplice_results |>
 diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
-## ORA on significant differentially spliced genes
+### ORA on significant differentially spliced genes
 
-Transform filtered events dataframe for volcano plot
+```{r}
 
-```{r make_volcanoplot_df}
-# log-transform p-values for volcano plot
-# create dataframe of values for volcano plot
-for_plot_p_dPSI_table <- filtered_diffsplice_results |>
-  # take the negative log of p_adj for volcano plot
-  dplyr::mutate(
-    minus_log_padj = -log10(p_adj)
-    ) |>
-   # select only relevant columns for plotting
-   dplyr::select(pos_id, dPSI, p_adj, minus_log_padj, gene_names) |>
-   # Filter for unique row values for plotting
-   dplyr::distinct() |>
-  # assign columns colors for volcano plot
-  dplyr::mutate(
-    colors = dplyr::case_when(
-      dPSI > params$dpsi & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_increase",
-      dPSI < -params$dpsi & minus_log_padj > -log10(params$padj) ~ "sig_and_diff_decrease"
-    )
-  )
-
-# rank significantly differentially spliced genes by dPSI magnitude
-top_15_genes <- for_plot_p_dPSI_table |>
-  dplyr::filter(p_adj < params$padj) |>
-  dplyr::arrange(abs(dPSI)) |>
-  dplyr::slice(1:15)
-
-# add gene label column
-for_plot_p_dPSI_table <- for_plot_p_dPSI_table |>
-  dplyr::mutate(gene_label = ifelse(
-    gene_names %in% top_15_genes & 
-      colors %in% c("sig_and_diff_increase", "sig_and_diff_decrease"),
-    gene_names,
-    ""))
-
-# print columns and one row as an example of final table contents
-for_plot_p_dPSI_table |> head(n = 1)
 ```
-
-
 

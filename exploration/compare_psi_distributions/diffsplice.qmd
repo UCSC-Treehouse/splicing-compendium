@@ -48,27 +48,18 @@ Read in files
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
 ```
-
 ## ORA
 
-### Retrieve gene lists and gene set collections for ORA
+### Retrieve gene lists from splice results for ORA
 
-Load msigdb gene sets Gene names are in the columns `gene_symbol` and `db_gene_symbol`
-
-```{r}
-hs_msigdb_df <- msigdbr(species = "Homo sapiens")
-head(hs_msigdb_df)
-```
-
-### Obtain gene lists for ORA.
-
-Background genes are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups
+Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups.
+In the test data used here, min_samples was 5.
 
 ```{r}
 detected_genes <- unique(diffsplice_results$gene_names)
 ```
 
-Filter for differential splicing results within padj and significance thresholds and obtain diffsplice gene list
+Filter for differential splicing results within padj and significance thresholds and obtain the diffsplice gene list
 
 ```{r}
 # filter for significant diffsplice evennts
@@ -84,11 +75,13 @@ filtered_diffsplice_results <- diffsplice_results |>
 diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
-### ORA on significant differentially spliced genes
+### ORA on significantly differentially spliced genes
 
-Using the BP gene set, pvaluecutoff 0.05, and q cutoff 0.05, only 1 gene set is returned as enriched in splicing (regulation of small GTPase mediated signal transduction).
+Using the BP gene set, `pvaluecutoff` 0.05, and `qvaluecutoff` 0.05, only 1 gene set is returned as enriched in splicing `(regulation of small GTPase mediated signal transduction`).
 
-Using ALL gene sets, 21 are returned with these thresholds
+Using ALL gene sets, 21 are returned with these thresholds.
+The AML vs. Whole Blood comparison is one of the ref/query pairs that had the most samples,
+so I will leave the gene sets as ALL here since I now expect most ref/query pairs to return very few significantly overrepresented genes.
 
 ```{r}
 go_enrich <- enrichGO(gene = diffsplice_genes,
@@ -102,23 +95,28 @@ go_enrich <- enrichGO(gene = diffsplice_genes,
 
 ```
 
-Check enrichment results Plot overlapping genes in each gene set with upset plot
+## Plot ORA results
+
+Plot overlapping genes in each gene set with an upset plot
 
 ```{r}
-upsetplot(go_enrich)
-```
+#| fig-width: 11
+#| fig-height: 4
 
-Some other plots
+upsetplot(go_enrich) +
+  ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
+```
+Plot gene set gene count and significance from ORA: Barplots
 
 ```{r}
 barplot(go_enrich,
         drop = TRUE,
         showCategory = 10,
-        title = "GO Biological Pathways",
+        title = "GO pathways",
         font.size = 8)
 ```
 
-another one
+Dot plot of gene set gene abundance (gene ratio) and ORA p values
 
 ```{r}
 dotplot(go_enrich)
@@ -126,6 +124,5 @@ dotplot(go_enrich)
 
 ## Write output to file
 ```{r write_output}
-readr::write_tsv(go_enrich, )
+readr::write_tsv(as.data.frame(go_enrich), out_file)
 ```
-

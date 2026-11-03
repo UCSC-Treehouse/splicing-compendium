@@ -1,7 +1,10 @@
 ---
 title: "Biology vignette for splice compendium"
-format: html
+format:
+  gfm:
+    df-print: kable
 editor: visual
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 author: celiang@ucsc.edu
 params:
   padj: 0.05
@@ -115,6 +118,14 @@ barplot(go_enrich,
         title = "GO pathways",
         font.size = 8)
 ```
+
+The bar plot function currently throws the following warning, but I don't see a "by" field in the call:
+
+Warning in fortify(object, showCategory = showCategory, by = x, ...) :
+  Arguments in `...` must be used.
+✖ Problematic argument:
+• by = x
+ℹ Did you misspell an argument name?
 
 Dot plot of gene set gene abundance (gene ratio) and ORA p values
 

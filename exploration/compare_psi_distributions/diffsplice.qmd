@@ -6,21 +6,18 @@ author: celiang@ucsc.edu
 params:
   padj: 0.05
   dpsi: 0.15
-
 ---
 
-This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input.
-After filtering for splice events with user-defined padj and dPSI thresholds, 
-this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
+This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
 
 Caveats:
-- The input to this notebook is the 
 
-## setup
+- The input to this notebook is currently the AML (stranded) vs. Whole Blood (unstranded) diffsplice results so doesn't reflect the biological comparison we want to make for the manuscript.
 
-## directories and files
+## Setup
 
-Libraries
+Load libraries
+
 ```{r}
 library(ggplot2)
 library(msigdbr)
@@ -29,6 +26,7 @@ library(enrichplot)
 ```
 
 Define directory and file paths
+
 ```{r}
 ## directories
 # repo root
@@ -38,44 +36,40 @@ repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 test_dir <- file.path(repo_root, "test_files")
 
 ## files
-# whole blood vs AML splice results with diffspluce dpsi and p-adj
+# whole blood vs AML splice results with gene name, median PSI, diffsplice dpsi, and p-adj columns
 diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
 
 # output ORA results
 out_file <- file.path(test_dir,  "ora_test.tsv")
-
 ```
 
 Read in files
+
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
 ```
+
 ## ORA
 
 ### Retrieve gene lists and gene set collections for ORA
-Load msigdb gene sets
-Gene names are in the columns `gene_symbol` and `db_gene_symbol`
+
+Load msigdb gene sets Gene names are in the columns `gene_symbol` and `db_gene_symbol`
+
 ```{r}
 hs_msigdb_df <- msigdbr(species = "Homo sapiens")
 head(hs_msigdb_df)
 ```
-Filter msigdb for Hallmark gene set to start
-I am also throwing in C6: oncogenic signature gene sets
-Full collection of gene sets here: https://www.gsea-msigdb.org/gsea/msigdb/collections.jsp
-
-```{r}
-gene_set_df <- hs_msigdb_df |> dplyr::filter(
-  gs_collection_name %in% c("Hallmark", "C6: oncogenic signature gene sets")
-)
-```
 
 ### Obtain gene lists for ORA.
+
 Background genes are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups
+
 ```{r}
 detected_genes <- unique(diffsplice_results$gene_names)
 ```
 
 Filter for differential splicing results within padj and significance thresholds and obtain diffsplice gene list
+
 ```{r}
 # filter for significant diffsplice evennts
 filtered_diffsplice_results <- diffsplice_results |>
@@ -91,8 +85,8 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
 ### ORA on significant differentially spliced genes
-Using the BP gene set, pvaluecutoff 0.05, and q cutoff 0.05, 
-only 1 gene set is returned as enriched in splicing (regulation of small GTPase mediated signal transduction).
+
+Using the BP gene set, pvaluecutoff 0.05, and q cutoff 0.05, only 1 gene set is returned as enriched in splicing (regulation of small GTPase mediated signal transduction).
 
 Using ALL gene sets, 21 are returned with these thresholds
 
@@ -108,8 +102,8 @@ go_enrich <- enrichGO(gene = diffsplice_genes,
 
 ```
 
-Check enrichment results
-Plot overlapping genes in each gene set with upset plot
+Check enrichment results Plot overlapping genes in each gene set with upset plot
+
 ```{r}
 upsetplot(go_enrich)
 ```
@@ -123,10 +117,15 @@ barplot(go_enrich,
         title = "GO Biological Pathways",
         font.size = 8)
 ```
- another one
- 
+
+another one
+
 ```{r}
 dotplot(go_enrich)
 ```
 
- 
+## Write output to file
+```{r write_output}
+readr::write_tsv(go_enrich, )
+```
+

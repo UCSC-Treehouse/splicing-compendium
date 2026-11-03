@@ -106,9 +106,9 @@ go_enrich <- enrichGO(gene = diffsplice_genes,
 ```
 
 Check enrichment results
-
+Plot overlapping genes in each gene set with upset plot
 ```{r}
-df <- as.data.frame(go_enrich)
+upsetplot(go_enrich)
 ```
 
 

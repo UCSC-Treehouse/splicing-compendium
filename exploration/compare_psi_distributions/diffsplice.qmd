@@ -13,6 +13,9 @@ This notebook takes Wilcoxon test statistics and dPSI values for query and refer
 After filtering for splice events with user-defined padj and dPSI thresholds, 
 this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
 
+Caveats:
+- The input to this notebook is the 
+
 ## setup
 
 ## directories and files
@@ -111,4 +114,19 @@ Plot overlapping genes in each gene set with upset plot
 upsetplot(go_enrich)
 ```
 
+Some other plots
 
+```{r}
+barplot(go_enrich,
+        drop = TRUE,
+        showCategory = 10,
+        title = "GO Biological Pathways",
+        font.size = 8)
+```
+ another one
+ 
+```{r}
+dotplot(go_enrich)
+```
+
+ 

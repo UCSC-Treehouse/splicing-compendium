@@ -1,6 +1,6 @@
 # Biology vignette for splice compendium
 celiang@ucsc.edu
-2026-11-02
+2026-11-03
 
 This notebook takes Wilcoxon test statistics and dPSI values for query
 and reference groups chosen in `scripts/06-diffsplice_calculation.R` as
@@ -28,10 +28,8 @@ library(clusterProfiler)
 
     Please cite:
 
-    T Wu, E Hu, S Xu, M Chen, P Guo, Z Dai, T Feng, L Zhou, W Tang, L Zhan,
-    X Fu, S Liu, X Bo, and G Yu. clusterProfiler 4.0: A universal
-    enrichment tool for interpreting omics data. The Innovation. 2021,
-    2(3):100141
+    G Yu. Background bias in functional enrichment analysis: Insights from
+    clusterProfiler. The Innovation Life. 2026, 4(1):100181
 
 
     Attaching package: 'clusterProfiler'
@@ -48,8 +46,9 @@ library(enrichplot)
 
     Please cite:
 
-    G Yu. Thirteen years of clusterProfiler. The Innovation. 2024,
-    5(6):100722
+    Guangchuang Yu, Li-Gen Wang, and Qing-Yu He. ChIPseeker: an
+    R/Bioconductor package for ChIP peak annotation, comparison and
+    visualization. Bioinformatics. 2015, 31(14):2382-2383
 
 Define directory and file paths
 
@@ -93,7 +92,13 @@ PSI values quantified for at least min_samples in the reference and
 query groups. In the test data used here, min_samples was 5.
 
 ``` r
-detected_genes <- unique(diffsplice_results$gene_names)
+detected_genes <- diffsplice_results |>
+  # remove NA p values, as they are present in the diffsplice data frame
+  dplyr::filter(!is.na(p_adj)) |>
+  # extract gene names column for ORA
+  dplyr::pull(gene_names) |>
+  # take unique set of parent genes
+  unique()
 ```
 
 Filter for differential splicing results within padj and significance
@@ -156,46 +161,16 @@ upsetplot(go_enrich) +
     ℹ The deprecated feature was likely used in the ggupset package.
       Please report the issue at <https://github.com/const-ae/ggupset/issues>.
 
-![](diffsplice_files/figure-commonmark/unnamed-chunk-7-1.png)
+![](ora_of_diffsplice_genes_files/figure-commonmark/unnamed-chunk-7-1.png)
 
-Plot gene set gene count and significance from ORA: Barplots
-
-``` r
-barplot(go_enrich,
-        drop = TRUE,
-        showCategory = 10,
-        title = "GO pathways",
-        font.size = 8)
-```
-
-    Warning in fortify(object, showCategory = showCategory, by = x, ...): Arguments in `...` must be used.
-    ✖ Problematic argument:
-    • by = x
-    ℹ Did you misspell an argument name?
-
-    Warning: `aes_string()` was deprecated in ggplot2 3.0.0.
-    ℹ Please use tidy evaluation idioms with `aes()`.
-    ℹ See also `vignette("ggplot2-in-packages")` for more information.
-    ℹ The deprecated feature was likely used in the enrichplot package.
-      Please report the issue at
-      <https://github.com/GuangchuangYu/enrichplot/issues>.
-
-![](diffsplice_files/figure-commonmark/unnamed-chunk-8-1.png)
-
-The bar plot function currently throws the following warning, but I
-don’t see a “by” field in the call:
-
-Warning in fortify(object, showCategory = showCategory, by = x, …) :
-Arguments in `...` must be used. ✖ Problematic argument: • by = x ℹ Did
-you misspell an argument name?
-
-Dot plot of gene set gene abundance (gene ratio) and ORA p values
+Plot gene set gene count and significance from ORA: dot plot of gene set
+gene abundance (gene ratio) and ORA p values
 
 ``` r
 dotplot(go_enrich)
 ```
 
-![](diffsplice_files/figure-commonmark/unnamed-chunk-9-1.png)
+![](ora_of_diffsplice_genes_files/figure-commonmark/unnamed-chunk-8-1.png)
 
 ## Write output to file
 

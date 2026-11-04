@@ -53,6 +53,103 @@ diffsplice_results <- readr::read_tsv(diffsplice_results_file)
 
 ## ORA
 
+Define gene sets by gs_id (Systematic name in msigdb website)
+M15250 GOBP_MRNA_CIS_SPLICING_VIA_SPLICEOSOME
+M22142 GOBP_MRNA_3_SPLICE_SITE_RECOGNITION
+M10881 GOBP_ALTERNATIVE_MRNA_SPLICING_VIA_SPLICEOSOME
+M22144 GOBP_MRNA_5_SPLICE_SITE_RECOGNITION
+M15250 GOBP_MRNA_CIS_SPLICING_VIA_SPLICEOSOME
+M1426 GOBP_MRNA_SPLICE_SITE_RECOGNITION
+M50471 GOBP_POSITIVE_REGULATION_OF_MRNA_SPLICING_VIA_SPLICEOSOME
+M14810 GOBP_REGULATION_OF_MRNA_SPLICING_VIA_SPLICEOSOME
+M9878 GOBP_SPLICEOSOMAL_COMPLEX_ASSEMBLY
+M22143 GOBP_SPLICEOSOMAL_CONFORMATIONAL_CHANGES_TO_GENERATE_CATALYTIC_CONFORMATION
+M16609 GOBP_SPLICEOSOMAL_SNRNP_ASSEMBLY
+M12504 GOBP_SPLICEOSOMAL_TRI_SNRNP_COMPLEX_ASSEMBLY
+M50333 GOBP_TRNA_TYPE_INTRON_SPLICE_SITE_RECOGNITION_AND_CLEAVAGE
+M45251 GOBP_U2_TYPE_PRESPLICEOSOME_ASSEMBLY
+M25907 GOCC_CATALYTIC_STEP_1_SPLICEOSOME
+M17484 GOCC_CATALYTIC_STEP_2_SPLICEOSOME
+M25908 GOCC_POST_MRNA_RELEASE_SPLICEOSOMAL_COMPLEX
+M17178 GOCC_PRECATALYTIC_SPLICEOSOME
+M17478 GOCC_PRESPLICEOSOME
+M17545 GOCC_SPLICEOSOMAL_COMPLEX
+M17317 GOCC_SPLICEOSOMAL_TRI_SNRNP_COMPLEX
+M50617 GOCC_U12_TYPE_CATALYTIC_STEP_2_SPLICEOSOME
+M50616 GOCC_U12_TYPE_PRECATALYTIC_SPLICEOSOME
+M19132 GOCC_U12_TYPE_SPLICEOSOMAL_COMPLEX
+M25906 GOCC_U2_TYPE_CATALYTIC_STEP_2_SPLICEOSOME
+M50614 GOCC_U2_TYPE_PRECATALYTIC_SPLICEOSOME
+M17071 GOCC_U2_TYPE_SPLICEOSOMAL_COMPLEX
+M26523 GOMF_PRE_MRNA_3_SPLICE_SITE_BINDING
+M51268 KEGG_MEDICUS_REFERENCE_SPLICEOSOME_ACTIVATION
+M51267 KEGG_MEDICUS_REFERENCE_SPLICEOSOME_ASSEMBLY_B_COMPLEX_FORMATION
+M51265 KEGG_MEDICUS_REFERENCE_SPLICEOSOME_ASSEMBLY_E_AND_A_COMPLEX_FORMATION
+M51269 KEGG_MEDICUS_REFERENCE_SPLICEOSOME_CATALYSIS_BRANCHING
+M51288 KEGG_MEDICUS_REFERENCE_SPLICEOSOME_CATALYSIS_EXON_LIGATION
+M51289 KEGG_MEDICUS_REFERENCE_SPLICEOSOME_DISASSEMBLY
+M2044 KEGG_SPLICEOSOME
+
+Cancer gene sets
+
+C4 (computational gene sets, 1006 gene sets) - contains
+  3CA (Curated Cancer Cell Atlas gene sets, 148 gene sets)
+  CGN (cancer gene neighborhoods, 427 gene sets)
+  CM (cancer modules, 431 gene sets)
+
+C6: Oncogenic Signature Gene Sets
+
+HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION
+
+HALLMARK_MYOGENESIS (relevant to blood) -- maybe just all of Hallmark
+
+
+```{r}
+# these are just everything with "splice" in the name for now
+splice_ids <- c(
+  "M10881",
+  "M22142",
+  
+)
+cancer_ids <- c()
+```
+
+
+check column names
+```{r}
+colnames(hs_msigdb_df)
+```
+
+
+Obtain msigdb gene sets relevant to humans
+```{r}
+hs_msigdb_df <- msigdbr(species = "Homo sapiens")
+```
+
+```{r}
+head(hs_msigdb_df) 
+```
+
+Filter for gene set
+```{r}
+hs_msigdb_df |>
+  dplyr::filter(gs_id == "M10881")
+```
+
+
+Define clinically (cancer) and splice-relevant gene sets for ORA
+Potential gene sets to look at
+
+
+
+```{r}
+gs_clinical_list <- c("C6", "C4"
+  
+)
+gs_splice_list <- c()
+```
+
+
 ### Retrieve gene lists from splice results for ORA
 
 Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups. In the test data used here, min_samples was 5.
@@ -118,6 +215,13 @@ Plot gene set gene count and significance from ORA: dot plot of gene set gene ab
 ```{r}
 dotplot(go_enrich)
 ```
+
+Gene sets to consider / genes to pull out
+
+- Prioritize clinical relevance of gene sets or genes –\> look for gene sets that might be clinically relevant
+
+- Going from enrichment to clinically relevant result using this analysis
+
 
 ## Write output to file
 

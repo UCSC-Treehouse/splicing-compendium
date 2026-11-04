@@ -9,6 +9,8 @@ author: celiang@ucsc.edu
 params:
   padj: 0.05
   dpsi: 0.15
+  in_file: "test_files/diffsplice_Whole_Blood_vs_AML.tsv"
+  out_file: "test_files/ora_test.tsv"
 ---
 
 This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
@@ -35,15 +37,12 @@ Define directory and file paths
 # repo root
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
 
-# test diffsplice results dir
-test_dir <- file.path(repo_root, "test_files")
-
 ## files
 # whole blood vs AML splice results with gene name, median PSI, diffsplice dpsi, and p-adj columns
-diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
+diffsplice_results_file <- file.path(repo_root, params$in_file)
 
 # output ORA results
-out_file <- file.path(test_dir,  "ora_test.tsv")
+out_file <- file.path(repo_root, params$out_file)
 ```
 
 Read in files

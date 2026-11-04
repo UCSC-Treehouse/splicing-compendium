@@ -192,6 +192,17 @@ target_filtered_sra |>
   )
 ```
 
+```{r}
+target_filtered_sra |>
+  dplyr::filter(
+    study_name == "TARGET: Osteosarcoma (OS)"
+  ) |>
+    dplyr::mutate(
+      total_samples = dplyr::n(),
+      total_gb = sum(Bytes) / 1000000000
+    )
+```
+
 ## Divide TARGET accessions into groups of 1.2TB samples
 
 For partitioning data onto OpenStack instances, we need to divide the TARGET accessions based on how much space they will take up. So that there will be enough space for holding raw fastqs and alignments, we will aim to download a little under half the available space on the huge OpenStack instance (\~1.2TB)

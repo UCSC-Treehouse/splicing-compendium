@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Download script of RNA-seq for pediatric cancer splicing analysis
-# usage: scripts/01-target-download.sh [dataset] [batch number]
-# example for downloading the first 1.2TB batch of target: scripts/01-target-download.sh target 1
+# usage: bash scripts/01-fastq-download.sh [dataset]
+# with dataset being any of: target_osteo, target, gtex
 
 # cause nonzero exit status and undefined variables to stop the script
 set -euo pipefail
@@ -11,8 +11,8 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # dbGaP key files
-target_key="/home/ubuntu/prj_11732_D43588.ngc"
-gtex_key="/home/ubuntu/prj_9508_D43588.ngc"
+target_key="/private/home/celiang/ngc_keys/prj_11732_D43588.ngc"
+gtex_key="/private/home/celiang/ngc_keys/prj_9508_D43588.ngc"
 
 # Set time and date as variables
 current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
@@ -21,23 +21,32 @@ current_datetime=$(date +"%Y-%m-%dT%H:%M:%S")
 data_dir="../data"
 group_dir="${data_dir}/${1}"
 fastq_dir="${group_dir}/fastq"
-log_dir="../logs/${1}_download"
+log_dir="../logs/2027/${1}_download"
 metadata_dir="../metadata/filter_target_gtex"
 config_dir="../config"
 notebooks_dir="../notebooks/data_filtering"
 target_filtering="${notebooks_dir}/filter_target_sra.qmd"
 gtex_filtering="${notebooks_dir}/filter_gtex_sra.qmd"
-sample_sheet="${config_dir}/${1}_batch_${2}_samples.tsv"
+sample_sheet="${config_dir}/${1}_samples.tsv"
 
 # check that sample group inputted is valid
 # set dbgap key based on whether gtex or target files are to be downloaded
-if [ "$1" == "target" ]; then
+if [[ "$1" == "target" ]]; then
     dbgap_key=$target_key
     filtering=$target_filtering
+    accessions_file="$metadata_dir/target_accessions.tsv"
 
-elif [ "$1" == "gtex" ]; then
+elif [[ "$1" == "target_osteo" ]]; then
+    dbgap_key=$target_key
+    filtering=$target_filtering
+    accessions_file="$metadata_dir/osteo_target_accessions.tsv"
+
+    echo "target osteo filtering"
+
+elif [[ "$1" == "gtex" ]]; then
     dbgap_key=$gtex_key
     filtering=$gtex_filtering
+    accessions_file="$metadata_dir/gtex_accessions.txt"
 
 else
     echo "please use valid sample group"
@@ -62,18 +71,19 @@ exec > >(tee $log_file) 2>&1
 # Run filtering script to obtain accession IDs to download
 quarto render ${filtering}
 
-# Select 1.2TB batch of accessions to download based on user input
-# pass batch ID from user input (2nd input) into awk and look for values matching batch in last column
+echo "filtering notebook rendered, accessions generated for $1"
+
+# print the set of accession IDs to be downloaded to spot-check files to be downloaded
+# set field separator as tab
 # skip first line (header)
-# make sure value in the last column equals the batch given by user input and print the first column (accession ID)
-# print the set of accession IDs to be downloaded to spot-check
-awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}_accessions.tsv"
+# print first column (accession IDs)
+awk -F '\t' 'NR > 1 {print $1}' ${accessions_file}
 
-# iterate through first column of TARGET accession metadata after this filtering, which has accession IDs
-time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}_accessions.tsv" | while read -r ID; do
+# iterate through first column of accession metadata which has accession IDs
+# read each item in the column as ID object
+time for ID in $(awk -F '\t' 'NR>1{print $1}' "${accessions_file}"); do
     # check that fastq or zipped fastq does not already exist
-    if [ ! -f "${fastq_dir}/${ID}_1.fastq" ] && [ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]; then
-
+    if [[ ! -f "${fastq_dir}/${ID}_1.fastq" ]] && [[ ! -f "${fastq_dir}/${ID}_1.fastq.gz" ]]; then
         # prefetch file dependencies if neither fastq nor zipped fastq exist
         # set max size of prefetch file to 40GB based on max file size of samples in accessions lists
         # continue even if an error is thrown
@@ -81,14 +91,15 @@ time awk -v batch="${2}" 'NR>1 && $NF == batch {print $1}' "${metadata_dir}/${1}
 
         # Check if prefetch file directory has been created
         # Lack of directory means prefetch has failed; skip to next accession
-        if [ ! -d "${fastq_dir}/$ID" ]; then
+        if [[ ! -d "${fastq_dir}/$ID" ]]; then
             # record the accession ID not downloaded
             echo -e "$ID\tprefetch" >> $error_log_file
             continue
         fi
 
         # download fastq file for each accession
-        fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 15 --outdir $fastq_dir || true
+        # threads must be set to 1 here because files are downloaded on Ceph (slower spinning-disk system that cannt handle multithreading)
+        fasterq-dump --temp $group_dir --ngc $dbgap_key $ID --threads 1 --outdir $fastq_dir || true
 
         # Check if fastq file exists
         # If file is missing, record error in fastq-dump step and move on to next accession

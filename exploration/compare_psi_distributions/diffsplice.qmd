@@ -59,7 +59,13 @@ diffsplice_results <- readr::read_tsv(diffsplice_results_file)
 Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups. In the test data used here, min_samples was 5.
 
 ```{r}
-detected_genes <- unique(diffsplice_results$gene_names)
+detected_genes <- diffsplice_results |>
+  # remove NA p values, as they are present in the diffsplice data frame
+  dplyr::filter(!is.na(p_adj)) |>
+  # extract gene names column for ORA
+  dplyr::pull(gene_names) |>
+  # take unique set of parent genes
+  unique()
 ```
 
 Filter for differential splicing results within padj and significance thresholds and obtain the diffsplice gene list

@@ -51,12 +51,12 @@ Read in files
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
 ```
+
 ## ORA
 
 ### Retrieve gene lists from splice results for ORA
 
-Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups.
-In the test data used here, min_samples was 5.
+Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups. In the test data used here, min_samples was 5.
 
 ```{r}
 detected_genes <- unique(diffsplice_results$gene_names)
@@ -82,9 +82,7 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 
 Using the BP gene set, `pvaluecutoff` 0.05, and `qvaluecutoff` 0.05, only 1 gene set is returned as enriched in splicing `(regulation of small GTPase mediated signal transduction`).
 
-Using ALL gene sets, 21 are returned with these thresholds.
-The AML vs. Whole Blood comparison is one of the ref/query pairs that had the most samples,
-so I will leave the gene sets as ALL here since I now expect most ref/query pairs to return very few significantly overrepresented genes.
+Using ALL gene sets, 21 are returned with these thresholds. The AML vs. Whole Blood comparison is one of the ref/query pairs that had the most samples, so I will leave the gene sets as ALL here since I now expect most ref/query pairs to return very few significantly overrepresented genes.
 
 ```{r}
 go_enrich <- enrichGO(gene = diffsplice_genes,
@@ -109,31 +107,15 @@ Plot overlapping genes in each gene set with an upset plot
 upsetplot(go_enrich) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
 ```
-Plot gene set gene count and significance from ORA: Barplots
 
-```{r}
-barplot(go_enrich,
-        drop = TRUE,
-        showCategory = 10,
-        title = "GO pathways",
-        font.size = 8)
-```
-
-The bar plot function currently throws the following warning, but I don't see a "by" field in the call:
-
-Warning in fortify(object, showCategory = showCategory, by = x, ...) :
-  Arguments in `...` must be used.
-✖ Problematic argument:
-• by = x
-ℹ Did you misspell an argument name?
-
-Dot plot of gene set gene abundance (gene ratio) and ORA p values
+Plot gene set gene count and significance from ORA: dot plot of gene set gene abundance (gene ratio) and ORA p values
 
 ```{r}
 dotplot(go_enrich)
 ```
 
 ## Write output to file
+
 ```{r write_output}
 readr::write_tsv(as.data.frame(go_enrich), out_file)
 ```

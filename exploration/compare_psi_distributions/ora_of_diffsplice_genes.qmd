@@ -146,12 +146,6 @@ splice_ids <- c(
 
 ```
 
-
-check column names
-```{r}
-colnames(hs_msigdb_df)
-```
-
 Obtain msigdb gene sets relevant to humans
 ```{r}
 hs_msigdb_df <- msigdbr(species = "Homo sapiens")

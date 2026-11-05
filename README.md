@@ -15,10 +15,10 @@ Osteosarcoma samples are excluded for now, due to their complex transcriptomes a
 
 ## Setting up the environment
 
-The environment for this project is managed with Pixi.
+The environment for this project is managed with pixi.
 After cloning the repo, the environment can be set up with the following commands:
 
-Install Pixi if it is not already installed:
+Install pixi if it is not already installed:
 
 ```
 curl -fsSL https://pixi.sh/install.sh | sh
@@ -35,6 +35,27 @@ pixi shell
 All commands in this readme are intended to be run from within the pixi shell environment.
 
 Note that currently the only supported platform is Linux, so this command must be run on a Linux machine.
+
+### Installing and setting default R version
+
+The `renv.lock` file was created with R v4.4.2 and some packages require R v4.4 or greater to install.
+To change the version of R, use the following `rig` commands within the pixi shell environment:
+
+```
+
+# Switch to user mode if you are on a shared cluster
+rig system user-mode
+
+# Add R v4.4.2 to rig
+rig add 4.4.2
+
+# Set R 4.4.2 as default version
+rig default 4.4.2
+
+```
+
+When R is called within the pixi environment, it should now be the default version set with `rig`. 
+All scripts in this repo should be run within the pixi environemnt. 
 
 ## Filtering accessions for download
 

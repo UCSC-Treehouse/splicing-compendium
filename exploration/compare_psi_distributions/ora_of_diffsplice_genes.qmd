@@ -92,7 +92,7 @@ M2044 KEGG_SPLICEOSOME
 
 Cancer gene sets
 
-C4 (computational gene sets, 1006 gene sets) - contains
+C4 (computational gene sets, 1006 gene sets) - contains:
   3CA (Curated Cancer Cell Atlas gene sets, 148 gene sets)
   CGN (cancer gene neighborhoods, 427 gene sets)
   CM (cancer modules, 431 gene sets)
@@ -107,11 +107,43 @@ HALLMARK_MYOGENESIS (relevant to blood) -- maybe just all of Hallmark
 ```{r}
 # these are just everything with "splice" in the name for now
 splice_ids <- c(
-  "M10881",
+  "M15250",
   "M22142",
-  
+  "M10881",
+  "M22144",
+  "M15250",
+  "M1426",
+  "M50471",
+  "M14810",
+  "M9878",
+  "M22143",
+  "M16609",
+  "M12504",
+  "M50333",
+  "M45251",
+  "M25907",
+  "M17484",
+  "M25908",
+  "M17178",
+  "M17478",
+  "M17545",
+  "M17317",
+  "M50617",
+  "M50616",
+  "M19132",
+  "M25906",
+  "M50614",
+  "M17071",
+  "M26523",
+  "M51268",
+  "M51267",
+  "M51265",
+  "M51269",
+  "M51288",
+  "M51289",
+  "M2044"
 )
-cancer_ids <- c()
+
 ```
 
 
@@ -120,35 +152,17 @@ check column names
 colnames(hs_msigdb_df)
 ```
 
-
 Obtain msigdb gene sets relevant to humans
 ```{r}
 hs_msigdb_df <- msigdbr(species = "Homo sapiens")
 ```
 
-```{r}
-head(hs_msigdb_df) 
-```
-
-Filter for gene set
-```{r}
-hs_msigdb_df |>
-  dplyr::filter(gs_id == "M10881")
-```
-
-
-Define clinically (cancer) and splice-relevant gene sets for ORA
-Potential gene sets to look at
-
-
+Filter for human msigdb gene sets with splicing involved
 
 ```{r}
-gs_clinical_list <- c("C6", "C4"
-  
-)
-gs_splice_list <- c()
+splice_hs_msigdb_df <- hs_msigdb_df |>
+  dplyr::filter(gs_id %in% splice_ids)
 ```
-
 
 ### Retrieve gene lists from splice results for ORA
 

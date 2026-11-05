@@ -196,25 +196,11 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 
 ### ORA on significantly differentially spliced genes
 
-Using the BP gene set, `pvaluecutoff` 0.05, and `qvaluecutoff` 0.05, only 1 gene set is returned as enriched in splicing `(regulation of small GTPase mediated signal transduction`).
-
-Using ALL gene sets, 21 are returned with these thresholds. The AML vs. Whole Blood comparison is one of the ref/query pairs that had the most samples, so I will leave the gene sets as ALL here since I now expect most ref/query pairs to return very few significantly overrepresented genes.
-
-```{r}
-colnames(splice_hs_msigdb_df)
-```
-
+For a first pass, I am not filtering for specific gene sets and applying a more stringent p filter.
+In an earlier iteration, I tried to perform ORA on the splicing gene sets defined by `splice_ids`, 
+but no set was enriched even when `pvalueCutoff` = 1.
 
 ```{r}
-# go_enrich <- enrichGO(gene = diffsplice_genes,
-#                       universe = detected_genes,
-#                       OrgDb = "org.Hs.eg.db",
-#                       keyType = 'SYMBOL',
-#                       readable = T,
-#                       ont = c("ALL"),
-#                       pvalueCutoff = 0.05,
-#                       qvalueCutoff = 0.05)
-
 go_enrich <- enricher(
   gene = diffsplice_genes, 
   pvalueCutoff = 0.01,
@@ -234,8 +220,8 @@ go_enrich <- enricher(
 Plot overlapping genes in each gene set with an upset plot
 
 ```{r}
-#| fig-width: 11
-#| fig-height: 20
+#| fig-width: 20
+#| fig-height: 11
 
 upsetplot(go_enrich) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
@@ -244,6 +230,9 @@ upsetplot(go_enrich) +
 Plot gene set gene count and significance from ORA: dot plot of gene set gene abundance (gene ratio) and ORA p values
 
 ```{r}
+#| fig-width: 11
+#| fig-height: 8
+
 dotplot(go_enrich)
 ```
 

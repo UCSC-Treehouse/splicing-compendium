@@ -48,10 +48,9 @@ library(enrichplot)
 
     Please cite:
 
-    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
-    clusterProfiler: an R package for comparing biological themes among
-    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
-    16(5):284-287
+    Guangchuang Yu, Fei Li, Yide Qin, Xiaochen Bo, Yibo Wu and Shengqi
+    Wang. GOSemSim: an R package for measuring semantic similarity among GO
+    terms and gene products. Bioinformatics. 2010, 26(7):976-978
 
 Define directory and file paths
 
@@ -166,7 +165,15 @@ upsetplot(ora_result) +
     ℹ The deprecated feature was likely used in the ggupset package.
       Please report the issue at <https://github.com/const-ae/ggupset/issues>.
 
-![](ora_of_diffsplice_genes_files/figure-commonmark/unnamed-chunk-8-1.png)
+<div id="fig-upset-plot">
+
+<img
+src="ora_of_diffsplice_genes_files/figure-commonmark/fig-upset-plot-1.png"
+id="fig-upset-plot" />
+
+Figure 1
+
+</div>
 
 Plot gene set gene count and significance from ORA: dot plot of gene set
 gene abundance (gene ratio) and ORA p values
@@ -175,7 +182,15 @@ gene abundance (gene ratio) and ORA p values
 dotplot(ora_result)
 ```
 
-![](ora_of_diffsplice_genes_files/figure-commonmark/unnamed-chunk-9-1.png)
+<div id="fig-dot-plot">
+
+<img
+src="ora_of_diffsplice_genes_files/figure-commonmark/fig-dot-plot-1.png"
+id="fig-dot-plot" />
+
+Figure 2
+
+</div>
 
 ## Write outputs to file
 

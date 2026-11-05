@@ -175,8 +175,27 @@ target_clinical_accessions <- dplyr::left_join(
 
 ## Combine target metadata with SRA metadata for downloaded samples and select columns to include
 
+Make a list of TARGET study_name strings of tumor types that are all stranded
+
+```{r}
+# AML CCSK
+# but we don't plan to have ccsk in final filtered set
+stranded_tumor_types <- c("TARGET: Acute Myeloid Leukemia (AML)")
+
+# ALL (phase 1 and 2), NBL, RT, WT
+mixed_stranded_tumor_types <- c(
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Expansion Phase 2",
+  "TARGET: Acute Lymphoblastic Leukemia (ALL) Pilot Phase 1",
+  "TARGET: Neuroblastoma (NBL)",
+  "TARGET: Kidney\\, Wilms Tumor (WT)",
+  "TARGET: Kidney\\, Rhabdoid Tumor (RT)"
+)
+```
+
+Select specific fields to keep in joined dataframe
+
 ```{r combine_metadata_with_sra}
-# merge target accessions with clinical metadata 
+# select for specific columns to keep
 target_clinical_accessions <- target_clinical_accessions |>
   # select for columns that are relevant to clinical metadata
   dplyr::select(
@@ -214,8 +233,24 @@ target_clinical_accessions <- target_clinical_accessions |>
     study_name,
     submitted_subject_id,
     histological_type,
-    body_site
-  ) 
+    body_site,
+    `Sequencing_date (run)`
+  ) |>
+  # derive sequencing year column from sequencing_date
+  dplyr::mutate(
+    sequencing_year = as.numeric(
+      stringr::str_split_i(`Sequencing_date (run)`, "-", 1)
+  ),
+    pre_2014 = dplyr::case_when(
+          sequencing_year < 2014 ~ TRUE,
+          sequencing_year > 2014 ~ FALSE
+    ),
+    strand_metadata = dplyr::case_when(
+      pre_2014 == TRUE & study_name %in% mixed_stranded_tumor_types ~ "unstranded",
+      pre_2014 == FALSE & study_name %in% mixed_stranded_tumor_types ~ "stranded",
+      study_name %in% stranded_tumor_types ~ "stranded"
+  )
+  )
 ```
 
 Check for samples without entries in any of the selected clinical metadata fields

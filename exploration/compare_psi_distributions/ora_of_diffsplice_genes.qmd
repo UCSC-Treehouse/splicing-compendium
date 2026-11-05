@@ -118,6 +118,7 @@ ora_result <- enricher(
 Plot overlapping genes in each gene set with an upset plot
 
 ```{r}
+#| label: fig-upset-plot
 #| fig-width: 20
 #| fig-height: 11
 
@@ -128,6 +129,7 @@ upsetplot(ora_result) +
 Plot gene set gene count and significance from ORA: dot plot of gene set gene abundance (gene ratio) and ORA p values
 
 ```{r}
+#| label: fig-dot-plot
 #| fig-width: 11
 #| fig-height: 8
 

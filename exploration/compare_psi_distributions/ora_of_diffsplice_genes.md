@@ -28,8 +28,10 @@ library(clusterProfiler)
 
     Please cite:
 
-    G Yu. Background bias in functional enrichment analysis: Insights from
-    clusterProfiler. The Innovation Life. 2026, 4(1):100181
+    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
+    clusterProfiler: an R package for comparing biological themes among
+    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
+    16(5):284-287
 
 
     Attaching package: 'clusterProfiler'
@@ -46,8 +48,10 @@ library(enrichplot)
 
     Please cite:
 
-    G Yu. Thirteen years of clusterProfiler. The Innovation. 2024,
-    5(6):100722
+    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
+    clusterProfiler: an R package for comparing biological themes among
+    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
+    16(5):284-287
 
 Define directory and file paths
 

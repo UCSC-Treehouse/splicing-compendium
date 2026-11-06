@@ -1,6 +1,6 @@
 # Biology vignette for splice compendium
 celiang@ucsc.edu
-2026-11-05
+2026-11-06
 
 This notebook takes Wilcoxon test statistics and dPSI values for query
 and reference groups chosen in `scripts/06-diffsplice_calculation.R` as
@@ -52,10 +52,8 @@ library(clusterProfiler)
 
     Please cite:
 
-    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
-    clusterProfiler: an R package for comparing biological themes among
-    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
-    16(5):284-287
+    G Yu. Background bias in functional enrichment analysis: Insights from
+    clusterProfiler. The Innovation Life. 2026, 4(1):100181
 
 
     Attaching package: 'clusterProfiler'
@@ -72,9 +70,10 @@ library(enrichplot)
 
     Please cite:
 
-    Guangchuang Yu. Using meshes for MeSH term enrichment and semantic
-    analyses. Bioinformatics. 2018, 34(21):3766-3767,
-    doi:10.1093/bioinformatics/bty410
+    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
+    clusterProfiler: an R package for comparing biological themes among
+    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
+    16(5):284-287
 
 Define directory and file paths
 
@@ -160,9 +159,31 @@ u2af1_leuk_diffsplice_genes <- c(
 druggable_genes <-th_druggable_genes |> 
   dplyr::pull(gene)
 
-# define list of splice-relevant msigdb gene sets
-msigdb_splice_sets <- c("M14810", "M10881")
-msigdb_cancer_sets <- c("M5930", "M5956", "M5953", "M5944", "M5942", "M5941")
+# turn gene lists into data frames
+u2af1_leuk_set <- data.frame(
+  gs_name = "u2af1_leuk_diffsplice",
+  gene_symbol = u2af1_leuk_diffsplice_genes
+)
+
+th_druggable_genes_set <- data.frame(
+  gs_name = "treehouse_druggable_genes",
+  gene_symbol = th_druggable_genes$gene
+)
+
+custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
+
+# filter human msigdb for Hallmark and Oncogenic Signature gene sets 
+# change gene set collections here if we decide on different gene sets in the future
+filtered_msigdb <- hs_msigdb_df |>
+  dplyr::filter(
+    gs_collection_name %in% c("Oncogenic Signature", "Hallmark") 
+  ) |>
+  dplyr::select(
+    gs_name,
+    gene_symbol
+  )
+
+combined_gene_sets <- rbind(custom_gene_sets, filtered_msigdb)
 ```
 
 ### Retrieve gene lists from splice results for ORA
@@ -198,58 +219,10 @@ filtered_diffsplice_results <- diffsplice_results |>
 diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
-### Pull gene sets from human msigdb database
-
-``` r
-colnames(hs_msigdb_df)
-```
-
-     [1] "gene_symbol"        "ncbi_gene"          "ensembl_gene"      
-     [4] "db_gene_symbol"     "db_ncbi_gene"       "db_ensembl_gene"   
-     [7] "source_gene"        "gs_id"              "gs_name"           
-    [10] "gs_collection"      "gs_subcollection"   "gs_collection_name"
-    [13] "gs_description"     "gs_source_species"  "gs_pmid"           
-    [16] "gs_geoid"           "gs_exact_source"    "gs_url"            
-    [19] "db_version"         "db_target_species" 
-
-``` r
-filtered_hs_msigdb <- hs_msigdb_df |>
-  dplyr::filter(
-    gs_id %in% as.list(msigdb_splice_sets, msigdb_cancer_sets) 
-  )
-
-hallmark_oncosig_msigdb <- hs_msigdb_df |>
-  dplyr::filter(
-    gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
-  )
-```
-
 ### ORA on significantly differentially spliced genes
 
 First, try to perform ORA on the filtered msigdb gene sets. Nothing
 comes up as significantly enriched, even when using no p value filter.
-
-``` r
-targeted_ora_result <- enricher(
-  gene = diffsplice_genes, 
-  pvalueCutoff = 0.05,
-  pAdjustMethod = "BH",
-  universe = detected_genes,
-  TERM2GENE = dplyr::select(
-    filtered_hs_msigdb,
-    gs_name,
-    gene_symbol
-  )
-)
-
-# check if anything comes up
-targeted_ora_result |> as.data.frame()
-```
-
-| ID | Description | GeneRatio | BgRatio | RichFactor | FoldEnrichment | zScore | pvalue | p.adjust | qvalue | geneID | Count |
-|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|:---|---:|
-
-Try ORA on Hallmark and Oncogenic Signatures gene sets only
 
 ``` r
 ora_result <- enricher(
@@ -257,23 +230,17 @@ ora_result <- enricher(
   pvalueCutoff = 0.05,
   pAdjustMethod = "BH",
   universe = detected_genes,
-  TERM2GENE = dplyr::select(
-    hallmark_oncosig_msigdb,
-    gs_name,
-    gene_symbol
-  )
+  TERM2GENE = combined_gene_sets
 )
-```
 
-``` r
-as.data.frame(ora_result) |>
-  head()
+# check if anything comes up
+ora_result |> as.data.frame()
 ```
 
 |  | ID | Description | GeneRatio | BgRatio | RichFactor | FoldEnrichment | zScore | pvalue | p.adjust | qvalue | geneID | Count |
 |:---|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|:---|---:|
-| EIF4E_DN | EIF4E_DN | EIF4E_DN | 54/3665 | 77/7479 | 0.7012987 | 1.431109 | 3.727322 | 0.0001299 | 0.0302906 | 0.0296073 | ALPK1/CD55/GFOD3P/DENND2D/FRMD4B/PARP8/CLINT1/DCTN4/OFD1/SH3YL1/TPD52/SEMA4D/FAS/NCOA6/NCOA7/SVIL/SIK3/TNIP1/WASHC5/NPEPPS/WDFY3/MAP3K5/TP53BP1/TRIP11/RCBTB2/ARID4B/CERT1/TBCK/TP53BP2/UPF2/SLC46A3/VPS13C/ADAM9/USP47/ANGPTL4/FNDC3B/CLTC/SCAMP1/PHIP/CCDC174/LRBA/KLHL21/PRMT9/CASP10/LMO7/OGA/FHIP2A/PRRC2C/MYO10/STAT5A/MCPH1/C3/KPNA4/NEDD4L | 54 |
-| HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | 110/3665 | 177/7479 | 0.6214689 | 1.268204 | 3.539726 | 0.0002545 | 0.0302906 | 0.0296073 | DOCK2/HDAC6/MARK4/SEPTIN9/NEDD9/ARHGEF2/RAB3GAP1/PXN/ARHGEF11/CDC42/PRC1/LATS1/ATG4B/CEP72/KLC1/CDK5RAP2/PDLIM5/CLIP1/STAU1/RASA2/KIF1B/RACGAP1/CNTROB/FGD4/CNTRL/NF1/RASA1/CDC27/ARFGEF1/TUBD1/MAP3K11/TSC1/TAOK2/ARAP3/NOTCH2/NET1/CSNK1D/ABI1/SSH2/RFC1/TUBGCP2/WASF1/KIF23/ARHGAP5/TRIO/PLK1/LMNB1/ABR/NCK2/AURKA/ARHGAP4/ECT2/PCM1/RAPGEF6/SUN2/KIF22/CLASP1/PAFAH1B1/DLG1/MYO9B/ARHGEF3/BCL2L11/KIF3B/TUBA4A/NIN/PPP4R2/EPB41/LRPPRC/SOS1/KNTC1/SPTAN1/EZR/ARHGEF7/ANLN/ALS2/SMC4/CCDC88A/ARHGAP27/GSN/CD2AP/BIN1/PKD2/AKAP13/TLK1/RABGAP1/TBCD/SASS6/CKAP5/CEP192/TOP2A/ARHGEF12/CEP57/RICTOR/ITSN1/ABL1/PCGF5/ACTN4/KIF15/FLNA/FLNB/ESPL1/YWHAE/CENPF/ROCK1/MYH9/TUBGCP5/CEP250/EPB41L2/NUMA1/VCL | 110 |
+| EIF4E_DN | EIF4E_DN | EIF4E_DN | 54/3672 | 77/7489 | 0.7012987 | 1.430290 | 3.722309 | 0.0001324 | 0.031421 | 0.0305941 | ALPK1/CD55/GFOD3P/DENND2D/FRMD4B/PARP8/CLINT1/DCTN4/OFD1/SH3YL1/TPD52/SEMA4D/FAS/NCOA6/NCOA7/SVIL/SIK3/TNIP1/WASHC5/NPEPPS/WDFY3/MAP3K5/TP53BP1/TRIP11/RCBTB2/ARID4B/CERT1/TBCK/TP53BP2/UPF2/SLC46A3/VPS13C/ADAM9/USP47/ANGPTL4/FNDC3B/CLTC/SCAMP1/PHIP/CCDC174/LRBA/KLHL21/PRMT9/CASP10/LMO7/OGA/FHIP2A/PRRC2C/MYO10/STAT5A/MCPH1/C3/KPNA4/NEDD4L | 54 |
+| HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | 110/3672 | 177/7489 | 0.6214689 | 1.267478 | 3.532080 | 0.0002618 | 0.031421 | 0.0305941 | DOCK2/HDAC6/MARK4/SEPTIN9/NEDD9/ARHGEF2/RAB3GAP1/PXN/ARHGEF11/CDC42/PRC1/LATS1/ATG4B/CEP72/KLC1/CDK5RAP2/PDLIM5/CLIP1/STAU1/RASA2/KIF1B/RACGAP1/CNTROB/FGD4/CNTRL/NF1/RASA1/CDC27/ARFGEF1/TUBD1/MAP3K11/TSC1/TAOK2/ARAP3/NOTCH2/NET1/CSNK1D/ABI1/SSH2/RFC1/TUBGCP2/WASF1/KIF23/ARHGAP5/TRIO/PLK1/LMNB1/ABR/NCK2/AURKA/ARHGAP4/ECT2/PCM1/RAPGEF6/SUN2/KIF22/CLASP1/PAFAH1B1/DLG1/MYO9B/ARHGEF3/BCL2L11/KIF3B/TUBA4A/NIN/PPP4R2/EPB41/LRPPRC/SOS1/KNTC1/SPTAN1/EZR/ARHGEF7/ANLN/ALS2/SMC4/CCDC88A/ARHGAP27/GSN/CD2AP/BIN1/PKD2/AKAP13/TLK1/RABGAP1/TBCD/SASS6/CKAP5/CEP192/TOP2A/ARHGEF12/CEP57/RICTOR/ITSN1/ABL1/PCGF5/ACTN4/KIF15/FLNA/FLNB/ESPL1/YWHAE/CENPF/ROCK1/MYH9/TUBGCP5/CEP250/EPB41L2/NUMA1/VCL | 110 |
 
 ## Plot ORA results
 

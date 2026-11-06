@@ -123,7 +123,7 @@ custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
 # change gene set collections here if we decide on different gene sets in the future
 filtered_msigdb <- hs_msigdb_df |>
   dplyr::filter(
-    gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
+    gs_collection_name %in% c("Oncogenic Signature", "Hallmark") 
   ) |>
   dplyr::select(
     gs_name,

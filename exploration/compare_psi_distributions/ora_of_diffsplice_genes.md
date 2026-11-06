@@ -1,6 +1,6 @@
 # Biology vignette for splice compendium
 celiang@ucsc.edu
-2026-11-03
+2026-11-06
 
 This notebook takes Wilcoxon test statistics and dPSI values for query
 and reference groups chosen in `scripts/06-diffsplice_calculation.R` as
@@ -13,6 +13,30 @@ Caveats:
 - The input to this notebook is currently the AML (stranded) vs. Whole
   Blood (unstranded) diffsplice results so doesn’t reflect the
   biological comparison we want to make for the manuscript.
+
+Gene sets used in this analysis fall under two categories:
+
+Category 1: Genes documented to be differentially spliced when splicing
+factors are mutated in blood cancers
+
+- Custom gene set: u2af1_leuk_diffsplice_genes - list of 16 genes
+  differentially spliced in U2AF1 mutant vs. WT cells in AMLCG, Beat AML
+  datasets, Okeyo-Owuor et al. (Table S14 of
+  [Bamopoulos](https://www.nature.com/articles/s41375-020-0839-4#auth-Stefanos_A_-Bamopoulos-Aff1-Aff2)
+  et al. 2020)
+- msigDB gene sets: GOBP_REGULATION_OF_MRNA_SPLICING_VIA_SPLICEOSOME
+  (M14810), GOBP_ALTERNATIVE_MRNA_SPLICING_VIA_SPLICEOSOME (M10881)
+
+Category 2: Gene sets with clinical/oncogenic relevance
+
+- Custom gene set:
+  [treehouseDruggableGenes_2020-03_25.txt](https://github.com/UCSC-Treehouse/CKCC2/blob/adb997599358916e120f0118e8cffa2cd6bd9890/data/treehouseDruggableGenes_2020-03_25.txt#L4) -
+  Treehouse list of 116 druggable genes used for patient outlier
+  analysis
+- msigDB gene sets: HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION (M5930),
+  HALLMARK_KRAS_SIGNALING_DN (M5956), HALLMARK_KRAS_SIGNALING_UP
+  (M5953), HALLMARK_ANGIOGENESIS (M5944), HALLMARK_UV_RESPONSE_DN
+  (M5942), HALLMARK_UV_RESPONSE_UP (M5941)
 
 ## Setup
 
@@ -46,9 +70,10 @@ library(enrichplot)
 
     Please cite:
 
-    Guangchuang Yu, Li-Gen Wang, and Qing-Yu He. ChIPseeker: an
-    R/Bioconductor package for ChIP peak annotation, comparison and
-    visualization. Bioinformatics. 2015, 31(14):2382-2383
+    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
+    clusterProfiler: an R package for comparing biological themes among
+    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
+    16(5):284-287
 
 Define directory and file paths
 
@@ -56,16 +81,19 @@ Define directory and file paths
 ## directories
 # repo root
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+# gene sets
+gene_set_dir <- file.path(repo_root, "gene_sets")
 
-# test diffsplice results dir
-test_dir <- file.path(repo_root, "test_files")
-
-## files
+## files ##
 # whole blood vs AML splice results with gene name, median PSI, diffsplice dpsi, and p-adj columns
-diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
+diffsplice_results_file <- file.path(repo_root, params$in_file)
 
-# output ORA results
-out_file <- file.path(test_dir,  "ora_test.tsv")
+# gene sets for ORA
+treehouse_druggable_genes_file <- file.path(gene_set_dir, "treehouseDruggableGenes_2020-03_25.txt")
+
+# output files
+out_ora_file <- file.path(repo_root, params$out_ora_file)
+out_sig_diffsplice_file <- file.path(repo_root, params$out_sig_diffsplice_file)
 ```
 
 Read in files
@@ -83,13 +111,86 @@ diffsplice_results <- readr::read_tsv(diffsplice_results_file)
     ℹ Use `spec()` to retrieve the full column specification for this data.
     ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 
+``` r
+th_druggable_genes <- readr::read_tsv(treehouse_druggable_genes_file)
+```
+
+    Rows: 115 Columns: 2
+    ── Column specification ────────────────────────────────────────────────────────
+    Delimiter: "\t"
+    chr (2): gene, group
+
+    ℹ Use `spec()` to retrieve the full column specification for this data.
+    ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+
 ## ORA
+
+Obtain msigdb gene sets relevant to humans
+
+``` r
+hs_msigdb_df <- msigdbr(species = "Homo sapiens")
+```
+
+Define list of genes for custom gene sets and lists of msigDB gene sets
+of interest
+
+``` r
+# define custom splice gene list
+u2af1_leuk_diffsplice_genes <- c(
+  "ABI1",
+  "CLTA",
+  "DEK",
+  "GIT2",
+  "HNRNPK",
+  "HP1BP3",
+  "ITCH",
+  "MCM3",
+  "NSMAF",
+  "PCNXL4",
+  "PLEKHM2",
+  "PMM2",
+  "PPP6R3",
+  "RP3-477O4.14",
+  "SET",
+  "SWI5"
+)
+
+# define treehouse druggable gene list
+druggable_genes <-th_druggable_genes |> 
+  dplyr::pull(gene)
+
+# turn gene lists into data frames
+u2af1_leuk_set <- data.frame(
+  gs_name = "u2af1_leuk_diffsplice",
+  gene_symbol = u2af1_leuk_diffsplice_genes
+)
+
+th_druggable_genes_set <- data.frame(
+  gs_name = "treehouse_druggable_genes",
+  gene_symbol = th_druggable_genes$gene
+)
+
+custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
+
+# filter human msigdb for Hallmark and Oncogenic Signature gene sets 
+# change gene set collections here if we decide on different gene sets in the future
+filtered_msigdb <- hs_msigdb_df |>
+  dplyr::filter(
+    gs_collection_name %in% c("Oncogenic Signature", "Hallmark") 
+  ) |>
+  dplyr::select(
+    gs_name,
+    gene_symbol
+  )
+
+combined_gene_sets <- rbind(custom_gene_sets, filtered_msigdb)
+```
 
 ### Retrieve gene lists from splice results for ORA
 
 Background genes (`detected_genes`) are all genes with non-NA (numeric)
 PSI values quantified for at least min_samples in the reference and
-query groups. In the test data used here, min_samples was 5.
+query groups. In the test data used here, min_samples is 5.
 
 ``` r
 detected_genes <- diffsplice_results |>
@@ -105,7 +206,7 @@ Filter for differential splicing results within padj and significance
 thresholds and obtain the diffsplice gene list
 
 ``` r
-# filter for significant diffsplice evennts
+# filter for significant diffsplice events
 filtered_diffsplice_results <- diffsplice_results |>
   dplyr::filter(
     p_adj < params$padj,
@@ -120,33 +221,33 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 
 ### ORA on significantly differentially spliced genes
 
-Using the BP gene set, `pvaluecutoff` 0.05, and `qvaluecutoff` 0.05,
-only 1 gene set is returned as enriched in splicing
-`(regulation of small GTPase mediated signal transduction`).
-
-Using ALL gene sets, 21 are returned with these thresholds. The AML
-vs. Whole Blood comparison is one of the ref/query pairs that had the
-most samples, so I will leave the gene sets as ALL here since I now
-expect most ref/query pairs to return very few significantly
-overrepresented genes.
+First, try to perform ORA on the filtered msigdb gene sets. Nothing
+comes up as significantly enriched, even when using no p value filter.
 
 ``` r
-go_enrich <- enrichGO(gene = diffsplice_genes,
-                      universe = detected_genes,
-                      OrgDb = "org.Hs.eg.db",
-                      keyType = 'SYMBOL',
-                      readable = T,
-                      ont = c("ALL"),
-                      pvalueCutoff = 0.05,
-                      qvalueCutoff = 0.05)
+ora_result <- enricher(
+  gene = diffsplice_genes, 
+  pvalueCutoff = 0.05,
+  pAdjustMethod = "BH",
+  universe = detected_genes,
+  TERM2GENE = combined_gene_sets
+)
+
+# check if anything comes up
+ora_result |> as.data.frame()
 ```
+
+|  | ID | Description | GeneRatio | BgRatio | RichFactor | FoldEnrichment | zScore | pvalue | p.adjust | qvalue | geneID | Count |
+|:---|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|:---|---:|
+| EIF4E_DN | EIF4E_DN | EIF4E_DN | 54/3672 | 77/7489 | 0.7012987 | 1.430290 | 3.722309 | 0.0001324 | 0.031421 | 0.0305941 | ALPK1/CD55/GFOD3P/DENND2D/FRMD4B/PARP8/CLINT1/DCTN4/OFD1/SH3YL1/TPD52/SEMA4D/FAS/NCOA6/NCOA7/SVIL/SIK3/TNIP1/WASHC5/NPEPPS/WDFY3/MAP3K5/TP53BP1/TRIP11/RCBTB2/ARID4B/CERT1/TBCK/TP53BP2/UPF2/SLC46A3/VPS13C/ADAM9/USP47/ANGPTL4/FNDC3B/CLTC/SCAMP1/PHIP/CCDC174/LRBA/KLHL21/PRMT9/CASP10/LMO7/OGA/FHIP2A/PRRC2C/MYO10/STAT5A/MCPH1/C3/KPNA4/NEDD4L | 54 |
+| HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | 110/3672 | 177/7489 | 0.6214689 | 1.267478 | 3.532080 | 0.0002618 | 0.031421 | 0.0305941 | DOCK2/HDAC6/MARK4/SEPTIN9/NEDD9/ARHGEF2/RAB3GAP1/PXN/ARHGEF11/CDC42/PRC1/LATS1/ATG4B/CEP72/KLC1/CDK5RAP2/PDLIM5/CLIP1/STAU1/RASA2/KIF1B/RACGAP1/CNTROB/FGD4/CNTRL/NF1/RASA1/CDC27/ARFGEF1/TUBD1/MAP3K11/TSC1/TAOK2/ARAP3/NOTCH2/NET1/CSNK1D/ABI1/SSH2/RFC1/TUBGCP2/WASF1/KIF23/ARHGAP5/TRIO/PLK1/LMNB1/ABR/NCK2/AURKA/ARHGAP4/ECT2/PCM1/RAPGEF6/SUN2/KIF22/CLASP1/PAFAH1B1/DLG1/MYO9B/ARHGEF3/BCL2L11/KIF3B/TUBA4A/NIN/PPP4R2/EPB41/LRPPRC/SOS1/KNTC1/SPTAN1/EZR/ARHGEF7/ANLN/ALS2/SMC4/CCDC88A/ARHGAP27/GSN/CD2AP/BIN1/PKD2/AKAP13/TLK1/RABGAP1/TBCD/SASS6/CKAP5/CEP192/TOP2A/ARHGEF12/CEP57/RICTOR/ITSN1/ABL1/PCGF5/ACTN4/KIF15/FLNA/FLNB/ESPL1/YWHAE/CENPF/ROCK1/MYH9/TUBGCP5/CEP250/EPB41L2/NUMA1/VCL | 110 |
 
 ## Plot ORA results
 
 Plot overlapping genes in each gene set with an upset plot
 
 ``` r
-upsetplot(go_enrich) +
+upsetplot(ora_result, n = 10) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
 ```
 
@@ -161,19 +262,41 @@ upsetplot(go_enrich) +
     ℹ The deprecated feature was likely used in the ggupset package.
       Please report the issue at <https://github.com/const-ae/ggupset/issues>.
 
-![](ora_of_diffsplice_genes_files/figure-commonmark/unnamed-chunk-7-1.png)
+    `geom_line()`: Each group consists of only one observation.
+    ℹ Do you need to adjust the group aesthetic?
+    `geom_line()`: Each group consists of only one observation.
+    ℹ Do you need to adjust the group aesthetic?
+
+<div id="fig-upset-plot">
+
+<img
+src="ora_of_diffsplice_genes_files/figure-commonmark/fig-upset-plot-1.png"
+id="fig-upset-plot" />
+
+Figure 1
+
+</div>
 
 Plot gene set gene count and significance from ORA: dot plot of gene set
 gene abundance (gene ratio) and ORA p values
 
 ``` r
-dotplot(go_enrich)
+dotplot(ora_result)
 ```
 
-![](ora_of_diffsplice_genes_files/figure-commonmark/unnamed-chunk-8-1.png)
+<div id="fig-dot-plot">
 
-## Write output to file
+<img
+src="ora_of_diffsplice_genes_files/figure-commonmark/fig-dot-plot-1.png"
+id="fig-dot-plot" />
+
+Figure 2
+
+</div>
+
+## Write outputs to file
 
 ``` r
-readr::write_tsv(as.data.frame(go_enrich), out_file)
+readr::write_tsv(as.data.frame(ora_result), out_ora_file)
+readr::write_tsv(diffsplice_results, out_sig_diffsplice_file)
 ```

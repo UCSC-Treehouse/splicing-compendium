@@ -9,6 +9,9 @@ author: celiang@ucsc.edu
 params:
   padj: 0.05
   dpsi: 0.15
+  in_file: "test_files/diffsplice_Whole_Blood_vs_AML.tsv"
+  out_ora_file: "test_files/ora_test.tsv"
+  out_sig_diffsplice_file: "test_files/sig_diffsplice.tsv"
 ---
 
 This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
@@ -16,6 +19,18 @@ This notebook takes Wilcoxon test statistics and dPSI values for query and refer
 Caveats:
 
 - The input to this notebook is currently the AML (stranded) vs. Whole Blood (unstranded) diffsplice results so doesn't reflect the biological comparison we want to make for the manuscript.
+
+Gene sets used in this analysis fall under two categories:
+
+Category 1: Genes documented to be differentially spliced when splicing factors are mutated in blood cancers
+
+- Custom gene set: u2af1_leuk_diffsplice_genes - list of 16 genes differentially spliced in U2AF1 mutant vs. WT cells in AMLCG, Beat AML datasets, Okeyo-Owuor et al. (Table S14 of [Bamopoulos](https://www.nature.com/articles/s41375-020-0839-4#auth-Stefanos_A_-Bamopoulos-Aff1-Aff2) et al. 2020)
+- msigDB gene sets: GOBP_REGULATION_OF_MRNA_SPLICING_VIA_SPLICEOSOME (M14810), GOBP_ALTERNATIVE_MRNA_SPLICING_VIA_SPLICEOSOME (M10881)
+
+Category 2: Gene sets with clinical/oncogenic relevance
+
+- Custom gene set: [treehouseDruggableGenes_2020-03_25.txt](https://github.com/UCSC-Treehouse/CKCC2/blob/adb997599358916e120f0118e8cffa2cd6bd9890/data/treehouseDruggableGenes_2020-03_25.txt#L4) - Treehouse list of 116 druggable genes used for patient outlier analysis
+- msigDB gene sets: HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION (M5930), HALLMARK_KRAS_SIGNALING_DN (M5956), HALLMARK_KRAS_SIGNALING_UP (M5953), HALLMARK_ANGIOGENESIS (M5944), HALLMARK_UV_RESPONSE_DN (M5942), HALLMARK_UV_RESPONSE_UP (M5941)
 
 ## Setup
 
@@ -34,29 +49,94 @@ Define directory and file paths
 ## directories
 # repo root
 repo_root <- rprojroot::find_root(rprojroot::is_git_root)
+# gene sets
+gene_set_dir <- file.path(repo_root, "gene_sets")
 
-# test diffsplice results dir
-test_dir <- file.path(repo_root, "test_files")
-
-## files
+## files ##
 # whole blood vs AML splice results with gene name, median PSI, diffsplice dpsi, and p-adj columns
-diffsplice_results_file <- file.path(test_dir, "diffsplice_Whole_Blood_vs_AML.tsv")
+diffsplice_results_file <- file.path(repo_root, params$in_file)
 
-# output ORA results
-out_file <- file.path(test_dir,  "ora_test.tsv")
+# gene sets for ORA
+treehouse_druggable_genes_file <- file.path(gene_set_dir, "treehouseDruggableGenes_2020-03_25.txt")
+
+# output files
+out_ora_file <- file.path(repo_root, params$out_ora_file)
+out_sig_diffsplice_file <- file.path(repo_root, params$out_sig_diffsplice_file)
 ```
 
 Read in files
 
 ```{r}
 diffsplice_results <- readr::read_tsv(diffsplice_results_file) 
+th_druggable_genes <- readr::read_tsv(treehouse_druggable_genes_file)
 ```
 
 ## ORA
 
+Obtain msigdb gene sets relevant to humans
+
+```{r obtain_human_db}
+hs_msigdb_df <- msigdbr(species = "Homo sapiens")
+```
+
+Define list of genes for custom gene sets and lists of msigDB gene sets of interest
+
+```{r define_gene_lists}
+# define custom splice gene list
+u2af1_leuk_diffsplice_genes <- c(
+  "ABI1",
+  "CLTA",
+  "DEK",
+  "GIT2",
+  "HNRNPK",
+  "HP1BP3",
+  "ITCH",
+  "MCM3",
+  "NSMAF",
+  "PCNXL4",
+  "PLEKHM2",
+  "PMM2",
+  "PPP6R3",
+  "RP3-477O4.14",
+  "SET",
+  "SWI5"
+)
+
+# define treehouse druggable gene list
+druggable_genes <-th_druggable_genes |> 
+  dplyr::pull(gene)
+
+# turn gene lists into data frames
+u2af1_leuk_set <- data.frame(
+  gs_name = "u2af1_leuk_diffsplice",
+  gene_symbol = u2af1_leuk_diffsplice_genes
+)
+
+th_druggable_genes_set <- data.frame(
+  gs_name = "treehouse_druggable_genes",
+  gene_symbol = th_druggable_genes$gene
+)
+
+custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
+
+# filter human msigdb for Hallmark and Oncogenic Signature gene sets 
+# change gene set collections here if we decide on different gene sets in the future
+filtered_msigdb <- hs_msigdb_df |>
+  dplyr::filter(
+    gs_collection_name %in% c("Oncogenic Signature", "Hallmark") 
+  ) |>
+  dplyr::select(
+    gs_name,
+    gene_symbol
+  )
+
+combined_gene_sets <- rbind(custom_gene_sets, filtered_msigdb)
+
+```
+
 ### Retrieve gene lists from splice results for ORA
 
-Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups. In the test data used here, min_samples was 5.
+Background genes (`detected_genes`) are all genes with non-NA (numeric) PSI values quantified for at least min_samples in the reference and query groups. In the test data used here, min_samples is 5.
 
 ```{r}
 detected_genes <- diffsplice_results |>
@@ -71,7 +151,7 @@ detected_genes <- diffsplice_results |>
 Filter for differential splicing results within padj and significance thresholds and obtain the diffsplice gene list
 
 ```{r}
-# filter for significant diffsplice evennts
+# filter for significant diffsplice events
 filtered_diffsplice_results <- diffsplice_results |>
   dplyr::filter(
     p_adj < params$padj,
@@ -86,20 +166,19 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 
 ### ORA on significantly differentially spliced genes
 
-Using the BP gene set, `pvaluecutoff` 0.05, and `qvaluecutoff` 0.05, only 1 gene set is returned as enriched in splicing `(regulation of small GTPase mediated signal transduction`).
-
-Using ALL gene sets, 21 are returned with these thresholds. The AML vs. Whole Blood comparison is one of the ref/query pairs that had the most samples, so I will leave the gene sets as ALL here since I now expect most ref/query pairs to return very few significantly overrepresented genes.
+First, try to perform ORA on the filtered msigdb gene sets. Nothing comes up as significantly enriched, even when using no p value filter.
 
 ```{r}
-go_enrich <- enrichGO(gene = diffsplice_genes,
-                      universe = detected_genes,
-                      OrgDb = "org.Hs.eg.db",
-                      keyType = 'SYMBOL',
-                      readable = T,
-                      ont = c("ALL"),
-                      pvalueCutoff = 0.05,
-                      qvalueCutoff = 0.05)
+ora_result <- enricher(
+  gene = diffsplice_genes, 
+  pvalueCutoff = 0.05,
+  pAdjustMethod = "BH",
+  universe = detected_genes,
+  TERM2GENE = combined_gene_sets
+)
 
+# check if anything comes up
+ora_result |> as.data.frame()
 ```
 
 ## Plot ORA results
@@ -107,21 +186,27 @@ go_enrich <- enrichGO(gene = diffsplice_genes,
 Plot overlapping genes in each gene set with an upset plot
 
 ```{r}
-#| fig-width: 11
-#| fig-height: 4
+#| label: fig-upset-plot
+#| fig-width: 5
+#| fig-height: 5
 
-upsetplot(go_enrich) +
+upsetplot(ora_result, n = 10) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
 ```
 
 Plot gene set gene count and significance from ORA: dot plot of gene set gene abundance (gene ratio) and ORA p values
 
 ```{r}
-dotplot(go_enrich)
+#| label: fig-dot-plot
+#| fig-width: 8
+#| fig-height: 5
+
+dotplot(ora_result)
 ```
 
-## Write output to file
+## Write outputs to file
 
 ```{r write_output}
-readr::write_tsv(as.data.frame(go_enrich), out_file)
+readr::write_tsv(as.data.frame(ora_result), out_ora_file)
+readr::write_tsv(diffsplice_results, out_sig_diffsplice_file)
 ```

@@ -14,8 +14,7 @@ params:
   out_sig_diffsplice_file: "test_files/sig_diffsplice.tsv"
 ---
 
-This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. 
-After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
+This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
 
 Caveats:
 
@@ -143,6 +142,7 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
 ### Pull gene sets from human msigdb database
+
 ```{r}
 colnames(hs_msigdb_df)
 ```
@@ -153,17 +153,21 @@ filtered_hs_msigdb <- hs_msigdb_df |>
     gs_id %in% as.list(msigdb_splice_sets, msigdb_splice_sets) | 
       gene_symbol %in% as.list(u2af1_leuk_diffsplice_genes, druggable_genes)
   )
+
+gobp_hp_hs_msigdb <- hs_msigdb_df |>
+  dplyr::filter(
+    gs_subcollection %in% c("GO:BP", "HPO")
+  )
 ```
 
 ### ORA on significantly differentially spliced genes
 
-First, try to perform ORA on the filtered msigdb gene sets.
-When fewer gene sets are attempted, nothing comes up as significantly enriched, even when using no p value filter.
+First, try to perform ORA on the filtered msigdb gene sets. When fewer gene sets are attempted, nothing comes up as significantly enriched, even when using no p value filter.
 
 ```{r}
 targeted_ora_result <- enricher(
   gene = diffsplice_genes, 
-  pvalueCutoff = 1,
+  pvalueCutoff = 0.05,
   pAdjustMethod = "BH",
   universe = detected_genes,
   TERM2GENE = dplyr::select(
@@ -177,21 +181,26 @@ targeted_ora_result <- enricher(
 targeted_ora_result |> as.data.frame()
 ```
 
-Try not filtering for specific gene sets and applying a more stringent p filter. 
-In an earlier iteration, I also tried to perform ORA on the splicing gene sets defined by `splice_ids`, but no set was enriched even when `pvalueCutoff` = 1.
+Try ORA on GOBP and HP gene sets only
 
 ```{r}
 ora_result <- enricher(
   gene = diffsplice_genes, 
   pvalueCutoff = 0.05,
   pAdjustMethod = "BH",
+  qvalueCutoff = 0.05,
   universe = detected_genes,
   TERM2GENE = dplyr::select(
-    hs_msigdb_df,
+    gobp_hp_hs_msigdb,
     gs_name,
     gene_symbol
   )
 )
+```
+
+```{r}
+as.data.frame(ora_result) |>
+  head()
 ```
 
 ## Plot ORA results
@@ -203,7 +212,7 @@ Plot overlapping genes in each gene set with an upset plot
 #| fig-width: 20
 #| fig-height: 11
 
-upsetplot(ora_result) +
+upsetplot(ora_result, n = 10) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
 ```
 

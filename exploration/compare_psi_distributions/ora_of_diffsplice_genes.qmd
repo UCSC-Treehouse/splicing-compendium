@@ -106,10 +106,34 @@ u2af1_leuk_diffsplice_genes <- c(
 druggable_genes <-th_druggable_genes |> 
   dplyr::pull(gene)
 
-# define list of splice-relevant msigdb gene sets
-msigdb_splice_sets <- c("M14810", "M10881")
-msigdb_cancer_sets <- c("M5930", "M5956", "M5953", "M5944", "M5942", "M5941")
+# turn gene lists into data frames
+u2af1_leuk_set <- data.frame(
+  gs_name = "u2af1_leuk_diffsplice",
+  gene_symbol = u2af1_leuk_diffsplice_genes
+)
+
+th_druggable_genes_set <- data.frame(
+  gs_name = "treehouse_druggable_genes",
+  gene_symbol = th_druggable_genes$gene
+)
+
+combined_custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
+
+# filter human msigdb for Hallmark and Oncogenic Signature gene sets 
+# change gene set collections here if we decide on different gene sets in the future
+filtered_msigdb <- hs_msigdb_df |>
+  dplyr::filter(
+    gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
+  )
+
 ```
+
+Combine gene sets into one data frame for passing into ORA
+
+```{r}
+gene_sets_for_ora <- rbind()
+```
+
 
 ### Retrieve gene lists from splice results for ORA
 
@@ -148,15 +172,7 @@ colnames(hs_msigdb_df)
 ```
 
 ```{r filter_hs_msigdb}
-filtered_hs_msigdb <- hs_msigdb_df |>
-  dplyr::filter(
-    gs_id %in% as.list(msigdb_splice_sets, msigdb_cancer_sets) 
-  )
 
-hallmark_oncosig_msigdb <- hs_msigdb_df |>
-  dplyr::filter(
-    gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
-  )
 ```
 
 ### ORA on significantly differentially spliced genes

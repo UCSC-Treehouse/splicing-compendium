@@ -52,10 +52,10 @@ library(clusterProfiler)
 
     Please cite:
 
-    T Wu, E Hu, S Xu, M Chen, P Guo, Z Dai, T Feng, L Zhou, W Tang, L Zhan,
-    X Fu, S Liu, X Bo, and G Yu. clusterProfiler 4.0: A universal
-    enrichment tool for interpreting omics data. The Innovation. 2021,
-    2(3):100141
+    Guangchuang Yu, Li-Gen Wang, Yanyan Han and Qing-Yu He.
+    clusterProfiler: an R package for comparing biological themes among
+    gene clusters. OMICS: A Journal of Integrative Biology. 2012,
+    16(5):284-287
 
 
     Attaching package: 'clusterProfiler'
@@ -72,9 +72,9 @@ library(enrichplot)
 
     Please cite:
 
-    Guangchuang Yu, Li-Gen Wang, and Qing-Yu He. ChIPseeker: an
-    R/Bioconductor package for ChIP peak annotation, comparison and
-    visualization. Bioinformatics. 2015, 31(14):2382-2383
+    Guangchuang Yu. Using meshes for MeSH term enrichment and semantic
+    analyses. Bioinformatics. 2018, 34(21):3766-3767,
+    doi:10.1093/bioinformatics/bty410
 
 Define directory and file paths
 
@@ -226,41 +226,8 @@ hallmark_oncosig_msigdb <- hs_msigdb_df |>
 
 ### ORA on significantly differentially spliced genes
 
-First, try to perform ORA on the filtered msigdb gene sets. When fewer
-gene sets are attempted, nothing comes up as significantly enriched,
-even when using no p value filter.
-
-``` r
-hs_msigdb_df |>
-  dplyr::pull(gs_collection_name) |> unique()
-```
-
-     [1] "MIR_Legacy"                          
-     [2] "TFT_Legacy"                          
-     [3] "Chemical and Genetic Perturbations"  
-     [4] "GTRD"                                
-     [5] "Cell Type Signature"                 
-     [6] "Oncogenic Signature"                 
-     [7] "HIPC Vaccine Response"               
-     [8] "BioCarta Pathways"                   
-     [9] "Cancer Gene Neighborhoods"           
-    [10] "Curated Cancer Cell Atlas gene sets "
-    [11] "Computational Perturbation Signature"
-    [12] "GO Biological Process"               
-    [13] "GO Cellular Component"               
-    [14] "ImmuneSigDB"                         
-    [15] "GO Molecular Function"               
-    [16] "Hallmark"                            
-    [17] "Human Phenotype Ontology"            
-    [18] "KEGG Legacy Pathways"                
-    [19] "KEGG Medicus Pathways"               
-    [20] "miRDB"                               
-    [21] "Cancer Modules"                      
-    [22] "Positional"                          
-    [23] "PID Pathways"                        
-    [24] "Reactome Pathways"                   
-    [25] "Canonical Pathways"                  
-    [26] "WikiPathways"                        
+First, try to perform ORA on the filtered msigdb gene sets. Nothing
+comes up as significantly enriched, even when using no p value filter.
 
 ``` r
 targeted_ora_result <- enricher(
@@ -282,7 +249,7 @@ targeted_ora_result |> as.data.frame()
 | ID | Description | GeneRatio | BgRatio | RichFactor | FoldEnrichment | zScore | pvalue | p.adjust | qvalue | geneID | Count |
 |:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|:---|---:|
 
-Try ORA on GOBP and HP gene sets only
+Try ORA on Hallmark and Oncogenic Signatures gene sets only
 
 ``` r
 ora_result <- enricher(

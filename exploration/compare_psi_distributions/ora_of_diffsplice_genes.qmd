@@ -117,23 +117,22 @@ th_druggable_genes_set <- data.frame(
   gene_symbol = th_druggable_genes$gene
 )
 
-combined_custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
+custom_gene_sets <- rbind(u2af1_leuk_set, th_druggable_genes_set)
 
 # filter human msigdb for Hallmark and Oncogenic Signature gene sets 
 # change gene set collections here if we decide on different gene sets in the future
 filtered_msigdb <- hs_msigdb_df |>
   dplyr::filter(
     gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
+  ) |>
+  dplyr::select(
+    gs_name,
+    gene_symbol
   )
 
+combined_gene_sets <- rbind(custom_gene_sets, filtered_msigdb)
+
 ```
-
-Combine gene sets into one data frame for passing into ORA
-
-```{r}
-gene_sets_for_ora <- rbind()
-```
-
 
 ### Retrieve gene lists from splice results for ORA
 
@@ -165,38 +164,9 @@ filtered_diffsplice_results <- diffsplice_results |>
 diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
-### Pull gene sets from human msigdb database
-
-```{r}
-colnames(hs_msigdb_df)
-```
-
-```{r filter_hs_msigdb}
-
-```
-
 ### ORA on significantly differentially spliced genes
 
 First, try to perform ORA on the filtered msigdb gene sets. Nothing comes up as significantly enriched, even when using no p value filter.
-
-```{r}
-targeted_ora_result <- enricher(
-  gene = diffsplice_genes, 
-  pvalueCutoff = 0.05,
-  pAdjustMethod = "BH",
-  universe = detected_genes,
-  TERM2GENE = dplyr::select(
-    filtered_hs_msigdb,
-    gs_name,
-    gene_symbol
-  )
-)
-
-# check if anything comes up
-targeted_ora_result |> as.data.frame()
-```
-
-Try ORA on Hallmark and Oncogenic Signatures gene sets only
 
 ```{r}
 ora_result <- enricher(
@@ -204,17 +174,11 @@ ora_result <- enricher(
   pvalueCutoff = 0.05,
   pAdjustMethod = "BH",
   universe = detected_genes,
-  TERM2GENE = dplyr::select(
-    hallmark_oncosig_msigdb,
-    gs_name,
-    gene_symbol
-  )
+  TERM2GENE = combined_gene_sets
 )
-```
 
-```{r}
-as.data.frame(ora_result) |>
-  head()
+# check if anything comes up
+ora_result |> as.data.frame()
 ```
 
 ## Plot ORA results

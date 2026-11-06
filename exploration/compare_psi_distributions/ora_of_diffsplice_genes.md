@@ -52,8 +52,10 @@ library(clusterProfiler)
 
     Please cite:
 
-    G Yu. Background bias in functional enrichment analysis: Insights from
-    clusterProfiler. The Innovation Life. 2026, 4(1):100181
+    T Wu, E Hu, S Xu, M Chen, P Guo, Z Dai, T Feng, L Zhou, W Tang, L Zhan,
+    X Fu, S Liu, X Bo, and G Yu. clusterProfiler 4.0: A universal
+    enrichment tool for interpreting omics data. The Innovation. 2021,
+    2(3):100141
 
 
     Attaching package: 'clusterProfiler'
@@ -70,9 +72,9 @@ library(enrichplot)
 
     Please cite:
 
-    Qianwen Wang, Ming Li, Tianzhi Wu, Li Zhan, Lin Li, Meijun Chen, Wenqin
-    Xie, Zijing Xie, Erqiang Hu, Shuangbin Xu, Guangchuang Yu. Exploring
-    epigenomic datasets by ChIPseeker. Current Protocols. 2022, 2(10): e585
+    Guangchuang Yu, Li-Gen Wang, and Qing-Yu He. ChIPseeker: an
+    R/Bioconductor package for ChIP peak annotation, comparison and
+    visualization. Bioinformatics. 2015, 31(14):2382-2383
 
 Define directory and file paths
 
@@ -213,8 +215,12 @@ colnames(hs_msigdb_df)
 ``` r
 filtered_hs_msigdb <- hs_msigdb_df |>
   dplyr::filter(
-    gs_id %in% as.list(msigdb_splice_sets, msigdb_splice_sets) | 
-      gene_symbol %in% as.list(u2af1_leuk_diffsplice_genes, druggable_genes)
+    gs_id %in% as.list(msigdb_splice_sets, msigdb_cancer_sets) 
+  )
+
+hallmark_oncosig_msigdb <- hs_msigdb_df |>
+  dplyr::filter(
+    gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
   )
 ```
 
@@ -225,9 +231,41 @@ gene sets are attempted, nothing comes up as significantly enriched,
 even when using no p value filter.
 
 ``` r
+hs_msigdb_df |>
+  dplyr::pull(gs_collection_name) |> unique()
+```
+
+     [1] "MIR_Legacy"                          
+     [2] "TFT_Legacy"                          
+     [3] "Chemical and Genetic Perturbations"  
+     [4] "GTRD"                                
+     [5] "Cell Type Signature"                 
+     [6] "Oncogenic Signature"                 
+     [7] "HIPC Vaccine Response"               
+     [8] "BioCarta Pathways"                   
+     [9] "Cancer Gene Neighborhoods"           
+    [10] "Curated Cancer Cell Atlas gene sets "
+    [11] "Computational Perturbation Signature"
+    [12] "GO Biological Process"               
+    [13] "GO Cellular Component"               
+    [14] "ImmuneSigDB"                         
+    [15] "GO Molecular Function"               
+    [16] "Hallmark"                            
+    [17] "Human Phenotype Ontology"            
+    [18] "KEGG Legacy Pathways"                
+    [19] "KEGG Medicus Pathways"               
+    [20] "miRDB"                               
+    [21] "Cancer Modules"                      
+    [22] "Positional"                          
+    [23] "PID Pathways"                        
+    [24] "Reactome Pathways"                   
+    [25] "Canonical Pathways"                  
+    [26] "WikiPathways"                        
+
+``` r
 targeted_ora_result <- enricher(
   gene = diffsplice_genes, 
-  pvalueCutoff = 1,
+  pvalueCutoff = 0.05,
   pAdjustMethod = "BH",
   universe = detected_genes,
   TERM2GENE = dplyr::select(
@@ -244,10 +282,7 @@ targeted_ora_result |> as.data.frame()
 | ID | Description | GeneRatio | BgRatio | RichFactor | FoldEnrichment | zScore | pvalue | p.adjust | qvalue | geneID | Count |
 |:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|:---|---:|
 
-Try not filtering for specific gene sets and applying a more stringent p
-filter. In an earlier iteration, I also tried to perform ORA on the
-splicing gene sets defined by `splice_ids`, but no set was enriched even
-when `pvalueCutoff` = 1.
+Try ORA on GOBP and HP gene sets only
 
 ``` r
 ora_result <- enricher(
@@ -256,19 +291,29 @@ ora_result <- enricher(
   pAdjustMethod = "BH",
   universe = detected_genes,
   TERM2GENE = dplyr::select(
-    hs_msigdb_df,
+    hallmark_oncosig_msigdb,
     gs_name,
     gene_symbol
   )
 )
 ```
 
+``` r
+as.data.frame(ora_result) |>
+  head()
+```
+
+|  | ID | Description | GeneRatio | BgRatio | RichFactor | FoldEnrichment | zScore | pvalue | p.adjust | qvalue | geneID | Count |
+|:---|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|:---|---:|
+| EIF4E_DN | EIF4E_DN | EIF4E_DN | 54/3665 | 77/7479 | 0.7012987 | 1.431109 | 3.727322 | 0.0001299 | 0.0302906 | 0.0296073 | ALPK1/CD55/GFOD3P/DENND2D/FRMD4B/PARP8/CLINT1/DCTN4/OFD1/SH3YL1/TPD52/SEMA4D/FAS/NCOA6/NCOA7/SVIL/SIK3/TNIP1/WASHC5/NPEPPS/WDFY3/MAP3K5/TP53BP1/TRIP11/RCBTB2/ARID4B/CERT1/TBCK/TP53BP2/UPF2/SLC46A3/VPS13C/ADAM9/USP47/ANGPTL4/FNDC3B/CLTC/SCAMP1/PHIP/CCDC174/LRBA/KLHL21/PRMT9/CASP10/LMO7/OGA/FHIP2A/PRRC2C/MYO10/STAT5A/MCPH1/C3/KPNA4/NEDD4L | 54 |
+| HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | HALLMARK_MITOTIC_SPINDLE | 110/3665 | 177/7479 | 0.6214689 | 1.268204 | 3.539726 | 0.0002545 | 0.0302906 | 0.0296073 | DOCK2/HDAC6/MARK4/SEPTIN9/NEDD9/ARHGEF2/RAB3GAP1/PXN/ARHGEF11/CDC42/PRC1/LATS1/ATG4B/CEP72/KLC1/CDK5RAP2/PDLIM5/CLIP1/STAU1/RASA2/KIF1B/RACGAP1/CNTROB/FGD4/CNTRL/NF1/RASA1/CDC27/ARFGEF1/TUBD1/MAP3K11/TSC1/TAOK2/ARAP3/NOTCH2/NET1/CSNK1D/ABI1/SSH2/RFC1/TUBGCP2/WASF1/KIF23/ARHGAP5/TRIO/PLK1/LMNB1/ABR/NCK2/AURKA/ARHGAP4/ECT2/PCM1/RAPGEF6/SUN2/KIF22/CLASP1/PAFAH1B1/DLG1/MYO9B/ARHGEF3/BCL2L11/KIF3B/TUBA4A/NIN/PPP4R2/EPB41/LRPPRC/SOS1/KNTC1/SPTAN1/EZR/ARHGEF7/ANLN/ALS2/SMC4/CCDC88A/ARHGAP27/GSN/CD2AP/BIN1/PKD2/AKAP13/TLK1/RABGAP1/TBCD/SASS6/CKAP5/CEP192/TOP2A/ARHGEF12/CEP57/RICTOR/ITSN1/ABL1/PCGF5/ACTN4/KIF15/FLNA/FLNB/ESPL1/YWHAE/CENPF/ROCK1/MYH9/TUBGCP5/CEP250/EPB41L2/NUMA1/VCL | 110 |
+
 ## Plot ORA results
 
 Plot overlapping genes in each gene set with an upset plot
 
 ``` r
-upsetplot(ora_result) +
+upsetplot(ora_result, n = 10) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
 ```
 
@@ -282,6 +327,11 @@ upsetplot(ora_result) +
     ℹ Please use `linewidth` instead.
     ℹ The deprecated feature was likely used in the ggupset package.
       Please report the issue at <https://github.com/const-ae/ggupset/issues>.
+
+    `geom_line()`: Each group consists of only one observation.
+    ℹ Do you need to adjust the group aesthetic?
+    `geom_line()`: Each group consists of only one observation.
+    ℹ Do you need to adjust the group aesthetic?
 
 <div id="fig-upset-plot">
 

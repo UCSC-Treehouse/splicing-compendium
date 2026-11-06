@@ -52,8 +52,10 @@ library(clusterProfiler)
 
     Please cite:
 
-    G Yu. Background bias in functional enrichment analysis: Insights from
-    clusterProfiler. The Innovation Life. 2026, 4(1):100181
+    T Wu, E Hu, S Xu, M Chen, P Guo, Z Dai, T Feng, L Zhou, W Tang, L Zhan,
+    X Fu, S Liu, X Bo, and G Yu. clusterProfiler 4.0: A universal
+    enrichment tool for interpreting omics data. The Innovation. 2021,
+    2(3):100141
 
 
     Attaching package: 'clusterProfiler'
@@ -70,9 +72,9 @@ library(enrichplot)
 
     Please cite:
 
-    Qianwen Wang, Ming Li, Tianzhi Wu, Li Zhan, Lin Li, Meijun Chen, Wenqin
-    Xie, Zijing Xie, Erqiang Hu, Shuangbin Xu, Guangchuang Yu. Exploring
-    epigenomic datasets by ChIPseeker. Current Protocols. 2022, 2(10): e585
+    Guangchuang Yu, Li-Gen Wang, Guang-Rong Yan, Qing-Yu He. DOSE: an
+    R/Bioconductor package for Disease Ontology Semantic and Enrichment
+    analysis. Bioinformatics. 2015, 31(4):608-609
 
 Define directory and file paths
 
@@ -186,6 +188,8 @@ thresholds and obtain the diffsplice gene list
 # filter for significant diffsplice events
 filtered_diffsplice_results <- diffsplice_results |>
   dplyr::filter(
+    # try skipped exons only
+    stringr::str_detect(pos_id, "SE"),
     p_adj < params$padj,
     abs(dPSI) > params$dpsi
   ) |>

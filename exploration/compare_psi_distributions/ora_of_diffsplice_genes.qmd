@@ -14,8 +14,7 @@ params:
   out_sig_diffsplice_file: "test_files/sig_diffsplice.tsv"
 ---
 
-This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. 
-After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
+This notebook takes Wilcoxon test statistics and dPSI values for query and reference groups chosen in `scripts/06-diffsplice_calculation.R` as input. After filtering for splice events with user-defined padj and dPSI thresholds, this notebook performs over-representation analysis (ORA) on the parent genes of the filtered splice events.
 
 Caveats:
 
@@ -132,6 +131,8 @@ Filter for differential splicing results within padj and significance thresholds
 # filter for significant diffsplice events
 filtered_diffsplice_results <- diffsplice_results |>
   dplyr::filter(
+    # try skipped exons only
+    stringr::str_detect(pos_id, "SE"),
     p_adj < params$padj,
     abs(dPSI) > params$dpsi
   ) |>
@@ -143,6 +144,7 @@ diffsplice_genes <- unique(filtered_diffsplice_results$gene_names)
 ```
 
 ### Pull gene sets from human msigdb database
+
 ```{r}
 colnames(hs_msigdb_df)
 ```
@@ -157,8 +159,7 @@ filtered_hs_msigdb <- hs_msigdb_df |>
 
 ### ORA on significantly differentially spliced genes
 
-First, try to perform ORA on the filtered msigdb gene sets.
-When fewer gene sets are attempted, nothing comes up as significantly enriched, even when using no p value filter.
+First, try to perform ORA on the filtered msigdb gene sets. When fewer gene sets are attempted, nothing comes up as significantly enriched, even when using no p value filter.
 
 ```{r}
 targeted_ora_result <- enricher(
@@ -177,8 +178,7 @@ targeted_ora_result <- enricher(
 targeted_ora_result |> as.data.frame()
 ```
 
-Try not filtering for specific gene sets and applying a more stringent p filter. 
-In an earlier iteration, I also tried to perform ORA on the splicing gene sets defined by `splice_ids`, but no set was enriched even when `pvalueCutoff` = 1.
+Try not filtering for specific gene sets and applying a more stringent p filter. In an earlier iteration, I also tried to perform ORA on the splicing gene sets defined by `splice_ids`, but no set was enriched even when `pvalueCutoff` = 1.
 
 ```{r}
 ora_result <- enricher(

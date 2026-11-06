@@ -161,12 +161,7 @@ hallmark_oncosig_msigdb <- hs_msigdb_df |>
 
 ### ORA on significantly differentially spliced genes
 
-First, try to perform ORA on the filtered msigdb gene sets. When fewer gene sets are attempted, nothing comes up as significantly enriched, even when using no p value filter.
-
-```{r}
-hs_msigdb_df |>
-  dplyr::pull(gs_collection_name) |> unique()
-```
+First, try to perform ORA on the filtered msigdb gene sets. Nothing comes up as significantly enriched, even when using no p value filter.
 
 ```{r}
 targeted_ora_result <- enricher(
@@ -185,7 +180,7 @@ targeted_ora_result <- enricher(
 targeted_ora_result |> as.data.frame()
 ```
 
-Try ORA on GOBP and HP gene sets only
+Try ORA on Hallmark and Oncogenic Signatures gene sets only
 
 ```{r}
 ora_result <- enricher(
@@ -212,8 +207,8 @@ Plot overlapping genes in each gene set with an upset plot
 
 ```{r}
 #| label: fig-upset-plot
-#| fig-width: 20
-#| fig-height: 11
+#| fig-width: 5
+#| fig-height: 5
 
 upsetplot(ora_result, n = 10) +
   ggtitle("Overlap of genes in ORA gene sets for AML vs Whole Blood")
@@ -223,8 +218,8 @@ Plot gene set gene count and significance from ORA: dot plot of gene set gene ab
 
 ```{r}
 #| label: fig-dot-plot
-#| fig-width: 11
-#| fig-height: 8
+#| fig-width: 8
+#| fig-height: 5
 
 dotplot(ora_result)
 ```

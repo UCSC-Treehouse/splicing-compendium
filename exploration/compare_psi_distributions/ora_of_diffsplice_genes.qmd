@@ -150,19 +150,23 @@ colnames(hs_msigdb_df)
 ```{r filter_hs_msigdb}
 filtered_hs_msigdb <- hs_msigdb_df |>
   dplyr::filter(
-    gs_id %in% as.list(msigdb_splice_sets, msigdb_splice_sets) | 
-      gene_symbol %in% as.list(u2af1_leuk_diffsplice_genes, druggable_genes)
+    gs_id %in% as.list(msigdb_splice_sets, msigdb_cancer_sets) 
   )
 
-gobp_hp_hs_msigdb <- hs_msigdb_df |>
+hallmark_oncosig_msigdb <- hs_msigdb_df |>
   dplyr::filter(
-    gs_subcollection %in% c("GO:BP", "HPO")
+    gs_collection_name %in% c("Hallmark", "Oncogenic Signature") 
   )
 ```
 
 ### ORA on significantly differentially spliced genes
 
 First, try to perform ORA on the filtered msigdb gene sets. When fewer gene sets are attempted, nothing comes up as significantly enriched, even when using no p value filter.
+
+```{r}
+hs_msigdb_df |>
+  dplyr::pull(gs_collection_name) |> unique()
+```
 
 ```{r}
 targeted_ora_result <- enricher(
@@ -188,10 +192,9 @@ ora_result <- enricher(
   gene = diffsplice_genes, 
   pvalueCutoff = 0.05,
   pAdjustMethod = "BH",
-  qvalueCutoff = 0.05,
   universe = detected_genes,
   TERM2GENE = dplyr::select(
-    gobp_hp_hs_msigdb,
+    hallmark_oncosig_msigdb,
     gs_name,
     gene_symbol
   )
